@@ -127,6 +127,10 @@
   .mc-price{padding:0 16px 8px;font-size:13px;font-weight:700}
   .mc-body{flex:1;min-height:160px;padding:4px 8px;display:flex;align-items:center;justify-content:center}
   .mc-body svg{width:100%;height:100%}
+  .mc-wrap{position:relative;width:100%;height:100%}
+  .mc-ylabels{position:absolute;inset:0;pointer-events:none}
+  .mc-yl{position:absolute;right:4px;transform:translateY(-50%);font-size:10px;
+    color:var(--mut);background:var(--bg);padding:0 2px;line-height:1.1}
   .mc-load{color:var(--mut);font-size:13px}
   .mc-foot{display:flex;align-items:center;justify-content:space-between;
     padding:8px 16px 16px;gap:8px;flex-wrap:wrap}
@@ -772,19 +776,18 @@ async function loadMiniChart(){
 function drawMiniChart(points){
   const body=$('#mcBody');
   const W=body.clientWidth||320, H=body.clientHeight||180;
-  const pad={l:8,r:8,t:10,b:8};
+  const pad={l:6,r:54,t:12,b:8};   // 오른쪽에 값 라벨 공간 확보
   const vals=points.map(p=>p.c);
   const min=Math.min(...vals), max=Math.max(...vals);
   const rng=(max-min)||1;
   const n=points.length;
   const x=i=>pad.l+(W-pad.l-pad.r)*(n<=1?0:i/(n-1));
   const y=v=>pad.t+(H-pad.t-pad.b)*(1-(v-min)/rng);
-  let dline='', darea='';
+  let dline='';
   points.forEach((p,i)=>{
-    const X=x(i).toFixed(1), Y=y(p.c).toFixed(1);
-    dline+=(i?'L':'M')+X+' '+Y+' ';
+    dline+=(i?'L':'M')+x(i).toFixed(1)+' '+y(p.c).toFixed(1)+' ';
   });
-  darea=dline+'L'+x(n-1).toFixed(1)+' '+(H-pad.b)+' L'+x(0).toFixed(1)+' '+(H-pad.b)+' Z';
+  const darea=dline+'L'+x(n-1).toFixed(1)+' '+(H-pad.b)+' L'+x(0).toFixed(1)+' '+(H-pad.b)+' Z';
   const first=vals[0], last=vals[n-1];
   const up=last>=first;
   const col=up?'#22c55e':'#ef4444';
@@ -792,10 +795,27 @@ function drawMiniChart(points){
   const fmt=v=>DEC2.has(mcSym)?v.toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2}):Math.round(v).toLocaleString('ko-KR');
   const diff=last-first, drate=first?(diff/first*100):0;
   $('#mcPrice').innerHTML=`<span style="color:${col}">${fmt(last)} <span style="font-size:12px">(${diff>=0?'+':''}${fmt(diff)} · ${drate>=0?'+':''}${drate.toFixed(2)}%)</span></span>`;
-  body.innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-    <path d="${darea}" fill="${fill}"/>
-    <path d="${dline}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
-  </svg>`;
+
+  // 세로축 눈금: 최소~최대를 4구간(5선)으로 나눔
+  const TICKS=4;
+  let grid='', labels='';
+  for(let i=0;i<=TICKS;i++){
+    const v=min+rng*(i/TICKS);
+    const yy=y(v);
+    const yPct=(yy/H*100).toFixed(2);
+    grid+=`<line x1="${pad.l}" y1="${yy.toFixed(1)}" x2="${W-pad.r}" y2="${yy.toFixed(1)}" stroke="rgba(255,255,255,.08)" stroke-width="1"/>`;
+    labels+=`<div class="mc-yl" style="top:${yPct}%">${fmt(v)}</div>`;
+  }
+
+  body.innerHTML=
+    `<div class="mc-wrap">
+       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+         ${grid}
+         <path d="${darea}" fill="${fill}"/>
+         <path d="${dline}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
+       </svg>
+       <div class="mc-ylabels">${labels}</div>
+     </div>`;
 }
 function mkSkeleton(){
   for(const gid in MK){
