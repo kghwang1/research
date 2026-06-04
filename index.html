@@ -746,8 +746,8 @@ function card(href,icon,title,sub,primary){
 function defaultResult(){
   return `<div class="rv-head"><span class="h">리서치 바로가기</span></div>`+
     card('https://m.stock.naver.com/investment/research/company','📑','네이버 증권 리서치','증권사별 최신 종목 리포트 · 매일 갱신',true)+
-    card('https://markets.hankyung.com/consensus','📊','한경 컨센서스','전 증권사 리포트 모아보기 · 무료')+
-    card('https://www.wisereport.co.kr/','📚','와이즈리포트','증권사·산업·애널리스트별 분류');
+    card('http://hkconsensus.hankyung.com/','📊','한경 컨센서스','전 증권사 리포트 · 로그인 불필요')+
+    card('http://hkconsensus.hankyung.com/apps.analysis/analysis.list?skinType=business','🏢','한경 기업리포트','종목별 기업분석 모아보기');
 }
 function renderResult(searchTerm,code){
   const el=$('#rvResult');
