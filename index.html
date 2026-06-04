@@ -10,6 +10,7 @@
     --ink:#e8eaf0; --sub:#8b92a6; --dim:#5a6175;
     --accent:#d4ff3f; --accent2:#7c8cff;
     --buy:#3ddc84; --hold:#ffc24b; --sell:#ff5d5d;
+    --up:#ff4d4d; --dn:#3b82f6;
     --r:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -95,16 +96,16 @@
 
   /* 시황 - 자체 카드 (야후 데이터, 회전 없음, 2열) */
   .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:6px}
-  .qc{display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line);
-    border-radius:11px;padding:9px 12px;cursor:pointer;transition:background .12s}
+  .qc{display:flex;flex-direction:column;gap:5px;background:var(--panel);border:1px solid var(--line);
+    border-radius:11px;padding:10px 12px;cursor:pointer;transition:background .12s}
   .qc:active{background:var(--panel2)}
   .qc .qcl{display:flex;flex-direction:row;align-items:baseline;gap:5px}
   .qc .qcname{font-size:13px;font-weight:700;color:var(--ink)}
   .qc .qcsym{font-size:9.5px;color:var(--dim)}
-  .qc .qcr{text-align:left;display:flex;flex-direction:row;align-items:baseline;gap:6px;flex-wrap:wrap}
+  .qc .qcr{text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
   .qc .qcprice{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
-  .qc .qcchg{font-size:11px;font-weight:700;font-variant-numeric:tabular-nums}
-  .qc .qcchg.up{color:var(--buy)} .qc .qcchg.dn{color:var(--sell)} .qc .qcchg.fl{color:var(--sub)}
+  .qc .qcchg{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .qc .qcchg.up{color:var(--up)} .qc .qcchg.dn{color:var(--dn)} .qc .qcchg.fl{color:var(--sub)}
   .qc .qcld{font-size:12px;color:var(--dim)}
   .night-btn{display:flex;align-items:center;justify-content:center;gap:6px;
     margin:2px 0 6px;padding:12px;border:1px solid var(--line);border-radius:12px;
@@ -131,6 +132,17 @@
   .mc-ylabels{position:absolute;inset:0;pointer-events:none}
   .mc-yl{position:absolute;right:4px;transform:translateY(-50%);font-size:10px;
     color:var(--mut);background:var(--bg);padding:0 2px;line-height:1.1}
+  .mc-points{position:absolute;inset:0;pointer-events:none}
+  .mc-pt{position:absolute;display:flex;align-items:center;gap:3px;white-space:nowrap}
+  .mc-pt .mc-dot{width:7px;height:7px;border-radius:50%;border:1.5px solid var(--bg);flex:none}
+  .mc-pt .mc-txt{font-size:10px;font-weight:700;background:var(--bg);padding:1px 3px;border-radius:4px}
+  /* left: 점이 왼쪽 → 라벨을 점의 오른쪽으로 */
+  .mc-pt.left{flex-direction:row;transform:translate(0,-50%)}
+  /* right: 점이 오른쪽 → 라벨을 점의 왼쪽으로 (영역 안으로) */
+  .mc-pt.right{flex-direction:row-reverse;transform:translate(-100%,-50%)}
+  .mc-pt.max .mc-dot{background:#ff4d4d} .mc-pt.max .mc-txt{color:#ff4d4d}
+  .mc-pt.min .mc-dot{background:#3b82f6} .mc-pt.min .mc-txt{color:#3b82f6}
+  .mc-pt.cur .mc-dot{background:#e5e7eb} .mc-pt.cur .mc-txt{color:#e5e7eb}
   .mc-load{color:var(--mut);font-size:13px}
   .mc-foot{display:flex;align-items:center;justify-content:space-between;
     padding:8px 16px 16px;gap:8px;flex-wrap:wrap}
@@ -162,7 +174,7 @@
   .kq .kqn{font-size:12px;color:var(--sub);font-weight:600;margin-bottom:7px;white-space:nowrap}
   .kq .kqp{font-size:18px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
   .kq .kqc{font-size:11.5px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
-  .kq .kqc.up{color:var(--buy)} .kq .kqc.dn{color:var(--sell)} .kq .kqc.fl{color:var(--sub)}
+  .kq .kqc.up{color:var(--up)} .kq .kqc.dn{color:var(--dn)} .kq .kqc.fl{color:var(--sub)}
   .kq .kqld{font-size:12px;color:var(--dim)}
 
   /* 서버 설정 */
@@ -215,7 +227,7 @@
   .tp{display:flex;flex-direction:column}
   .tp .lb{font-size:10.5px;color:var(--sub);letter-spacing:.3px}
   .tp .vl{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
-  .tp .vl.up{color:var(--buy)} .tp .vl.dn{color:var(--sell)}
+  .tp .vl.up{color:var(--up)} .tp .vl.dn{color:var(--dn)}
   .card .memo{font-size:13px;color:var(--sub);background:var(--panel2);border-radius:9px;
     padding:9px 11px;margin-top:4px;white-space:pre-wrap;line-height:1.55}
   .card .acts{display:flex;gap:6px;margin-top:11px}
@@ -790,8 +802,8 @@ function drawMiniChart(points){
   const darea=dline+'L'+x(n-1).toFixed(1)+' '+(H-pad.b)+' L'+x(0).toFixed(1)+' '+(H-pad.b)+' Z';
   const first=vals[0], last=vals[n-1];
   const up=last>=first;
-  const col=up?'#22c55e':'#ef4444';
-  const fill=up?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)';
+  const col=up?'#ff4d4d':'#3b82f6';
+  const fill=up?'rgba(255,77,77,.12)':'rgba(59,130,246,.12)';
   const fmt=v=>DEC2.has(mcSym)?v.toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2}):Math.round(v).toLocaleString('ko-KR');
   const diff=last-first, drate=first?(diff/first*100):0;
   $('#mcPrice').innerHTML=`<span style="color:${col}">${fmt(last)} <span style="font-size:12px">(${diff>=0?'+':''}${fmt(diff)} · ${drate>=0?'+':''}${drate.toFixed(2)}%)</span></span>`;
@@ -807,6 +819,26 @@ function drawMiniChart(points){
     labels+=`<div class="mc-yl" style="top:${yPct}%">${fmt(v)}</div>`;
   }
 
+  // 최고·최저·현재 3점: 마커 + 값/비율 라벨 (그래프 영역 안에만 표시)
+  const maxI=vals.indexOf(max), minI=vals.indexOf(min), curI=n-1;
+  const relPct=v=>last?((v-last)/last*100):0;   // 현재 대비 비율
+  const plotR=(W-pad.r)/W*100;   // 그래프 영역 오른쪽 경계(%) — 축값 영역 침범 방지
+  const plotL=pad.l/W*100;
+  const tag=(idx,v,kind)=>{
+    let xPct=x(idx)/W*100, yPct=y(v)/H*100;
+    // 점이 영역 중앙보다 오른쪽이면 라벨을 점 왼쪽으로 펼침(right), 아니면 오른쪽으로(left)
+    const mid=(plotL+plotR)/2;
+    const side=xPct>mid?'right':'left';
+    // 점 위치를 그래프 영역 안으로 클램프
+    if(xPct>plotR) xPct=plotR;
+    if(xPct<plotL) xPct=plotL;
+    let txt;
+    if(kind==='cur'){ txt=`현재 ${fmt(v)}`; }
+    else{ const rp=relPct(v); txt=`${kind==='max'?'최고':'최저'} ${fmt(v)} (${rp>=0?'+':''}${rp.toFixed(1)}%)`; }
+    return `<div class="mc-pt ${kind} ${side}" style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%"><span class="mc-dot"></span><span class="mc-txt">${txt}</span></div>`;
+  };
+  const ptLabels=tag(maxI,max,'max')+tag(minI,min,'min')+tag(curI,last,'cur');
+
   body.innerHTML=
     `<div class="mc-wrap">
        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
@@ -815,6 +847,7 @@ function drawMiniChart(points){
          <path d="${dline}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
        </svg>
        <div class="mc-ylabels">${labels}</div>
+       <div class="mc-points">${ptLabels}</div>
      </div>`;
 }
 function mkSkeleton(){
