@@ -282,7 +282,7 @@
  <section class="on" id="market">
   <div class="sec-title">미리보기</div>
   <div class="card-grid" id="gridPV"></div>
-  <a class="night-btn" href="https://www.investing.com/indices/korea-200-futures" target="_blank" rel="noopener noreferrer">
+  <a class="night-btn" href="https://www.investing.com/indices/korea-200-futures">
    🌙 코스피200 야간선물 실시간 보기 ↗
   </a>
 
@@ -696,7 +696,7 @@ function mkSkeleton(){
   for(const gid in MK){
     const g=document.getElementById(gid); if(!g) continue;
     g.innerHTML=MK[gid].map(it=>
-      `<div class="qc" id="qc-${cssId(it.sym)}" onclick="window.open('${chartUrl(it.sym)}','_blank','noopener')">
+      `<div class="qc" id="qc-${cssId(it.sym)}" onclick="location.href='${chartUrl(it.sym)}'">
          <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcsym">${it.sym}</span></div>
          <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
        </div>`).join('');
