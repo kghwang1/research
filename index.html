@@ -266,14 +266,6 @@
 
  <!-- ===== HUB ===== -->
  <section id="hub">
-
-  <!-- 종목 빠른 검색 -->
-  <div class="qsearch">
-   <input id="stockQ" placeholder="종목명 또는 코드 (예: 알테오젠 / 196170)" inputmode="search">
-   <button class="btn btn-q" id="stockGo">검색 ↗</button>
-  </div>
-  <div id="quickChips" class="chips"></div>
-
   <!-- 검색/오늘 리서치 결과 -->
   <div id="rvResult"></div>
  </section>
@@ -752,50 +744,22 @@ function card(href,icon,title,sub,primary){
     <span class="go">열기 ↗</span></a>`;
 }
 function defaultResult(){
-  return `<div class="rv-head"><span class="h">오늘 올라온 리서치</span></div>`+
-    card('https://m.stock.naver.com/investment/research/company','📑','종목분석 리포트','증권사별 최신 종목 리포트 · 매일 갱신',true)+
-    card('https://m.stock.naver.com/investment/research/industry','🏭','산업분석','업종·테마 리포트')+
-    card('https://m.stock.naver.com/investment/research/market','📈','시황정보','데일리 마감·전략')+
-    card('https://m.stock.naver.com/investment/research/economy','🌐','경제분석','매크로·금리·환율')+
-    card('https://m.stock.naver.com/investment/research/invest','🎯','투자정보','투자전략 리포트');
+  return `<div class="rv-head"><span class="h">리서치 바로가기</span></div>`+
+    card('https://m.stock.naver.com/investment/research/company','📑','네이버 증권 리서치','증권사별 최신 종목 리포트 · 매일 갱신',true)+
+    card('https://markets.hankyung.com/consensus','📊','한경 컨센서스','전 증권사 리포트 모아보기 · 무료')+
+    card('https://www.wisereport.co.kr/','📚','와이즈리포트','증권사·산업·애널리스트별 분류');
 }
 function renderResult(searchTerm,code){
   const el=$('#rvResult');
-  if(searchTerm||code){
-    const label = code? code+' 종목' : searchTerm;
-    let html=`<div class="rv-head"><span class="h">‘${esc(label)}’ 검색 결과</span></div>`;
-    if(code){
-      html+=card('https://m.stock.naver.com/domestic/stock/'+code+'/research','📑',label,'이 종목의 증권사 리서치',true);
-      html+=card('https://m.stock.naver.com/domestic/stock/'+code+'/total','📊','종목 종합정보','시세·재무·뉴스');
-    }else{
-      html+=card('https://m.stock.naver.com/search?query='+encodeURIComponent(searchTerm),'🔎',searchTerm,'네이버 증권 종목 검색',true);
-      html+=card('https://search.naver.com/search.naver?query='+encodeURIComponent(searchTerm+' 증권사 리포트'),'📰',searchTerm+' 리포트','네이버 통합검색');
-    }
-    html+=`<div class="rv-head"><span class="h">전체 리서치</span></div>`+defaultResult().replace(/^<div class="rv-head">.*?<\/div>/,'');
-    el.innerHTML=html;
-  }else{
-    el.innerHTML=defaultResult();
-  }
-  el.scrollIntoView?null:null;
+  if(el) el.innerHTML=defaultResult();
 }
 function gotoStock(name,code){
-  code=(code||'').replace(/[^\d]/g,'');
-  if(code.length===6) renderResult('',code);
-  else if(name) renderResult(name,'');
+  renderResult('','');
 }
-function doStockSearch(){
-  const v=$('#stockQ').value.trim();
-  if(!v){renderResult('','');return;}
-  const code=v.replace(/[^\d]/g,'');
-  if(code.length===6) renderResult('',code);
-  else renderResult(v,'');
-  document.querySelector('#rvResult .rv-head')?.scrollIntoView({behavior:'smooth',block:'start'});
-}
-$('#stockGo').onclick=doStockSearch;
-$('#stockQ').addEventListener('keydown',e=>{if(e.key==='Enter')doStockSearch();});
 
 function renderChips(){
   const el=$('#quickChips');
+  if(!el) return;
   if(!WATCH.length){
     el.innerHTML='<span class="chip empty-hint">관심종목을 추가하면 여기서 바로 검색돼요</span>';
     return;
