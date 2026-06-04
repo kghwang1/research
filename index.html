@@ -96,7 +96,8 @@
   /* 시황 - 자체 카드 (야후 데이터, 회전 없음, 2열) */
   .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:6px}
   .qc{display:flex;flex-direction:column;gap:4px;background:var(--panel);border:1px solid var(--line);
-    border-radius:11px;padding:9px 12px}
+    border-radius:11px;padding:9px 12px;cursor:pointer;transition:background .12s}
+  .qc:active{background:var(--panel2)}
   .qc .qcl{display:flex;flex-direction:row;align-items:baseline;gap:5px}
   .qc .qcname{font-size:13px;font-weight:700;color:var(--ink)}
   .qc .qcsym{font-size:9.5px;color:var(--dim)}
@@ -645,10 +646,12 @@ let SRV_URL='https://quote.kghwang1.workers.dev';
 // 분야별 종목 정의 (야후 심볼)
 const MK = {
   gridPV:[
-    {sym:'KRW=X', nm:'원/달러 환율'},
     {sym:'^TNX', nm:'미국 10년물'},
     {sym:'CL=F', nm:'WTI 유가'},
-    {sym:'^VIX', nm:'VIX 변동성'}
+    {sym:'^VIX', nm:'VIX 변동성'},
+    {sym:'FNG', nm:'Fear & Greed'},
+    {sym:'KRW=X', nm:'원/달러 환율'},
+    {sym:'JPY=X', nm:'엔/달러 환율'}
   ],
   gridKR:[
     {sym:'^KS11', nm:'코스피'},
@@ -685,11 +688,15 @@ async function saveSrvUrl(){
   renderMarket();
 }
 
+function chartUrl(sym){
+  if(sym==='FNG') return 'https://edition.cnn.com/markets/fear-and-greed';
+  return 'https://finance.yahoo.com/chart/'+encodeURIComponent(sym);
+}
 function mkSkeleton(){
   for(const gid in MK){
     const g=document.getElementById(gid); if(!g) continue;
     g.innerHTML=MK[gid].map(it=>
-      `<div class="qc" id="qc-${cssId(it.sym)}">
+      `<div class="qc" id="qc-${cssId(it.sym)}" onclick="window.open('${chartUrl(it.sym)}','_blank','noopener')">
          <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcsym">${it.sym}</span></div>
          <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
        </div>`).join('');
@@ -699,7 +706,7 @@ function cssId(s){return s.replace(/[^a-zA-Z0-9]/g,'_');}
 function fmtInt(n){return Math.round(n).toLocaleString('ko-KR');}
 function fmtDec(n){return n.toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 // 소수점 2자리로 표시할 종목 (값이 작아 소수점이 중요)
-const DEC2=new Set(['^TNX','CL=F','^VIX','EWY']);
+const DEC2=new Set(['^TNX','CL=F','^VIX','EWY','JPY=X']);
 
 async function renderMarket(){
   mkSkeleton();
