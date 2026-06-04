@@ -545,6 +545,25 @@ function parseNaverReport(raw){
   out.target=findPrice('목표주가');
   out.cur=findPrice('현재주가');
 
+  // 6) 현재주가 숫자 이후의 줄들을 메모(설명)로 모음
+  out.memo='';
+  let curLineIdx=-1, curNumIdx=-1;
+  for(let i=0;i<lines.length;i++){
+    if(lines[i].includes('현재주가')){ curLineIdx=i; break; }
+  }
+  if(curLineIdx>=0){
+    // 현재가 숫자가 들어있는 줄 위치 찾기 (라벨 줄 또는 다음 1~2줄)
+    for(let j=0;j<=2;j++){
+      if(lines[curLineIdx+j] && /[\d,]{3,}/.test(lines[curLineIdx+j])){ curNumIdx=curLineIdx+j; break; }
+    }
+    if(curNumIdx>=0){
+      const memoLines=lines.slice(curNumIdx+1)
+        .map(s=>s.replace(/^["“”']|["“”']$/g,'').trim())  // 양끝 따옴표 제거
+        .filter(s=>s && !/^(원문\s*보기|공유|가|글자\s*크기\s*변경|도움말)$/.test(s));
+      out.memo=memoLines.join('\n');
+    }
+  }
+
   return out;
 }
 
@@ -558,7 +577,7 @@ $('#pasteGo').onclick=()=>{
     id:'r'+Date.now(),
     name:p.name, code:p.code, head:p.head, broker:p.broker,
     date:p.date||todayISO(), op:p.op, target:p.target, cur:p.cur,
-    url:'', memo:''
+    url:'', memo:p.memo||''
   };
   REPORTS.unshift(data);
   saveReports(); renderArchive();
