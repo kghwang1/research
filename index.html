@@ -257,7 +257,7 @@
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="hub">리포트</div>
    <div class="tab" data-t="archive">아카이브</div>
-   <div class="tab" data-t="watch">관심종목</div>
+   <div class="tab" data-t="watch">방송</div>
   </div>
  </div>
 </header>
@@ -321,9 +321,9 @@
   <div id="arcList"></div>
  </section>
 
- <!-- ===== WATCH ===== -->
+ <!-- ===== BROADCAST (방송) ===== -->
  <section id="watch">
-  <button class="btn btn-add" id="openWatch">＋ 관심종목 추가</button>
+  <button class="btn btn-add" id="openWatch">＋ 방송 링크 추가</button>
   <div id="watchList"></div>
  </section>
 
@@ -362,16 +362,14 @@
  </div>
 </div>
 
-<!-- ===== WATCH MODAL ===== -->
+<!-- ===== BROADCAST MODAL ===== -->
 <div class="ov" id="ovWatch">
  <div class="modal">
-  <div class="mh"><h3>관심종목 추가</h3><span class="x" data-close>×</span></div>
+  <div class="mh"><h3>방송 링크 추가</h3><span class="x" data-close>×</span></div>
   <div class="mbody">
-   <div class="row2">
-    <div class="fg"><label>종목명</label><input id="wName" placeholder="SK하이닉스"></div>
-    <div class="fg"><label>종목코드</label><input id="wCode" placeholder="000660" inputmode="numeric"></div>
-   </div>
-   <div class="fg"><label>메모 (선택)</label><input id="wMemo" placeholder="HBM 수혜 모니터링"></div>
+   <div class="fg"><label>방송 이름</label><input id="wName" placeholder="삼프로TV"></div>
+   <div class="fg"><label>주소 (유튜브 등)</label><input id="wCode" placeholder="https://youtube.com/..." inputmode="url"></div>
+   <div class="fg"><label>메모 (선택)</label><input id="wMemo" placeholder="장 마감 라이브"></div>
    <button class="btn btn-save" id="saveWatch">추가</button>
   </div>
  </div>
@@ -395,10 +393,10 @@ const store={
 };
 async function load(){
   try{const r=store.get('reports'); REPORTS=r?JSON.parse(r.value):[];}catch(e){REPORTS=[];}
-  try{const w=store.get('watch'); WATCH=w?JSON.parse(w.value):[];}catch(e){WATCH=[];}
+  try{const w=store.get('broadcast'); WATCH=w?JSON.parse(w.value):[];}catch(e){WATCH=[];}
 }
 async function saveReports(){try{store.set('reports',JSON.stringify(REPORTS));}catch(e){}}
-async function saveWatchData(){try{store.set('watch',JSON.stringify(WATCH));}catch(e){}}
+async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));}catch(e){}}
 
 /* ---------- tabs ---------- */
 $$('.tab').forEach(t=>t.onclick=()=>{
@@ -552,9 +550,18 @@ function parseNaverReport(raw){
     if(curNumIdx>=0){
       const memoLines=lines.slice(curNumIdx+1)
         .map(s=>s.replace(/^["“”']|["“”']$/g,'').trim())  // 양끝 따옴표 제거
-        .filter(s=>s && !/^(원문\s*보기|공유|가|글자\s*크기\s*변경|도움말)$/.test(s));
+        .filter(s=>s && !/^(원문\s*보기|공유|가|글자\s*크기\s*변경|도움말)$/.test(s) && !/^https?:\/\//i.test(s));
       out.memo=memoLines.join('\n');
     }
+  }
+
+  // 7) 원문 링크: 텍스트에 URL이 있으면 사용, 없으면 종목코드로 네이버 리서치 링크 생성
+  out.url='';
+  const urlMatch=raw.match(/https?:\/\/[^\s"'<>]+/);
+  if(urlMatch){
+    out.url=urlMatch[0].replace(/[.,)\]]+$/,'');  // 끝에 붙은 문장부호 제거
+  }else if(out.code && /^\d{6}$/.test(out.code)){
+    out.url='https://finance.naver.com/research/company_list.naver?searchType=itemCode&itemCode='+out.code;
   }
 
   return out;
@@ -570,7 +577,7 @@ $('#pasteGo').onclick=()=>{
     id:'r'+Date.now(),
     name:p.name, code:p.code, head:p.head, broker:p.broker,
     date:p.date||todayISO(), op:p.op, target:p.target, cur:p.cur,
-    url:'', memo:p.memo||''
+    url:p.url||'', memo:p.memo||''
   };
   REPORTS.unshift(data);
   saveReports(); renderArchive();
@@ -603,25 +610,23 @@ $('#saveReport').onclick=()=>{
 /* ---------- watch ---------- */
 function renderWatch(){
   const el=$('#watchList');
-  if(!WATCH.length){el.innerHTML=`<div class="empty"><span class="ico">⭐</span>관심종목을 추가하면<br>관련 리포트 건수가 함께 표시돼요.</div>`;return;}
+  if(!WATCH.length){el.innerHTML=`<div class="empty"><span class="ico">📺</span>방송 링크를 추가하면<br>여기서 바로 열 수 있어요.</div>`;return;}
   el.innerHTML=WATCH.map(w=>{
-    const rel=REPORTS.filter(r=>r.name===w.name||(w.code&&r.code===w.code));
-    const latest=rel.sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
-    let stat=`<span>리포트 ${rel.length}건</span>`;
-    if(latest){const up=upside(latest);
-      stat=`<b>${latest.op||'-'}${up!==null?` · ${up>=0?'+':''}${up.toFixed(1)}%`:''}</b><span>리포트 ${rel.length}건</span>`;}
-    return `<div class="watch">
-      <div><div class="wn">${esc(w.name)}</div><div class="wc">${esc(w.code||'')}${w.memo?' · '+esc(w.memo):''}</div></div>
-      <div class="wstat">${stat}</div>
-      <span class="wdel" onclick="delWatch('${w.id}')">×</span>
+    const url=esc(w.code||'');
+    return `<div class="watch" onclick="openBroadcast('${url}')" style="cursor:pointer">
+      <div><div class="wn">${esc(w.name)} ↗</div><div class="wc">${w.memo?esc(w.memo):url}</div></div>
+      <span class="wdel" onclick="event.stopPropagation();delWatch('${w.id}')">×</span>
     </div>`;
   }).join('');
 }
+window.openBroadcast=url=>{ if(url) window.open(url,'_blank','noopener'); };
 $('#openWatch').onclick=()=>$('#ovWatch').classList.add('on');
 window.delWatch=id=>{WATCH=WATCH.filter(w=>w.id!==id);saveWatchData();renderWatch();renderChips();};
 $('#saveWatch').onclick=()=>{
-  const name=$('#wName').value.trim(); if(!name){alert('종목명을 입력하세요');return;}
-  WATCH.unshift({id:'w'+Date.now(),name,code:$('#wCode').value.trim(),memo:$('#wMemo').value.trim()});
+  const name=$('#wName').value.trim(); if(!name){alert('방송 이름을 입력하세요');return;}
+  let url=$('#wCode').value.trim();
+  if(url && !/^https?:\/\//i.test(url)) url='https://'+url;
+  WATCH.unshift({id:'w'+Date.now(),name,code:url,memo:$('#wMemo').value.trim()});
   $('#wName').value='';$('#wCode').value='';$('#wMemo').value='';
   saveWatchData(); renderWatch(); renderChips(); closeAll();
 };
@@ -745,9 +750,7 @@ function card(href,icon,title,sub,primary){
 }
 function defaultResult(){
   return `<div class="rv-head"><span class="h">리서치 바로가기</span></div>`+
-    card('https://m.stock.naver.com/investment/research/company','📑','네이버 종목분석','증권사별 종목 리포트 · 로그인 불필요',true)+
-    card('https://m.stock.naver.com/investment/research/industry','🏭','네이버 산업분석','업종·테마 리포트')+
-    card('https://m.stock.naver.com/investment/research/market','📈','네이버 시황·투자전략','데일리 마감·전략·경제분석')+
+    card('https://finance.naver.com/research/company_list.naver','📑','네이버 종목분석','증권사별 종목 리포트 · 무료',true)+
     card('https://dart.fss.or.kr/','🏛️','DART 전자공시','기업 공시·실적 원문 · 금감원 공식');
 }
 function renderResult(searchTerm,code){
