@@ -482,6 +482,7 @@ function renderArchive(){
     const tgt = r.target?`<div class="tp"><span class="lb">목표주가</span><span class="vl">${num(r.target)}</span></div>`:'';
     const cur = r.cur?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(r.cur)}</span></div>`:'';
     const tprow=(tgt||cur||upHtml)?`<div class="tp-row">${tgt}${cur}${upHtml}</div>`:'';
+    const stockUrl=r.stockUrl||(/^\d{6}$/.test(r.code||'')?'https://finance.naver.com/item/main.naver?code='+r.code:'');
     return `<div class="card">
       <div class="top">
         <span class="ticker">${esc(r.name)}</span>
@@ -493,7 +494,8 @@ function renderArchive(){
       ${tprow}
       ${r.memo?`<div class="memo">${esc(r.memo)}</div>`:''}
       <div class="acts">
-        ${r.url?`<a class="pill lk" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">원문 ↗</a>`:''}
+        ${stockUrl?`<a class="pill lk" href="${esc(stockUrl)}" target="_blank" rel="noopener noreferrer">종목 ↗</a>`:''}
+        ${r.url?`<a class="pill lk" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">원본 ↗</a>`:''}
         <button class="pill edit" onclick="editReport('${r.id}')">수정</button>
         <button class="pill del" onclick="delReport('${r.id}')">삭제</button>
       </div>
@@ -600,13 +602,17 @@ function parseNaverReport(raw){
     }
   }
 
-  // 7) 원문 링크: 텍스트에 URL이 있으면 사용, 없으면 종목코드로 네이버 리서치 링크 생성
+  // 7) 링크 분리
+  //   stockUrl : 항상 종목 설명 페이지(네이버) — "종목" 버튼
+  //   url      : 붙여넣은 텍스트에 PDF/원문 주소가 있을 때만 — "원본" 버튼
+  out.stockUrl='';
   out.url='';
+  if(out.code && /^\d{6}$/.test(out.code)){
+    out.stockUrl='https://finance.naver.com/item/main.naver?code='+out.code;
+  }
   const urlMatch=raw.match(/https?:\/\/[^\s"'<>]+/);
   if(urlMatch){
     out.url=urlMatch[0].replace(/[.,)\]]+$/,'');  // 끝에 붙은 문장부호 제거
-  }else if(out.code && /^\d{6}$/.test(out.code)){
-    out.url='https://finance.naver.com/item/main.naver?code='+out.code;
   }
 
   return out;
@@ -622,7 +628,7 @@ $('#pasteGo').onclick=()=>{
     id:'r'+Date.now(),
     name:p.name, code:p.code, head:p.head, broker:p.broker,
     date:p.date||todayISO(), op:p.op, target:p.target, cur:p.cur,
-    url:p.url||'', memo:p.memo||''
+    stockUrl:p.stockUrl||'', url:p.url||'', memo:p.memo||''
   };
   REPORTS.unshift(data);
   saveReports(); renderArchive();
@@ -638,13 +644,15 @@ $('#saveReport').onclick=()=>{
   const name=$('#rName').value.trim();
   if(!name){alert('종목명을 입력하세요');return;}
   const id=$('#rId').value;
+  const mCode=$('#rCode').value.trim();
   const data={
     id:id||('r'+Date.now()),
-    name, code:$('#rCode').value.trim(),
+    name, code:mCode,
     head:$('#rHeadLine').value.trim(), broker:$('#rBroker').value.trim(),
     date:$('#rDate').value||todayISO(), op:curOp,
     target:$('#rTarget').value.replace(/[^\d]/g,''),
     cur:$('#rCur').value.replace(/[^\d]/g,''),
+    stockUrl:/^\d{6}$/.test(mCode)?'https://finance.naver.com/item/main.naver?code='+mCode:'',
     url:$('#rUrl').value.trim(), memo:$('#rMemo').value.trim()
   };
   if(id){const i=REPORTS.findIndex(r=>r.id===id);REPORTS[i]=data;}
