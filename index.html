@@ -317,6 +317,9 @@
   <a class="night-btn" href="https://www.investing.com/indices/korea-200-futures" target="_blank" rel="noopener noreferrer">
    🌙 코스피200 야간선물 실시간 보기 ↗
   </a>
+  <a class="night-btn" href="https://kr.investing.com/indices/korea-200-futures" target="_blank" rel="noopener noreferrer">
+   ☀️ 코스피200 선물 시세 보기 ↗
+  </a>
 
   <div class="sec-title">한국</div>
   <div class="card-grid" id="gridKR"></div>
@@ -723,6 +726,7 @@ const MK = {
     {sym:'^KS11', nm:'코스피'},
     {sym:'^KQ11', nm:'코스닥'},
     {sym:'^KS200', nm:'코스피200'},
+    {sym:'KFUT', nm:'코스피200 선물'},
     {sym:'EWY', nm:'MSCI 한국'}
   ],
   gridUS:[
@@ -756,13 +760,14 @@ async function saveSrvUrl(){
 
 function chartUrl(sym){
   if(sym==='FNG') return 'https://edition.cnn.com/markets/fear-and-greed';
+  if(sym==='KFUT') return 'https://m.stock.naver.com/domestic/index/FUT/total';
   return 'https://finance.yahoo.com/chart/'+encodeURIComponent(sym);
 }
 
 /* ===== 미니차트 ===== */
 let mcSym='', mcRange='1mo';
 function openMiniChart(sym,nm){
-  if(sym==='FNG'){ window.open(chartUrl(sym),'_blank','noopener'); return; }
+  if(sym==='FNG'||sym==='KFUT'){ window.open(chartUrl(sym),'_blank','noopener'); return; }
   mcSym=sym; mcRange='1mo';
   $('#mcName').textContent=nm||sym;
   $('#mcSym').textContent=sym;
