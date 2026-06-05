@@ -762,7 +762,17 @@ const NAVER_PAGE={
   '^IXIC':'https://m.stock.naver.com/worldstock/index/.IXIC/total',
   '^GSPC':'https://m.stock.naver.com/worldstock/index/.INX/total',
   'KRW=X':'https://m.stock.naver.com/marketindex/exchange/FX_USDKRW',
-  'CL=F':'https://m.stock.naver.com/marketindex/energy/OIL_CL'
+  'CL=F':'https://m.stock.naver.com/marketindex/energy/OIL_CL',
+  /* ---- 네이버에 없는 항목: 구글금융 ---- */
+  'ES=F':'https://www.google.com/finance/beta/quote/ESW00:CME_EMINIS?hl=ko',
+  'NQ=F':'https://www.google.com/finance/beta/quote/NQW00:CME_EMINIS?hl=ko',
+  '^VIX':'https://www.google.com/finance/quote/VIX:INDEXCBOE?hl=ko',
+  '^SOX':'https://www.google.com/finance/quote/SOX:INDEXNASDAQ?hl=ko',
+  'JPY=X':'https://www.google.com/finance/quote/USD-JPY?hl=ko',
+  'GC=F':'https://www.google.com/finance/beta/quote/GCW00:COMEX?hl=ko',
+  'SI=F':'https://www.google.com/finance/beta/quote/SIW00:COMEX?hl=ko',
+  'BTC-USD':'https://www.google.com/finance/quote/BTC-USD?hl=ko',
+  'EWY':'https://www.google.com/finance/quote/EWY:NYSEARCA?hl=ko'
 };
 function chartUrl(sym){
   if(sym==='FNG') return 'https://edition.cnn.com/markets/fear-and-greed';
