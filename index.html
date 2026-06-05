@@ -50,6 +50,12 @@
   .sec-title{font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;
     letter-spacing:1px;margin:22px 0 10px}
   .sec-title:first-child{margin-top:0}
+  .mk-bar{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .mk-refresh{background:var(--panel);border:1px solid var(--line);color:var(--accent2);
+    font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer}
+  .mk-refresh:active{background:var(--panel2)}
+  .mk-refresh.loading{opacity:.5;pointer-events:none}
+  .mk-time{font-size:11px;color:var(--mut)}
 
   /* 오늘의 메인 카드 */
   .today-main{display:flex;align-items:center;gap:12px;padding:18px;border-radius:var(--r);
@@ -103,8 +109,8 @@
   .qc .qcname{font-size:13px;font-weight:700;color:var(--ink)}
   .qc .qcsym{font-size:9.5px;color:var(--dim)}
   .qc .qcr{text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:2px}
-  .qc .qcprice{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
-  .qc .qcchg{font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
+  .qc .qcprice{font-size:17.6px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+  .qc .qcchg{font-size:13.75px;font-weight:700;font-variant-numeric:tabular-nums}
   .qc .qcchg.up{color:var(--up)} .qc .qcchg.dn{color:var(--dn)} .qc .qcchg.fl{color:var(--sub)}
   .qc .qcld{font-size:12px;color:var(--dim)}
   .night-btn{display:flex;align-items:center;justify-content:center;gap:6px;
@@ -312,6 +318,10 @@
 
  <!-- ===== MARKET (시황) ===== -->
  <section class="on" id="market">
+  <div class="mk-bar">
+   <button class="mk-refresh" id="mkRefresh">↻ 새로고침</button>
+   <span class="mk-time" id="mkTime"></span>
+  </div>
   <div class="sec-title">미리보기</div>
   <div class="card-grid" id="gridPV"></div>
 
@@ -893,6 +903,14 @@ $$('#mcRanges .mc-rg').forEach(r=>r.onclick=()=>{
   r.classList.add('on');
   loadMiniChart();
 });
+function addComma(s){
+  // 원본 문자열의 소수 자릿수를 그대로 두고 정수부에만 천단위 콤마
+  s=String(s).replace(/,/g,'').trim();
+  const neg=s.startsWith('-'); if(neg) s=s.slice(1);
+  const p=s.split('.');
+  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  return (neg?'-':'')+p.join('.');
+}
 function fmtInt(n){return Math.round(n).toLocaleString('ko-KR');}
 function fmtDec(n){return n.toLocaleString('ko-KR',{minimumFractionDigits:2,maximumFractionDigits:2});}
 // 소수점 2자리로 표시할 종목 (값이 작아 소수점이 중요)
@@ -919,8 +937,11 @@ async function renderMarket(){
         const cls=q.change>0?'up':(q.change<0?'dn':'fl');
         const sign=q.change>0?'▲':(q.change<0?'▼':'·');
         const f=DEC2.has(it.sym)?fmtDec:fmtInt;
-        box.innerHTML=`<span class="qcprice">${f(q.price)}</span>
-          <span class="qcchg ${cls}">${sign} ${f(Math.abs(q.change))} (${q.rate>0?'+':''}${q.rate}%)</span>`;
+        // 원본 문자열이 있으면 그 자릿수 그대로(콤마 정리), 없으면 기존 포맷
+        const pStr=q.priceStr?addComma(q.priceStr):f(q.price);
+        const cStr=q.changeStr?addComma(q.changeStr):f(Math.abs(q.change));
+        box.innerHTML=`<span class="qcprice">${pStr}</span>
+          <span class="qcchg ${cls}">${sign} ${cStr} (${q.rate>0?'+':''}${q.rate}%)</span>`;
       }
     }catch(e){
       for(const it of MK[gid]){
@@ -931,7 +952,17 @@ async function renderMarket(){
   }
   const hint=$('#srvHint');
   if(hint&&SRV_URL){hint.textContent='야후 파이낸스 연결됨 · 시황 탭을 열 때마다 갱신됩니다.';hint.className='srv-hint ok';}
+  const tEl=$('#mkTime');
+  if(tEl){ const now=new Date(); tEl.textContent='업데이트 '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0')+':'+String(now.getSeconds()).padStart(2,'0'); }
 }
+/* 새로고침 버튼 */
+(function(){
+  const btn=document.getElementById('mkRefresh');
+  if(btn) btn.onclick=async()=>{
+    btn.classList.add('loading'); btn.textContent='↻ 갱신 중…';
+    try{ await renderMarket(); }finally{ btn.classList.remove('loading'); btn.textContent='↻ 새로고침'; }
+  };
+})();
 
 
 /* ---------- 리서치 결과 카드 (리포트 탭) ---------- */
