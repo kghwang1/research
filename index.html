@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>리서치 보드 · 국내 증권 리서치 아카이브</title>
+<title>KG리서치보드</title>
 <style>
   :root{
     --bg:#0c0e14; --panel:#13161f; --panel2:#1a1e2a; --line:#262b3a;
@@ -50,7 +50,7 @@
   .sec-title{font-size:12px;font-weight:700;color:var(--dim);text-transform:uppercase;
     letter-spacing:1px;margin:22px 0 10px}
   .sec-title:first-child{margin-top:0}
-  .mk-bar{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .mk-bar{display:flex;align-items:center;gap:10px;margin:6px 0 10px}
   .mk-refresh{background:var(--panel);border:1px solid var(--line);color:var(--accent2);
     font-size:13px;font-weight:700;padding:8px 14px;border-radius:10px;cursor:pointer}
   .mk-refresh:active{background:var(--panel2)}
@@ -295,10 +295,13 @@
 <header>
  <div class="wrap">
   <div class="brand">
-   <h1>리서치<b>보드</b></h1>
+   <h1>KG리서치<b>보드</b></h1>
    <span class="dt" id="today"></span>
   </div>
-  <div class="tagline">국내 증권 리서치 · 매일 모아보기</div>
+  <div class="mk-bar">
+   <button class="mk-refresh" id="mkRefresh">↻ 새로고침</button>
+   <span class="mk-time" id="mkTime"></span>
+  </div>
   <div class="tabs">
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="hub">리포트</div>
@@ -318,10 +321,6 @@
 
  <!-- ===== MARKET (시황) ===== -->
  <section class="on" id="market">
-  <div class="mk-bar">
-   <button class="mk-refresh" id="mkRefresh">↻ 새로고침</button>
-   <span class="mk-time" id="mkTime"></span>
-  </div>
   <div class="sec-title">미리보기</div>
   <div class="card-grid" id="gridPV"></div>
 
@@ -400,7 +399,7 @@
    </div>
    <div class="row2">
     <div class="fg"><label>목표주가 (원)</label><input id="rTarget" inputmode="numeric" placeholder="95000"></div>
-    <div class="fg"><label>현재가 (원)</label><input id="rCur" inputmode="numeric" placeholder="78000"></div>
+    <div class="fg"><label>당시가격 (원)</label><input id="rCur" inputmode="numeric" placeholder="78000"></div>
    </div>
    <div class="fg"><label>원문 링크 (선택)</label><input id="rUrl" placeholder="https://..." inputmode="url"></div>
    <div class="fg"><label>핵심 메모</label><textarea id="rMemo" placeholder="투자 포인트, 리스크, 캐치프레이즈 등"></textarea></div>
@@ -472,12 +471,33 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   $$('section').forEach(x=>x.classList.remove('on'));
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
   if(t.dataset.t==='market'){ renderMarket(); }
+  if(t.dataset.t==='archive'&&!livePricesLoaded){ loadLivePrices(); }
 });
 
 /* ---------- archive render ---------- */
+/* 아카이브 라이브 현재가 (아카이브 탭 열 때 1회 조회) */
+let LIVE={}, livePricesLoaded=false;
+function liveOf(r){ return (r.code&&LIVE[r.code]!=null)?LIVE[r.code]:null; }
 function upside(r){
-  if(!r.target||!r.cur) return null;
-  return ((r.target-r.cur)/r.cur*100);
+  const lv=liveOf(r);
+  const base=lv!=null?lv:(r.cur?parseFloat(r.cur):null);  // 라이브 우선, 없으면 당시가격
+  if(!r.target||!base) return null;
+  return ((r.target-base)/base*100);
+}
+async function loadLivePrices(){
+  if(!SRV_URL) return;
+  const codes=[...new Set(REPORTS.map(r=>r.code).filter(c=>/^\d{6}$/.test(c||'')))];
+  if(!codes.length) return;
+  try{
+    const syms=codes.map(c=>'STK:'+c).join(',');
+    const res=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(syms));
+    const d=await res.json();
+    for(const it of (d.items||[])){
+      if(it.ok&&it.price!=null) LIVE[it.symbol.replace('STK:','')]=it.price;
+    }
+    livePricesLoaded=true;
+    renderArchive();  // 라이브 값 반영해 재렌더
+  }catch(e){}
 }
 function renderArchive(){
   const q=$('#q').value.trim().toLowerCase();
@@ -500,11 +520,14 @@ function renderArchive(){
   }
   el.innerHTML=list.map(r=>{
     const up=upside(r);
+    const lv=liveOf(r);
     const upHtml = up===null?'' :
       `<div class="tp"><span class="lb">상승여력</span><span class="vl ${up>=0?'up':'dn'}">${up>=0?'+':''}${up.toFixed(1)}%</span></div>`;
     const tgt = r.target?`<div class="tp"><span class="lb">목표주가</span><span class="vl">${num(r.target)}</span></div>`:'';
-    const cur = r.cur?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(r.cur)}</span></div>`:'';
-    const tprow=(tgt||cur||upHtml)?`<div class="tp-row">${tgt}${cur}${upHtml}</div>`:'';
+    const then = r.cur?`<div class="tp"><span class="lb">당시가격</span><span class="vl">${num(r.cur)}</span></div>`:'';
+    const now = lv!=null?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(lv)}</span></div>`
+      :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">현재가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
+    const tprow=(tgt||then||now||upHtml)?`<div class="tp-row">${tgt}${then}${now}${upHtml}</div>`:'';
     const stockUrl=r.stockUrl||(/^\d{6}$/.test(r.code||'')?'https://finance.naver.com/item/main.naver?code='+r.code:'');
     return `<div class="card">
       <div class="top">
