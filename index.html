@@ -314,12 +314,6 @@
  <section class="on" id="market">
   <div class="sec-title">미리보기</div>
   <div class="card-grid" id="gridPV"></div>
-  <a class="night-btn" href="https://www.investing.com/indices/korea-200-futures" target="_blank" rel="noopener noreferrer">
-   🌙 코스피200 야간선물 실시간 보기 ↗
-  </a>
-  <a class="night-btn" href="https://kr.investing.com/indices/korea-200-futures" target="_blank" rel="noopener noreferrer">
-   ☀️ 코스피200 선물 시세 보기 ↗
-  </a>
 
   <div class="sec-title">한국</div>
   <div class="card-grid" id="gridKR"></div>
@@ -758,16 +752,28 @@ async function saveSrvUrl(){
   renderMarket();
 }
 
+/* 네이버 지수 페이지 매핑 (있는 것만; 나머지는 미니차트) */
+const NAVER_PAGE={
+  '^KS11':'https://m.stock.naver.com/domestic/index/KOSPI/total',
+  '^KQ11':'https://m.stock.naver.com/domestic/index/KOSDAQ/total',
+  '^KS200':'https://m.stock.naver.com/domestic/index/KPI200/total',
+  'KFUT':'https://m.stock.naver.com/domestic/index/FUT/total',
+  '^DJI':'https://m.stock.naver.com/worldstock/index/.DJI/total',
+  '^IXIC':'https://m.stock.naver.com/worldstock/index/.IXIC/total',
+  '^GSPC':'https://m.stock.naver.com/worldstock/index/.INX/total',
+  'KRW=X':'https://m.stock.naver.com/marketindex/exchange/FX_USDKRW',
+  'CL=F':'https://m.stock.naver.com/marketindex/energy/OIL_CL'
+};
 function chartUrl(sym){
   if(sym==='FNG') return 'https://edition.cnn.com/markets/fear-and-greed';
-  if(sym==='KFUT') return 'https://m.stock.naver.com/domestic/index/FUT/total';
+  if(NAVER_PAGE[sym]) return NAVER_PAGE[sym];
   return 'https://finance.yahoo.com/chart/'+encodeURIComponent(sym);
 }
 
 /* ===== 미니차트 ===== */
 let mcSym='', mcRange='1mo';
 function openMiniChart(sym,nm){
-  if(sym==='FNG'||sym==='KFUT'){ window.open(chartUrl(sym),'_blank','noopener'); return; }
+  if(sym==='FNG'||NAVER_PAGE[sym]){ window.open(chartUrl(sym),'_blank','noopener'); return; }
   mcSym=sym; mcRange='1mo';
   $('#mcName').textContent=nm||sym;
   $('#mcSym').textContent=sym;
