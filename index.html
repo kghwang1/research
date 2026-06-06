@@ -278,6 +278,8 @@
   .val-tbl td.neg{color:#e01010}
   .val-tbl td[contenteditable]{cursor:text}
   .val-tbl td[contenteditable]:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbe6}
+  .val-tbl td a{color:#1257c2;text-decoration:none;font-weight:700;border-bottom:1px dotted #1257c2}
+  .val-tbl td a:active{opacity:.55}
 
   /* watchlist */
   .watch{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
@@ -1130,7 +1132,55 @@ const VAL_DATA=[["1", "MMF(BIL,ICSH), IEF", "현금성/단기채 ETF", "", "", "
 const VAL_HEAD=["번호","Symbol","기업명","P/E(F)","PEG","비중","목표주가","목표가차이","적정주가","적정가차이","Price 1/2020","Price 1/2023","May29","Jun5","주간변동","차이","2020년~"];
 /* 열별 사진 색상 (헤더+셀) */
 const VAL_COL=["fff2cc","fff2cc","fff2cc","ecd6ec","ecd6ec","ecd6ec","fff2cc","f8cbad","fff2cc","f8cbad","ffffff","ffffff","ffffff","ffffff","c6e0b4","bdd7ee","fce4d6"];
-const VAL_EDITABLE=new Set([3,4,5,6,7,8,9,10,11,12,13,14,15,16]); // 번호·심볼·기업명 외 수정 가능
+const VAL_EDITABLE=new Set([3,4,5,6,7,8,9,10,11,12,13,14,15,16]); // (참고용) 원본 데이터 수정가능 열
+/* 화면에 보일 열 구성: 가격 4열(10~13) → 현재가 1열 통합, 목표가차이·적정가차이는 자동계산
+   kind: 'val'=읽기전용, 'edit'=수정가능, 'sym'=심볼링크, 'live'=실시간현재가, 'goal'/'fair'=차이 자동계산
+   c = 원본 VAL 배열의 열 인덱스 (live는 -1) */
+const VAL_VIEW=[
+ {h:"번호",     c:0,  kind:'val',  bg:'fff2cc'},
+ {h:"Symbol",   c:1,  kind:'sym',  bg:'fff2cc'},
+ {h:"기업명",   c:2,  kind:'val',  bg:'fff2cc'},
+ {h:"P/E(F)",   c:3,  kind:'edit', bg:'ecd6ec'},
+ {h:"PEG",      c:4,  kind:'edit', bg:'ecd6ec'},
+ {h:"비중",     c:5,  kind:'edit', bg:'ecd6ec'},
+ {h:"목표주가", c:6,  kind:'edit', bg:'fff2cc'},
+ {h:"목표가차이",c:7, kind:'goal', bg:'f8cbad'},
+ {h:"적정주가", c:8,  kind:'edit', bg:'fff2cc'},
+ {h:"적정가차이",c:9, kind:'fair', bg:'f8cbad'},
+ {h:"현재가",   c:-1, kind:'live', bg:'fde9d9'},
+ {h:"주간변동", c:14, kind:'edit', bg:'c6e0b4'},
+ {h:"차이",     c:15, kind:'edit', bg:'bdd7ee'},
+ {h:"2020년~",  c:16, kind:'edit', bg:'fce4d6'},
+];
+/* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
+const KR_CODE={'삼성전자':'005930','SK하이닉스':'000660','현대차':'005380','네이버':'035420'};
+/* 표의 Symbol이 야후 티커와 다른 경우 보정 */
+const SYM_FIX={"Oracle":"ORCL","Macy's":"M","Crox":"CROX","NIKE":"NKE","Target":"TGT","Circle":"CRCL","Nebius":"NBIS"};
+/* 시세 조회용 심볼 (없으면 null → 현재가 '—') */
+function valQuoteSym(sym){
+  sym=String(sym==null?'':sym).trim();
+  if(!sym) return null;
+  if(KR_CODE[sym]) return 'STK:'+KR_CODE[sym];
+  if(SYM_FIX[sym]) return SYM_FIX[sym];
+  if(/^[A-Za-z][A-Za-z.\-]*$/.test(sym)) return sym.toUpperCase();
+  return null;
+}
+/* Symbol 클릭 시 열 네이버 페이지 (한국=도메스틱 직링크, 그 외=네이버 통합검색 금융카드) */
+function valNaverLink(sym){
+  sym=String(sym==null?'':sym).trim();
+  if(KR_CODE[sym]) return 'https://m.stock.naver.com/domestic/stock/'+KR_CODE[sym]+'/total';
+  return 'https://m.search.naver.com/search.naver?query='+encodeURIComponent(sym+' 주가');
+}
+/* 콤마/% 제거 후 숫자화 (불가하면 null) */
+function valNum(s){ if(s==null) return null; s=String(s).replace(/[,%\s]/g,''); if(s===''||s==='-') return null; const n=parseFloat(s); return isFinite(n)?n:null; }
+/* 차이 계산: (현재가 − 기준가) / 기준가 × 100 */
+function valDiff(ri,baseCol){
+  const q=valLive[ri]; if(!q||q.price==null) return null;
+  const base=valNum(VAL[ri][baseCol]); if(base==null||base===0) return null;
+  return (q.price-base)/base*100;
+}
+function valPct(v){ return Math.round(v)+'%'; }
+let valLive={}; // ri → {price, priceStr}
 /* 분류별 기본 데이터 (미국=현재 표, 나머지는 추후 제공) */
 const VAL_DEFAULT={ us:VAL_DATA, usetf:[], kr:[], kretf:[] };
 let valMarket='us', VAL=[];
@@ -1147,15 +1197,31 @@ function renderVal(){
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
   let html='<thead><tr>';
-  VAL_HEAD.forEach((h,i)=>{ html+=`<th style="background:#${VAL_COL[i]}">${h}</th>`; });
+  VAL_VIEW.forEach(col=>{ html+=`<th style="background:#${col.bg}">${col.h}</th>`; });
   html+='</tr></thead><tbody>';
   VAL.forEach((row,ri)=>{
     html+='<tr>';
-    row.forEach((cell,ci)=>{
-      const bg=VAL_COL[ci]||'ffffff';
-      const neg=isNeg(cell)?' neg':'';
-      const ed=VAL_EDITABLE.has(ci)?` contenteditable data-r="${ri}" data-c="${ci}"`:'';
-      html+=`<td class="vcell${neg}" style="background:#${bg}"${ed}>${cell??''}</td>`;
+    VAL_VIEW.forEach(col=>{
+      const bg=col.bg;
+      let cls='vcell', cell='', attr='';
+      if(col.kind==='sym'){
+        const sym=row[1]??'';
+        const href=valNaverLink(sym);
+        cell=`<a href="${href}" target="_blank" rel="noopener">${sym}</a>`;
+      }else if(col.kind==='live'){
+        const q=valLive[ri];
+        cell = q ? (q.priceStr?addComma(q.priceStr):addComma(String(q.price))) : (SRV_URL?'…':'—');
+      }else if(col.kind==='goal'||col.kind==='fair'){
+        const baseCol = col.kind==='goal'?6:8;
+        const v=valDiff(ri,baseCol);
+        if(v!=null){ cell=valPct(v); } else { cell=row[col.c]??''; } // 라이브 없으면 원본값 표시
+        if(isNeg(cell)) cls+=' neg';
+      }else{ // val / edit
+        cell=row[col.c]??'';
+        if(isNeg(cell)) cls+=' neg';
+        if(col.kind==='edit') attr=` contenteditable data-r="${ri}" data-c="${col.c}"`;
+      }
+      html+=`<td class="${cls}" style="background:#${bg}"${attr}>${cell}</td>`;
     });
     html+='</tr>';
   });
@@ -1167,16 +1233,49 @@ function renderVal(){
       VAL[r][c]=td.textContent.trim();
       td.classList.toggle('neg', isNeg(VAL[r][c]));
       saveVal();
+      // 목표주가·적정주가를 고치면 같은 행의 차이를 다시 계산
+      if(c===6||c===8) updateDiffRow(r);
     };
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
   });
+}
+/* 한 행의 목표가차이·적정가차이 셀만 갱신 (전체 재렌더 없이) */
+function updateDiffRow(ri){
+  const t=$('#valTbl'); if(!t) return;
+  const tr=t.querySelectorAll('tbody tr')[ri]; if(!tr) return;
+  VAL_VIEW.forEach((col,vi)=>{
+    if(col.kind!=='goal'&&col.kind!=='fair') return;
+    const td=tr.children[vi]; if(!td) return;
+    const v=valDiff(ri, col.kind==='goal'?6:8);
+    const txt = v!=null ? valPct(v) : (VAL[ri][col.c]??'');
+    td.textContent=txt;
+    td.classList.toggle('neg', isNeg(txt));
+  });
+}
+/* 현재 분류의 모든 종목 현재가를 네이버/야후에서 일괄 조회 (탭 열 때 1회) */
+async function fetchValLive(){
+  valLive={};
+  if(!SRV_URL||!VAL.length) return;
+  const pairs=[]; // {ri, qsym}
+  VAL.forEach((row,ri)=>{ const qs=valQuoteSym(row[1]); if(qs) pairs.push({ri,qsym:qs}); });
+  const uniq=[...new Set(pairs.map(p=>p.qsym))];
+  const bySym={}, CH=40;
+  for(let i=0;i<uniq.length;i+=CH){
+    const syms=uniq.slice(i,i+CH).join(',');
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(syms));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) bySym[q.symbol]={price:q.price,priceStr:q.priceStr}; });
+    }catch(e){}
+  }
+  pairs.forEach(p=>{ const q=bySym[p.qsym]; if(q) valLive[p.ri]=q; });
 }
 (function(){
   // 부메뉴: 이전(닫기) / 분류 전환
   $$('#valSub .subtab').forEach(s=>s.onclick=()=>{
     if(s.dataset.m==='back'){ closeValFull(); return; }
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
-    valMarket=s.dataset.m; renderVal();
+    valMarket=s.dataset.m; renderVal(); fetchValLive().then(renderVal);
   });
   // 초기값 복원
   const rb=$('#valReset');
@@ -1186,7 +1285,7 @@ function renderVal(){
     }
   };
 })();
-function openValFull(){ $('#valFull').classList.add('on'); renderVal(); }
+function openValFull(){ $('#valFull').classList.add('on'); renderVal(); fetchValLive().then(renderVal); }
 function closeValFull(){ $('#valFull').classList.remove('on'); }
 
 </script>
