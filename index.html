@@ -257,6 +257,8 @@
   .valfull-top .subtab.on{background:var(--accent2);color:#0a0a0a;border-color:var(--accent2)}
   .valfull-top .vback{color:var(--ink);background:transparent;border-color:var(--line)}
   .valfull .val-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;border:none;border-radius:0;max-height:none}
+  #valMulti{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:28px}
+  #valMulti .val-scroll{flex:none;overflow:visible;max-height:none}
   .valfull-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
     padding:8px 12px;border-top:1px solid var(--line);flex:none}
   .val-reset{font-size:12px;color:var(--mut);border:1px solid var(--line);background:transparent;
@@ -296,7 +298,8 @@
   .info-title{font-size:15px;font-weight:800;margin-bottom:12px;color:var(--ink)}
   .info-row{display:flex;gap:8px}
   .info-row input{flex:1;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;min-width:0;background:var(--panel2);color:var(--ink)}
-  .info-row .btn-go{padding:0 18px;border:none;border-radius:10px;background:var(--accent2);color:#0a0a0a;font-weight:700;font-size:14px;white-space:nowrap}
+  .info-row .btn-go{padding:0 14px;border:none;border-radius:10px;background:var(--accent2);color:#0a0a0a;font-weight:800;font-size:14px;white-space:nowrap}
+  .info-row .btn-go.cg{background:var(--accent)}
   .cg-result{margin-top:12px;display:flex;flex-direction:column;gap:8px}
   .cg-card{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
   .cg-info{display:flex;flex-direction:column;min-width:0}
@@ -1678,31 +1681,40 @@ function openConsensus(code){
   const u='https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A'+c+'&MenuYn=Y&NewMenuID=108&stkGb=701';
   const w=window.open('about:blank','_blank'); if(w){ w.location=u; } else { location.href=u; }
 }
+function cgUrlNaver(code){ return 'https://m.stock.naver.com/domestic/stock/'+code+'/total'; }
+function cgUrlCG(code){ return 'https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A'+code+'&MenuYn=Y&NewMenuID=108&stkGb=701'; }
 function cgCard(code,name){
   return `<div class="cg-card"><span class="cg-info"><span class="cg-nm">${name||''}</span><span class="cg-cd">${code}</span></span>`
     +`<span class="cg-btns"><button class="cg-go" data-code="${code}" data-src="naver">네이버</button>`
-    +`<button class="cg-go" data-code="${code}" data-src="cg">컴퍼니가이드</button></span></div>`;
+    +`<button class="cg-go" data-code="${code}" data-src="cg">CG</button></span></div>`;
 }
-function cgBind(root){ root.querySelectorAll('button.cg-go').forEach(b=>b.onclick=()=>{ if(b.dataset.src==='naver') openNaverDomestic(b.dataset.code); else openConsensus(b.dataset.code); }); }
-function cgSearch(){
-  const inp=$('#cgInput'), res=$('#cgResult'); if(!inp||!res) return;
-  const v=inp.value.trim(); if(!v){ res.innerHTML=''; return; }
-  if(/^\d{6}$/.test(v)){ res.innerHTML=cgCard(v,''); cgBind(res); return; }
-  res.innerHTML='<div class="cg-hint">검색 중…</div>';
-  if(!SRV_URL){ res.innerHTML='<div class="cg-hint">종목코드 6자리로 입력해 주세요.</div>'; return; }
+function cgBind(root){ root.querySelectorAll('button.cg-go').forEach(b=>b.onclick=()=>{ const u=b.dataset.src==='naver'?cgUrlNaver(b.dataset.code):cgUrlCG(b.dataset.code); const w=window.open('about:blank','_blank'); if(w){w.location=u;}else{location.href=u;} }); }
+/* 입력값으로 즉시 조회: src='naver' | 'cg' */
+function cgOpen(src){
+  const inp=$('#cgInput'), res=$('#cgResult'); if(!inp) return;
+  const v=inp.value.trim(); if(!v){ if(res) res.innerHTML=''; return; }
+  const urlOf=code=> src==='naver'?cgUrlNaver(code):cgUrlCG(code);
+  const w=window.open('about:blank','_blank');           // 먼저 창을 열어 팝업차단 회피
+  const go=code=>{ const u=urlOf(code); if(w){ w.location=u; } else { location.href=u; } };
+  if(/^\d{6}$/.test(v)){ go(v); if(res){ res.innerHTML=cgCard(v,''); cgBind(res); } return; }
+  if(!SRV_URL){ if(w) w.close(); if(res) res.innerHTML='<div class="cg-hint">종목코드 6자리로 입력해 주세요.</div>'; return; }
+  if(res) res.innerHTML='<div class="cg-hint">검색 중…</div>';
   fetch(SRV_URL+'/?find='+encodeURIComponent(v)).then(r=>r.json()).then(d=>{
-    if(d&&d.ok&&d.items&&d.items.length){ res.innerHTML=d.items.map(it=>cgCard(it.code,it.name)).join(''); cgBind(res); }
-    else { res.innerHTML='<div class="cg-hint">결과가 없어요. 종목코드 6자리로 입력해 보세요.</div>'; }
-  }).catch(()=>{ res.innerHTML='<div class="cg-hint">검색 실패. 종목코드 6자리로 입력해 보세요.</div>'; });
+    const items=(d&&d.ok&&d.items)||[];
+    if(items.length){ go(items[0].code); if(res){ res.innerHTML=items.map(it=>cgCard(it.code,it.name)).join(''); cgBind(res); } }
+    else { if(w) w.close(); if(res) res.innerHTML='<div class="cg-hint">결과가 없어요. 종목코드 6자리로 입력해 보세요.</div>'; }
+  }).catch(()=>{ if(w) w.close(); if(res) res.innerHTML='<div class="cg-hint">검색 실패. 종목코드 6자리로 입력해 보세요.</div>'; });
 }
 function renderInfo(box){
   box.innerHTML =
     '<div class="info-box"><div class="info-title">기업 정보 조회</div>'
-    +'<div class="info-row"><input id="cgInput" placeholder="기업명 또는 종목코드(6자리)" autocomplete="off"><button class="btn-go" id="cgGo">검색</button></div>'
+    +'<div class="info-row"><input id="cgInput" placeholder="기업명 또는 종목코드(6자리)" autocomplete="off">'
+    +'<button class="btn-go" id="goNaver">네이버</button><button class="btn-go cg" id="goCG">CG</button></div>'
     +'<div id="cgResult" class="cg-result"></div>'
-    +'<div class="info-note">검색 후 <b>네이버</b>(시세·차트·뉴스) 또는 <b>컴퍼니가이드</b>(PER·적정주가·투자의견 컨센서스)를 골라 여세요.</div></div>';
-  const go=$('#cgGo'); if(go) go.onclick=cgSearch;
-  const inp=$('#cgInput'); if(inp) inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); cgSearch(); } };
+    +'<div class="info-note"><b>네이버</b>=시세·차트·뉴스, <b>CG</b>=PER·적정주가·투자의견(컴퍼니가이드). 기업명 입력 시 가장 가까운 종목이 바로 열리고, 아래 후보에서 다시 고를 수 있어요.</div></div>';
+  const gn=$('#goNaver'); if(gn) gn.onclick=()=>cgOpen('naver');
+  const gc=$('#goCG'); if(gc) gc.onclick=()=>cgOpen('cg');
+  const inp=$('#cgInput'); if(inp) inp.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); cgOpen('cg'); } };
 }
 (function(){
   // 부메뉴: 이전(닫기) / 분류 전환
