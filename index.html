@@ -1183,9 +1183,10 @@ function valPct(v){ return Math.round(v)+'%'; }
 /* 미국 종목 Symbol 클릭: worker로 네이버 월드스톡 주소를 받아 새 탭으로 연다.
    실패하면 네이버 통합검색으로 대체. 팝업 차단을 피하려고 탭을 먼저 동기적으로 연다. */
 function openNaverWorld(sym){
-  const fallback='https://m.search.naver.com/search.naver?query='+encodeURIComponent(sym+' 주가');
   const qs=valQuoteSym(sym);
   const ticker=(qs&&!qs.startsWith('STK:'))?qs:sym;
+  // worker가 월드스톡 주소를 못 찾으면 네이버에서 '티커'만 검색 (금융 카드가 바로 뜸)
+  const fallback='https://search.naver.com/search.naver?query='+encodeURIComponent(ticker);
   const w=window.open('about:blank','_blank');
   const go=u=>{ if(w){ w.location=u; } else { location.href=u; } };
   if(!SRV_URL){ go(fallback); return; }
