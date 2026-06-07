@@ -288,6 +288,7 @@
   .val-tbl.mp td.mp-c{text-align:center}
   .val-tbl.mp td.mp-l{text-align:left;min-width:130px}
   .val-tbl.mp td.mp-r{text-align:right}
+  .val-tbl td.wt{font-size:1.1em;font-weight:800}
   .val-tbl.mp td:nth-child(1){min-width:30px}
   .val-tbl.mp td:nth-child(2){min-width:52px;font-weight:700}
   .val-tbl.mp tr.mp-total td{background:#d9d9d9;font-weight:700}
@@ -357,10 +358,10 @@
   </div>
   <div class="tabs">
    <div class="tab on" data-t="market">시황</div>
+   <div class="tab" data-t="valuation">주식</div>
    <div class="tab" data-t="hub">리포트</div>
    <div class="tab" data-t="archive">아카이브</div>
    <div class="tab" data-t="watch">방송</div>
-   <div class="tab" data-t="valuation">주식</div>
   </div>
  </div>
 </header>
@@ -437,7 +438,7 @@
 <!-- ===== 주식 전체화면 ===== -->
 <div id="valFull" class="valfull">
  <div class="valfull-top" id="valSub">
-  <div class="subtab vback" data-m="back">‹ 이전</div>
+  <div class="subtab vback" data-m="back">‹ 시황</div>
   <div class="subtab on" data-m="kr">한국</div>
   <div class="subtab" data-m="kretf">한국 ETF</div>
   <div class="subtab" data-m="us">미국</div>
@@ -1155,7 +1156,7 @@ const VAL_VIEW=[
  {h:"기업명",   c:2,  kind:'val',  bg:'fff2cc'},
  {h:"P/E(F)",   c:3,  kind:'edit', bg:'ecd6ec'},
  {h:"PEG",      c:4,  kind:'edit', bg:'ecd6ec'},
- {h:"비중",     c:5,  kind:'edit', bg:'ecd6ec'},
+ {h:"비중",     c:5,  kind:'edit', bg:'ecd6ec', wt:true},
  {h:"목표주가", c:6,  kind:'edit', bg:'fff2cc'},
  {h:"목표가차이",c:7, kind:'goal', bg:'f8cbad'},
  {h:"적정주가", c:8,  kind:'edit', bg:'fff2cc'},
@@ -1300,7 +1301,7 @@ const KR_PF={
     ["042660","한화오션","377,806","0.3","0.1","NEW"],
     ["011780","금호석유화학","33,283","0.3","0",""],
   ],
-  total:null, left:[1], right:[2], linkCol:0, link:"domestic",
+  total:null, left:[1], right:[2], linkCol:0, link:"domestic", wt:[3],
   widths:[68,92,96,72,56,84],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
@@ -1385,6 +1386,7 @@ function renderVal(){
         if(isNeg(cell)) cls+=' neg';
         if(col.kind==='edit') attr=` contenteditable data-r="${ri}" data-c="${col.c}"`;
       }
+      if(col.wt) cls+=' wt';
       html+=`<td class="${cls}" style="background:#${bg}"${attr}>${cell}</td>`;
     });
     html+='</tr>';
@@ -1431,8 +1433,9 @@ function renderEtfEdit(cfg){
         h+=`<td class="${cls}"><a href="#" class="etflink" data-sym="${encodeURIComponent(row[0])}">${val}</a></td>`;
       }else if(c.kind==='ticker'){ // Ticker: 수정 가능 (바꾸면 명칭 자동 입력)
         h+=`<td class="${cls} tkr" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`;
-      }else{ // 비중·변경: 수정 가능
-        h+=`<td class="${cls}" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`;
+      }else{ // 비중·변경: 수정 가능 (비중=sumCols는 크게·진하게)
+        const wt=(cfg.sumCols&&cfg.sumCols.includes(ci))?' wt':'';
+        h+=`<td class="${cls}${wt}" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`;
       }
     });
     h+='</tr>';
@@ -1502,6 +1505,7 @@ function renderMP(cfg){
       let cls='mp-c';
       if(cfg.left&&cfg.left.includes(ci)) cls='mp-l';
       else if(cfg.right&&cfg.right.includes(ci)) cls='mp-r';
+      if(cfg.wt&&cfg.wt.includes(ci)) cls+=' wt';
       if(ci===cfg.linkCol && cell){
         h+=`<td class="${cls}"><a href="#" class="mplink" data-v="${encodeURIComponent(cell)}">${cell}</a></td>`;
       }else{
@@ -1557,7 +1561,15 @@ async function fetchValLive(){
 (function(){
   // 부메뉴: 이전(닫기) / 분류 전환
   $$('#valSub .subtab').forEach(s=>s.onclick=()=>{
-    if(s.dataset.m==='back'){ closeValFull(); return; }
+    if(s.dataset.m==='back'){
+      closeValFull();
+      $$('.tab').forEach(x=>x.classList.remove('on'));
+      $$('section').forEach(x=>x.classList.remove('on'));
+      const mt=document.querySelector('.tab[data-t="market"]'); if(mt) mt.classList.add('on');
+      const ms=$('#market'); if(ms) ms.classList.add('on');
+      renderMarket();
+      return;
+    }
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
     valMarket=s.dataset.m; renderVal(); fetchValLive().then(renderVal); ensureServer(valMarket);
   });
