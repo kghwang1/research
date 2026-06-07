@@ -287,9 +287,11 @@
   .val-tbl.mp .mp-title{text-align:left;font-size:13px;padding:9px 10px}
   .val-tbl.mp td.mp-c{text-align:center}
   .val-tbl.mp td.mp-l{text-align:left;min-width:130px}
+  .val-tbl.mp td.mp-r{text-align:right}
   .val-tbl.mp td:nth-child(1){min-width:30px}
   .val-tbl.mp td:nth-child(2){min-width:52px;font-weight:700}
   .val-tbl.mp tr.mp-total td{background:#d9d9d9;font-weight:700}
+  .val-tbl.mp.mpfix{table-layout:fixed}
 
   /* watchlist */
   .watch{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
@@ -1211,46 +1213,108 @@ function openNaverSearch(q){
   const w=window.open('about:blank','_blank');
   if(w){ w.location=u; } else { location.href=u; }
 }
+/* 네이버 국내 종목 페이지로 열기 (종목코드) */
+function openNaverDomestic(code){
+  const u='https://m.stock.naver.com/domestic/stock/'+encodeURIComponent(code)+'/total';
+  const w=window.open('about:blank','_blank');
+  if(w){ w.location=u; } else { location.href=u; }
+}
 let valLive={}; // ri → {price, priceStr}
-/* 분류별 기본 데이터 (미국=현재 표, 나머지는 추후 제공) */
-const VAL_DEFAULT={ us:VAL_DATA, usetf:[], kr:[], kretf:[] };
-/* ETF 모델포트폴리오 (주식 → 미국 ETF / 한국 ETF 탭에 표시) */
-const USETF_MP={
-  title:"6월 모델포트폴리오 (5월과 동일)",
-  head:["No.","종목(Ticker)","기초지수","투자포인트","5월 비중","6월 비중","변경(%p)"],
-  rows:[
-    ["1","RSP","동일가중 S&P500","섹터 및 종목 확산시 SPY보다 유효","10%","10%","-"],
-    ["2","SMH","MVIS US Listed Semiconductor 25 Index","미국 상장 반도체 25개","30%","30%","-"],
-    ["3","SOXX","필라델피아반도체 지수","반도체 모멘텀 지속","30%","30%","-"],
-    ["4","DRAM","ROUNDHILL MEMORY ETF","메모리 기업들의 성장 가속화","30%","30%","-"],
+/* 미국 ETF 모델포트폴리오 데이터 [Ticker, 명칭, 5월비중, 6월비중, 변경] — 수정 가능, 저장됨 */
+const USETF_DATA=[
+  ["RSP","동일가중 S&P500","10%","10%","-"],
+  ["SMH","MVIS US Listed Semiconductor 25 Index","30%","30%","-"],
+  ["SOXX","필라델피아반도체 지수","30%","30%","-"],
+  ["DRAM","ROUNDHILL MEMORY ETF","30%","30%","-"],
+];
+/* 한국 ETF 모델포트폴리오 데이터 [Ticker(코드), 명칭, 26.5월, 26.4월, 변경] — 수정 가능, 저장됨 */
+const KRETF_DATA=[
+  ["396500","TIGER 반도체TOP10","44.7","41.5","+3.2"],
+  ["466920","SOL 조선TOP3플러스","19.4","4.9","+14.5"],
+  ["462010","TIGER 2차전지소재Fn","2.4","2.8","-0.4"],
+  ["305540","TIGER 2차전지테마","2.4","2.7","-0.3"],
+  ["091230","TIGER 반도체","0.0","22.0","-22.0"],
+  ["069500","KODEX 200","0.0","16.4","-16.4"],
+  ["157500","TIGER 증권","0.0","9.7","-9.7"],
+];
+/* 분류별 기본 데이터 */
+const VAL_DEFAULT={ us:VAL_DATA, usetf:USETF_DATA, kr:[], kretf:KRETF_DATA };
+/* 미국 ETF 표 구성 (수정 가능 + Ticker·명칭 연동 링크) */
+const USETF_CFG={
+  title:"6월 모델포트폴리오 (5월과 동일)", link:"world",
+  cols:[
+    {h:"종목(Ticker)", kind:"ticker", w:96},
+    {h:"명칭",         kind:"name",   w:210, align:"left"},
+    {h:"5월 비중(%)",  kind:"edit",   w:96},
+    {h:"6월 비중(%)",  kind:"edit",   w:96},
+    {h:"변경(%p)",     kind:"edit",   w:84},
   ],
-  total:["100.0","100.0","-"], totalSpan:4, left:[2,3], linkCol:1, link:"world",
+  sumCols:[2,3], totalSpan:2,
 };
-const KRETF_MP={
-  title:"[Portfolio]",
-  head:["No.","종목명","26.5월 비중(%)","26.4월 비중(%)","변경(%)"],
-  rows:[
-    ["1","TIGER 반도체TOP10","44.7","41.5","+3.2"],
-    ["2","SOL 조선TOP3플러스","19.4","4.9","+14.5"],
-    ["3","TIGER 2차전지소재Fn","2.4","2.8","-0.4"],
-    ["4","TIGER 2차전지테마","2.4","2.7","-0.3"],
-    ["5","TIGER 반도체","0.0","22.0","-22.0"],
-    ["6","KODEX 200","0.0","16.4","-16.4"],
-    ["7","TIGER 증권","0.0","9.7","-9.7"],
+/* 한국 ETF 표 구성 (수정 가능 + Ticker·명칭 연동 링크 → 네이버 국내 페이지) */
+const KRETF_CFG={
+  title:"[Portfolio]", link:"domestic",
+  cols:[
+    {h:"종목(Ticker)",   kind:"ticker", w:82},
+    {h:"명칭",           kind:"name",   w:172, align:"left"},
+    {h:"26.5월 비중(%)", kind:"edit",   w:108},
+    {h:"26.4월 비중(%)", kind:"edit",   w:108},
+    {h:"변경(%)",        kind:"edit",   w:84},
   ],
-  total:["100.0","100.0","-"], totalSpan:2, left:[1], linkCol:1, link:"search",
+  sumCols:[2,3], totalSpan:2,
+};
+/* 국내 포트폴리오 (주식 → 한국 탭에 표시). 심볼=종목코드 */
+const KR_PF={
+  title:"국내 포트폴리오",
+  head:["심볼","종목명","시총(억원)","비중(%)","차이(%)","변동사항"],
+  rows:[
+    ["005930","삼성전자","18,532,703","31.3","-3.5","비중축소▼"],
+    ["000660","SK하이닉스","16,627,346","21.4","0.7","비중축소▼"],
+    ["069500","KODEX 200","294,840","11.5","4.3",""],
+    ["226490","KODEX 코스피","11,990","7.4","0",""],
+    ["329180","HD현대중공업","730,530","3.8","0.3","비중확대▲"],
+    ["006400","삼성SDI","554,428","3.6","0.7","비중확대▲"],
+    ["009150","삼성전기","1,588,735","2.4","0.8","비중확대▲"],
+    ["006800","미래에셋증권","343,574","2.1","-1.7","비중축소▼"],
+    ["082740","한화엔진","53,573","1.9","-0.5",""],
+    ["005935","삼성전자우","1,624,802","1","0",""],
+    ["402340","SK스퀘어","1,627,047","1","-0.1",""],
+    ["039490","키움증권","97,176","0.9","-0.5","비중축소▼"],
+    ["010060","OCI홀딩스","65,252","0.8","0",""],
+    ["373220","LG에너지솔루션","1,071,720","0.8","0.8","NEW"],
+    ["","현금","","0.8","-0.5",""],
+    ["017670","SK텔레콤","216,079","0.6","-0.1",""],
+    ["002380","KCC","47,261","0.6","0.6","NEW"],
+    ["012330","현대모비스","696,826","0.6","0.6",""],
+    ["033780","KT&G","191,738","0.5","-0.1",""],
+    ["079550","LIG디펜스앤에어로스페이스","176,220","0.4","-0.1",""],
+    ["000270","기아","660,579","0.4","0",""],
+    ["012450","한화에어로스페이스","604,839","0.3","-0.1",""],
+    ["004020","현대제철","53,578","0.3","0.3","NEW"],
+    ["086790","하나금융지주","315,797","0.3","-0.1",""],
+    ["064350","현대로템","218,830","0.3","0",""],
+    ["105560","KB금융","561,513","0.3","0",""],
+    ["055550","신한지주","444,276","0.3","0",""],
+    ["0126Z0","삼성에피스홀딩스","120,434","0.3","0",""],
+    ["042660","한화오션","377,806","0.3","0.1","NEW"],
+    ["011780","금호석유화학","33,283","0.3","0",""],
+  ],
+  total:null, left:[1], right:[2], linkCol:0, link:"domestic",
+  widths:[68,92,96,72,56,84],
 };
 let valMarket='us', VAL=[];
 function loadVal(){
   let saved=null; try{saved=JSON.parse(store.get('valuation_'+valMarket)||'null');}catch(e){}
   VAL = (saved && saved.length) ? saved : VAL_DEFAULT[valMarket].map(r=>r.slice());
-  // Symbol의 괄호 안 내용 제거: "MMF(BIL,ICSH), IEF" → "MMF, IEF", "SPY(VOO,SPYM)" → "SPY"
+  // Symbol의 괄호 안 내용 제거 (미국 주식 표에만 적용): "MMF(BIL,ICSH), IEF" → "MMF, IEF"
   let changed=false;
-  VAL.forEach(r=>{
-    const s=String(r[1]==null?'':r[1]);
-    const c=s.replace(/\s*\([^)]*\)/g,'').replace(/\s{2,}/g,' ').trim();
-    if(c!==s){ r[1]=c; changed=true; }
-  });
+  if(valMarket==='us'){
+    VAL.forEach(r=>{
+      const s=String(r[1]==null?'':r[1]);
+      const c=s.replace(/\s*\([^)]*\)/g,'').replace(/\s{2,}/g,' ').trim();
+      if(c!==s){ r[1]=c; changed=true; }
+    });
+  }
   if(changed) saveVal();
 }
 function saveVal(){ try{store.set('valuation_'+valMarket,JSON.stringify(VAL));}catch(e){} }
@@ -1259,8 +1323,9 @@ function renderVal(){
   loadVal();
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty');
   if(!t) return;
-  if(valMarket==='usetf'){ renderMP(USETF_MP); return; }  // 미국 ETF 모델포트폴리오
-  if(valMarket==='kretf'){ renderMP(KRETF_MP); return; }  // 한국 ETF 모델포트폴리오
+  if(valMarket==='usetf'){ renderEtfEdit(USETF_CFG); return; }  // 미국 ETF: 수정가능 표
+  if(valMarket==='kretf'){ renderEtfEdit(KRETF_CFG); return; }  // 한국 ETF: 수정가능 표
+  if(valMarket==='kr'){ renderMP(KR_PF); return; }        // 한국: 국내 포트폴리오
   t.className='val-tbl';
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
@@ -1314,22 +1379,104 @@ function renderVal(){
     a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); };
   });
 }
-/* ETF 모델포트폴리오 표 렌더링 (미국/한국 공용) */
+/* 미국 ETF: 수정 가능 + 합계 자동계산 + Ticker·명칭 연동 링크 */
+function etfSum(ci){
+  let s=0; VAL.forEach(r=>{ const v=parseFloat(String(r[ci]==null?'':r[ci]).replace(/[^0-9.\-]/g,'')); if(isFinite(v)) s+=v; });
+  return s.toFixed(1);
+}
+function renderEtfEdit(cfg){
+  const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty');
+  if(!t) return;
+  sc.style.display=''; em.style.display='none';
+  t.className='val-tbl mp mpfix';
+  const cols=cfg.cols, n=cols.length;
+  let h='<colgroup>'+cols.map(c=>`<col style="width:${c.w}px">`).join('')+'</colgroup>';
+  h+='<thead>';
+  h+=`<tr><th class="mp-title" colspan="${n}">${cfg.title}</th></tr>`;
+  h+='<tr>'+cols.map(c=>`<th>${c.h}</th>`).join('')+'</tr>';
+  h+='</thead><tbody>';
+  VAL.forEach((row,ri)=>{
+    h+='<tr>';
+    cols.forEach((c,ci)=>{
+      const cls=c.align==='left'?'mp-l':'mp-c';
+      const val=row[ci]==null?'':row[ci];
+      if(c.kind==='name'){ // 명칭: 읽기전용 링크 (티커 변경 시 자동 갱신)
+        h+=`<td class="${cls}"><a href="#" class="etflink" data-sym="${encodeURIComponent(row[0])}">${val}</a></td>`;
+      }else if(c.kind==='ticker'){ // Ticker: 수정 가능 (바꾸면 명칭 자동 입력)
+        h+=`<td class="${cls} tkr" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`;
+      }else{ // 비중·변경: 수정 가능
+        h+=`<td class="${cls}" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`;
+      }
+    });
+    h+='</tr>';
+  });
+  if(cfg.sumCols){
+    h+='<tr class="mp-total"><td class="mp-c" colspan="'+cfg.totalSpan+'">합계</td>';
+    for(let ci=cfg.totalSpan; ci<n; ci++){
+      h += cfg.sumCols.includes(ci) ? `<td class="mp-c" data-sum="${ci}">${etfSum(ci)}</td>` : `<td class="mp-c">-</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</tbody>';
+  t.innerHTML=h;
+  const nameCi=cols.findIndex(c=>c.kind==='name');
+  t.querySelectorAll('a.etflink').forEach(a=>{
+    a.onclick=ev=>{ ev.preventDefault(); const v=decodeURIComponent(a.dataset.sym||'');
+      if(cfg.link==='domestic') openNaverDomestic(v); else openNaverWorld(v); };
+  });
+  t.querySelectorAll('td[contenteditable]').forEach(td=>{
+    td.onblur=()=>{
+      const r=+td.dataset.r, c=+td.dataset.c;
+      const wasTicker = td.classList.contains('tkr');
+      const oldVal = VAL[r][c];
+      VAL[r][c]=td.textContent.trim();
+      saveVal();
+      (cfg.sumCols||[]).forEach(ci=>{ const cell=t.querySelector(`td[data-sum="${ci}"]`); if(cell) cell.textContent=etfSum(ci); });
+      // Ticker를 바꾸면 그 코드에 맞는 명칭을 자동으로 채움
+      if(wasTicker && nameCi>=0 && VAL[r][c] && VAL[r][c]!==oldVal){
+        const tr=t.querySelectorAll('tbody tr')[r];
+        const a=tr && tr.children[nameCi] && tr.children[nameCi].querySelector('a');
+        if(a){ a.textContent='…'; a.dataset.sym=encodeURIComponent(VAL[r][c]); }
+        resolveEtfName(VAL[r][c], cfg.link).then(name=>{
+          if(name){ VAL[r][1]=name; saveVal(); }
+          if(a){ a.textContent = VAL[r][1]||''; a.dataset.sym=encodeURIComponent(VAL[r][0]||''); }
+        });
+      }
+    };
+    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+}
+/* 종목코드/티커로 명칭 조회 (한국=STK:코드 → 네이버, 미국=야후) */
+async function resolveEtfName(ticker, linkType){
+  if(!SRV_URL || !ticker) return null;
+  const sym = linkType==='domestic' ? 'STK:'+ticker : ticker;
+  try{
+    const r=await fetch(SRV_URL+'/?symbol='+encodeURIComponent(sym));
+    const d=await r.json();
+    if(d && d.ok && d.name) return d.name;
+  }catch(e){}
+  return null;
+}
+/* ETF 모델포트폴리오 표 렌더링 (한국 ETF / 국내 포트폴리오 등 고정 표) */
 function renderMP(cfg){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty');
   if(!t) return;
   sc.style.display=''; em.style.display='none';
-  t.className='val-tbl mp';
+  t.className='val-tbl mp'+(cfg.widths?' mpfix':'');
   const n=cfg.head.length;
-  let h='<thead>';
+  let h='';
+  if(cfg.widths) h+='<colgroup>'+cfg.widths.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead>';
   h+=`<tr><th class="mp-title" colspan="${n}">${cfg.title}</th></tr>`;
   h+='<tr>'+cfg.head.map(x=>`<th>${x}</th>`).join('')+'</tr>';
   h+='</thead><tbody>';
   cfg.rows.forEach(r=>{
     h+='<tr>';
     r.forEach((cell,ci)=>{
-      const cls=(cfg.left&&cfg.left.includes(ci))?'mp-l':'mp-c';
-      if(ci===cfg.linkCol){
+      let cls='mp-c';
+      if(cfg.left&&cfg.left.includes(ci)) cls='mp-l';
+      else if(cfg.right&&cfg.right.includes(ci)) cls='mp-r';
+      if(ci===cfg.linkCol && cell){
         h+=`<td class="${cls}"><a href="#" class="mplink" data-v="${encodeURIComponent(cell)}">${cell}</a></td>`;
       }else{
         h+=`<td class="${cls}">${cell}</td>`;
@@ -1345,7 +1492,9 @@ function renderMP(cfg){
   t.innerHTML=h;
   t.querySelectorAll('a.mplink').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); const v=decodeURIComponent(a.dataset.v||'');
-      if(cfg.link==='world') openNaverWorld(v); else openNaverSearch(v); };
+      if(cfg.link==='world') openNaverWorld(v);
+      else if(cfg.link==='domestic') openNaverDomestic(v);
+      else openNaverSearch(v); };
   });
 }
 /* 한 행의 목표가차이·적정가차이 셀만 갱신 (전체 재렌더 없이) */
