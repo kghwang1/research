@@ -272,7 +272,7 @@
     white-space:normal;min-width:46px;line-height:1.15;font-size:11px}
   /* Symbol 열(2번째) 좌측 고정 */
   .val-tbl th:nth-child(2),.val-tbl td:nth-child(2){position:sticky;left:0;z-index:2;text-align:center;
-    font-weight:700;min-width:38px;box-shadow:1px 0 0 rgba(0,0,0,.15)}
+    font-weight:700;min-width:19px;box-shadow:1px 0 0 rgba(0,0,0,.15)}
   .val-tbl th:nth-child(2){z-index:4}
   .val-tbl td:first-child,.val-tbl th:first-child{min-width:30px;text-align:center}
   .val-tbl td.neg{color:#e01010}
@@ -1180,6 +1180,20 @@ function valDiff(ri,baseCol){
   return (q.price-base)/base*100;
 }
 function valPct(v){ return Math.round(v)+'%'; }
+/* 미국 종목 Symbol 클릭: worker로 네이버 월드스톡 주소를 받아 새 탭으로 연다.
+   실패하면 네이버 통합검색으로 대체. 팝업 차단을 피하려고 탭을 먼저 동기적으로 연다. */
+function openNaverWorld(sym){
+  const fallback='https://m.search.naver.com/search.naver?query='+encodeURIComponent(sym+' 주가');
+  const qs=valQuoteSym(sym);
+  const ticker=(qs&&!qs.startsWith('STK:'))?qs:sym;
+  const w=window.open('about:blank','_blank');
+  const go=u=>{ if(w){ w.location=u; } else { location.href=u; } };
+  if(!SRV_URL){ go(fallback); return; }
+  fetch(SRV_URL+'/?nvlink='+encodeURIComponent(ticker))
+    .then(r=>r.json())
+    .then(d=>{ go(d&&d.ok&&d.url ? d.url : fallback); })
+    .catch(()=>{ go(fallback); });
+}
 let valLive={}; // ri → {price, priceStr}
 /* 분류별 기본 데이터 (미국=현재 표, 나머지는 추후 제공) */
 const VAL_DEFAULT={ us:VAL_DATA, usetf:[], kr:[], kretf:[] };
@@ -1187,6 +1201,14 @@ let valMarket='us', VAL=[];
 function loadVal(){
   let saved=null; try{saved=JSON.parse(store.get('valuation_'+valMarket)||'null');}catch(e){}
   VAL = (saved && saved.length) ? saved : VAL_DEFAULT[valMarket].map(r=>r.slice());
+  // Symbol의 괄호 안 내용 제거: "MMF(BIL,ICSH), IEF" → "MMF, IEF", "SPY(VOO,SPYM)" → "SPY"
+  let changed=false;
+  VAL.forEach(r=>{
+    const s=String(r[1]==null?'':r[1]);
+    const c=s.replace(/\s*\([^)]*\)/g,'').replace(/\s{2,}/g,' ').trim();
+    if(c!==s){ r[1]=c; changed=true; }
+  });
+  if(changed) saveVal();
 }
 function saveVal(){ try{store.set('valuation_'+valMarket,JSON.stringify(VAL));}catch(e){} }
 function isNeg(s){ return /^-/.test(String(s).trim()); }
@@ -1206,8 +1228,11 @@ function renderVal(){
       let cls='vcell', cell='', attr='';
       if(col.kind==='sym'){
         const sym=row[1]??'';
-        const href=valNaverLink(sym);
-        cell=`<a href="${href}" target="_blank" rel="noopener">${sym}</a>`;
+        if(KR_CODE[sym]){
+          cell=`<a href="https://m.stock.naver.com/domestic/stock/${KR_CODE[sym]}/total" target="_blank" rel="noopener">${sym}</a>`;
+        }else{
+          cell=`<a href="#" class="nvlink" data-sym="${encodeURIComponent(sym)}">${sym}</a>`;
+        }
       }else if(col.kind==='live'){
         const q=valLive[ri];
         cell = q ? (q.priceStr?addComma(q.priceStr):addComma(String(q.price))) : (SRV_URL?'…':'—');
@@ -1237,6 +1262,10 @@ function renderVal(){
       if(c===6||c===8) updateDiffRow(r);
     };
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+  // 미국 종목 Symbol 클릭 → 네이버 월드스톡 페이지로 이동
+  t.querySelectorAll('a.nvlink').forEach(a=>{
+    a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); };
   });
 }
 /* 한 행의 목표가차이·적정가차이 셀만 갱신 (전체 재렌더 없이) */
