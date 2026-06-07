@@ -280,6 +280,16 @@
   .val-tbl td[contenteditable]:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbe6}
   .val-tbl td a{color:#1257c2;text-decoration:none;font-weight:700;border-bottom:1px dotted #1257c2}
   .val-tbl td a:active{opacity:.55}
+  /* 미국 ETF 모델포트폴리오 표 */
+  .val-tbl.mp th,.val-tbl.mp td{white-space:normal;vertical-align:middle;background:#fff;color:#111;
+    border:1px solid #ddd;padding:8px 6px;font-size:12px;line-height:1.35}
+  .val-tbl.mp thead th{background:#404040;color:#fff;font-weight:700;text-align:center}
+  .val-tbl.mp .mp-title{text-align:left;font-size:13px;padding:9px 10px}
+  .val-tbl.mp td.mp-c{text-align:center}
+  .val-tbl.mp td.mp-l{text-align:left;min-width:130px}
+  .val-tbl.mp td:nth-child(1){min-width:30px}
+  .val-tbl.mp td:nth-child(2){min-width:52px;font-weight:700}
+  .val-tbl.mp tr.mp-total td{background:#d9d9d9;font-weight:700}
 
   /* watchlist */
   .watch{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
@@ -1195,9 +1205,41 @@ function openNaverWorld(sym){
     .then(d=>{ go(d&&d.ok&&d.url ? d.url : fallback); })
     .catch(()=>{ go(fallback); });
 }
+/* 네이버 통합검색으로 열기 (한국 ETF 종목명 등) */
+function openNaverSearch(q){
+  const u='https://search.naver.com/search.naver?query='+encodeURIComponent(q);
+  const w=window.open('about:blank','_blank');
+  if(w){ w.location=u; } else { location.href=u; }
+}
 let valLive={}; // ri → {price, priceStr}
 /* 분류별 기본 데이터 (미국=현재 표, 나머지는 추후 제공) */
 const VAL_DEFAULT={ us:VAL_DATA, usetf:[], kr:[], kretf:[] };
+/* ETF 모델포트폴리오 (주식 → 미국 ETF / 한국 ETF 탭에 표시) */
+const USETF_MP={
+  title:"6월 모델포트폴리오 (5월과 동일)",
+  head:["No.","종목(Ticker)","기초지수","투자포인트","5월 비중","6월 비중","변경(%p)"],
+  rows:[
+    ["1","RSP","동일가중 S&P500","섹터 및 종목 확산시 SPY보다 유효","10%","10%","-"],
+    ["2","SMH","MVIS US Listed Semiconductor 25 Index","미국 상장 반도체 25개","30%","30%","-"],
+    ["3","SOXX","필라델피아반도체 지수","반도체 모멘텀 지속","30%","30%","-"],
+    ["4","DRAM","ROUNDHILL MEMORY ETF","메모리 기업들의 성장 가속화","30%","30%","-"],
+  ],
+  total:["100.0","100.0","-"], totalSpan:4, left:[2,3], linkCol:1, link:"world",
+};
+const KRETF_MP={
+  title:"[Portfolio]",
+  head:["No.","종목명","26.5월 비중(%)","26.4월 비중(%)","변경(%)"],
+  rows:[
+    ["1","TIGER 반도체TOP10","44.7","41.5","+3.2"],
+    ["2","SOL 조선TOP3플러스","19.4","4.9","+14.5"],
+    ["3","TIGER 2차전지소재Fn","2.4","2.8","-0.4"],
+    ["4","TIGER 2차전지테마","2.4","2.7","-0.3"],
+    ["5","TIGER 반도체","0.0","22.0","-22.0"],
+    ["6","KODEX 200","0.0","16.4","-16.4"],
+    ["7","TIGER 증권","0.0","9.7","-9.7"],
+  ],
+  total:["100.0","100.0","-"], totalSpan:2, left:[1], linkCol:1, link:"search",
+};
 let valMarket='us', VAL=[];
 function loadVal(){
   let saved=null; try{saved=JSON.parse(store.get('valuation_'+valMarket)||'null');}catch(e){}
@@ -1217,6 +1259,9 @@ function renderVal(){
   loadVal();
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty');
   if(!t) return;
+  if(valMarket==='usetf'){ renderMP(USETF_MP); return; }  // 미국 ETF 모델포트폴리오
+  if(valMarket==='kretf'){ renderMP(KRETF_MP); return; }  // 한국 ETF 모델포트폴리오
+  t.className='val-tbl';
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
   let html='<thead><tr>';
@@ -1267,6 +1312,40 @@ function renderVal(){
   // 미국 종목 Symbol 클릭 → 네이버 월드스톡 페이지로 이동
   t.querySelectorAll('a.nvlink').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); };
+  });
+}
+/* ETF 모델포트폴리오 표 렌더링 (미국/한국 공용) */
+function renderMP(cfg){
+  const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty');
+  if(!t) return;
+  sc.style.display=''; em.style.display='none';
+  t.className='val-tbl mp';
+  const n=cfg.head.length;
+  let h='<thead>';
+  h+=`<tr><th class="mp-title" colspan="${n}">${cfg.title}</th></tr>`;
+  h+='<tr>'+cfg.head.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  h+='</thead><tbody>';
+  cfg.rows.forEach(r=>{
+    h+='<tr>';
+    r.forEach((cell,ci)=>{
+      const cls=(cfg.left&&cfg.left.includes(ci))?'mp-l':'mp-c';
+      if(ci===cfg.linkCol){
+        h+=`<td class="${cls}"><a href="#" class="mplink" data-v="${encodeURIComponent(cell)}">${cell}</a></td>`;
+      }else{
+        h+=`<td class="${cls}">${cell}</td>`;
+      }
+    });
+    h+='</tr>';
+  });
+  if(cfg.total){
+    h+='<tr class="mp-total">'+`<td class="mp-c" colspan="${cfg.totalSpan||1}">합계</td>`
+      +cfg.total.map(x=>`<td class="mp-c">${x}</td>`).join('')+'</tr>';
+  }
+  h+='</tbody>';
+  t.innerHTML=h;
+  t.querySelectorAll('a.mplink').forEach(a=>{
+    a.onclick=ev=>{ ev.preventDefault(); const v=decodeURIComponent(a.dataset.v||'');
+      if(cfg.link==='world') openNaverWorld(v); else openNaverSearch(v); };
   });
 }
 /* 한 행의 목표가차이·적정가차이 셀만 갱신 (전체 재렌더 없이) */
