@@ -1865,7 +1865,9 @@ function openBroker(pkg){
   const store='https://play.google.com/store/apps/details?id='+pkg;
   const ua=navigator.userAgent||'';
   if(/Android/i.test(ua)){
-    window.location.href='intent://#Intent;package='+pkg+';S.browser_fallback_url='+encodeURIComponent(store)+';end';
+    window.location.href='intent://#Intent;package='+pkg+
+      ';action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER'+
+      ';S.browser_fallback_url='+encodeURIComponent(store)+';end';
   } else {
     window.open(store,'_blank','noopener');
   }
