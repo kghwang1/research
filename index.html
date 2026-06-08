@@ -291,6 +291,10 @@
   .val-tbl.mp td.mp-l{text-align:left;min-width:130px}
   .val-tbl.mp td.mp-r{text-align:right}
   .val-tbl td.wt{font-size:1.1em;font-weight:800}
+  .val-tbl td.kredit{background:rgba(124,140,255,.10);cursor:text}
+  .val-tbl td.kredit:focus{outline:2px solid var(--accent2);outline-offset:-2px}
+  .val-tbl td.up{color:#ff5b5b;font-weight:700}
+  .val-tbl td.down{color:#5b9cff;font-weight:700}
   .etf-sec{margin:0 0 18px}
   .etf-cap{font-size:14px;font-weight:800;color:var(--ink);padding:8px 4px 4px}
   .etf-acts{display:flex;gap:8px;justify-content:flex-end;padding:8px 4px 0}
@@ -1287,49 +1291,46 @@ const KRETF_CFG={
   ],
   sumCols:[2,3], totalSpan:2,
 };
-/* 국내 포트폴리오 (주식 → 한국 탭에 표시). 심볼=종목코드 */
+/* 국내 포트폴리오. 저장형식: [심볼, 종목명, 비중%, 조정비율%, 적정가, 기록]
+   현재가(라이브)·상승여력(계산)은 표시 시 추가됨 */
 const KR_PF={
-  title:"국내 포트폴리오",
-  head:["심볼","종목명","주가","비중(%)","차이(%)","변동사항"],
   rows:[
-    ["005930","삼성전자","18,532,703","31.3","-3.5","비중축소▼"],
-    ["000660","SK하이닉스","16,627,346","21.4","0.7","비중축소▼"],
-    ["069500","KODEX 200","294,840","11.5","4.3",""],
-    ["226490","KODEX 코스피","11,990","7.4","0",""],
-    ["329180","HD현대중공업","730,530","3.8","0.3","비중확대▲"],
-    ["006400","삼성SDI","554,428","3.6","0.7","비중확대▲"],
-    ["009150","삼성전기","1,588,735","2.4","0.8","비중확대▲"],
-    ["006800","미래에셋증권","343,574","2.1","-1.7","비중축소▼"],
-    ["082740","한화엔진","53,573","1.9","-0.5",""],
-    ["005935","삼성전자우","1,624,802","1","0",""],
-    ["402340","SK스퀘어","1,627,047","1","-0.1",""],
-    ["039490","키움증권","97,176","0.9","-0.5","비중축소▼"],
-    ["010060","OCI홀딩스","65,252","0.8","0",""],
-    ["373220","LG에너지솔루션","1,071,720","0.8","0.8","NEW"],
-    ["","현금","","0.8","-0.5",""],
-    ["017670","SK텔레콤","216,079","0.6","-0.1",""],
-    ["002380","KCC","47,261","0.6","0.6","NEW"],
-    ["012330","현대모비스","696,826","0.6","0.6",""],
-    ["033780","KT&G","191,738","0.5","-0.1",""],
-    ["079550","LIG디펜스앤에어로스페이스","176,220","0.4","-0.1",""],
-    ["000270","기아","660,579","0.4","0",""],
-    ["012450","한화에어로스페이스","604,839","0.3","-0.1",""],
-    ["004020","현대제철","53,578","0.3","0.3","NEW"],
-    ["086790","하나금융지주","315,797","0.3","-0.1",""],
-    ["064350","현대로템","218,830","0.3","0",""],
-    ["105560","KB금융","561,513","0.3","0",""],
-    ["055550","신한지주","444,276","0.3","0",""],
-    ["0126Z0","삼성에피스홀딩스","120,434","0.3","0",""],
-    ["042660","한화오션","377,806","0.3","0.1","NEW"],
-    ["011780","금호석유화학","33,283","0.3","0",""],
+    ["005930","삼성전자","31.3","-3.5","",""],
+    ["000660","SK하이닉스","21.4","0.7","",""],
+    ["069500","KODEX 200","11.5","4.3","",""],
+    ["226490","KODEX 코스피","7.4","0","",""],
+    ["329180","HD현대중공업","3.8","0.3","",""],
+    ["006400","삼성SDI","3.6","0.7","",""],
+    ["009150","삼성전기","2.4","0.8","",""],
+    ["006800","미래에셋증권","2.1","-1.7","",""],
+    ["082740","한화엔진","1.9","-0.5","",""],
+    ["005935","삼성전자우","1","0","",""],
+    ["402340","SK스퀘어","1","-0.1","",""],
+    ["039490","키움증권","0.9","-0.5","",""],
+    ["010060","OCI홀딩스","0.8","0","",""],
+    ["373220","LG에너지솔루션","0.8","0.8","",""],
+    ["","현금","0.8","-0.5","",""],
+    ["017670","SK텔레콤","0.6","-0.1","",""],
+    ["002380","KCC","0.6","0.6","",""],
+    ["012330","현대모비스","0.6","0.6","",""],
+    ["033780","KT&G","0.5","-0.1","",""],
+    ["079550","LIG디펜스앤에어로스페이스","0.4","-0.1","",""],
+    ["000270","기아","0.4","0","",""],
+    ["012450","한화에어로스페이스","0.3","-0.1","",""],
+    ["004020","현대제철","0.3","0.3","",""],
+    ["086790","하나금융지주","0.3","-0.1","",""],
+    ["064350","현대로템","0.3","0","",""],
+    ["105560","KB금융","0.3","0","",""],
+    ["055550","신한지주","0.3","0","",""],
+    ["0126Z0","삼성에피스홀딩스","0.3","0","",""],
+    ["042660","한화오션","0.3","0.1","",""],
+    ["011780","금호석유화학","0.3","0","",""],
   ],
-  total:null, left:[1], right:[2], linkCol:0, link:"fnguide", wt:[3],
-  widths:[68,92,96,72,56,84],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
 let valMarket='us', VAL=[];
 function loadVal(){
-  let saved=null; try{ const _s=store.get('valuation_'+valMarket); saved=_s?JSON.parse(_s.value):null; }catch(e){}
+  let saved=null; try{ const _s=store.get(lsKey(valMarket)); saved=_s?JSON.parse(_s.value):null; }catch(e){}
   VAL = (saved && saved.length) ? saved : VAL_DEFAULT[valMarket].map(r=>r.slice());
   // Symbol의 괄호 안 내용 제거 (미국 주식 표에만 적용): "MMF(BIL,ICSH), IEF" → "MMF, IEF"
   let changed=false;
@@ -1342,9 +1343,10 @@ function loadVal(){
   }
   if(changed) saveVal();
 }
-function saveVal(){ try{store.set('valuation_'+valMarket,JSON.stringify(VAL));}catch(e){} }
+function saveVal(){ try{store.set(lsKey(valMarket),JSON.stringify(VAL));}catch(e){} }
 /* ── 서버(공유) 저장: Cloudflare KV ── */
-const SERVER_KEYS={ us:'val_us', usetf:'val_usetf', kretf:'val_kretf', kr:'val_kr' };
+const SERVER_KEYS={ us:'val_us', usetf:'val_usetf', kretf:'val_kretf', kr:'val_kr2' };
+function lsKey(m){ return 'valuation_'+(m==='kr'?'kr2':m); }
 async function serverGet(m){
   if(!SRV_URL) return null; const k=SERVER_KEYS[m]; if(!k) return null;
   try{ const r=await fetch(SRV_URL+'/?data='+k); const d=await r.json();
@@ -1356,11 +1358,11 @@ async function serverPut(m, arr){
   try{ const r=await fetch(SRV_URL+'/?data='+k,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(arr)});
     const d=await r.json(); return !!(d&&d.ok); }catch(e){ return false; }
 }
-function hasLocalVal(m){ try{ const s=store.get('valuation_'+m); const a=s?JSON.parse(s.value):null; return !!(a&&a.length); }catch(e){ return false; } }
+function hasLocalVal(m){ try{ const s=store.get(lsKey(m)); const a=s?JSON.parse(s.value):null; return !!(a&&a.length); }catch(e){ return false; } }
 /* 이 기기에 자료가 없으면 서버에서 받아와 표시 (기기 간 공유) */
 function ensureServer(m){
   if(hasLocalVal(m)) return;
-  serverGet(m).then(arr=>{ if(arr&&arr.length&&valMarket===m){ store.set('valuation_'+m, JSON.stringify(arr)); renderVal(); } });
+  serverGet(m).then(arr=>{ if(arr&&arr.length&&valMarket===m){ store.set(lsKey(m), JSON.stringify(arr)); renderVal(); } });
 }
 function toast(msg){
   let el=document.getElementById('toast');
@@ -1378,10 +1380,7 @@ function renderVal(){
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
-  if(valMarket==='kr'){
-    const rows=VAL.map(r=>{ const d=r.slice(); const c=String(r[0]).replace(/[^0-9]/g,''); const p=krLive[c]; d[2]= p?addComma(p):(SRV_URL?'…':'—'); return d; });
-    renderMP(Object.assign({}, KR_PF, {rows})); return;
-  }  // 한국: 국내 포트폴리오(주가=현재가)
+  if(valMarket==='kr'){ renderKrTable(); return; }  // 한국: 국내 포트폴리오(적정가 입력·상승여력 자동계산)
   t.className='val-tbl';
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
@@ -1602,9 +1601,57 @@ async function fetchKrLive(rows){
     }catch(e){}
   }
 }
+/* 상승여력(%) = (적정가-현재가)/현재가 ×100 */
+function krUpside(target, cur){
+  const a=parseFloat(String(target).replace(/[^0-9.\-]/g,''));
+  const b=parseFloat(String(cur).replace(/[^0-9.\-]/g,''));
+  if(isNaN(a)||isNaN(b)||b===0) return '';
+  return ((a-b)/b*100).toFixed(1);
+}
+/* 한국 표: [심볼][종목명][비중%][조정비율%][현재가][적정가][상승여력%][기록] */
+function renderKrTable(){
+  const t=$('#valTbl'); if(!t) return;
+  const W=[62,86,52,68,76,76,68,96];
+  const H=["심볼","종목명","비중(%)","조정비율(%)","현재가","적정가","상승여력(%)","기록"];
+  let h='<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  VAL.forEach((r,ri)=>{
+    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+    const live=krLive[code];
+    const liveStr= live? addComma(live) : (code?(SRV_URL?'…':'—'):'');
+    const up=krUpside(r[4], live);
+    const upCls= up===''?'':(parseFloat(up)>=0?'up':'down');
+    h+='<tr>';
+    h+=`<td class="mp-c">${ code?`<a href="#" class="krlink" data-code="${code}">${r[0]}</a>`:(r[0]||'') }</td>`;
+    h+=`<td class="mp-l">${r[1]||''}</td>`;
+    h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
+    h+=`<td class="mp-r">${r[3]==null?'':r[3]}</td>`;
+    h+=`<td class="mp-r">${liveStr}</td>`;
+    h+=`<td class="mp-r kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</td>`;
+    h+=`<td class="mp-r ${upCls}" data-up="${ri}">${up}</td>`;
+    h+=`<td class="mp-l kredit" contenteditable data-r="${ri}" data-f="5">${r[5]==null?'':r[5]}</td>`;
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  t.className='val-tbl mp mpfix'; t.innerHTML=h;
+  t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); openConsensus(a.dataset.code); }; });
+  t.querySelectorAll('td.kredit').forEach(td=>{
+    td.onblur=()=>{
+      const r=+td.dataset.r, f=+td.dataset.f;
+      VAL[r][f]=td.textContent.trim(); saveVal();
+      if(f===4){
+        const code=String(VAL[r][0]||'').replace(/[^0-9]/g,'');
+        const up=krUpside(VAL[r][4], krLive[code]);
+        const cell=t.querySelector(`td[data-up="${r}"]`);
+        if(cell){ cell.textContent=up; cell.className='mp-r '+(up===''?'':(parseFloat(up)>=0?'up':'down')); }
+      }
+    };
+    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+}
 /* ===== 한·미 ETF 통합 화면 ===== */
-function etfLoad(market){ let s=null; try{ const o=store.get('valuation_'+market); s=o?JSON.parse(o.value):null; }catch(e){} return (s&&s.length)?s:VAL_DEFAULT[market].map(r=>r.slice()); }
-function etfSave(market,arr){ try{ store.set('valuation_'+market, JSON.stringify(arr)); }catch(e){} }
+function etfLoad(market){ let s=null; try{ const o=store.get(lsKey(market)); s=o?JSON.parse(o.value):null; }catch(e){} return (s&&s.length)?s:VAL_DEFAULT[market].map(r=>r.slice()); }
+function etfSave(market,arr){ try{ store.set(lsKey(market), JSON.stringify(arr)); }catch(e){} }
 function etfSumArr(arr,ci){ let s=0; arr.forEach(r=>{ const n=parseFloat(String(r[ci]).replace(/[^0-9.\-]/g,'')); if(!isNaN(n)) s+=n; }); return (Math.round(s*10)/10).toFixed(1); }
 function renderEtfTable(tableEl, market, cfg, arr){
   const cols=cfg.cols, n=cols.length;
@@ -1749,8 +1796,8 @@ function renderInfo(box){
     if(!confirm('이 자료를 서버 자료와 일치시킬까요?\n이 기기에서 고친 내용은 사라집니다.')) return;
     rb.textContent='동기화 중…';
     serverGet(valMarket).then(arr=>{
-      if(arr && arr.length){ store.set('valuation_'+valMarket, JSON.stringify(arr)); toast('서버 자료로 맞췄습니다'); }
-      else { store.set('valuation_'+valMarket, JSON.stringify(VAL_DEFAULT[valMarket])); toast('서버에 자료가 없어 기본값으로 복원했습니다'); }
+      if(arr && arr.length){ store.set(lsKey(valMarket), JSON.stringify(arr)); toast('서버 자료로 맞췄습니다'); }
+      else { store.set(lsKey(valMarket), JSON.stringify(VAL_DEFAULT[valMarket])); toast('서버에 자료가 없어 기본값으로 복원했습니다'); }
       rb.textContent='초기화'; renderVal();
     });
   };
