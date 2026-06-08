@@ -316,6 +316,7 @@
   .val-tbl td.kredit:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbd6}
   .val-tbl td.up{color:#ff5b5b;font-weight:700}
   .val-tbl td.down{color:#5b9cff;font-weight:700}
+  .val-tbl caption.kr-cap{caption-side:top;text-align:left;color:#ff5b5b;font-weight:800;font-size:14px;padding:6px 4px 8px}
   .etf-sec{margin:0 0 18px}
   .etf-cap{font-size:14px;font-weight:800;color:var(--ink);padding:8px 4px 4px}
   .etf-acts{display:flex;gap:8px;justify-content:flex-end;padding:8px 4px 0}
@@ -1376,6 +1377,7 @@ const KR_PF={
   ],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
+const KR_LABEL = "6월 2주 포트폴리오";  // 한국 표 상단 라벨(매달 갱신)
 let valMarket='us', VAL=[];
 function krMerge(saved){
   const byCode={}; (saved||[]).forEach(r=>{ if(r&&r[0]!=null) byCode[String(r[0])]=r; });
@@ -1683,7 +1685,7 @@ function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[62,86,52,68,76,76,68,96];
   const H=["심볼","종목명","비중(%)","조정비율(%)","현재가","목표가","상승여력(%)","기록"];
-  let h='<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+KR_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
     const code=String(r[0]||'').replace(/[^0-9]/g,'');
