@@ -97,6 +97,11 @@
   .rv-card .go{margin-left:auto;font-size:12px;font-weight:700;color:var(--accent);flex-shrink:0}
   .rv-card.primary{background:linear-gradient(135deg,var(--accent),#a8d62e);color:#0c0e14;border:none}
   .val-submenu{display:flex;flex-direction:column;gap:10px;padding:14px}
+  .cg-panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .cg-panel-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .cg-panel-head .ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--panel2);font-size:18px}
+  .cg-panel-head .tt{font-weight:700;font-size:15px;color:var(--ink)}
+  .cg-panel-note{margin-top:10px;color:var(--sub);font-size:12px;line-height:1.5}
   .flowfull{--flowcrop:150px}
   .flowfull .flow-body{flex:1;position:relative;overflow:hidden}
   .flow-crop{position:absolute;inset:0;overflow:hidden}
@@ -465,7 +470,12 @@
   <div class="val-submenu">
    <a class="rv-card primary" id="goInvest" href="#"><span class="ic">📊</span><span class="tx"><span class="tt">투자</span><span class="sb">한국·미국·ETF 비중 · 적정가 · 기업정보</span></span><span class="go">열기 ›</span></a>
    <a class="rv-card" id="goFlow" href="#" onclick="event.preventDefault();openFlow();return false;"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" id="goInfo" href="#" onclick="event.preventDefault();openInfo();return false;"><span class="ic">🏢</span><span class="tx"><span class="tt">기업정보</span><span class="sb">기업명·코드 검색 → 네이버 / 컴퍼니가이드</span></span><span class="go">열기 ›</span></a>
+   <div class="cg-panel">
+    <div class="cg-panel-head"><span class="ic">🏢</span><span class="tt">기업정보</span></div>
+    <div class="info-row"><input id="cgInput" placeholder="기업명 또는 종목코드(6자리)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();cgOpen('cg');}"><button class="btn-go" onclick="cgOpen('naver')">네이버</button><button class="btn-go cg" onclick="cgOpen('cg')">CG</button></div>
+    <div id="cgResult" class="cg-result"></div>
+    <div class="cg-panel-note"><b>네이버</b>=시세·차트·뉴스, <b>CG</b>=PER·적정주가·투자의견. 기업명 입력 시 가장 가까운 종목이 바로 열립니다.</div>
+   </div>
   </div>
  </section>
 
