@@ -102,6 +102,14 @@
   .cg-panel-head .ic{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--panel2);font-size:18px}
   .cg-panel-head .tt{font-weight:700;font-size:15px;color:var(--ink)}
   .cg-panel-note{margin-top:10px;color:var(--sub);font-size:12px;line-height:1.5}
+  .broker-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .broker-title{font-weight:700;font-size:15px;color:var(--ink);margin-bottom:10px}
+  .broker-row{display:flex;gap:8px}
+  .broker-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:12px 6px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--ink);cursor:pointer}
+  .broker-btn b{font-size:13px;font-weight:800}
+  .broker-btn span{font-size:11px;color:var(--sub)}
+  .broker-btn:active{border-color:var(--accent2)}
+  .broker-note{margin-top:10px;color:var(--sub);font-size:12px;line-height:1.5}
   .flowfull{--flowcrop:150px}
   .flowfull .flow-body{flex:1;position:relative;overflow:hidden}
   .flow-crop{position:absolute;inset:0;overflow:hidden}
@@ -475,6 +483,15 @@
     <div class="info-row"><input id="cgInput" placeholder="기업명 또는 종목코드(6자리)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();cgOpen('cg');}"><button class="btn-go" onclick="cgOpen('naver')">네이버</button><button class="btn-go cg" onclick="cgOpen('cg')">CG</button></div>
     <div id="cgResult" class="cg-result"></div>
     <div class="cg-panel-note"><b>네이버</b>=시세·차트·뉴스, <b>CG</b>=PER·적정주가·투자의견. 기업명 입력 시 가장 가까운 종목이 바로 열립니다.</div>
+   </div>
+   <div class="broker-box">
+    <div class="broker-title">증권사 앱 바로가기</div>
+    <div class="broker-row">
+     <button class="broker-btn" onclick="openBroker('com.kiwoom.heromts')"><b>영웅문S</b></button>
+     <button class="broker-btn" onclick="openBroker('com.miraeasset.trade')"><b>M-stock</b></button>
+     <button class="broker-btn" onclick="openBroker('com.shinhaninvest.nsmts')"><b>SOL stock</b></button>
+    </div>
+    <div class="broker-note">설치돼 있으면 앱이 열리고, 없으면 스토어로 이동합니다. (안드로이드 크롬에서 가장 잘 동작)</div>
    </div>
   </div>
  </section>
@@ -1843,6 +1860,16 @@ function closeValFull(){ $('#valFull').classList.remove('on'); }
 const FLOW_URL='https://finance.naver.com/sise/sise_trans_style.naver?sosok=03';
 function openFlow(){ const f=$('#flowFrame'); if(f) f.src=FLOW_URL; $('#flowFull').classList.add('on'); }
 function flowOpenNaver(){ window.open(FLOW_URL,'_blank','noopener'); }
+/* 증권사 앱 실행 (안드로이드 intent, 미설치 시 스토어) */
+function openBroker(pkg){
+  const store='https://play.google.com/store/apps/details?id='+pkg;
+  const ua=navigator.userAgent||'';
+  if(/Android/i.test(ua)){
+    window.location.href='intent://#Intent;package='+pkg+';S.browser_fallback_url='+encodeURIComponent(store)+';end';
+  } else {
+    window.open(store,'_blank','noopener');
+  }
+}
 function openInfo(){
   valMarket='info';
   $$('#valSub .subtab').forEach(x=>x.classList.remove('on'));
