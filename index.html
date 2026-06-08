@@ -465,6 +465,7 @@
   <div class="val-submenu">
    <a class="rv-card primary" id="goInvest" href="#"><span class="ic">📊</span><span class="tx"><span class="tt">투자</span><span class="sb">한국·미국·ETF 비중 · 적정가 · 기업정보</span></span><span class="go">열기 ›</span></a>
    <a class="rv-card" id="goFlow" href="#" onclick="event.preventDefault();openFlow();return false;"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
+   <a class="rv-card" id="goInfo" href="#" onclick="event.preventDefault();openInfo();return false;"><span class="ic">🏢</span><span class="tx"><span class="tt">기업정보</span><span class="sb">기업명·코드 검색 → 네이버 / 컴퍼니가이드</span></span><span class="go">열기 ›</span></a>
   </div>
  </section>
 
@@ -477,7 +478,6 @@
   <div class="subtab on" data-m="kr">한국</div>
   <div class="subtab" data-m="us">미국</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
-  <div class="subtab" data-m="info">기업정보</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
@@ -1833,6 +1833,11 @@ function closeValFull(){ $('#valFull').classList.remove('on'); }
 const FLOW_URL='https://finance.naver.com/sise/sise_trans_style.naver?sosok=03';
 function openFlow(){ const f=$('#flowFrame'); if(f) f.src=FLOW_URL; $('#flowFull').classList.add('on'); }
 function flowOpenNaver(){ window.open(FLOW_URL,'_blank','noopener'); }
+function openInfo(){
+  valMarket='info';
+  $$('#valSub .subtab').forEach(x=>x.classList.remove('on'));
+  $('#valFull').classList.add('on'); renderVal();
+}
 function closeFlow(){
   $('#flowFull').classList.remove('on');
   const f=$('#flowFrame'); if(f) f.src='about:blank';
