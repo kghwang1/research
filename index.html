@@ -322,6 +322,13 @@
   #rUrls .url-row input{flex:1}
   #rUrls .url-del{flex:none;width:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--sub);cursor:pointer}
   .btn-linkadd{border:1px dashed var(--line);border-radius:8px;background:transparent;color:var(--accent2);padding:7px 12px;font-size:13px;cursor:pointer}
+  .srv-row{display:flex;gap:8px;margin:10px 0}
+  .srv-btn{flex:1;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--mut);padding:9px 8px;font-size:13px;cursor:pointer}
+  .srv-btn:active{background:var(--panel2)}
+  .watch-bar{display:flex;gap:8px;align-items:stretch;margin-bottom:6px}
+  .watch-bar .wadd{flex:none;width:auto;margin:0;padding:10px 16px}
+  .watch-bar .wf{flex:1;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--mut);font-size:14px;font-weight:700;cursor:pointer}
+  .watch-bar .wf.on{background:var(--accent);color:#0c0e14;border-color:var(--accent)}
   .etf-sec{margin:0 0 18px}
   .etf-cap{font-size:14px;font-weight:800;color:var(--ink);padding:8px 4px 4px}
   .etf-acts{display:flex;gap:8px;justify-content:flex-end;padding:8px 4px 0}
@@ -469,13 +476,25 @@
    <div class="paste-hint" id="pasteHint"></div>
   </div>
   <button class="btn btn-add" id="openAdd">＋ 직접 등록</button>
+  <div class="srv-row">
+   <button class="srv-btn" id="arcSave">서버 저장</button>
+   <button class="srv-btn" id="arcLoad">서버 불러오기</button>
+  </div>
   <div class="count" id="arcCount"></div>
   <div id="arcList"></div>
  </section>
 
  <!-- ===== BROADCAST (방송) ===== -->
  <section id="watch">
-  <button class="btn btn-add" id="openWatch">＋ 방송 링크 추가</button>
+  <div class="watch-bar">
+   <button class="btn btn-add wadd" id="openWatch">＋ 추가</button>
+   <button class="wf" data-r="국내">국내</button>
+   <button class="wf" data-r="국외">국외</button>
+  </div>
+  <div class="srv-row">
+   <button class="srv-btn" id="watchSave">서버 저장</button>
+   <button class="srv-btn" id="watchLoad">서버 불러오기</button>
+  </div>
   <div id="watchList"></div>
  </section>
 
@@ -573,6 +592,12 @@
   <div class="mh"><h3>방송 링크 추가</h3><span class="x" data-close>×</span></div>
   <div class="mbody">
    <div class="fg"><label>방송 이름</label><input id="wName" placeholder="삼프로TV"></div>
+   <div class="fg"><label>구분</label>
+    <div class="op-pick" id="wRegPick">
+     <div class="opb sel" data-r="국내">국내</div>
+     <div class="opb" data-r="국외">국외</div>
+    </div>
+   </div>
    <div class="fg"><label>주소 (유튜브 등)</label><input id="wCode" placeholder="https://youtube.com/..." inputmode="url"></div>
    <div class="fg"><label>메모 (선택)</label><input id="wMemo" placeholder="장 마감 라이브"></div>
    <button class="btn btn-save" id="saveWatch">추가</button>
@@ -892,15 +917,19 @@ $('#saveReport').onclick=()=>{
 };
 
 /* ---------- watch ---------- */
+let watchRegion=''; // ''=전체, '국내', '국외'
 function renderWatch(){
   const el=$('#watchList');
   if(!WATCH.length){el.innerHTML=`<div class="empty"><span class="ico">📺</span>방송 링크를 추가하면<br>여기서 바로 열 수 있어요.</div>`;return;}
-  el.innerHTML=WATCH.map(w=>{
+  const list=WATCH.filter(w=>!watchRegion||(w.region||'국내')===watchRegion);
+  if(!list.length){el.innerHTML=`<div class="empty"><span class="ico">📺</span>${watchRegion} 방송이 없어요.</div>`;return;}
+  el.innerHTML=list.map(w=>{
     const url=esc(w.code||'');
+    const reg=w.region||'국내';
     return `<div class="watch">
       <div class="winfo" onclick="openBroadcast('${url}')">
         <div class="wn">${esc(w.name)} ↗</div>
-        <div class="wc">${w.memo?esc(w.memo):url}</div>
+        <div class="wc">${reg} · ${w.memo?esc(w.memo):url}</div>
       </div>
       <div class="wbtns">
         <span class="wbtn" onclick="editWatch('${w.id}')">수정</span>
@@ -909,13 +938,23 @@ function renderWatch(){
     </div>`;
   }).join('');
 }
+/* 국내/국외 필터 (다시 누르면 전체) */
+let wReg='국내';
+function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
+$$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
+$$('.watch-bar .wf').forEach(b=>b.onclick=()=>{
+  watchRegion = (watchRegion===b.dataset.r) ? '' : b.dataset.r;
+  $$('.watch-bar .wf').forEach(x=>x.classList.toggle('on', x.dataset.r===watchRegion));
+  renderWatch();
+});
 window.openBroadcast=url=>{ if(url) window.open(url,'_blank','noopener'); };
-$('#openWatch').onclick=()=>{ editWatchId=null; $('#wName').value='';$('#wCode').value='';$('#wMemo').value=''; $('#saveWatch').textContent='추가'; $('#ovWatch').classList.add('on'); };
+$('#openWatch').onclick=()=>{ editWatchId=null; $('#wName').value='';$('#wCode').value='';$('#wMemo').value=''; setWReg('국내'); $('#saveWatch').textContent='추가'; $('#ovWatch').classList.add('on'); };
 let editWatchId=null;
 window.editWatch=id=>{
   const w=WATCH.find(x=>x.id===id); if(!w) return;
   editWatchId=id;
   $('#wName').value=w.name||''; $('#wCode').value=w.code||''; $('#wMemo').value=w.memo||'';
+  setWReg(w.region||'국내');
   $('#saveWatch').textContent='저장';
   $('#ovWatch').classList.add('on');
 };
@@ -927,15 +966,23 @@ $('#saveWatch').onclick=()=>{
   const memo=$('#wMemo').value.trim();
   if(editWatchId){
     const w=WATCH.find(x=>x.id===editWatchId);
-    if(w){ w.name=name; w.code=url; w.memo=memo; }
+    if(w){ w.name=name; w.code=url; w.memo=memo; w.region=wReg; }
     editWatchId=null;
   }else{
-    WATCH.unshift({id:'w'+Date.now(),name,code:url,memo});
+    WATCH.unshift({id:'w'+Date.now(),name,code:url,memo,region:wReg});
   }
   $('#wName').value='';$('#wCode').value='';$('#wMemo').value='';
   $('#saveWatch').textContent='추가';
   saveWatchData(); renderWatch(); renderChips(); closeAll();
 };
+/* 아카이브 / 방송 서버 저장·불러오기 */
+(function(){
+  const aS=$('#arcSave'), aL=$('#arcLoad'), wS=$('#watchSave'), wL=$('#watchLoad');
+  if(aS) aS.onclick=()=>{ aS.textContent='저장 중…'; serverPutRaw('reports',REPORTS).then(ok=>{ aS.textContent='서버 저장'; toast(ok?'아카이브를 서버에 저장했습니다 (모든 기기 공유)':'저장 실패 — 시세서버/KV 연결을 확인하세요'); }); };
+  if(aL) aL.onclick=()=>{ if(!confirm('서버 자료로 맞출까요?\n이 기기의 아카이브 내용은 사라집니다.')) return; aL.textContent='불러오는 중…'; serverGetRaw('reports').then(arr=>{ aL.textContent='서버 불러오기'; if(Array.isArray(arr)){ REPORTS=arr; saveReports(); livePricesLoaded=false; renderArchive(); loadLivePrices(); toast('서버 자료로 맞췄습니다'); } else toast('서버에 저장된 아카이브가 없습니다'); }); };
+  if(wS) wS.onclick=()=>{ wS.textContent='저장 중…'; serverPutRaw('watch',WATCH).then(ok=>{ wS.textContent='서버 저장'; toast(ok?'방송 목록을 서버에 저장했습니다 (모든 기기 공유)':'저장 실패 — 시세서버/KV 연결을 확인하세요'); }); };
+  if(wL) wL.onclick=()=>{ if(!confirm('서버 자료로 맞출까요?\n이 기기의 방송 목록은 사라집니다.')) return; wL.textContent='불러오는 중…'; serverGetRaw('watch').then(arr=>{ wL.textContent='서버 불러오기'; if(Array.isArray(arr)){ WATCH=arr; saveWatchData(); renderWatch(); renderChips(); toast('서버 자료로 맞췄습니다'); } else toast('서버에 저장된 방송이 없습니다'); }); };
+})();
 
 /* ---------- modal close & filters ---------- */
 function closeAll(){$$('.ov').forEach(o=>o.classList.remove('on'));}
@@ -1443,6 +1490,18 @@ async function serverPut(m, arr){
   if(!SRV_URL) return false; const k=SERVER_KEYS[m]; if(!k) return false;
   try{ const r=await fetch(SRV_URL+'/?data='+k,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(arr)});
     const d=await r.json(); return !!(d&&d.ok); }catch(e){ return false; }
+}
+/* 임의 키(reports/watch) 서버 저장·불러오기 */
+async function serverPutRaw(key, data){
+  if(!SRV_URL) return false;
+  try{ const r=await fetch(SRV_URL+'/?data='+key,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)});
+    const d=await r.json(); return !!(d&&d.ok); }catch(e){ return false; }
+}
+async function serverGetRaw(key){
+  if(!SRV_URL) return null;
+  try{ const r=await fetch(SRV_URL+'/?data='+key); const d=await r.json();
+    if(d&&d.ok&&d.value) return JSON.parse(d.value); }catch(e){}
+  return null;
 }
 function hasLocalVal(m){ try{ const s=store.get(lsKey(m)); const a=s?JSON.parse(s.value):null; return !!(a&&a.length); }catch(e){ return false; } }
 /* 이 기기에 자료가 없으면 서버에서 받아와 표시 (기기 간 공유) */
