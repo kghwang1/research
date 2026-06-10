@@ -317,6 +317,11 @@
   .val-tbl td.up{color:#ff5b5b;font-weight:700}
   .val-tbl td.down{color:#5b9cff;font-weight:700}
   .val-tbl caption.kr-cap{caption-side:top;text-align:left;color:#ff5b5b;font-weight:800;font-size:14px;padding:6px 4px 8px}
+  .form-note{font-size:12px;color:var(--sub);line-height:1.5;padding:4px 0}
+  #rUrls .url-row{display:flex;gap:6px;margin-bottom:6px}
+  #rUrls .url-row input{flex:1}
+  #rUrls .url-del{flex:none;width:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--sub);cursor:pointer}
+  .btn-linkadd{border:1px dashed var(--line);border-radius:8px;background:transparent;color:var(--accent2);padding:7px 12px;font-size:13px;cursor:pointer}
   .etf-sec{margin:0 0 18px}
   .etf-cap{font-size:14px;font-weight:800;color:var(--ink);padding:8px 4px 4px}
   .etf-acts{display:flex;gap:8px;justify-content:flex-end;padding:8px 4px 0}
@@ -459,7 +464,7 @@
   </div>
   <div class="paste-box">
    <div class="paste-title">📋 네이버 리포트 붙여넣기</div>
-   <textarea id="pasteIn" placeholder="네이버 증권 리포트 화면에서 종목명·제목·증권사·투자의견·목표주가·현재주가를 긁어 그대로 붙여넣고 [자동 등록]을 누르세요."></textarea>
+   <textarea id="pasteIn" placeholder="네이버 증권 리포트 화면에서 종목명·제목·증권사·투자의견을 긁어 그대로 붙여넣고 [자동 등록]을 누르세요. 목표주가·현재가·상승여력은 네이버에서 자동 표시됩니다."></textarea>
    <button class="btn btn-q" id="pasteGo">자동 등록 ↓</button>
    <div class="paste-hint" id="pasteHint"></div>
   </div>
@@ -551,11 +556,11 @@
      <div class="opb 매도" data-op="매도">매도</div>
     </div>
    </div>
-   <div class="row2">
-    <div class="fg"><label>목표주가 (원)</label><input id="rTarget" inputmode="numeric" placeholder="95000"></div>
-    <div class="fg"><label>당시가격 (원)</label><input id="rCur" inputmode="numeric" placeholder="78000"></div>
+   <div class="fg"><label>목표주가</label><div class="form-note">네이버 컨센서스 목표주가를 종목코드로 자동 표시합니다.</div></div>
+   <div class="fg"><label>원문 링크 (여러 개 추가 가능)</label>
+    <div id="rUrls"></div>
+    <button type="button" class="btn-linkadd" id="addUrl">＋ 링크 추가</button>
    </div>
-   <div class="fg"><label>원문 링크 (선택)</label><input id="rUrl" placeholder="https://..." inputmode="url"></div>
    <div class="fg"><label>핵심 메모</label><textarea id="rMemo" placeholder="투자 포인트, 리스크, 캐치프레이즈 등"></textarea></div>
    <button class="btn btn-save" id="saveReport">저장</button>
   </div>
@@ -630,14 +635,14 @@ $$('.tab').forEach(t=>t.onclick=()=>{
 });
 
 /* ---------- archive render ---------- */
-/* 아카이브 라이브 현재가 (아카이브 탭 열 때 1회 조회) */
-let LIVE={}, livePricesLoaded=false;
+/* 아카이브 라이브 현재가 + 컨센서스 목표주가 (아카이브 탭 열 때 1회 조회) */
+let LIVE={}, ARCH_TGT={}, livePricesLoaded=false;
 function liveOf(r){ return (r.code&&LIVE[r.code]!=null)?LIVE[r.code]:null; }
+function targetOf(r){ return (r.code&&ARCH_TGT[r.code]!=null)?ARCH_TGT[r.code]:null; }
 function upside(r){
-  const lv=liveOf(r);
-  const base=lv!=null?lv:(r.cur?parseFloat(r.cur):null);  // 라이브 우선, 없으면 당시가격
-  if(!r.target||!base) return null;
-  return ((r.target-base)/base*100);
+  const lv=liveOf(r), tg=targetOf(r);   // 라이브 현재가 · 네이버 컨센서스 목표주가 기준
+  if(tg==null||lv==null||lv==0) return null;
+  return ((tg-lv)/lv*100);
 }
 async function loadLivePrices(){
   if(!SRV_URL) return;
@@ -650,9 +655,16 @@ async function loadLivePrices(){
     for(const it of (d.items||[])){
       if(it.ok&&it.price!=null) LIVE[it.symbol.replace('STK:','')]=it.price;
     }
-    livePricesLoaded=true;
-    renderArchive();  // 라이브 값 반영해 재렌더
   }catch(e){}
+  try{
+    const res=await fetch(SRV_URL+'/?targets='+encodeURIComponent(codes.join(',')));
+    const d=await res.json();
+    for(const it of (d.items||[])){
+      if(it&&it.ok&&it.target!=null) ARCH_TGT[String(it.symbol||'').replace('STK:','')]=it.target;
+    }
+  }catch(e){}
+  livePricesLoaded=true;
+  renderArchive();  // 라이브 값 반영해 재렌더
 }
 function renderArchive(){
   const q=$('#q').value.trim().toLowerCase();
@@ -676,14 +688,17 @@ function renderArchive(){
   el.innerHTML=list.map(r=>{
     const up=upside(r);
     const lv=liveOf(r);
+    const tv=targetOf(r);
     const upHtml = up===null?'' :
       `<div class="tp"><span class="lb">상승여력</span><span class="vl ${up>=0?'up':'dn'}">${up>=0?'+':''}${up.toFixed(1)}%</span></div>`;
-    const tgt = r.target?`<div class="tp"><span class="lb">목표주가</span><span class="vl">${num(r.target)}</span></div>`:'';
-    const then = r.cur?`<div class="tp"><span class="lb">당시가격</span><span class="vl">${num(r.cur)}</span></div>`:'';
+    const tgt = tv!=null?`<div class="tp"><span class="lb">목표주가</span><span class="vl">${num(tv)}</span></div>`
+      :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">목표주가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
     const now = lv!=null?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(lv)}</span></div>`
       :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">현재가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
-    const tprow=(tgt||then||now||upHtml)?`<div class="tp-row">${tgt}${then}${now}${upHtml}</div>`:'';
+    const tprow=(tgt||now||upHtml)?`<div class="tp-row">${tgt}${now}${upHtml}</div>`:'';
     const stockUrl=r.stockUrl||(/^\d{6}$/.test(r.code||'')?'https://finance.naver.com/item/main.naver?code='+r.code:'');
+    const urls=r.urls||(r.url?[r.url]:[]);
+    const urlBtns=urls.map((u,i)=>`<a class="pill lk" href="${esc(u)}" target="_blank" rel="noopener noreferrer">원본${urls.length>1?(i+1):''} ↗</a>`).join('');
     return `<div class="card">
       <div class="top">
         <span class="ticker">${esc(r.name)}</span>
@@ -696,7 +711,7 @@ function renderArchive(){
       ${r.memo?`<div class="memo">${esc(r.memo)}</div>`:''}
       <div class="acts">
         ${stockUrl?`<a class="pill lk" href="${esc(stockUrl)}" target="_blank" rel="noopener noreferrer">종목 ↗</a>`:''}
-        ${r.url?`<a class="pill lk" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">원본 ↗</a>`:''}
+        ${urlBtns}
         <button class="pill edit" onclick="editReport('${r.id}')">수정</button>
         <button class="pill del" onclick="delReport('${r.id}')">삭제</button>
       </div>
@@ -716,12 +731,28 @@ function openReport(r){
   $('#rName').value=r?.name||''; $('#rCode').value=r?.code||'';
   $('#rHeadLine').value=r?.head||''; $('#rBroker').value=r?.broker||'';
   $('#rDate').value=r?.date||todayISO();
-  $('#rTarget').value=r?.target||''; $('#rCur').value=r?.cur||'';
-  $('#rUrl').value=r?.url||''; $('#rMemo').value=r?.memo||'';
+  renderUrlInputs(r ? (r.urls || (r.url ? [r.url] : [])) : []);
+  $('#rMemo').value=r?.memo||'';
   setOp(r?.op||'매수');
   $('#ovReport').classList.add('on');
 }
 $('#openAdd').onclick=()=>openReport(null);
+
+/* 원문 링크 다중 입력 */
+function addUrlRow(val){
+  const box=$('#rUrls'); if(!box) return;
+  const row=document.createElement('div'); row.className='url-row';
+  const inp=document.createElement('input'); inp.type='url'; inp.inputMode='url';
+  inp.placeholder='https://...'; inp.value=val||'';
+  const del=document.createElement('button'); del.type='button'; del.className='url-del'; del.textContent='×';
+  del.onclick=()=>{ row.remove(); if(!box.children.length) addUrlRow(''); };
+  row.appendChild(inp); row.appendChild(del); box.appendChild(row);
+}
+function renderUrlInputs(arr){
+  const box=$('#rUrls'); if(!box) return; box.innerHTML='';
+  if(arr&&arr.length) arr.forEach(u=>addUrlRow(u)); else addUrlRow('');
+}
+const _addUrlBtn=$('#addUrl'); if(_addUrlBtn) _addUrlBtn.onclick=()=>addUrlRow('');
 
 /* ---------- 네이버 리포트 붙여넣기 자동 파싱 ---------- */
 function parseNaverReport(raw){
@@ -828,14 +859,14 @@ $('#pasteGo').onclick=()=>{
   const data={
     id:'r'+Date.now(),
     name:p.name, code:p.code, head:p.head, broker:p.broker,
-    date:p.date||todayISO(), op:p.op, target:p.target, cur:p.cur,
-    stockUrl:p.stockUrl||'', url:p.url||'', memo:p.memo||''
+    date:p.date||todayISO(), op:p.op,
+    stockUrl:p.stockUrl||'', urls:p.url?[p.url]:[], memo:p.memo||''
   };
   REPORTS.unshift(data);
   saveReports(); renderArchive();
+  if(livePricesLoaded||SRV_URL){ livePricesLoaded=false; loadLivePrices(); }
   $('#pasteIn').value='';
-  const up=(data.target&&data.cur)?` · 상승여력 ${Math.round((data.target/data.cur-1)*100)}%`:'';
-  hint.innerHTML=`✓ 등록됨: <b>${esc(data.name)}</b> · ${esc(data.broker||'증권사 미상')} · ${data.op}${up}<br>빠진 항목이 있으면 아래 목록에서 카드를 눌러 수정하세요.`;
+  hint.innerHTML=`✓ 등록됨: <b>${esc(data.name)}</b> · ${esc(data.broker||'증권사 미상')} · ${data.op}<br>목표주가·현재가·상승여력은 네이버에서 자동 표시됩니다. 빠진 항목이 있으면 카드를 눌러 수정하세요.`;
   hint.className='paste-hint ok';
 };
 window.editReport=id=>openReport(REPORTS.find(r=>r.id===id));
@@ -851,10 +882,9 @@ $('#saveReport').onclick=()=>{
     name, code:mCode,
     head:$('#rHeadLine').value.trim(), broker:$('#rBroker').value.trim(),
     date:$('#rDate').value||todayISO(), op:curOp,
-    target:$('#rTarget').value.replace(/[^\d]/g,''),
-    cur:$('#rCur').value.replace(/[^\d]/g,''),
     stockUrl:/^\d{6}$/.test(mCode)?'https://finance.naver.com/item/main.naver?code='+mCode:'',
-    url:$('#rUrl').value.trim(), memo:$('#rMemo').value.trim()
+    urls:[...document.querySelectorAll('#rUrls input')].map(i=>i.value.trim()).filter(Boolean),
+    memo:$('#rMemo').value.trim()
   };
   if(id){const i=REPORTS.findIndex(r=>r.id===id);REPORTS[i]=data;}
   else REPORTS.unshift(data);
