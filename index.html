@@ -457,18 +457,6 @@
 
  <!-- ===== ARCHIVE ===== -->
  <section id="archive">
-  <div class="filterbar">
-   <div class="search">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg>
-    <input id="q" placeholder="종목·증권사·메모 검색">
-   </div>
-   <select class="fl" id="flOp">
-    <option value="">의견전체</option><option>매수</option><option>중립</option><option>매도</option>
-   </select>
-   <select class="fl" id="flSort">
-    <option value="date">최신순</option><option value="ticker">종목순</option><option value="upside">상승여력순</option>
-   </select>
-  </div>
   <div class="paste-box">
    <div class="paste-title">📋 네이버 리포트 붙여넣기</div>
    <textarea id="pasteIn" placeholder="네이버 증권 리포트 화면에서 종목명·제목·증권사·투자의견을 긁어 그대로 붙여넣고 [자동 등록]을 누르세요. 목표주가·현재가·상승여력은 네이버에서 자동 표시됩니다."></textarea>
@@ -491,11 +479,11 @@
    <button class="wf" data-r="국내">국내</button>
    <button class="wf" data-r="국외">국외</button>
   </div>
+  <div id="watchList"></div>
   <div class="srv-row">
    <button class="srv-btn" id="watchSave">서버 저장</button>
    <button class="srv-btn" id="watchLoad">서버 불러오기</button>
   </div>
-  <div id="watchList"></div>
  </section>
 
  <!-- ===== VALUATION (적정주가) ===== -->
@@ -692,17 +680,8 @@ async function loadLivePrices(){
   renderArchive();  // 라이브 값 반영해 재렌더
 }
 function renderArchive(){
-  const q=$('#q').value.trim().toLowerCase();
-  const fop=$('#flOp').value, sort=$('#flSort').value;
-  let list=REPORTS.filter(r=>{
-    if(fop&&r.op!==fop) return false;
-    if(q){const hay=(r.name+' '+r.code+' '+r.broker+' '+r.memo+' '+r.head).toLowerCase();
-      if(!hay.includes(q)) return false;}
-    return true;
-  });
-  if(sort==='date') list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  else if(sort==='ticker') list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
-  else if(sort==='upside') list.sort((a,b)=>(upside(b)??-999)-(upside(a)??-999));
+  let list=REPORTS.slice();
+  list.sort((a,b)=>(a.name||'').localeCompare(b.name||'','ko'));
 
   $('#arcCount').textContent = REPORTS.length? `총 ${REPORTS.length}건 · 표시 ${list.length}건`:'';
   const el=$('#arcList');
@@ -988,7 +967,7 @@ $('#saveWatch').onclick=()=>{
 function closeAll(){$$('.ov').forEach(o=>o.classList.remove('on'));}
 $$('[data-close]').forEach(x=>x.onclick=closeAll);
 $$('.ov').forEach(o=>o.onclick=e=>{if(e.target===o)closeAll();});
-['#q','#flOp','#flSort'].forEach(s=>$(s).addEventListener('input',renderArchive));
+/* (검색·필터 제거됨: 아카이브는 회사명 가나다/ABC순 고정) */
 
 /* ---------- 시황 (TradingView 위젯) ---------- */
 /* ---------- 시황 (야후 파이낸스 중계서버) ---------- */
