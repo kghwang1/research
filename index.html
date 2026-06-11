@@ -765,17 +765,36 @@ function parseNaverReport(raw){
   if(!lines.length) return null;
   const out={name:'',code:'',head:'',broker:'',date:'',op:'매수',target:'',cur:''};
 
-  // 1) 종목명+코드: 끝에 6자리 숫자가 붙은 줄 (예: 알테오젠196170)
-  for(const ln of lines){
-    const m=ln.match(/^(.+?)(\d{6})$/);
-    if(m){ out.name=m[1].trim(); out.code=m[2]; break; }
-  }
-  // 종목명 줄을 못 찾으면 첫 줄을 종목명으로
-  if(!out.name && lines[0]) out.name=lines[0];
+  // 종목명/제목 판별 헬퍼 (시세·메뉴·잡음 줄 제외)
+  const NOISE=/코스피|코스닥|KOSPI|KOSDAQ|NXT|차트|장마감|After-?Market|관심종목|주주|알림|설정|도움말|간편주문|원문|리서치|현재 위치|종합|토론|뉴스|공시|시세|재무|조회|공유|글자\s*크기|프로필|profile/i;
+  const isName=s=> !!s && !NOISE.test(s) && !/^[\d.,%\s원+\-]+$/.test(s) && s.replace(/[^가-힣A-Za-z]/g,'').length>=2;
 
-  // 2) 제목: 종목명+코드 줄 바로 다음 줄
-  const nameIdx=lines.findIndex(l=>/\d{6}$/.test(l));
-  if(nameIdx>=0 && lines[nameIdx+1]) out.head=lines[nameIdx+1];
+  // 1) 종목코드(6자리)+종목명: 코드가 줄 끝(알테오젠196170)·앞(000660코스피)·별도 줄 어디 있어도 인식
+  let codeLine=-1;
+  for(let i=0;i<lines.length;i++){
+    const m=lines[i].match(/(?:^|[^\d])(\d{6})(?:[^\d]|$)/);
+    if(m){ out.code=m[1]; codeLine=i; break; }
+  }
+  if(codeLine>=0){
+    const ln=lines[codeLine];
+    const before=ln.slice(0,ln.indexOf(out.code)).trim();
+    if(isName(before)) out.name=before;                                  // 코드 앞에 종목명
+    if(!out.name) for(let j=codeLine+1;j<Math.min(lines.length,codeLine+4);j++){ if(isName(lines[j])){ out.name=lines[j]; break; } } // 코드 다음 줄
+    if(!out.name) for(let j=codeLine-1;j>=Math.max(0,codeLine-3);j--){ if(isName(lines[j])){ out.name=lines[j]; break; } }
+  }
+  if(!out.name){ for(const ln of lines){ if(isName(ln)){ out.name=ln; break; } } }
+
+  // 증권사/날짜 줄 위치 (제목 추정 기준)
+  let brokIdx=-1;
+  for(let i=0;i<lines.length;i++){ if(/[가-힣A-Za-z]+증권/.test(lines[i])){ brokIdx=i; break; } }
+
+  // 2) 제목: 증권사/날짜 줄 바로 위의 '제목 같은' 줄
+  if(brokIdx>0){
+    for(let j=brokIdx-1;j>=Math.max(0,brokIdx-4);j--){
+      if(isName(lines[j]) && lines[j]!==out.name){ out.head=lines[j]; break; }
+    }
+  }
+  if(!out.head && codeLine>=0 && lines[codeLine+1] && isName(lines[codeLine+1]) && lines[codeLine+1]!==out.name) out.head=lines[codeLine+1];
 
   // 3) 증권사 + 날짜: "OO증권" 과 날짜(YYYY.MM.DD)가 든 줄
   for(const ln of lines){
