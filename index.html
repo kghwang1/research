@@ -1318,12 +1318,12 @@ const VAL_EDITABLE=new Set([3,4,5,6,7,8,9,10,11,12,13,14,15,16]); // (참고용)
 const VAL_VIEW=[
  {h:"Symbol",   c:2,  kind:'namelink', bg:'fff2cc'},
  {h:"비중",     c:5,  kind:'val',  bg:'ecd6ec', wt:true},
- {h:"현재가",   c:-1, kind:'livem', bg:'fde9d9'},
- {h:"적정주가", c:8,  kind:'val',  bg:'fff2cc'},
+ {h:"현재가",   c:-1, kind:'live', bg:'fde9d9'},
+ {h:"적정주가", c:8,  kind:'fairm2', bg:'fff2cc'},
  {h:"PEG",      c:4,  kind:'val',  bg:'ecd6ec'},
  {h:"P/E(F)",   c:3,  kind:'val',  bg:'ecd6ec'},
  {h:"목표주가", c:6,  kind:'val',  bg:'fff2cc'},
- {h:"주간변동", c:14, kind:'val',  bg:'c6e0b4'},
+ {h:"52주최고가", c:-1, kind:'hi52', bg:'c6e0b4'},
 ];
 /* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
 const KR_CODE={'삼성전자':'005930','SK하이닉스':'000660','현대차':'005380','네이버':'035420'};
@@ -1353,6 +1353,12 @@ function valDiff(ri,baseCol){
   return (q.price-base)/base*100;
 }
 function valPct(v){ return Math.round(v)+'%'; }
+/* (기준값 − 현재가) / 현재가 × 100  (적정주가·52주최고가 대비 차이) */
+function valUpside(ri, baseVal){
+  const q=valLive[ri]; if(!q||q.price==null||!q.price) return null;
+  const base=valNum(baseVal); if(base==null) return null;
+  return (base-q.price)/q.price*100;
+}
 /* 미국 종목 Symbol 클릭: worker로 네이버 월드스톡 주소를 받아 새 탭으로 연다.
    실패하면 네이버 통합검색으로 대체. 팝업 차단을 피하려고 탭을 먼저 동기적으로 연다. */
 function openNaverWorld(sym){
@@ -1540,7 +1546,7 @@ function renderVal(){
   sc.style.display=''; em.style.display='none';
   let html='<thead><tr>';
   VAL_VIEW.forEach(col=>{
-    const sortable = col.kind==='livem';
+    const sortable = col.kind==='fairm2';
     const arrow = sortable ? (usSortFair?' ▲':' ⇅') : '';
     html+=`<th class="${sortable?'sortable':''}" style="background:#${col.bg}">${col.h}${arrow}</th>`;
   });
@@ -1548,8 +1554,9 @@ function renderVal(){
   let order=VAL.map((_,i)=>i);
   if(usSortFair){
     order.sort((a,b)=>{
-      const da=valDiff(a,8), db=valDiff(b,8);
-      return ((da==null)?Infinity:da)-((db==null)?Infinity:db);  // 차이 작은(현재가가 적정주가보다 많이 낮은) 종목부터
+      const da=valUpside(a,VAL[a][8]), db=valUpside(b,VAL[b][8]);
+      // 차이 큰(현재가가 적정주가보다 많이 낮은) 종목부터, 값 없으면 뒤로
+      return ((db==null)?-Infinity:db)-((da==null)?-Infinity:da);
     });
   }
   order.forEach(ri=>{
@@ -1580,6 +1587,19 @@ function renderVal(){
         const v=valDiff(ri,8);  // 적정주가 대비 차이
         const diffHtml = (q && v!=null) ? ` <span class="diffp${v<0?' neg':''}">(${valPct(v)})</span>` : '';
         cell = px + diffHtml;
+      }else if(col.kind==='fairm2'){
+        const base=row[8]??'';
+        const v=valUpside(ri, base);
+        const diffHtml = v!=null ? ` <span class="diffp${v<0?' neg':''}">(${valPct(v)})</span>` : '';
+        cell = base!=='' ? `${base}${diffHtml}` : '';
+      }else if(col.kind==='hi52'){
+        const q=valLive[ri];
+        const hv = (q && q.high52!=null) ? q.high52 : null;
+        if(hv!=null){
+          const v=valUpside(ri, hv);
+          const diffHtml = v!=null ? ` <span class="diffp${v<0?' neg':''}">(${valPct(v)})</span>` : '';
+          cell = `${addComma(String(hv))}${diffHtml}`;
+        }else{ cell = (SRV_URL?'…':'—'); }
       }else if(col.kind==='goalm'||col.kind==='fairm'){
         const baseCol = col.kind==='goalm'?6:8;
         const base = row[baseCol]??'';
@@ -1768,7 +1788,7 @@ async function fetchValLive(){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(syms));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) bySym[q.symbol]={price:q.price,priceStr:q.priceStr}; });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) bySym[q.symbol]={price:q.price,priceStr:q.priceStr,high52:(q.high52!=null?q.high52:null)}; });
     }catch(e){}
   }
   pairs.forEach(p=>{ const q=bySym[p.qsym]; if(q) valLive[p.ri]=q; });
