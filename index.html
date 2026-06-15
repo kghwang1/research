@@ -1322,7 +1322,7 @@ const VAL_VIEW=[
  {h:"적정주가", c:8,  kind:'val',  bg:'fff2cc'},
  {h:"PEG",      c:4,  kind:'val',  bg:'ecd6ec'},
  {h:"P/E(F)",   c:3,  kind:'val',  bg:'ecd6ec'},
- {h:"목표주가", c:6,  kind:'goalm', bg:'fff2cc'},
+ {h:"목표주가", c:6,  kind:'val',  bg:'fff2cc'},
  {h:"주간변동", c:14, kind:'val',  bg:'c6e0b4'},
 ];
 /* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
@@ -1789,10 +1789,10 @@ async function fetchKrLive(rows){
     }catch(e){}
   }
 }
-/* 한국 목표주가(네이버 컨센서스) 조회 */
-let krTarget={}; // code -> targetStr
+/* 한국 목표주가(네이버 컨센서스)·52주 최고가 조회 */
+let krTarget={}, krHigh52={}; // code -> str
 async function fetchKrTargets(rows){
-  krTarget={};
+  krTarget={}; krHigh52={};
   if(!SRV_URL||!rows||!rows.length) return;
   const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
   const CH=40;
@@ -1801,7 +1801,12 @@ async function fetchKrTargets(rows){
     try{
       const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.target!=null){ const c=String(q.symbol||'').replace('STK:',''); krTarget[c]=q.targetStr||String(q.target); } });
+      ((d&&d.items)||[]).forEach(q=>{
+        if(!q||!q.ok) return;
+        const c=String(q.symbol||'').replace('STK:','');
+        if(q.target!=null) krTarget[c]=q.targetStr||String(q.target);
+        if(q.high52!=null) krHigh52[c]=q.high52Str||String(q.high52);
+      });
     }catch(e){}
   }
 }
@@ -1815,8 +1820,8 @@ function krUpside(target, cur){
 /* 한국 표: [심볼][종목명][비중%][조정비율%][현재가][적정가][상승여력%][기록] */
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
-  const W=[178,52,76,76,75,96];
-  const H=["종목","비중(%)","현재가","목표가","상승여력(%)","기록"];
+  const W=[178,52,76,104,112,96];
+  const H=["종목","비중(%)","현재가","목표가","52주최고가","기록"];
   let h='<caption class="kr-cap">'+KR_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -1825,16 +1830,20 @@ function renderKrTable(){
     const liveStr= live? addComma(live) : (code?(SRV_URL?'…':'—'):'');
     const tgt=krTarget[code];
     const tgtStr= tgt? addComma(tgt) : (code?(SRV_URL?'…':'—'):'');
-    const up=krUpside(tgt, live);
-    const upCls= up===''?'':(parseFloat(up)>=0?'up':'down');
+    const up=krUpside(tgt, live);  // (목표가-현재가)/현재가
+    const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const hi=krHigh52[code];
+    const hiStr= hi? addComma(hi) : (code?(SRV_URL?'…':'—'):'');
+    const hd=krUpside(hi, live);  // (52주최고-현재가)/현재가
+    const hdHtml = hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '';
     const stkInner=`<span class="kn">${r[1]||''}</span>`+(r[0]?`<span class="kc">${r[0]}</span>`:'');
     const stkCell = code ? `<a href="#" class="krlink" data-code="${code}">${stkInner}</a>` : stkInner;
     h+='<tr>';
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
     h+=`<td class="mp-r">${liveStr}</td>`;
-    h+=`<td class="mp-r">${tgtStr}</td>`;
-    h+=`<td class="mp-r kr-up ${upCls}">${up}</td>`;
+    h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
+    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-l kredit" contenteditable data-r="${ri}" data-f="5">${r[5]==null?'':r[5]}</td>`;
     h+='</tr>';
   });
