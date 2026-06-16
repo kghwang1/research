@@ -310,6 +310,11 @@
   .val-tbl.mp td.kr-stk .kc{display:block;font-weight:400;font-size:10px;color:#1257c2}
   .val-tbl.mp td.kr-up{font-size:1.1em;font-weight:700}
   .val-tbl th.sortable{cursor:pointer;user-select:none}
+  .val-tbl th.syhdr-th{padding:2px 4px}
+  .val-tbl .syhdr{display:flex;align-items:center;justify-content:space-between;gap:4px}
+  .val-tbl .usinv-btn{flex:none;font-size:10px;font-weight:800;color:#fff;background:#1257c2;
+    border:none;border-radius:6px;padding:3px 7px;cursor:pointer;line-height:1.1}
+  .val-tbl .usinv-btn.on{background:#c00000}
   /* 미국 표(비-mp)를 한국 표와 동일한 흰 셀·진회색 헤더·경계선으로 */
   .val-tbl:not(.mp) th,.val-tbl:not(.mp) td{border:1px solid #ddd;background:#fff;padding:8px 6px;font-size:12px;line-height:1.3}
   .val-tbl:not(.mp) thead th{background:#404040;color:#fff;font-weight:700;text-align:center}
@@ -1397,6 +1402,7 @@ function openNaverDomestic(code){
 }
 let valLive={}; // ri → {price, priceStr}
 let usSortFair=false; // 적정주가(차이) 정렬 토글
+let usInvest=false;   // 투자 후보(비중>0·PEG<1, 상승여력순) 토글
 /* 미국 ETF 모델포트폴리오 데이터 [Ticker, 명칭, 5월비중, 6월비중, 변경] — 수정 가능, 저장됨 */
 const USETF_DATA=[
   ["RSP","동일가중 S&P500","10%","10%","-"],
@@ -1602,18 +1608,27 @@ function renderVal(){
   sc.style.display=''; em.style.display='none';
   let html='<thead><tr>';
   VAL_VIEW.forEach(col=>{
+    if(col.kind==='namelink'){
+      html+=`<th class="syhdr-th"><div class="syhdr"><span>${col.h}</span><button type="button" class="usinv-btn${usInvest?' on':''}">투자</button></div></th>`;
+      return;
+    }
     const sortable = col.kind==='fairm2';
     const arrow = sortable ? (usSortFair?' ▲':' ⇅') : '';
     html+=`<th class="${sortable?'sortable':''}">${col.h}${arrow}</th>`;
   });
   html+='</tr></thead><tbody>';
   let order=VAL.map((_,i)=>i);
-  if(usSortFair){
-    order.sort((a,b)=>{
-      const da=valUpside(a,VAL[a][8]), db=valUpside(b,VAL[b][8]);
-      // 차이 큰(현재가가 적정주가보다 많이 낮은) 종목부터, 값 없으면 뒤로
-      return ((db==null)?-Infinity:db)-((da==null)?-Infinity:da);
+  const upDesc=(a,b)=>{ const da=valUpside(a,VAL[a][8]), db=valUpside(b,VAL[b][8]); return ((db==null)?-Infinity:db)-((da==null)?-Infinity:da); };
+  if(usInvest){
+    // 비중>0 이고 PEG<1 인 종목만, 적정주가 상승여력 큰 순
+    order=order.filter(ri=>{
+      const w=parseFloat(String(VAL[ri][5]).replace(/[^0-9.\-]/g,''));
+      const peg=parseFloat(String(VAL[ri][4]).replace(/[^0-9.\-]/g,''));
+      return isFinite(w)&&w>0 && isFinite(peg)&&peg<1;
     });
+    order.sort(upDesc);
+  } else if(usSortFair){
+    order.sort(upDesc);
   }
   order.forEach(ri=>{
     const row=VAL[ri];
@@ -1698,6 +1713,9 @@ function renderVal(){
   // 적정주가 헤더 클릭 → 적정가차이 기준 정렬(토글)
   const fairTh=t.querySelector('th.sortable');
   if(fairTh) fairTh.onclick=()=>{ usSortFair=!usSortFair; renderVal(); };
+  // 투자 버튼 → 비중>0·PEG<1 필터 + 상승여력순(토글)
+  const invBtn=t.querySelector('.usinv-btn');
+  if(invBtn) invBtn.onclick=ev=>{ ev.stopPropagation(); usInvest=!usInvest; renderVal(); };
 }
 /* 미국 ETF: 수정 가능 + 합계 자동계산 + Ticker·명칭 연동 링크 */
 function etfSum(ci){
