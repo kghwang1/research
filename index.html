@@ -1874,7 +1874,7 @@ function renderKrTable(){
   });
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
-  t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); openConsensus(a.dataset.code); }; });
+  t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   t.querySelectorAll('td.kredit').forEach(td=>{
     td.onblur=()=>{ const r=+td.dataset.r, f=+td.dataset.f; VAL[r][f]=td.textContent.trim(); saveVal(); };
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
