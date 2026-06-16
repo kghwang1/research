@@ -332,6 +332,9 @@
   .val-tbl.mp td.mp-l{text-align:left;min-width:130px}
   .val-tbl.mp td.mp-r{text-align:right}
   .val-tbl td.wt{font-size:1.1em;font-weight:800;color:#c00000}
+  .val-tbl td.uscchg{font-weight:800}
+  .val-tbl td.uscchg.up{color:#c00000}
+  .val-tbl td.uscchg.down{color:#1257c2}
   .val-tbl td.kredit{background:#fdf6b8;color:#222;cursor:text}
   .val-tbl td.kredit:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbd6}
   .val-tbl td.up{color:#ff5b5b;font-weight:700}
@@ -536,7 +539,8 @@
  <div class="valfull-top" id="valSub">
   <div class="subtab vback" data-m="back">‹ 이전</div>
   <div class="subtab on" data-m="kr">한국</div>
-  <div class="subtab" data-m="us">미국</div>
+  <div class="subtab" data-m="us">미국(반)</div>
+  <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
@@ -1410,8 +1414,48 @@ const KRETF_DATA=[
   ["069500","KODEX 200","0.0","16.4","-16.4"],
   ["157500","TIGER 증권","0.0","9.7","-9.7"],
 ];
+/* 미국(체) 포트폴리오 — MP 분석(6월 3주차). 행: [심볼, 명칭, 비중, 변동(확대▲/축소▼/''), 기록] */
+const USC_LABEL='6월 3주차 MP 분석';
+const USC_DATA=[
+ ["MU","MICRON TECHNOLOGY","18.4","확대▲",""],
+ ["SPY","SPDR S&P500 ETF","16.7","축소▼",""],
+ ["DRAM","ROUNDHILL MEMORY ETF","12.2","확대▲",""],
+ ["SNDK","SANDISK","11.3","확대▲",""],
+ ["SOXX","ISHARES SEMICONDUCTOR ETF","4.7","확대▲",""],
+ ["MRVL","MARVELL TECHNOLOGY","4.1","축소▼",""],
+ ["EWY","ISHARES KOREA ETF","3.7","확대▲",""],
+ ["INTC","INTEL","3.5","확대▲",""],
+ ["RSP","INVESCO S&P500 EQUAL WEIGHT","3.3","축소▼",""],
+ ["TSM","TAIWAN SEMICONDUCTOR ADR","3.3","축소▼",""],
+ ["TSLA","TESLA","2.1","축소▼",""],
+ ["GOOGL","ALPHABET CL A","1.9","축소▼",""],
+ ["LITE","LUMENTUM HOLDINGS","1.9","축소▼",""],
+ ["SMH","VANECK SEMICONDUCTOR ETF","1.7","",""],
+ ["ASML","ASML HOLDING","1.7","확대▲",""],
+ ["NVDA","NVIDIA","1.6","축소▼",""],
+ ["AMAT","APPLIED MATERIALS","1.3","확대▲",""],
+ ["LRCX","LAM RESEARCH","1.3","확대▲",""],
+ ["","현금","0.9","축소▼",""],
+ ["AVGO","BROADCOM","0.7","축소▼",""],
+ ["CAT","CATERPILLAR","0.7","축소▼",""],
+ ["XLV","HEALTH CARE SELECT SECTOR","0.5","",""],
+ ["ORCL","ORACLE","0.4","축소▼",""],
+ ["PLTR","PALANTIR TECHNOLOGIES","0.4","",""],
+ ["META","META PLATFORMS","0.3","",""],
+ ["APP","APPLOVIN","0.3","",""],
+ ["SMR","NUSCALE POWER","0.3","",""],
+ ["IREN","IREN","0.2","축소▼",""],
+ ["URA","GLOBAL X URANIUM ETF","0.2","",""],
+ ["BLK","BLACKROCK","0.2","",""],
+ ["MRK","MERCK","0.1","축소▼",""],
+ ["GOOG","ALPHABET CL C","0.1","",""],
+ ["AMZN","AMAZON","0.1","",""],
+ ["ABNB","AIRBNB","0.1","",""],
+ ["AAPL","APPLE","0.11","축소▼",""],
+ ["BABA","ALIBABA ADR","0.03","",""],
+];
 /* 분류별 기본 데이터 */
-const VAL_DEFAULT={ us:VAL_DATA, usetf:USETF_DATA, kr:[], kretf:KRETF_DATA };
+const VAL_DEFAULT={ us:VAL_DATA, usc:USC_DATA, usetf:USETF_DATA, kr:[], kretf:KRETF_DATA };
 /* 미국 ETF 표 구성 (수정 가능 + Ticker·명칭 연동 링크) */
 const USETF_CFG={
   title:"6월 모델포트폴리오 (5월과 동일)", link:"world",
@@ -1480,10 +1524,16 @@ function krMerge(saved){
   // 비중·조정비율·종목명은 항상 최신 기본자료, 적정가(4)·기록(5)은 코드 기준으로 유지
   return VAL_DEFAULT.kr.map(d=>{ const s=byCode[String(d[0])]; return [d[0],d[1],d[2],d[3], s?(s[4]||''):'', s?(s[5]||''):'']; });
 }
+function uscMerge(saved){
+  // 키: 심볼(없으면 명칭). 비중·변동은 최신 기본자료, 기록(4)만 보존
+  const byKey={}; (saved||[]).forEach(r=>{ if(r){ const k=(r[0]||r[1]||''); byKey[String(k)]=r; } });
+  return VAL_DEFAULT.usc.map(d=>{ const s=byKey[String(d[0]||d[1]||'')]; return [d[0],d[1],d[2],d[3], s?(s[4]||''):'']; });
+}
 function loadVal(){
   let saved=null; try{ const _s=store.get(lsKey(valMarket)); saved=_s?JSON.parse(_s.value):null; }catch(e){}
   if(valMarket==='kr'){ VAL = krMerge(saved); }
   else if(valMarket==='us'){ VAL = VAL_DEFAULT.us.map(r=>r.slice()); }  // 매달 갱신한 기본자료 항상 반영
+  else if(valMarket==='usc'){ VAL = uscMerge(saved); }  // 비중·변동은 기본자료, 기록만 보존
   else VAL = (saved && saved.length) ? saved : VAL_DEFAULT[valMarket].map(r=>r.slice());
   // Symbol의 괄호 안 내용 제거 (미국 주식 표에만 적용): "MMF(BIL,ICSH), IEF" → "MMF, IEF"
   let changed=false;
@@ -1498,7 +1548,7 @@ function loadVal(){
 }
 function saveVal(){ try{store.set(lsKey(valMarket),JSON.stringify(VAL));}catch(e){} }
 /* ── 서버(공유) 저장: Cloudflare KV ── */
-const SERVER_KEYS={ us:'val_us', usetf:'val_usetf', kretf:'val_kretf', kr:'val_kr2' };
+const SERVER_KEYS={ us:'val_us', usc:'val_usc', usetf:'val_usetf', kretf:'val_kretf', kr:'val_kr2' };
 function lsKey(m){ return 'valuation_'+(m==='kr'?'kr2':m); }
 async function serverGet(m){
   if(!SRV_URL) return null; const k=SERVER_KEYS[m]; if(!k) return null;
@@ -1546,6 +1596,7 @@ function renderVal(){
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
   if(valMarket==='kr'){ renderKrTable(); return; }  // 한국: 국내 포트폴리오(적정가 입력·상승여력 자동계산)
+  if(valMarket==='usc'){ renderUscTable(); return; }  // 미국(체): MP 분석 포트폴리오
   t.className='val-tbl';
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
@@ -1880,7 +1931,69 @@ function renderKrTable(){
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
   });
 }
-/* ===== 한·미 ETF 통합 화면 ===== */
+/* ===== 미국(체) : MP 분석 포트폴리오 ===== */
+let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
+async function fetchUscLive(rows){
+  uscLive={};
+  if(!SRV_URL||!rows||!rows.length) return;
+  const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
+  const CH=40;
+  for(let i=0;i<syms.length;i+=CH){
+    const part=syms.slice(i,i+CH).join(',');
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) uscLive[String(q.symbol).toUpperCase()]={price:q.price,priceStr:q.priceStr}; });
+    }catch(e){}
+  }
+}
+async function fetchUscTargets(rows){
+  uscTarget={};
+  if(!SRV_URL||!rows||!rows.length) return;
+  const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
+  const CH=20;
+  for(let i=0;i<syms.length;i+=CH){
+    const part=syms.slice(i,i+CH).join(',');
+    try{
+      const r=await fetch(SRV_URL+'/?ustargets='+encodeURIComponent(part));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.target!=null){ const s=String(q.ticker||q.symbol||'').toUpperCase(); uscTarget[s]=q.targetStr||String(q.target); } });
+    }catch(e){}
+  }
+}
+function renderUscTable(){
+  const t=$('#valTbl'); if(!t) return;
+  const W=[150,56,84,90,80,96];
+  const H=["Symbol","비중(%)","현재가","목표가","변동사항","기록"];
+  let h='<caption class="kr-cap">'+USC_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  VAL.forEach((r,ri)=>{
+    const sym=String(r[0]||'').trim().toUpperCase();
+    const liveQ=uscLive[sym];
+    const liveStr= liveQ? addComma(liveQ.priceStr||String(liveQ.price)) : (sym?(SRV_URL?'…':'—'):'');
+    const tgt=uscTarget[sym];
+    const tgtStr= tgt? addComma(tgt) : (sym?(SRV_URL?'…':'—'):'');
+    const chg=r[3]||'';
+    const chgCls = chg.indexOf('확대')>=0 ? 'up' : (chg.indexOf('축소')>=0 ? 'down' : '');
+    const stkInner=`<span class="sy">${r[0]||''}</span>`+(r[1]?`<span class="nm">${r[1]}</span>`:'');
+    const stkCell = sym ? `<a href="#" class="uscnv" data-sym="${encodeURIComponent(sym)}">${stkInner}</a>` : stkInner;
+    h+='<tr>';
+    h+=`<td class="al">${stkCell}</td>`;
+    h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
+    h+=`<td>${liveStr}</td>`;
+    h+=`<td>${tgtStr}</td>`;
+    h+=`<td class="uscchg ${chgCls}">${chg}</td>`;
+    h+=`<td class="kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</td>`;
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  t.className='val-tbl'; t.innerHTML=h;
+  t.querySelectorAll('a.uscnv').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); }; });
+  t.querySelectorAll('td.kredit').forEach(td=>{
+    td.onblur=()=>{ const r=+td.dataset.r, f=+td.dataset.f; VAL[r][f]=td.textContent.trim(); saveVal(); };
+    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+}
 function etfLoad(market){ let s=null; try{ const o=store.get(lsKey(market)); s=o?JSON.parse(o.value):null; }catch(e){} return (s&&s.length)?s:VAL_DEFAULT[market].map(r=>r.slice()); }
 function etfSave(market,arr){ try{ store.set(lsKey(market), JSON.stringify(arr)); }catch(e){} }
 function etfSumArr(arr,ci){ let s=0; arr.forEach(r=>{ const n=parseFloat(String(r[ci]).replace(/[^0-9.\-]/g,'')); if(!isNaN(n)) s+=n; }); return (Math.round(s*10)/10).toFixed(1); }
@@ -2009,6 +2122,7 @@ function renderInfo(box){
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
     valMarket=s.dataset.m; renderVal();
     if(valMarket==='us'){ fetchValLive().then(renderVal); }
+    if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
   });
