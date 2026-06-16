@@ -1943,7 +1943,7 @@ async function fetchUscLive(rows){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) uscLive[String(q.symbol).toUpperCase()]={price:q.price,priceStr:q.priceStr}; });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) uscLive[String(q.symbol).toUpperCase()]={price:q.price,priceStr:q.priceStr,high52:(q.high52!=null?q.high52:null)}; });
     }catch(e){}
   }
 }
@@ -1963,8 +1963,8 @@ async function fetchUscTargets(rows){
 }
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
-  const W=[150,56,84,90,80,96];
-  const H=["Symbol","비중(%)","현재가","목표가","변동사항","기록"];
+  const W=[150,56,84,90,100,80,96];
+  const H=["Symbol","비중(%)","현재가","목표가","52주최고가","변동사항","기록"];
   let h='<caption class="kr-cap">'+USC_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -1973,6 +1973,12 @@ function renderUscTable(){
     const liveStr= liveQ? addComma(liveQ.priceStr||String(liveQ.price)) : (sym?(SRV_URL?'…':'—'):'');
     const tgt=uscTarget[sym];
     const tgtStr= tgt? addComma(tgt) : (sym?(SRV_URL?'…':'—'):'');
+    const up=krUpside(tgt, liveQ?liveQ.price:undefined);  // (목표가-현재가)/현재가, 한국과 동일
+    const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const hi=liveQ&&liveQ.high52!=null?liveQ.high52:null;
+    const hiStr= hi!=null? addComma(String(hi)) : (sym?(SRV_URL?'…':'—'):'');
+    const hd=krUpside(hi, liveQ?liveQ.price:undefined);  // (52주최고-현재가)/현재가
+    const hdHtml = hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '';
     const chg=r[3]||'';
     const chgCls = chg.indexOf('확대')>=0 ? 'up' : (chg.indexOf('축소')>=0 ? 'down' : '');
     const stkInner=`<span class="sy">${r[0]||''}</span>`+(r[1]?`<span class="nm">${r[1]}</span>`:'');
@@ -1981,7 +1987,8 @@ function renderUscTable(){
     h+=`<td class="al">${stkCell}</td>`;
     h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
     h+=`<td>${liveStr}</td>`;
-    h+=`<td>${tgtStr}</td>`;
+    h+=`<td>${tgtStr}${upHtml}</td>`;
+    h+=`<td>${hiStr}${hdHtml}</td>`;
     h+=`<td class="uscchg ${chgCls}">${chg}</td>`;
     h+=`<td class="kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</td>`;
     h+='</tr>';
