@@ -1335,8 +1335,8 @@ const VAL_EDITABLE=new Set([3,4,5,6,7,8,9,10,11,12,13,14,15,16]); // (참고용)
 const VAL_VIEW=[
  {h:"Symbol",   c:2,  kind:'namelink', bg:'fff2cc'},
  {h:"비중",     c:5,  kind:'val',  bg:'ecd6ec', wt:true, green:true},
- {h:"현재가",   c:-1, kind:'live', bg:'fde9d9', green:true},
- {h:"적정주가", c:8,  kind:'fairm2', bg:'fff2cc', green:true},
+ {h:"현재가<br>(전일대비%)",   c:-1, kind:'live', bg:'fde9d9', green:true},
+ {h:"적정주가<br>(상승여력%)", c:8,  kind:'fairm2', bg:'fff2cc', green:true},
  {h:"PEG",      c:4,  kind:'val',  bg:'ecd6ec', green:true},
  {h:"P/E(F)",   c:3,  kind:'val',  bg:'ecd6ec'},
  {h:"목표주가", c:6,  kind:'val',  bg:'fff2cc'},
@@ -1926,7 +1926,7 @@ function krUpside(target, cur){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[178,52,76,104,112,96];
-  const H=["종목","비중(%)","현재가","목표가","52주최고가","기록"];
+  const H=["종목","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","기록"];
   let h='<caption class="kr-cap">'+KR_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -1993,7 +1993,7 @@ async function fetchUscTargets(rows){
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[150,56,84,90,100,80,96];
-  const H=["Symbol","비중(%)","현재가","목표가","52주최고가","변동사항","기록"];
+  const H=["Symbol","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록"];
   let h='<caption class="kr-cap">'+USC_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
