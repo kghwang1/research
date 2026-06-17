@@ -319,6 +319,9 @@
   .val-tbl:not(.mp) th,.val-tbl:not(.mp) td{border:1px solid #ddd;background:#fff;padding:8px 6px;font-size:12px;line-height:1.3}
   .val-tbl:not(.mp) thead th{background:#404040;color:#fff;font-weight:700;text-align:center}
   .val-tbl:not(.mp) td.gcol{background:#e2f0d9}
+  .val-tbl .rchg{display:block;font-size:11px;font-weight:600;margin-top:1px}
+  .val-tbl .rchg.up{color:#c00000}
+  .val-tbl .rchg.down{color:#1257c2}
   .val-tbl td.al{text-align:left}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
@@ -1367,6 +1370,13 @@ function valDiff(ri,baseCol){
   return (q.price-base)/base*100;
 }
 function valPct(v){ return Math.round(v)+'%'; }
+/* 전일대비 등락률 → 현재가 아래 줄(상승 빨강/하락 파랑) */
+function rateHtml(rate){
+  if(rate==null||rate==='') return '';
+  const n=parseFloat(rate); if(!isFinite(n)) return '';
+  const s=(n>=0?'+':'')+n.toFixed(2)+'%';
+  return ` <span class="rchg ${n>=0?'up':'down'}">(${s})</span>`;
+}
 /* (기준값 − 현재가) / 현재가 × 100  (적정주가·52주최고가 대비 차이) */
 function valUpside(ri, baseVal){
   const q=valLive[ri]; if(!q||q.price==null||!q.price) return null;
@@ -1651,7 +1661,8 @@ function renderVal(){
         if(col.kind==='namelink') cls+=' al';
       }else if(col.kind==='live'){
         const q=valLive[ri];
-        cell = q ? (q.priceStr?addComma(q.priceStr):addComma(String(q.price))) : (SRV_URL?'…':'—');
+        const px = q ? (q.priceStr?addComma(q.priceStr):addComma(String(q.price))) : (SRV_URL?'…':'—');
+        cell = px + (q?rateHtml(q.rate):'');
       }else if(col.kind==='livem'){
         const q=valLive[ri];
         const px = q ? (q.priceStr?addComma(q.priceStr):addComma(String(q.price))) : (SRV_URL?'…':'—');
@@ -1862,15 +1873,15 @@ async function fetchValLive(){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(syms));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) bySym[q.symbol]={price:q.price,priceStr:q.priceStr,high52:(q.high52!=null?q.high52:null)}; });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) bySym[q.symbol]={price:q.price,priceStr:q.priceStr,high52:(q.high52!=null?q.high52:null),rate:(q.rate!=null?q.rate:null)}; });
     }catch(e){}
   }
   pairs.forEach(p=>{ const q=bySym[p.qsym]; if(q) valLive[p.ri]=q; });
 }
 /* 한국 포트폴리오 현재주가 조회 (종목코드 → STK:코드 배치) */
-let krLive={}; // code -> priceStr
+let krLive={}, krRate={}; // code -> priceStr / 등락률
 async function fetchKrLive(rows){
-  krLive={};
+  krLive={}; krRate={};
   if(!SRV_URL||!rows||!rows.length) return;
   const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
   const syms=codes.map(c=>'STK:'+c), CH=40;
@@ -1879,7 +1890,7 @@ async function fetchKrLive(rows){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol||'').replace('STK:',''); krLive[c]=q.priceStr||String(q.price); } });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol||'').replace('STK:',''); krLive[c]=q.priceStr||String(q.price); if(q.rate!=null) krRate[c]=q.rate; } });
     }catch(e){}
   }
 }
@@ -1935,7 +1946,7 @@ function renderKrTable(){
     h+='<tr>';
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
-    h+=`<td class="mp-r">${liveStr}</td>`;
+    h+=`<td class="mp-r">${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-l kredit" contenteditable data-r="${ri}" data-f="5">${r[5]==null?'':r[5]}</td>`;
@@ -1961,7 +1972,7 @@ async function fetchUscLive(rows){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) uscLive[String(q.symbol).toUpperCase()]={price:q.price,priceStr:q.priceStr,high52:(q.high52!=null?q.high52:null)}; });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null) uscLive[String(q.symbol).toUpperCase()]={price:q.price,priceStr:q.priceStr,high52:(q.high52!=null?q.high52:null),rate:(q.rate!=null?q.rate:null)}; });
     }catch(e){}
   }
 }
@@ -2004,7 +2015,7 @@ function renderUscTable(){
     h+='<tr>';
     h+=`<td class="al">${stkCell}</td>`;
     h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
-    h+=`<td>${liveStr}</td>`;
+    h+=`<td>${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`;
     h+=`<td>${tgtStr}${upHtml}</td>`;
     h+=`<td>${hiStr}${hdHtml}</td>`;
     h+=`<td class="uscchg ${chgCls}">${chg}</td>`;
