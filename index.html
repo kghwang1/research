@@ -387,6 +387,9 @@
   .watch{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
     border-radius:var(--r);padding:13px 14px;margin-bottom:10px}
   .watch .winfo{flex:1;min-width:0;cursor:pointer}
+  .watch .wgrip{flex:none;cursor:grab;touch-action:none;color:var(--dim);font-size:18px;
+    padding:4px 2px;user-select:none;line-height:1}
+  .watch.dragging{opacity:.65;box-shadow:0 6px 18px rgba(0,0,0,.35);transform:scale(1.01)}
   .watch .wn{font-weight:800;font-size:16px}
   .watch .wc{font-size:11px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .watch .wbtns{display:flex;align-items:center;gap:4px;flex:none}
@@ -681,8 +684,14 @@ $$('.tab').forEach(t=>t.onclick=()=>{
 
 /* ---------- archive render ---------- */
 /* 아카이브 라이브 현재가 + 컨센서스 목표주가 (아카이브 탭 열 때 1회 조회) */
-let LIVE={}, ARCH_TGT={}, livePricesLoaded=false;
+let LIVE={}, ARCH_TGT={}, ARCH_RATE={}, livePricesLoaded=false;
 function liveOf(r){ return (r.code&&LIVE[r.code]!=null)?LIVE[r.code]:null; }
+function archRateHtml(code){
+  const rt=ARCH_RATE[code]; if(rt==null||rt==='') return '';
+  const n=parseFloat(rt); if(!isFinite(n)) return '';
+  const s=(n>=0?'+':'')+n.toFixed(2)+'%';
+  return ` <span style="font-size:.82em;font-weight:700;color:${n>=0?'#ff6b6b':'#5b9cff'}">(${s})</span>`;
+}
 function targetOf(r){ return (r.code&&ARCH_TGT[r.code]!=null)?ARCH_TGT[r.code]:null; }
 function upside(r){
   const lv=liveOf(r), tg=targetOf(r);   // 라이브 현재가 · 네이버 컨센서스 목표주가 기준
@@ -698,7 +707,7 @@ async function loadLivePrices(){
     const res=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(syms));
     const d=await res.json();
     for(const it of (d.items||[])){
-      if(it.ok&&it.price!=null) LIVE[it.symbol.replace('STK:','')]=it.price;
+      if(it.ok&&it.price!=null){ LIVE[it.symbol.replace('STK:','')]=it.price; if(it.rate!=null) ARCH_RATE[it.symbol.replace('STK:','')]=it.rate; }
     }
   }catch(e){}
   try{
@@ -729,7 +738,7 @@ function renderArchive(){
       `<div class="tp"><span class="lb">상승여력</span><span class="vl ${up>=0?'up':'dn'}">${up>=0?'+':''}${up.toFixed(1)}%</span></div>`;
     const tgt = tv!=null?`<div class="tp"><span class="lb">목표주가</span><span class="vl">${num(tv)}</span></div>`
       :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">목표주가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
-    const now = lv!=null?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(lv)}</span></div>`
+    const now = lv!=null?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(lv)}${archRateHtml(r.code)}</span></div>`
       :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">현재가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
     const tprow=(tgt||now||upHtml)?`<div class="tp-row">${tgt}${now}${upHtml}</div>`:'';
     const stockUrl=r.stockUrl||(/^\d{6}$/.test(r.code||'')?'https://finance.naver.com/item/main.naver?code='+r.code:'');
@@ -956,12 +965,15 @@ function renderWatch(){
   el.innerHTML=list.map(w=>{
     const url=esc(w.code||'');
     const reg=w.region||'국내';
-    return `<div class="watch">
+    return `<div class="watch" data-id="${w.id}">
+      <span class="wgrip" onpointerdown="watchDragStart(event,'${w.id}')">⠿</span>
       <div class="winfo" onclick="openBroadcast('${url}')">
         <div class="wn">${esc(w.name)} ↗</div>
         <div class="wc">${reg} · ${w.memo?esc(w.memo):url}</div>
       </div>
       <div class="wbtns">
+        <span class="wbtn" onclick="moveWatch('${w.id}',-1)">▲</span>
+        <span class="wbtn" onclick="moveWatch('${w.id}',1)">▼</span>
         <span class="wbtn" onclick="editWatch('${w.id}')">수정</span>
         <span class="wbtn wdel" onclick="delWatch('${w.id}')">삭제</span>
       </div>
@@ -988,7 +1000,51 @@ window.editWatch=id=>{
   $('#saveWatch').textContent='저장';
   $('#ovWatch').classList.add('on');
 };
+/* 방송 카드 드래그 재정렬 (포인터=마우스/터치 공용) */
+let _wdragEl=null;
+window.watchDragStart=(e,id)=>{
+  e.preventDefault();
+  _wdragEl=e.target.closest('.watch'); if(!_wdragEl) return;
+  _wdragEl.classList.add('dragging');
+  try{ e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); }catch(_){}
+  document.addEventListener('pointermove', watchDragMove, {passive:false});
+  document.addEventListener('pointerup', watchDragEnd, {once:true});
+};
+function watchDragMove(e){
+  if(!_wdragEl) return;
+  e.preventDefault();
+  const y=e.clientY;
+  const cards=[...document.querySelectorAll('#watchList .watch')];
+  const over=cards.find(c=>{ if(c===_wdragEl) return false; const r=c.getBoundingClientRect(); return y>=r.top && y<=r.bottom; });
+  if(over){
+    const idx=cards.indexOf(_wdragEl), oi=cards.indexOf(over);
+    if(idx<oi) over.after(_wdragEl); else over.before(_wdragEl);
+  }
+}
+function watchDragEnd(){
+  document.removeEventListener('pointermove', watchDragMove);
+  if(!_wdragEl) return;
+  _wdragEl.classList.remove('dragging');
+  const ids=[...document.querySelectorAll('#watchList .watch')].map(c=>c.dataset.id);
+  // 보이는 카드들의 새 순서를 WATCH에 반영(숨겨진 항목은 자리 유지)
+  const byId={}; WATCH.forEach(w=>byId[w.id]=w);
+  const vis=new Set(ids); let vi=0;
+  WATCH=WATCH.map(w=> vis.has(w.id) ? byId[ids[vi++]] : w);
+  _wdragEl=null;
+  saveWatchData(); renderWatch();
+}
 window.delWatch=id=>{WATCH=WATCH.filter(w=>w.id!==id);saveWatchData();renderWatch();renderChips();};
+/* 방송 카드 위/아래 이동 (현재 보이는 목록 기준으로 이웃과 교환) */
+window.moveWatch=(id,dir)=>{
+  const list=WATCH.filter(w=>!watchRegion||(w.region||'국내')===watchRegion);
+  const vi=list.findIndex(w=>w.id===id); if(vi<0) return;
+  const tj=vi+dir; if(tj<0||tj>=list.length) return;
+  const a=WATCH.findIndex(w=>w.id===id);
+  const b=WATCH.findIndex(w=>w.id===list[tj].id);
+  if(a<0||b<0) return;
+  const tmp=WATCH[a]; WATCH[a]=WATCH[b]; WATCH[b]=tmp;
+  saveWatchData(); renderWatch();
+};
 $('#saveWatch').onclick=()=>{
   const name=$('#wName').value.trim(); if(!name){alert('방송 이름을 입력하세요');return;}
   let url=$('#wCode').value.trim();
