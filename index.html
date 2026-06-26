@@ -319,10 +319,18 @@
   .val-tbl:not(.mp) th,.val-tbl:not(.mp) td{border:1px solid #ddd;background:#fff;padding:8px 6px;font-size:12px;line-height:1.3}
   .val-tbl:not(.mp) thead th{background:#404040;color:#fff;font-weight:700;text-align:center}
   .val-tbl:not(.mp) td.gcol{background:#e2f0d9}
+  .val-tbl .rsub{font-weight:600;font-size:.85em;color:var(--dim)}
   .val-tbl .rchg{display:block;font-size:11px;font-weight:600;margin-top:1px}
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
   .val-tbl td.al{text-align:left}
+  /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
+  .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
+  .inv-tbl th:nth-child(2),.inv-tbl td:nth-child(2){position:sticky;left:30px;z-index:2;text-align:left;white-space:normal;min-width:58px;max-width:108px;box-shadow:1px 0 0 rgba(0,0,0,.15);background:#fff}
+  .inv-tbl thead th:nth-child(2){background:#404040}
+  .inv-tbl td:nth-child(2) a{display:block;border-bottom:none;line-height:1.16}
+  .inv-tbl td:nth-child(2) .sy{display:block;font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .inv-tbl td:nth-child(2) .nm{display:block;font-weight:400;font-size:10px;color:#1257c2;white-space:nowrap}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
   .val-tbl .diffp.neg{color:#e01010}
@@ -553,6 +561,7 @@
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
+  <div class="subtab" data-m="invest">투자종목</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
@@ -1556,40 +1565,40 @@ const KRETF_CFG={
    현재가(라이브)·상승여력(계산)은 표시 시 추가됨 */
 const KR_PF={
   rows:[
-    ["005930","삼성전자","32.9","0.3","",""],
-    ["000660","SK하이닉스","22.6","0.9","",""],
-    ["069500","KODEX 200","13.1","1.3","",""],
-    ["226490","KODEX 코스피","7.4","0","",""],
-    ["006400","삼성SDI","2.5","-0.1","",""],
-    ["005935","삼성전자우","2.5","-0.9","",""],
-    ["329180","HD현대중공업","2.3","0.9","",""],
-    ["009150","삼성전기","2.1","0","",""],
-    ["402340","SK스퀘어","2","0.1","",""],
-    ["006800","미래에셋증권","0.6","0.5","",""],
-    ["373220","LG에너지솔루션","0.6","-1.3","",""],
-    ["010060","OCI홀딩스","0.6","0","",""],
-    ["002380","KCC","0.5","0","",""],
-    ["009155","삼성전기우","0.5","0","",""],
-    ["023530","롯데쇼핑","0.5","0","",""],
-    ["033780","KT&G","0.5","0","",""],
-    ["012330","현대모비스","0.4","-0.1","",""],
-    ["001820","삼화콘덴서","0.4","-0.5","",""],
-    ["","현금","0.4","0","",""],
-    ["079550","LIG디펜스앤에어로스페이스","0.4","0","",""],
-    ["017670","SK텔레콤","0.4","0.1","",""],
-    ["039490","키움증권","0.4","0","",""],
-    ["352820","하이브","0.3","0","",""],
-    ["000270","기아","0.3","0","",""],
-    ["207940","삼성바이오로직스","0.3","0","",""],
-    ["086790","하나금융지주","0.3","0","",""],
-    ["012450","한화에어로스페이스","0.3","0","",""],
-    ["055550","신한지주","0.3","0.2","",""],
-    ["105560","KB금융","0.3","0","",""],
-    ["064350","현대로템","0.3","0","",""],
+    ["005930","삼성전자","31.4","","",""],
+    ["000660","SK하이닉스","17.62","","",""],
+    ["069500","KODEX 200","8","","",""],
+    ["396500","TIGER 반도체TOP10","3.91","","",""],
+    ["","현금","3.44","","",""],
+    ["009150","삼성전기","3.36","","",""],
+    ["466920","SOL 조선TOP3플러스","2.65","","",""],
+    ["005935","삼성전자우","1.94","","",""],
+    ["402340","SK스퀘어","1.92","","",""],
+    ["091160","KODEX 반도체","1.74","","",""],
+    ["237350","KODEX 코스피100","1.41","","",""],
+    ["329180","HD현대중공업","1.22","","",""],
+    ["278530","KODEX 200TR","0.87","","",""],
+    ["082740","한화엔진","0.8","","",""],
+    ["058470","리노공업","0.73","","",""],
+    ["271560","오리온","0.7","","",""],
+    ["023530","롯데쇼핑","0.67","","",""],
+    ["001800","오리온홀딩스","0.66","","",""],
+    ["278470","에이피알","0.65","","",""],
+    ["166090","하나머티리얼즈","0.65","","",""],
+    ["020000","한섬","0.62","","",""],
+    ["002700","신일전기","0.62","","",""],
+    ["039490","키움증권","0.61","","",""],
+    ["005690","파미셀","0.56","","",""],
+    ["079550","LIG디펜스앤에어로스페이스","0.56","","",""],
+    ["031330","에스에이엠티","0.55","","",""],
+    ["214450","파마리서치","0.53","","",""],
+    ["108490","로보티즈","0.5","","",""],
+    ["305540","TIGER 2차전지테마","0.5","","",""],
+    ["267250","HD현대","0.5","","",""],
   ],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
-const KR_LABEL = "6월 4주 포트폴리오";  // 한국 표 상단 라벨(매달 갱신)
+const KR_LABEL = "6월 26일 포트폴리오";  // 한국 표 상단 라벨(매달 갱신)
 let valMarket='us', VAL=[];
 function krMerge(saved){
   const byCode={}; (saved||[]).forEach(r=>{ if(r&&r[0]!=null) byCode[String(r[0])]=r; });
@@ -1664,6 +1673,7 @@ function renderVal(){
   const t=$('#valTbl');
   if(!t) return;
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
+  if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
@@ -2245,6 +2255,75 @@ function openValFull(){
   $('#valFull').classList.add('on'); renderVal(); fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); ensureServer('kr');
 }
 function closeValFull(){ $('#valFull').classList.remove('on'); }
+/* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
+let INVEST_ROWS=[], investLoaded=false;
+const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
+function qLabel(p){ if(!p) return ''; const m=String(p).match(/(\d{4})[.\-\/](\d{1,2})/); if(!m) return String(p); const y=m[1].slice(2); const mo=+m[2]; const q=mo<=3?1:mo<=6?2:mo<=9?3:4; return q+'Q'+y; }
+function openInvest(force){
+  valMarket='invest';
+  $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x.dataset.m==='invest'));
+  $('#valFull').classList.add('on');
+  if(force) investLoaded=false;
+  renderVal();
+}
+function closeInvest(){ $('#valFull').classList.remove('on'); }
+async function loadInvest(){
+  const msg=$('#valEmpty'), tb=$('#valTbl'), sc=$('#valScroll');
+  if(tb) tb.innerHTML=''; if(sc) sc.style.display='none';
+  if(msg){ msg.style.display='block'; msg.textContent='코스피100 시세를 불러오는 중… 수십 초 걸릴 수 있어요.'; }
+  if(!SRV_URL){ if(msg) msg.textContent='서버(worker) 설정이 필요합니다.'; return; }
+  let uni=[];
+  try{ const r=await fetch(SRV_URL+'/?kospi=100'); const d=await r.json(); if(d&&d.items&&d.items.length) uni=d.items.map(x=>({code:String(x.code),name:x.name||''})); }catch(e){}
+  if(!uni.length) uni=KOSPI_FALLBACK.map(c=>({code:c,name:''}));
+  const codes=[...new Set(uni.map(u=>u.code))];
+  const price={},rate={},tgt={},hi={},nm={};
+  uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
+  const CH=40;
+  for(let i=0;i<codes.length;i+=CH){
+    const part=codes.slice(i,i+CH);
+    try{ const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } }); }catch(e){}
+    try{ const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); } }); }catch(e){}
+    if(msg) msg.textContent='시세 조회 중… '+Math.min(i+CH,codes.length)+'/'+codes.length;
+  }
+  const all=codes.map(c=>{
+    const p=parseFloat(String(price[c]||'').replace(/[^0-9.\-]/g,''));
+    const h=parseFloat(String(hi[c]||'').replace(/[^0-9.\-]/g,''));
+    const drop=(isFinite(p)&&isFinite(h)&&h>0)?((p-h)/h*100):null;
+    return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],drop};
+  }).filter(x=>x.drop!=null);
+  all.sort((a,b)=>a.drop-b.drop);
+  const top=all.slice(0,30);
+  if(msg) msg.textContent='ROE 불러오는 중…';
+  try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(top.map(x=>x.code).join(','))); const d=await r.json(); const m={}; (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) m[q.code]={roe:q.roe,period:q.period}; }); top.forEach(x=>{ const z=m[x.code]; if(z){ x.roe=z.roe; x.period=z.period; } }); }catch(e){}
+  INVEST_ROWS=top; investLoaded=true;
+  if(valMarket==='invest') renderInvest();
+}
+function renderInvest(){
+  const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
+  if(em) em.style.display='none'; if(sc) sc.style.display='';
+  const W=[30,90,92,100,100,82];
+  const H=["순서","종목","현재가<br>(전일대비%)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","ROE<br>(분기)"];
+  let h='<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  if(!INVEST_ROWS.length){ h+=`<tr><td colspan="6" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
+  INVEST_ROWS.forEach((r,i)=>{
+    const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
+    const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
+    const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const roeTxt = (r.roe!=null) ? (r.roe+(r.period?` <span class="rsub">(${qLabel(r.period)})</span>`:'')) : '—';
+    h+='<tr>';
+    h+=`<td>${i+1}</td>`;
+    h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
+    h+=`<td>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
+    h+=`<td>${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
+    h+=`<td>${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
+    h+=`<td>${roeTxt}</td>`;
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  t.className='val-tbl inv-tbl'; t.innerHTML=h;
+  t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
+}
 /* 매매동향: 네이버 페이지를 앱 안에서 (윗부분 잘라) 표시 */
 const FLOW_URL='https://finance.naver.com/sise/sise_trans_style.naver?sosok=03';
 function openFlow(){ const f=$('#flowFrame'); if(f) f.src=FLOW_URL; $('#flowFull').classList.add('on'); }
