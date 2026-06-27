@@ -2343,6 +2343,7 @@ async function loadInvest(){
 function setRoeMin(v){ roeMin=v; renderInvest(); }
 function renderInvest(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
+  loadReportCache();
   if(em) em.style.display='none'; if(sc) sc.style.display='';
   // ROE 질 필터: roeMin>0이면 ROE 있는 것 중 기준 이상만, 0이면 전체
   let rows = (roeMin==='up')
