@@ -339,6 +339,8 @@
   .inv-bar .cnt{margin-left:8px;color:var(--dim)}
   .inv-tbl td.rpt{white-space:normal;text-align:left;min-width:160px;max-width:260px;font-size:11px;line-height:1.25;word-break:break-all}
   .inv-tbl td.rpt .rpt-tag{color:#7c83ff;font-weight:700;margin-right:2px}
+  .inv-tbl td.rpt a.rptlink{color:inherit;text-decoration:none;border-bottom:none}
+  .inv-tbl td.rpt a.rptlink:active{opacity:.6}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
   .val-tbl .diffp.neg{color:#e01010}
@@ -2276,7 +2278,7 @@ async function ensureReports(codes){
   reportLoading=true;
   for(let i=0;i<need.length;i+=20){
     const part=need.slice(i,i+20);
-    try{ const r=await fetch(SRV_URL+'/?reports='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ REPORT[q.code]=(q&&q.ok&&q.title)?{title:q.title,date:q.date,broker:q.broker}:null; }); }catch(e){}
+    try{ const r=await fetch(SRV_URL+'/?reports='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ REPORT[q.code]=(q&&q.ok&&q.title)?{title:q.title,date:q.date,broker:q.broker,link:q.link}:null; }); }catch(e){}
     part.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; });
   }
   reportLoading=false;
@@ -2364,7 +2366,7 @@ function renderInvest(){
     let repCell;
     if(rep===undefined) repCell='<span class="rsub">…</span>';
     else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-    else { const sec=classifySector(rep.title,r.code); repCell=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; }
+    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${rep.link}" target="_blank" rel="noopener" class="rptlink">${inner}</a>` : inner; }
     h+=`<td class="al rpt">${repCell}</td>`;
     h+='</tr>';
   });
