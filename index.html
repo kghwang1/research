@@ -336,6 +336,7 @@
   .inv-bar{caption-side:top;text-align:left;padding:8px 10px;font-size:12px;color:var(--dim);background:var(--bg);white-space:nowrap;overflow-x:auto}
   .inv-bar button{margin:0 3px;padding:4px 10px;border:1px solid #555;border-radius:14px;background:transparent;color:var(--ink,#ddd);font-size:12px;font-weight:600}
   .inv-bar button.on{background:#7c83ff;border-color:#7c83ff;color:#fff}
+  .inv-bar button.rfr{margin-left:8px;border-radius:50%;width:28px;height:28px;padding:0;font-size:14px}
   .inv-bar .cnt{margin-left:8px;color:var(--dim)}
   .inv-tbl td.rpt{white-space:normal;text-align:left;min-width:160px;max-width:260px;font-size:11px;line-height:1.25;word-break:break-all}
   .inv-tbl td.rpt .rpt-tag{color:#7c83ff;font-weight:700;margin-right:2px}
@@ -2267,12 +2268,17 @@ function openValFull(){
 function closeValFull(){ $('#valFull').classList.remove('on'); }
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=10;
-let REPORT={}, reportLoading=false;
-const SECTOR_BY_CODE={'005930':'반도체','000660':'반도체','035420':'AI','454910':'로봇','108490':'로봇','005380':'자동차','000270':'자동차','373220':'2차전지','006400':'2차전지','207940':'바이오','000100':'제약','012450':'방산','329180':'조선','011200':'해운','005490':'철강','051910':'화학','096770':'정유','036460':'천연가스','034020':'원자력','000720':'건설','042670':'건설기계','105560':'금융','032830':'보험','006800':'증권','035720':'인터넷','259960':'게임','017670':'통신','352820':'엔터','139480':'유통','097950':'식품','003490':'항공','395400':'리츠','272210':'우주항공'};
+let REPORT={}, reportLoading=false, reportCacheInit=false;
+function invToday(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; try{ const raw=localStorage.getItem('inv_reports'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&o.map) Object.assign(REPORT,o.map); } }catch(e){} }
+function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), map:REPORT})); }catch(e){} }
+function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.removeItem('inv_reports'); }catch(e){} renderInvest(); }
+const SECTOR_BY_CODE={'005930':'반도체','000660':'반도체','005935':'반도체','402340':'반도체','009150':'전자부품','011070':'전자부품','034220':'디스플레이','035420':'인터넷','035720':'인터넷','018260':'IT서비스','307950':'IT서비스','064400':'IT서비스','454910':'로봇','108490':'로봇','005380':'자동차','000270':'자동차','012330':'자동차','161390':'자동차','373220':'2차전지','006400':'2차전지','003670':'2차전지','207940':'바이오','068270':'바이오','000100':'제약','128940':'제약','012450':'방산','064350':'방산','047810':'방산','272210':'우주항공','329180':'조선','042660':'조선','010140':'조선','011200':'해운','005490':'철강','004020':'철강','010130':'비철금속','051910':'화학','011780':'화학','009830':'화학','011170':'화학','096770':'정유','010950':'정유','036460':'에너지','015760':'에너지','034020':'원자력','267260':'전력기기','010120':'전력기기','000720':'건설','006360':'건설','028050':'건설','375500':'건설','047040':'건설','042670':'건설기계','000150':'지주','003550':'지주','034730':'지주','267250':'지주','001040':'지주','004990':'지주','006260':'지주','078930':'지주','105560':'금융','055550':'금융','086790':'금융','316140':'금융','138040':'금융','024110':'금융','029780':'금융','032830':'보험','000810':'보험','088350':'보험','005830':'보험','006800':'증권','016360':'증권','017670':'통신','030200':'통신','259960':'게임','036570':'게임','251270':'게임','352820':'엔터','139480':'유통','023530':'유통','069960':'유통','008770':'유통','282330':'유통','020000':'유통','097950':'식품','271560':'식품','280360':'식품','005300':'식품','033780':'식품','003490':'항공','395400':'리츠','090430':'화장품','066570':'가전','028260':'건설','001120':'상사','047050':'상사','161890':'화장품','192820':'화장품'};
 const SECTOR_KW=[['로봇',['로봇','로보틱스','로보']],['반도체',['반도체','HBM','DRAM','D램','낸드','NAND','파운드리','메모리']],['2차전지',['2차전지','이차전지','배터리','양극재','음극재']],['전기차',['전기차']],['바이오',['바이오','CDMO','바이오시밀러']],['제약',['제약','신약','임상']],['방산',['방산','방위','국방','무기','수출']],['조선',['조선','선박','LNG선','드릴십']],['해운',['해운','운임','컨테이너']],['철강',['철강','열연','냉연','후판']],['정유',['정유','정제마진']],['화학',['화학','석유화학','스프레드']],['원자력',['원자력','원전','SMR']],['천연가스',['천연가스','가스','LNG']],['건설기계',['건설기계','굴착기','중장비']],['건설',['건설','분양','주택']],['보험',['보험']],['증권',['증권','브로커리지']],['금융',['금융','은행','지주']],['게임',['게임','신작','MMORPG']],['엔터',['엔터','앨범','음반','콘서트','아티스트','팬덤']],['통신',['통신','5G']],['인터넷',['플랫폼','커머스','인터넷','광고']],['유통',['유통','마트','백화점','이커머스','리테일']],['식품',['식품','음식료']],['항공',['항공','여객','LCC']],['리츠',['리츠','REIT']],['우주항공',['우주','위성','항공우주']],['자동차',['자동차','완성차','전장']],['AI',['AI','인공지능','생성형']]];
 function classifySector(title,code){ const t=String(title||''); for(const x of SECTOR_KW){ for(const k of x[1]){ if(t.indexOf(k)>=0) return x[0]; } } return SECTOR_BY_CODE[code]||''; }
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 async function ensureReports(codes){
+  loadReportCache();
   const need=codes.filter(c=>!(c in REPORT));
   if(!need.length||reportLoading||!SRV_URL) return;
   reportLoading=true;
@@ -2281,7 +2287,7 @@ async function ensureReports(codes){
     try{ const r=await fetch(SRV_URL+'/?reports='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ REPORT[q.code]=(q&&q.ok&&q.title)?{title:q.title,date:q.date,broker:q.broker,link:q.link}:null; }); }catch(e){}
     part.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; });
   }
-  reportLoading=false;
+  reportLoading=false; saveReportCache();
   if(valMarket==='invest') renderInvest();
 }
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
@@ -2344,7 +2350,7 @@ function renderInvest(){
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   const H=["순서","종목","현재가<br>(전일대비%)","52주최고가<br>(낙폭)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
+  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="보고서 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   if(!INVEST_POOL.length){ h+=`<tr><td colspan="7" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
@@ -2372,7 +2378,8 @@ function renderInvest(){
   });
   h+='</tbody>';
   t.className='val-tbl inv-tbl'; t.innerHTML=h;
-  t.querySelectorAll('caption.inv-bar button').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
+  t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
+  const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshReports;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   if(INVEST_ROWS.length) ensureReports(INVEST_ROWS.map(r=>r.code));
 }
