@@ -2273,6 +2273,9 @@ function invToday(){ const d=new Date(); return d.getFullYear()+'-'+String(d.get
 function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; try{ const raw=localStorage.getItem('inv_reports'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&o.map) Object.assign(REPORT,o.map); } }catch(e){} }
 function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), map:REPORT})); }catch(e){} }
 function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.removeItem('inv_reports'); }catch(e){} renderInvest(); }
+function saveInvestCache(){ try{ localStorage.setItem('inv_pool', JSON.stringify({date:invToday(), rows:INVEST_POOL})); }catch(e){} }
+function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_POOL=o.rows; return true; } } }catch(e){} return false; }
+function refreshInvest(){ try{ localStorage.removeItem('inv_pool'); localStorage.removeItem('inv_reports'); }catch(e){} REPORT={}; reportCacheInit=true; INVEST_POOL=[]; investLoaded=false; loadInvest(); }
 const SECTOR_BY_CODE={'005930':'반도체','000660':'반도체','005935':'반도체','402340':'반도체','009150':'전자부품','011070':'전자부품','034220':'디스플레이','035420':'인터넷','035720':'인터넷','018260':'IT서비스','307950':'IT서비스','064400':'IT서비스','454910':'로봇','108490':'로봇','005380':'자동차','000270':'자동차','012330':'자동차','161390':'자동차','373220':'2차전지','006400':'2차전지','003670':'2차전지','207940':'바이오','068270':'바이오','000100':'제약','128940':'제약','012450':'방산','064350':'방산','047810':'방산','272210':'우주항공','329180':'조선','042660':'조선','010140':'조선','011200':'해운','005490':'철강','004020':'철강','010130':'비철금속','051910':'화학','011780':'화학','009830':'화학','011170':'화학','096770':'정유','010950':'정유','036460':'에너지','015760':'에너지','034020':'원자력','267260':'전력기기','010120':'전력기기','000720':'건설','006360':'건설','028050':'건설','375500':'건설','047040':'건설','042670':'건설기계','000150':'지주','003550':'지주','034730':'지주','267250':'지주','001040':'지주','004990':'지주','006260':'지주','078930':'지주','105560':'금융','055550':'금융','086790':'금융','316140':'금융','138040':'금융','024110':'금융','029780':'금융','032830':'보험','000810':'보험','088350':'보험','005830':'보험','006800':'증권','016360':'증권','017670':'통신','030200':'통신','259960':'게임','036570':'게임','251270':'게임','352820':'엔터','139480':'유통','023530':'유통','069960':'유통','008770':'유통','282330':'유통','020000':'유통','097950':'식품','271560':'식품','280360':'식품','005300':'식품','033780':'식품','003490':'항공','395400':'리츠','090430':'화장품','066570':'가전','028260':'건설','001120':'상사','047050':'상사','161890':'화장품','192820':'화장품'};
 const SECTOR_KW=[['로봇',['로봇','로보틱스','로보']],['반도체',['반도체','HBM','DRAM','D램','낸드','NAND','파운드리','메모리']],['2차전지',['2차전지','이차전지','배터리','양극재','음극재']],['전기차',['전기차']],['바이오',['바이오','CDMO','바이오시밀러']],['제약',['제약','신약','임상']],['방산',['방산','방위','국방','무기','수출']],['조선',['조선','선박','LNG선','드릴십']],['해운',['해운','운임','컨테이너']],['철강',['철강','열연','냉연','후판']],['정유',['정유','정제마진']],['화학',['화학','석유화학','스프레드']],['원자력',['원자력','원전','SMR']],['천연가스',['천연가스','가스','LNG']],['건설기계',['건설기계','굴착기','중장비']],['건설',['건설','분양','주택']],['보험',['보험']],['증권',['증권','브로커리지']],['금융',['금융','은행','지주']],['게임',['게임','신작','MMORPG']],['엔터',['엔터','앨범','음반','콘서트','아티스트','팬덤']],['통신',['통신','5G']],['인터넷',['플랫폼','커머스','인터넷','광고']],['유통',['유통','마트','백화점','이커머스','리테일']],['식품',['식품','음식료']],['항공',['항공','여객','LCC']],['리츠',['리츠','REIT']],['우주항공',['우주','위성','항공우주']],['자동차',['자동차','완성차','전장']],['AI',['AI','인공지능','생성형']]];
 function classifySector(title,code){ const t=String(title||''); for(const x of SECTOR_KW){ for(const k of x[1]){ if(t.indexOf(k)>=0) return x[0]; } } return SECTOR_BY_CODE[code]||''; }
@@ -2302,6 +2305,7 @@ function openInvest(force){
 function closeInvest(){ $('#valFull').classList.remove('on'); }
 async function loadInvest(){
   const msg=$('#valEmpty'), tb=$('#valTbl'), sc=$('#valScroll');
+  if(loadInvestCache()){ investLoaded=true; if(msg) msg.style.display='none'; if(sc) sc.style.display=''; renderInvest(); return; }
   if(tb) tb.innerHTML=''; if(sc) sc.style.display='none';
   if(msg){ msg.style.display='block'; msg.textContent='코스피100 시세를 불러오는 중… 수십 초 걸릴 수 있어요.'; }
   if(!SRV_URL){ if(msg) msg.textContent='서버(worker) 설정이 필요합니다.'; return; }
@@ -2333,7 +2337,7 @@ async function loadInvest(){
     try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); }catch(e){}
   }
   pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
-  INVEST_POOL=pool; investLoaded=true;
+  INVEST_POOL=pool; investLoaded=true; saveInvestCache();
   if(valMarket==='invest') renderInvest();
 }
 function setRoeMin(v){ roeMin=v; renderInvest(); }
@@ -2350,7 +2354,7 @@ function renderInvest(){
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   const H=["순서","종목","현재가<br>(전일대비%)","52주최고가<br>(낙폭)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="보고서 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
+  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   if(!INVEST_POOL.length){ h+=`<tr><td colspan="7" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
@@ -2379,7 +2383,7 @@ function renderInvest(){
   h+='</tbody>';
   t.className='val-tbl inv-tbl'; t.innerHTML=h;
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
-  const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshReports;
+  const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshInvest;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   if(INVEST_ROWS.length) ensureReports(INVEST_ROWS.map(r=>r.code));
 }
