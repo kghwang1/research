@@ -333,6 +333,12 @@
   .inv-tbl td:nth-child(2) a{display:block;border-bottom:none;line-height:1.16}
   .inv-tbl td:nth-child(2) .sy{display:block;font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .inv-tbl td:nth-child(2) .nm{display:block;font-weight:400;font-size:10px;color:#1257c2;white-space:nowrap}
+  .inv-bar{caption-side:top;text-align:left;padding:8px 10px;font-size:12px;color:var(--dim);background:var(--bg);white-space:nowrap;overflow-x:auto}
+  .inv-bar button{margin:0 3px;padding:4px 10px;border:1px solid #555;border-radius:14px;background:transparent;color:var(--ink,#ddd);font-size:12px;font-weight:600}
+  .inv-bar button.on{background:#7c83ff;border-color:#7c83ff;color:#fff}
+  .inv-bar .cnt{margin-left:8px;color:var(--dim)}
+  .inv-tbl td.rpt{white-space:normal;text-align:left;min-width:160px;max-width:260px;font-size:11px;line-height:1.25;word-break:break-all}
+  .inv-tbl td.rpt .rpt-tag{color:#7c83ff;font-weight:700;margin-right:2px}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
   .val-tbl .diffp.neg{color:#e01010}
@@ -562,8 +568,8 @@
   <div class="subtab on" data-m="kr">한국</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="usc">미국(체)</div>
-  <div class="subtab" data-m="etf">한·미 ETF</div>
   <div class="subtab" data-m="invest">투자종목</div>
+  <div class="subtab" data-m="etf">한·미 ETF</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
@@ -2258,7 +2264,24 @@ function openValFull(){
 }
 function closeValFull(){ $('#valFull').classList.remove('on'); }
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
-let INVEST_ROWS=[], investLoaded=false;
+let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=10;
+let REPORT={}, reportLoading=false;
+const SECTOR_BY_CODE={'005930':'반도체','000660':'반도체','035420':'AI','454910':'로봇','108490':'로봇','005380':'자동차','000270':'자동차','373220':'2차전지','006400':'2차전지','207940':'바이오','000100':'제약','012450':'방산','329180':'조선','011200':'해운','005490':'철강','051910':'화학','096770':'정유','036460':'천연가스','034020':'원자력','000720':'건설','042670':'건설기계','105560':'금융','032830':'보험','006800':'증권','035720':'인터넷','259960':'게임','017670':'통신','352820':'엔터','139480':'유통','097950':'식품','003490':'항공','395400':'리츠','272210':'우주항공'};
+const SECTOR_KW=[['로봇',['로봇','로보틱스','로보']],['반도체',['반도체','HBM','DRAM','D램','낸드','NAND','파운드리','메모리']],['2차전지',['2차전지','이차전지','배터리','양극재','음극재']],['전기차',['전기차']],['바이오',['바이오','CDMO','바이오시밀러']],['제약',['제약','신약','임상']],['방산',['방산','방위','국방','무기','수출']],['조선',['조선','선박','LNG선','드릴십']],['해운',['해운','운임','컨테이너']],['철강',['철강','열연','냉연','후판']],['정유',['정유','정제마진']],['화학',['화학','석유화학','스프레드']],['원자력',['원자력','원전','SMR']],['천연가스',['천연가스','가스','LNG']],['건설기계',['건설기계','굴착기','중장비']],['건설',['건설','분양','주택']],['보험',['보험']],['증권',['증권','브로커리지']],['금융',['금융','은행','지주']],['게임',['게임','신작','MMORPG']],['엔터',['엔터','앨범','음반','콘서트','아티스트','팬덤']],['통신',['통신','5G']],['인터넷',['플랫폼','커머스','인터넷','광고']],['유통',['유통','마트','백화점','이커머스','리테일']],['식품',['식품','음식료']],['항공',['항공','여객','LCC']],['리츠',['리츠','REIT']],['우주항공',['우주','위성','항공우주']],['자동차',['자동차','완성차','전장']],['AI',['AI','인공지능','생성형']]];
+function classifySector(title,code){ const t=String(title||''); for(const x of SECTOR_KW){ for(const k of x[1]){ if(t.indexOf(k)>=0) return x[0]; } } return SECTOR_BY_CODE[code]||''; }
+function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+async function ensureReports(codes){
+  const need=codes.filter(c=>!(c in REPORT));
+  if(!need.length||reportLoading||!SRV_URL) return;
+  reportLoading=true;
+  for(let i=0;i<need.length;i+=20){
+    const part=need.slice(i,i+20);
+    try{ const r=await fetch(SRV_URL+'/?reports='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ REPORT[q.code]=(q&&q.ok&&q.title)?{title:q.title,date:q.date,broker:q.broker}:null; }); }catch(e){}
+    part.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; });
+  }
+  reportLoading=false;
+  if(valMarket==='invest') renderInvest();
+}
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
 function qLabel(p){ if(!p) return ''; let m=String(p).match(/(\d{4})[.\-\/](\d{1,2})/); if(!m) m=String(p).match(/^(\d{4})(\d{2})$/); if(!m) return String(p); const y=m[1].slice(2); const mo=+m[2]; const q=mo<=3?1:mo<=6?2:mo<=9?3:4; return q+'Q'+y; }
 function openInvest(force){
@@ -2294,21 +2317,36 @@ async function loadInvest(){
     return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],drop};
   }).filter(x=>x.drop!=null);
   all.sort((a,b)=>a.drop-b.drop);
-  const top=all.slice(0,30);
-  if(msg) msg.textContent='ROE 불러오는 중…';
-  try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(top.map(x=>x.code).join(','))); const d=await r.json(); const m={}; (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) m[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); top.forEach(x=>{ const z=m[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } }); }catch(e){}
-  INVEST_ROWS=top; investLoaded=true;
+  const pool=all.slice(0,100);
+  const rm={};
+  for(let i=0;i<pool.length;i+=25){
+    const part=pool.slice(i,i+25);
+    if(msg) msg.textContent='ROE 불러오는 중… '+Math.min(i+25,pool.length)+'/'+pool.length;
+    try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); }catch(e){}
+  }
+  pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
+  INVEST_POOL=pool; investLoaded=true;
   if(valMarket==='invest') renderInvest();
 }
+function setRoeMin(v){ roeMin=v; renderInvest(); }
 function renderInvest(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
   if(em) em.style.display='none'; if(sc) sc.style.display='';
-  const W=[30,90,92,100,100,82];
+  // ROE 질 필터: roeMin>0이면 ROE 있는 것 중 기준 이상만, 0이면 전체
+  let rows = (roeMin==='up')
+    ? INVEST_POOL.filter(r=> r.roe!=null && r.prevRoe!=null && (r.roe - r.prevRoe) > 0)
+    : INVEST_POOL.filter(r=> roeMin<=0 ? true : (r.roe!=null && r.roe>=roeMin));
+  rows.sort((a,b)=>a.drop-b.drop);
+  INVEST_ROWS=rows.slice(0,30);
+  const W=[30,90,92,100,82,100,210];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)"];
-  let h='<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  const H=["순서","종목","현재가<br>(전일대비%)","52주최고가<br>(낙폭)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
+  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
+  let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
-  if(!INVEST_ROWS.length){ h+=`<tr><td colspan="6" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
+  if(!INVEST_POOL.length){ h+=`<tr><td colspan="7" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
+  else if(!INVEST_ROWS.length){ const lbl=(roeMin==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMin+'% 이상인'); h+=`<tr><td colspan="7" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
   INVEST_ROWS.forEach((r,i)=>{
     const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
     const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
@@ -2320,13 +2358,21 @@ function renderInvest(){
     h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
     h+=`<td>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
     h+=`<td>${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
-    h+=`<td>${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${roeTxt}</td>`;
+    h+=`<td>${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
+    const rep=REPORT[r.code];
+    let repCell;
+    if(rep===undefined) repCell='<span class="rsub">…</span>';
+    else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
+    else { const sec=classifySector(rep.title,r.code); repCell=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; }
+    h+=`<td class="al rpt">${repCell}</td>`;
     h+='</tr>';
   });
   h+='</tbody>';
   t.className='val-tbl inv-tbl'; t.innerHTML=h;
+  t.querySelectorAll('caption.inv-bar button').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
+  if(INVEST_ROWS.length) ensureReports(INVEST_ROWS.map(r=>r.code));
 }
 /* 매매동향: 네이버 페이지를 앱 안에서 (윗부분 잘라) 표시 */
 const FLOW_URL='https://finance.naver.com/sise/sise_trans_style.naver?sosok=03';
