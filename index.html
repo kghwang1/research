@@ -543,7 +543,7 @@
  <section id="valuation">
   <div class="val-submenu">
    <a class="rv-card primary" id="goInvest" href="#"><span class="ic">📊</span><span class="tx"><span class="tt">포트폴리오</span><span class="sb">한국·미국·ETF 비중 · 적정가</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" id="goFlow" href="#" onclick="event.preventDefault();openFlow();return false;"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
+   <a class="rv-card" id="goFlow" href="#"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
    <div class="cg-panel">
     <div class="cg-panel-head"><span class="ic">🏢</span><span class="tt">기업정보</span></div>
     <div class="info-row"><input id="cgInput" placeholder="기업명 또는 종목코드(6자리)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();cgOpen('cg');}"><button class="btn-go" onclick="cgOpen('naver')">네이버</button><button class="btn-go cg" onclick="cgOpen('cg')">CG</button></div>
@@ -571,9 +571,9 @@
   <div class="subtab on" data-m="kr">한국</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="usc">미국(체)</div>
+  <div class="subtab" data-m="watch_kr">관심</div>
   <div class="subtab" data-m="invest">투자종목</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
-  <div class="subtab" data-m="watch_kr">관심</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
@@ -702,6 +702,11 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   if(t.dataset.t==='archive'&&!livePricesLoaded){ loadLivePrices(); }
   if(t.dataset.t==='valuation'){ const g=$('#goInvest'); if(g) g.onclick=ev=>{ ev.preventDefault(); openValFull(); }; }
 });
+/* goInvest · goFlow: 페이지 로드 직후에도 바로 연결 */
+(function(){
+  const g=$('#goInvest'); if(g) g.onclick=ev=>{ ev.preventDefault(); openValFull(); };
+  const f=$('#goFlow');   if(f) f.onclick=ev=>{ ev.preventDefault(); openFlow(); };
+})();
 
 /* ---------- archive render ---------- */
 /* 아카이브 라이브 현재가 + 컨센서스 목표주가 (아카이브 탭 열 때 1회 조회) */
@@ -1547,16 +1552,18 @@ const USC_DATA=[
  ["AAPL","APPLE","0.11","축소▼",""],
  ["BABA","ALIBABA ADR","0.03","",""],
 ];
+/* 분류별 기본 데이터 */
+const VAL_DEFAULT={ us:VAL_DATA, usc:USC_DATA, usetf:USETF_DATA, kr:[], kretf:KRETF_DATA };
 /* ===== 관심 종목 (로봇 테마) ===== */
 /* 행 형식: [종목코드, 종목명, 분류, 시총_텍스트, 기록] */
 const WATCH_KR_DATA=[
   /* ── 상장 로봇 종목 ── */
-  ["277810","레인보우로보틱스","로봇","9.0조 (코스닥 8위)",""],
-  ["454910","두산로보틱스","로봇","6.5조 (코스피 11위)",""],
-  ["108490","로보티즈","로봇","4.8조 (코스닥 22위)",""],
-  ["060380","에스피지","로봇","3.0조 (코스닥 42위)",""],
-  ["090360","로보스타","로봇","0.69조 (코스닥 118위)",""],
-  ["056080","유진로봇","로봇","0.53조 (코스닥 158위)",""],
+  ["277810","레인보우로보틱스","로봇","9.0\n닥 8",""],
+  ["454910","두산로보틱스","로봇","6.5\n피 11",""],
+  ["108490","로보티즈","로봇","4.8\n닥 22",""],
+  ["060380","에스피지","로봇","3.0\n닥 42",""],
+  ["090360","로보스타","로봇","0.69\n닥 118",""],
+  ["056080","유진로봇","로봇","0.53\n닥 158",""],
   ["117730","티로보틱스","로봇","",""],
   /* ── 비상장 (정보 없음) ── */
   ["","HD현대로보틱스","로봇","비상장",""],
@@ -2251,6 +2258,7 @@ function renderInfo(box){
       const vt=document.querySelector('.tab[data-t="valuation"]'); if(vt) vt.classList.add('on');
       const vs=$('#valuation'); if(vs) vs.classList.add('on');
       const g=$('#goInvest'); if(g) g.onclick=ev=>{ ev.preventDefault(); openValFull(); };
+      const fl=$('#goFlow'); if(fl) fl.onclick=ev=>{ ev.preventDefault(); openFlow(); };
       return;
     }
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
@@ -2456,6 +2464,11 @@ function renderWatchKrTable(){
     const cat=r[2]||'';
     const mktcap=r[3]||'';
     const isBiSangJang = mktcap==='비상장';
+    // 시총: "9.0\n닥 8" → 위(숫자)·아래(순위) 2줄
+    let mktcapHtml;
+    if(isBiSangJang){ mktcapHtml='<span style="color:#888">비상장</span>'; }
+    else if(mktcap){ const parts=mktcap.split('\n'); mktcapHtml=`<span style="font-weight:800">${parts[0]||''}</span>`+(parts[1]?`<br><span style="font-size:10px;color:#888;font-weight:600">${parts[1]}</span>`:''); }
+    else { mktcapHtml=''; }
     const live=wkLive[code];
     const liveStr= isBiSangJang ? '' : (live? addComma(live) : (code?(SRV_URL?'…':'—'):''));
     const tgt=wkTarget[code];
@@ -2473,7 +2486,7 @@ function renderWatchKrTable(){
     h+=`<tr${rowStyle}>`;
     h+=`<td class="mp-c" style="font-weight:700;font-size:11px;color:#7c83ff">${cat}</td>`;
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
-    h+=`<td class="mp-r">${mktcap}</td>`;
+    h+=`<td class="mp-r" style="line-height:1.25">${mktcapHtml}</td>`;
     h+=`<td class="mp-r">${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(wkRate[code]):''}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
