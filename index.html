@@ -573,6 +573,7 @@
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="invest">투자종목</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
+  <div class="subtab" data-m="watch_kr">관심</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
@@ -1546,8 +1547,24 @@ const USC_DATA=[
  ["AAPL","APPLE","0.11","축소▼",""],
  ["BABA","ALIBABA ADR","0.03","",""],
 ];
-/* 분류별 기본 데이터 */
-const VAL_DEFAULT={ us:VAL_DATA, usc:USC_DATA, usetf:USETF_DATA, kr:[], kretf:KRETF_DATA };
+/* ===== 관심 종목 (로봇 테마) ===== */
+/* 행 형식: [종목코드, 종목명, 분류, 시총_텍스트, 기록] */
+const WATCH_KR_DATA=[
+  /* ── 상장 로봇 종목 ── */
+  ["277810","레인보우로보틱스","로봇","9.0조 (코스닥 8위)",""],
+  ["454910","두산로보틱스","로봇","6.5조 (코스피 11위)",""],
+  ["108490","로보티즈","로봇","4.8조 (코스닥 22위)",""],
+  ["060380","에스피지","로봇","3.0조 (코스닥 42위)",""],
+  ["090360","로보스타","로봇","0.69조 (코스닥 118위)",""],
+  ["056080","유진로봇","로봇","0.53조 (코스닥 158위)",""],
+  ["117730","티로보틱스","로봇","",""],
+  /* ── 비상장 (정보 없음) ── */
+  ["","HD현대로보틱스","로봇","비상장",""],
+  ["","퓨리오사AI","로봇","비상장",""],
+  ["","에이로봇","로봇","비상장",""],
+];
+
+
 /* 미국 ETF 표 구성 (수정 가능 + Ticker·명칭 연동 링크) */
 const USETF_CFG={
   title:"6월 모델포트폴리오 (5월과 동일)", link:"world",
@@ -1609,6 +1626,7 @@ const KR_PF={
   ],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
+VAL_DEFAULT.watch_kr = WATCH_KR_DATA;  // 관심 탭
 const KR_LABEL = "6월 26일 포트폴리오";  // 한국 표 상단 라벨(매달 갱신)
 const US_LABEL = "기준일 : 6월27일 (전체 반영)";  // 미국(반) 표 상단 라벨
 let valMarket='us', VAL=[];
@@ -1625,6 +1643,7 @@ function uscMerge(saved){
 function loadVal(){
   let saved=null; try{ const _s=store.get(lsKey(valMarket)); saved=_s?JSON.parse(_s.value):null; }catch(e){}
   if(valMarket==='kr'){ VAL = krMerge(saved); }
+  else if(valMarket==='watch_kr'){ VAL = VAL_DEFAULT.watch_kr.map(r=>r.slice()); }
   else if(valMarket==='us'){ VAL = VAL_DEFAULT.us.map(r=>r.slice()); }  // 매달 갱신한 기본자료 항상 반영
   else if(valMarket==='usc'){ VAL = uscMerge(saved); }  // 비중·변동은 기본자료, 기록만 보존
   else VAL = (saved && saved.length) ? saved : VAL_DEFAULT[valMarket].map(r=>r.slice());
@@ -1687,6 +1706,7 @@ function renderVal(){
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
+  if(valMarket==='watch_kr'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display=''; loadVal(); renderWatchKrTable(); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
   if(valMarket==='kr'){ renderKrTable(); return; }  // 한국: 국내 포트폴리오(적정가 입력·상승여력 자동계산)
@@ -2239,6 +2259,7 @@ function renderInfo(box){
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
+    if(valMarket==='watch_kr'){ loadVal(); fetchWatchKrLive().then(renderWatchKrTable); fetchWatchKrTargets().then(renderWatchKrTable); }
   });
   // 서버 저장 / 초기화(서버와 일치)
   const sb=$('#valSave');
@@ -2389,7 +2410,86 @@ function renderInvest(){
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   if(INVEST_ROWS.length) ensureReports(INVEST_ROWS.map(r=>r.code));
 }
-/* 매매동향: 네이버 페이지를 앱 안에서 (윗부분 잘라) 표시 */
+/* ===== 관심종목 테이블 ===== */
+let wkLive={}, wkRate={}, wkTarget={}, wkHigh52={};
+async function fetchWatchKrLive(){
+  wkLive={}; wkRate={};
+  const rows=VAL_DEFAULT.watch_kr;
+  if(!SRV_URL||!rows.length) return;
+  const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
+  const syms=codes.map(c=>'STK:'+c), CH=40;
+  for(let i=0;i<syms.length;i+=CH){
+    const part=syms.slice(i,i+CH).join(',');
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol||'').replace('STK:',''); wkLive[c]=q.priceStr||String(q.price); if(q.rate!=null) wkRate[c]=q.rate; } });
+    }catch(e){}
+  }
+}
+async function fetchWatchKrTargets(){
+  wkTarget={}; wkHigh52={};
+  const rows=VAL_DEFAULT.watch_kr;
+  if(!SRV_URL||!rows.length) return;
+  const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
+  const CH=40;
+  for(let i=0;i<codes.length;i+=CH){
+    const part=codes.slice(i,i+CH).join(',');
+    try{
+      const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(!q||!q.ok) return; const c=String(q.symbol||'').replace('STK:',''); if(q.target!=null) wkTarget[c]=q.targetStr||String(q.target); if(q.high52!=null) wkHigh52[c]=q.high52Str||String(q.high52); });
+    }catch(e){}
+  }
+}
+function renderWatchKrTable(){
+  const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
+  sc.style.display=''; em.style.display='none';
+  // 열: 분류 | 종목 | 시총(조) | 현재가(전일대비%) | 목표가(상승여력%) | 52주최고가 | 기록
+  const W=[52,178,130,104,112,96,80];
+  const H=["분류","종목","시총(조)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","기록"];
+  let h='<caption class="kr-cap">관심종목</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  const rows=VAL_DEFAULT.watch_kr;
+  rows.forEach((r,ri)=>{
+    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+    const cat=r[2]||'';
+    const mktcap=r[3]||'';
+    const isBiSangJang = mktcap==='비상장';
+    const live=wkLive[code];
+    const liveStr= isBiSangJang ? '' : (live? addComma(live) : (code?(SRV_URL?'…':'—'):''));
+    const tgt=wkTarget[code];
+    const tgtStr= isBiSangJang ? '' : (tgt? addComma(tgt) : (code?(SRV_URL?'…':'—'):''));
+    const up=isBiSangJang ? '' : krUpside(tgt, live);
+    const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const hi=wkHigh52[code];
+    const hiStr= isBiSangJang ? '' : (hi? addComma(hi) : (code?(SRV_URL?'…':'—'):''));
+    const hd=isBiSangJang ? '' : krUpside(hi, live);
+    const hdHtml = hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '';
+    const stkInner=`<span class="kn">${r[1]||''}</span>`+(r[0]?`<span class="kc">${r[0]}</span>`:'<span class="kc" style="color:#888">비상장</span>');
+    const stkCell = code ? `<a href="#" class="wklink" data-code="${code}">${stkInner}</a>` : stkInner;
+    // 비상장이면 회색 배경
+    const rowStyle = isBiSangJang ? ' style="opacity:.55"' : '';
+    h+=`<tr${rowStyle}>`;
+    h+=`<td class="mp-c" style="font-weight:700;font-size:11px;color:#7c83ff">${cat}</td>`;
+    h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
+    h+=`<td class="mp-r">${mktcap}</td>`;
+    h+=`<td class="mp-r">${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(wkRate[code]):''}</td>`;
+    h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
+    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
+    h+=`<td class="mp-l kredit" contenteditable data-wk="${ri}">${r[4]==null?'':r[4]}</td>`;
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  t.className='val-tbl mp mpfix'; t.innerHTML=h;
+  t.querySelectorAll('a.wklink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
+  t.querySelectorAll('td.kredit').forEach(td=>{
+    td.onblur=()=>{ const ri=+td.dataset.wk; WATCH_KR_DATA[ri][4]=td.textContent.trim(); };
+    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+}
+
+
 const FLOW_URL='https://finance.naver.com/sise/sise_trans_style.naver?sosok=03';
 function openFlow(){ const f=$('#flowFrame'); if(f) f.src=FLOW_URL; $('#flowFull').classList.add('on'); }
 function flowOpenNaver(){ window.open(FLOW_URL,'_blank','noopener'); }
