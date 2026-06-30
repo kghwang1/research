@@ -572,9 +572,9 @@
  <div class="valfull-top" id="valSub">
   <div class="subtab vback" data-m="back">‹ 이전</div>
   <div class="subtab on" data-m="kr">한국</div>
+  <div class="subtab" data-m="invest">투자종목</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="usc">미국(체)</div>
-  <div class="subtab" data-m="invest">투자종목</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
@@ -2378,9 +2378,9 @@ function renderInvest(){
     : INVEST_POOL.filter(r=> roeMin<=0 ? true : (r.roe!=null && r.roe>=roeMin));
   rows.sort((a,b)=>a.drop-b.drop);
   INVEST_ROWS=rows.slice(0,30);
-  const W=[30,90,92,100,82,100,82,210];
+  const W=[30,90,92,82,82,100,100,210];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","52주최고가<br>(낙폭)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","목표가<br>(상승여력%)","외국인<br>(5일순매수)","보고서<br>(발표일,분야)"];
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -2393,19 +2393,19 @@ function renderInvest(){
     const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
     let roeTxt='—';
     if(r.roe!=null){ const perTag=(r.period&&hp&&String(r.period)!==String(hp))?` <span class="rsub">/ ${qLabel(r.period)}</span>`:''; let dh=''; if(r.prevRoe!=null){ const df=Math.round((r.roe-r.prevRoe)*100)/100; dh=`<span class="diffp${df>=0?'':' neg'}">(${df>=0?'+':''}${df})</span>`; } roeTxt=`${r.roe}${perTag}${dh}`; }
-    h+='<tr>';
-    h+=`<td>${i+1}</td>`;
-    h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
-    h+=`<td>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
-    h+=`<td>${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
-    h+=`<td>${roeTxt}</td>`;
-    h+=`<td>${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
-    h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
     const rep=REPORT[r.code];
     let repCell;
     if(rep===undefined) repCell='<span class="rsub">…</span>';
     else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
     else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${rep.link}" target="_blank" rel="noopener" class="rptlink">${inner}</a>` : inner; }
+    h+='<tr>';
+    h+=`<td>${i+1}</td>`;
+    h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
+    h+=`<td>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
+    h+=`<td>${roeTxt}</td>`;
+    h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
+    h+=`<td>${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
+    h+=`<td>${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td class="al rpt">${repCell}</td>`;
     h+='</tr>';
   });
