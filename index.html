@@ -324,6 +324,19 @@
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
+  .pnl-wrap{flex:1;overflow-y:auto;padding:12px 14px 28px;display:flex;flex-direction:column;gap:12px}
+  .pnl-seg{display:flex;gap:6px}
+  .pnl-seg button{flex:1;padding:9px 0;border:1px solid #555;border-radius:10px;background:transparent;color:var(--ink,#ddd);font-weight:700;font-size:14px}
+  .pnl-seg button.on{background:#7c83ff;border-color:#7c83ff;color:#fff}
+  .pnl-chart{background:#0f1118;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px}
+  .pnl-sum{font-size:13px;line-height:1.5;color:var(--ink,#ddd)}
+  .pnl-sum .dim{color:var(--dim);font-size:12px}
+  .pnl-inputs{display:flex;flex-direction:column;gap:8px;background:var(--panel);border-radius:12px;padding:12px}
+  .pnl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pnl-row .pl{font-size:12px;color:var(--sub);min-width:62px}
+  .pnl-row input{flex:1;min-width:90px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#0f1118;color:#eee;font-size:14px}
+  .pnl-auto{padding:8px 12px;border-radius:8px;border:1px solid #39d98a;background:transparent;color:#39d98a;font-weight:700;font-size:12px}
+  .pnl-note{font-size:11px;line-height:1.6;color:var(--dim)}
   .val-tbl td.al{text-align:left}
   /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
   .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
@@ -548,12 +561,7 @@
   <div class="val-submenu">
    <a class="rv-card primary" id="goInvest" href="#"><span class="ic">📊</span><span class="tx"><span class="tt">포트폴리오</span><span class="sb">한국·미국·ETF 비중 · 적정가</span></span><span class="go">열기 ›</span></a>
    <a class="rv-card" id="goFlow" href="#" onclick="event.preventDefault();openFlow();return false;"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
-   <div class="cg-panel">
-    <div class="cg-panel-head"><span class="ic">🏢</span><span class="tt">기업정보</span></div>
-    <div class="info-row"><input id="cgInput" placeholder="기업명 또는 종목코드(6자리)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();cgOpen('cg');}"><button class="btn-go" onclick="cgOpen('naver')">네이버</button><button class="btn-go cg" onclick="cgOpen('cg')">CG</button></div>
-    <div id="cgResult" class="cg-result"></div>
-    <div class="cg-panel-note"><b>네이버</b>=시세·차트·뉴스, <b>CG</b>=PER·적정주가·투자의견. 기업명 입력 시 가장 가까운 종목이 바로 열립니다.</div>
-   </div>
+   <a class="rv-card" id="goPnl" href="#" onclick="event.preventDefault();openPnl();return false;"><span class="ic">📐</span><span class="tx"><span class="tt">손익곡선</span><span class="sb">외국인 포지션 손익 · 현물/선물/현선물합</span></span><span class="go">열기 ›</span></a>
    <div class="broker-box">
     <div class="broker-title">증권사 앱 바로가기</div>
     <div class="broker-row">
@@ -586,6 +594,29 @@
   <span class="val-note">자료배포는 금지합니다</span>
   <button class="val-reset" id="valSave">서버 저장</button>
   <button class="val-reset" id="valReset">초기화</button>
+ </div>
+</div>
+
+<!-- ===== 손익곡선 (외국인 포지션) ===== -->
+<div id="pnlFull" class="valfull">
+ <div class="valfull-top">
+  <div class="subtab vback" onclick="closePnl()">‹ 이전</div>
+  <div class="subtab on" style="flex:1;cursor:default">손익곡선 · 외국인 포지션</div>
+ </div>
+ <div class="pnl-wrap">
+  <div class="pnl-seg" id="pnlSeg">
+   <button data-m="spot" class="on">현물</button>
+   <button data-m="fut">선물</button>
+   <button data-m="both">현·선물 합</button>
+  </div>
+  <div id="pnlChart" class="pnl-chart"></div>
+  <div id="pnlSummary" class="pnl-sum"></div>
+  <div class="pnl-inputs" id="pnlInputs">
+   <div class="pnl-row pnl-spot"><span class="pl">현물 순매수</span><input id="pnlSpotV" type="number" inputmode="decimal" placeholder="억원 (매수+ / 매도−)"><span class="pl">평균 K200</span><input id="pnlSpotK" type="number" inputmode="decimal" placeholder="지수"></div>
+   <div class="pnl-row pnl-fut"><span class="pl">선물 순매수</span><input id="pnlFutN" type="number" inputmode="decimal" placeholder="계약 (매수+ / 매도−)"><span class="pl">평균 K200</span><input id="pnlFutK" type="number" inputmode="decimal" placeholder="지수"></div>
+   <div class="pnl-row"><span class="pl">현재 K200</span><input id="pnlCur" type="number" inputmode="decimal" placeholder="현재지수"><button class="pnl-auto" id="pnlAuto">외국인 현물 자동추정</button></div>
+  </div>
+  <div class="pnl-note" id="pnlNote"></div>
  </div>
 </div>
 
@@ -2281,6 +2312,90 @@ function openValFull(){
   $('#valFull').classList.add('on'); renderVal(); fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); ensureServer('kr');
 }
 function closeValFull(){ $('#valFull').classList.remove('on'); }
+/* ===== 손익곡선 (외국인 포지션) ===== */
+const PNL={mode:'spot', spotV:null, spotK:null, futN:null, futK:null, cur:null};
+const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
+function openPnl(){
+  $('#pnlFull').classList.add('on');
+  ['pnlSpotV','pnlSpotK','pnlFutN','pnlFutK','pnlCur'].forEach(id=>{ const el=$('#'+id); if(el&&!el._wired){ el._wired=1; el.oninput=readPnlInputs; } });
+  $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); syncPnlInputs(); renderPnl(); }; });
+  const auto=$('#pnlAuto'); if(auto&&!auto._wired){ auto._wired=1; auto.onclick=pnlAutoFetch; }
+  syncPnlInputs(); renderPnl();
+}
+function closePnl(){ $('#pnlFull').classList.remove('on'); }
+function syncPnlInputs(){
+  $('#pnlInputs').querySelector('.pnl-spot').style.display=(PNL.mode==='fut')?'none':'';
+  $('#pnlInputs').querySelector('.pnl-fut').style.display=(PNL.mode==='spot')?'none':'';
+}
+function readPnlInputs(){
+  const g=id=>{ const v=parseFloat($('#'+id).value); return isFinite(v)?v:null; };
+  PNL.spotV=g('pnlSpotV'); PNL.spotK=g('pnlSpotK'); PNL.futN=g('pnlFutN'); PNL.futK=g('pnlFutK'); PNL.cur=g('pnlCur');
+  renderPnl();
+}
+function pnlAt(K){ // K = 코스피200 지수 → 손익(억원)
+  let v=0;
+  if(PNL.mode!=='fut' && PNL.spotV!=null && PNL.spotK){ v += PNL.spotV*(K-PNL.spotK)/PNL.spotK; }
+  if(PNL.mode!=='spot' && PNL.futN!=null && PNL.futK!=null){ v += PNL.futN*PT_PER*(K-PNL.futK); }
+  return v;
+}
+function pnlActive(){ // 입력이 충분한지
+  if(PNL.mode==='spot') return PNL.spotV!=null&&PNL.spotK;
+  if(PNL.mode==='fut') return PNL.futN!=null&&PNL.futK!=null;
+  return (PNL.spotV!=null&&PNL.spotK)||(PNL.futN!=null&&PNL.futK!=null);
+}
+function renderPnl(){
+  const box=$('#pnlChart'); if(!box) return;
+  const note=$('#pnlNote'); if(note) note.innerHTML='<b>읽는 법</b> · 곡선이 우상향=외국인 상승 베팅(net 매수), 우하향=하락 베팅(net 매도). 가로 점선(손익=0)과 만나는 지수가 <b>손익분기점</b>이며, 그보다 위/아래로 갈수록 이익/손실입니다. 값은 입력한 순매수·평균지수 기준 <b>추정</b>이며, 코스피200 지수 기준으로 계산합니다. (선물 1계약=지수 1p당 25만원)';
+  // 중심 지수
+  let center=PNL.cur || PNL.spotK || PNL.futK || 430;
+  const lo=center*0.85, hi=center*1.15;
+  const N=60, xs=[], ys=[];
+  for(let i=0;i<=N;i++){ const K=lo+(hi-lo)*i/N; xs.push(K); ys.push(pnlActive()?pnlAt(K):0); }
+  const W=320,H=200,pad=34;
+  const xmin=lo,xmax=hi;
+  let ymin=Math.min(...ys,0), ymax=Math.max(...ys,0);
+  if(ymin===ymax){ ymin-=1; ymax+=1; }
+  const padY=(ymax-ymin)*0.12||1; ymin-=padY; ymax+=padY;
+  const X=K=>pad+(K-xmin)/(xmax-xmin)*(W-pad-8);
+  const Y=v=>H-pad-(v-ymin)/(ymax-ymin)*(H-pad-10);
+  const path=xs.map((K,i)=>(i?'L':'M')+X(K).toFixed(1)+' '+Y(ys[i]).toFixed(1)).join(' ');
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet">`;
+  // zero line
+  if(ymin<0&&ymax>0){ const y0=Y(0); svg+=`<line x1="${pad}" y1="${y0}" x2="${W-8}" y2="${y0}" stroke="#888" stroke-dasharray="4 3"/>`; }
+  // current index line
+  if(PNL.cur){ const xc=X(PNL.cur); svg+=`<line x1="${xc}" y1="10" x2="${xc}" y2="${H-pad}" stroke="#7c83ff" stroke-dasharray="3 3"/><text x="${xc}" y="9" fill="#7c83ff" font-size="9" text-anchor="middle">현재 ${Math.round(PNL.cur)}</text>`; }
+  // break-even (where y crosses 0)
+  let bep=null;
+  for(let i=1;i<ys.length;i++){ if((ys[i-1]<=0&&ys[i]>=0)||(ys[i-1]>=0&&ys[i]<=0)){ const t=(0-ys[i-1])/((ys[i]-ys[i-1])||1); bep=xs[i-1]+(xs[i]-xs[i-1])*t; break; } }
+  if(bep!=null&&pnlActive()){ const xb=X(bep); svg+=`<line x1="${xb}" y1="10" x2="${xb}" y2="${H-pad}" stroke="#c00000" stroke-dasharray="2 2"/><text x="${xb}" y="${H-pad+11}" fill="#c00000" font-size="9" text-anchor="middle">BEP ${Math.round(bep)}</text>`; }
+  // axes labels
+  svg+=`<text x="${pad}" y="${H-pad+11}" fill="#888" font-size="8">${Math.round(xmin)}</text><text x="${W-8}" y="${H-pad+11}" fill="#888" font-size="8" text-anchor="end">${Math.round(xmax)}</text>`;
+  svg+=`<text x="2" y="14" fill="#888" font-size="8">${Math.round(ymax)}억</text><text x="2" y="${H-pad}" fill="#888" font-size="8">${Math.round(ymin)}억</text>`;
+  // payoff line
+  if(pnlActive()) svg+=`<path d="${path}" fill="none" stroke="#39d98a" stroke-width="2"/>`;
+  svg+='</svg>';
+  box.innerHTML=svg;
+  // 요약
+  const sum=$('#pnlSummary');
+  if(!pnlActive()){ sum.innerHTML='<span class="dim">아래에 외국인 순매수와 평균지수를 입력하면 손익곡선이 그려집니다. (HTS 투자자별 추정포지션 / KRX 값 입력)</span>'; return; }
+  const slope=pnlAt(center+1)-pnlAt(center);
+  const dir= slope>0?'<b style="color:#c00000">상승 베팅(net 매수)</b>':(slope<0?'<b style="color:#1257c2">하락 베팅(net 매도)</b>':'중립');
+  let curPnl = PNL.cur?pnlAt(PNL.cur):null;
+  let s=`방향: ${dir}`;
+  if(bep!=null) s+=` · 손익분기 K200 <b>${bep.toFixed(1)}</b>`;
+  if(curPnl!=null) s+=` · 현재손익 <b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
+  sum.innerHTML=s;
+}
+async function pnlAutoFetch(){
+  const btn=$('#pnlAuto'); if(!SRV_URL){ alert('서버 설정이 필요합니다.'); return; }
+  btn.textContent='불러오는 중…'; btn.disabled=true;
+  try{
+    const r=await fetch(SRV_URL+'/?fpos=spot'); const d=await r.json();
+    if(d&&d.ok&&d.netValue!=null&&d.avgK){ $('#pnlSpotV').value=Math.round(d.netValue); $('#pnlSpotK').value=d.avgK.toFixed(2); if(d.curK) $('#pnlCur').value=d.curK.toFixed(2); readPnlInputs(); btn.textContent='자동추정 완료'; }
+    else { btn.textContent='자동 실패(수동 입력)'; }
+  }catch(e){ btn.textContent='자동 실패(수동 입력)'; }
+  setTimeout(()=>{ btn.textContent='외국인 현물 자동추정'; btn.disabled=false; }, 2500);
+}
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=10;
 let REPORT={}, reportLoading=false, reportCacheInit=false;
