@@ -324,6 +324,8 @@
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
+  .signbtn{flex:0 0 auto;width:40px;padding:8px 0;border-radius:8px;border:1px solid #777;background:#222634;color:#eee;font-size:16px;font-weight:700}
+  .signbtn:active{background:#333a4d}
   .pnl-futman{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px}
   .pnl-futman .fm-l{font-size:12.5px;font-weight:700;color:var(--ink,#eee);margin-bottom:7px}
   .pnl-futman .fm-l .dim{font-weight:400;color:var(--dim)}
@@ -620,7 +622,7 @@
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
   <div class="pnl-futman">
    <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 오늘)</span></div>
-   <div class="fm-r"><input id="pnlFutNet" type="number" inputmode="numeric" placeholder="예: -2458"><span id="pnlFutDir" class="fm-dir"></span></div>
+   <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
    <div class="fm-note">네이버 금융 → 국내증시 → 투자자별 매매동향 → <b>선물</b> 탭의 외국인 값(계약). 매수+ / 매도−. 입력하면 방향 판정 + 손익곡선 선물 탭에 자동 반영.</div>
   </div>
   <div class="pnl-seg" id="pnlSeg">
@@ -631,8 +633,8 @@
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
   <div class="pnl-inputs" id="pnlInputs">
-   <div class="pnl-row pnl-spot"><span class="pl">현물 순매수</span><input id="pnlSpotV" type="number" inputmode="decimal" placeholder="억원 (매수+ / 매도−)"><span class="pl">평균 K200</span><input id="pnlSpotK" type="number" inputmode="decimal" placeholder="지수"></div>
-   <div class="pnl-row pnl-fut"><span class="pl">선물 순매수</span><input id="pnlFutN" type="number" inputmode="decimal" placeholder="계약 (매수+ / 매도−)"><span class="pl">평균 K200</span><input id="pnlFutK" type="number" inputmode="decimal" placeholder="지수"></div>
+   <div class="pnl-row pnl-spot"><span class="pl">현물 순매수</span><input id="pnlSpotV" type="text" inputmode="numeric" placeholder="억원 (매수+ / 매도−)"><button type="button" class="signbtn" onclick="pnlSign('pnlSpotV')">±</button><span class="pl">평균 K200</span><input id="pnlSpotK" type="number" inputmode="decimal" placeholder="지수"></div>
+   <div class="pnl-row pnl-fut"><span class="pl">선물 순매수</span><input id="pnlFutN" type="text" inputmode="numeric" placeholder="계약 (매수+ / 매도−)"><button type="button" class="signbtn" onclick="pnlSign('pnlFutN')">±</button><span class="pl">평균 K200</span><input id="pnlFutK" type="number" inputmode="decimal" placeholder="지수"></div>
    <div class="pnl-row"><span class="pl">현재 K200</span><input id="pnlCur" type="number" inputmode="decimal" placeholder="현재지수"><button class="pnl-auto" id="pnlAuto">외국인 현물 자동추정</button></div>
   </div>
   <div class="pnl-note" id="pnlNote"></div>
@@ -2347,7 +2349,7 @@ function openPnl(){
   onFutNet();
 }
 function onFutNet(){
-  const el=$('#pnlFutDir'); const raw=$('#pnlFutNet').value; const v=parseFloat(raw);
+  const el=$('#pnlFutDir'); const raw=($('#pnlFutNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
   if(!isFinite(v)){ if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_futnet');}catch(e){} return; }
   try{ localStorage.setItem('pnl_futnet', v); }catch(e){}
   if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 베팅 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 베팅 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
@@ -2381,8 +2383,9 @@ function syncPnlInputs(){
   $('#pnlInputs').querySelector('.pnl-spot').style.display=(PNL.mode==='fut')?'none':'';
   $('#pnlInputs').querySelector('.pnl-fut').style.display=(PNL.mode==='spot')?'none':'';
 }
+function pnlSign(id){ const el=$('#'+id); if(!el) return; let v=(el.value||'').trim(); if(v===''||v==='-'){ el.value='-'; } else if(v[0]==='-'){ el.value=v.slice(1); } else { el.value='-'+v; } el.dispatchEvent(new Event('input',{bubbles:true})); el.focus(); }
 function readPnlInputs(){
-  const g=id=>{ const v=parseFloat($('#'+id).value); return isFinite(v)?v:null; };
+  const g=id=>{ const v=parseFloat(($('#'+id).value||'').replace(/,/g,'')); return isFinite(v)?v:null; };
   PNL.spotV=g('pnlSpotV'); PNL.spotK=g('pnlSpotK'); PNL.futN=g('pnlFutN'); PNL.futK=g('pnlFutK'); PNL.cur=g('pnlCur');
   savePnlInputs();
   renderPnl();
