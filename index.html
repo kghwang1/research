@@ -324,6 +324,13 @@
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
+  .pnl-futman{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px}
+  .pnl-futman .fm-l{font-size:12.5px;font-weight:700;color:var(--ink,#eee);margin-bottom:7px}
+  .pnl-futman .fm-l .dim{font-weight:400;color:var(--dim)}
+  .pnl-futman .fm-r{display:flex;align-items:center;gap:10px}
+  .pnl-futman .fm-r input{flex:1;min-width:90px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#0f1118;color:#eee;font-size:14px}
+  .pnl-futman .fm-dir{font-size:14px;white-space:nowrap}
+  .pnl-futman .fm-note{margin-top:8px;font-size:10.5px;line-height:1.55;color:var(--dim)}
   .pnl-dir{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;font-size:12.5px}
   .pnl-dir .dim{color:var(--dim)}
   .pnl-dir .pd-h{font-size:14px;font-weight:700;margin-bottom:7px;color:var(--ink,#eee)}
@@ -611,6 +618,11 @@
  </div>
  <div class="pnl-wrap">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
+  <div class="pnl-futman">
+   <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 오늘)</span></div>
+   <div class="fm-r"><input id="pnlFutNet" type="number" inputmode="numeric" placeholder="예: -2458"><span id="pnlFutDir" class="fm-dir"></span></div>
+   <div class="fm-note">네이버 금융 → 국내증시 → 투자자별 매매동향 → <b>선물</b> 탭의 외국인 값(계약). 매수+ / 매도−. 입력하면 방향 판정 + 손익곡선 선물 탭에 자동 반영.</div>
+  </div>
   <div class="pnl-seg" id="pnlSeg">
    <button data-m="spot" class="on">현물</button>
    <button data-m="fut">선물</button>
@@ -2330,6 +2342,18 @@ function openPnl(){
   loadPnlInputs(); syncPnlInputs(); renderPnl();
   pnlAutoFetch(true); // 현재 K200 자동 입력
   loadPnlDir(); // 다음날 방향 신호
+  const fnet=$('#pnlFutNet'); if(fnet&&!fnet._wired){ fnet._wired=1; fnet.oninput=onFutNet; }
+  try{ const sv=localStorage.getItem('pnl_futnet'); if(sv!=null&&sv!==''){ $('#pnlFutNet').value=sv; } }catch(e){}
+  onFutNet();
+}
+function onFutNet(){
+  const el=$('#pnlFutDir'); const raw=$('#pnlFutNet').value; const v=parseFloat(raw);
+  if(!isFinite(v)){ if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_futnet');}catch(e){} return; }
+  try{ localStorage.setItem('pnl_futnet', v); }catch(e){}
+  if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 베팅 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 베팅 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
+  // 손익곡선 선물 탭 순매수(계약)에 자동 반영
+  const fn=$('#pnlFutN'); if(fn){ fn.value=v; }
+  PNL.futN=v; savePnlInputs(); renderPnl();
 }
 async function loadPnlDir(){
   const box=$('#pnlDir'); if(!box) return;
