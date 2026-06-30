@@ -324,6 +324,12 @@
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
+  .pnl-dir{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;font-size:12.5px}
+  .pnl-dir .dim{color:var(--dim)}
+  .pnl-dir .pd-h{font-size:14px;font-weight:700;margin-bottom:7px;color:var(--ink,#eee)}
+  .pnl-dir .pd-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:var(--sub)}
+  .pnl-dir .pd-row b{font-size:13px}
+  .pnl-dir .pd-note{margin-top:7px;font-size:10.5px;line-height:1.55;color:var(--dim)}
   .pnl-wrap{flex:1;overflow-y:auto;padding:12px 14px 28px;display:flex;flex-direction:column;gap:12px}
   .pnl-seg{display:flex;gap:6px}
   .pnl-seg button{flex:1;padding:9px 0;border:1px solid #555;border-radius:10px;background:transparent;color:var(--ink,#ddd);font-weight:700;font-size:14px}
@@ -604,6 +610,7 @@
   <div class="subtab on" style="flex:1;cursor:default">손익곡선 · 외국인 포지션</div>
  </div>
  <div class="pnl-wrap">
+  <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
   <div class="pnl-seg" id="pnlSeg">
    <button data-m="spot" class="on">현물</button>
    <button data-m="fut">선물</button>
@@ -2319,10 +2326,33 @@ function openPnl(){
   $('#pnlFull').classList.add('on');
   ['pnlSpotV','pnlSpotK','pnlFutN','pnlFutK','pnlCur'].forEach(id=>{ const el=$('#'+id); if(el&&!el._wired){ el._wired=1; el.oninput=readPnlInputs; } });
   $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); syncPnlInputs(); renderPnl(); }; });
-  const auto=$('#pnlAuto'); if(auto&&!auto._wired){ auto._wired=1; auto.onclick=pnlAutoFetch; }
-  syncPnlInputs(); renderPnl();
+  const auto=$('#pnlAuto'); if(auto&&!auto._wired){ auto._wired=1; auto.onclick=()=>pnlAutoFetch(false); }
+  loadPnlInputs(); syncPnlInputs(); renderPnl();
+  pnlAutoFetch(true); // 현재 K200 자동 입력
+  loadPnlDir(); // 다음날 방향 신호
+}
+async function loadPnlDir(){
+  const box=$('#pnlDir'); if(!box) return;
+  if(!SRV_URL){ box.style.display='none'; return; }
+  box.innerHTML='<span class="dim">다음날 방향 불러오는 중…</span>';
+  try{
+    const r=await fetch(SRV_URL+'/?fdir=1'); const d=await r.json();
+    if(!d||!d.ok){ box.innerHTML='<span class="dim">방향 신호를 불러오지 못했습니다.</span>'; return; }
+    const e=d.ewyRate, w=d.krwRate, v=d.verdict;
+    const label = v==='up'?'<b style="color:#ff5a5a">상승 우호 ▲</b>':(v==='down'?'<b style="color:#5a9bff">하락 우호 ▼</b>':(v==='flat'?'<b style="color:#bbb">중립 ―</b>':'<b>판단 불가</b>'));
+    const fmt=(x)=> x==null?'—':(x>=0?'+':'')+x+'%';
+    const ec = e==null?'#bbb':(e>=0?'#ff5a5a':'#5a9bff');
+    const wc = w==null?'#bbb':(w>=0?'#5a9bff':'#ff5a5a'); // 원달러↑=원화약세=악재(파랑)
+    box.innerHTML =
+      `<div class="pd-h">다음날 외국인 방향(추정) · ${label}</div>`+
+      `<div class="pd-row"><span>EWY · 미국 상장 한국ETF</span><b style="color:${ec}">${fmt(e)}</b></div>`+
+      `<div class="pd-row"><span>원/달러 환율</span><b style="color:${wc}">${fmt(w)}</b></div>`+
+      `<div class="pd-note">EWY는 한국 장 마감 후 <b>미국장 등락</b>이라 다음날 선행 신호입니다. 원/달러 <b>상승=원화 약세</b>(외국인 매도 압력). KRX 외국인 선물 확정치는 서버 접근이 막혀 이 <b>대체 추정</b>을 씁니다.</div>`;
+  }catch(e){ box.innerHTML='<span class="dim">방향 신호 오류.</span>'; }
 }
 function closePnl(){ $('#pnlFull').classList.remove('on'); }
+function loadPnlInputs(){ try{ const o=JSON.parse(localStorage.getItem('pnl_inputs')||'{}'); ['spotV','spotK','futN','futK'].forEach(k=>{ const map={spotV:'pnlSpotV',spotK:'pnlSpotK',futN:'pnlFutN',futK:'pnlFutK'}; if(o[k]!=null&&o[k]!=='') $('#'+map[k]).value=o[k]; }); readPnlInputs(); }catch(e){} }
+function savePnlInputs(){ try{ localStorage.setItem('pnl_inputs', JSON.stringify({spotV:$('#pnlSpotV').value, spotK:$('#pnlSpotK').value, futN:$('#pnlFutN').value, futK:$('#pnlFutK').value})); }catch(e){} }
 function syncPnlInputs(){
   $('#pnlInputs').querySelector('.pnl-spot').style.display=(PNL.mode==='fut')?'none':'';
   $('#pnlInputs').querySelector('.pnl-fut').style.display=(PNL.mode==='spot')?'none':'';
@@ -2330,6 +2360,7 @@ function syncPnlInputs(){
 function readPnlInputs(){
   const g=id=>{ const v=parseFloat($('#'+id).value); return isFinite(v)?v:null; };
   PNL.spotV=g('pnlSpotV'); PNL.spotK=g('pnlSpotK'); PNL.futN=g('pnlFutN'); PNL.futK=g('pnlFutK'); PNL.cur=g('pnlCur');
+  savePnlInputs();
   renderPnl();
 }
 function pnlAt(K){ // K = 코스피200 지수 → 손익(억원)
@@ -2386,15 +2417,19 @@ function renderPnl(){
   if(curPnl!=null) s+=` · 현재손익 <b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
   sum.innerHTML=s;
 }
-async function pnlAutoFetch(){
-  const btn=$('#pnlAuto'); if(!SRV_URL){ alert('서버 설정이 필요합니다.'); return; }
-  btn.textContent='불러오는 중…'; btn.disabled=true;
+async function pnlAutoFetch(silent){
+  const btn=$('#pnlAuto'); if(!SRV_URL){ if(!silent) alert('서버 설정이 필요합니다.'); return; }
+  if(btn&&!silent){ btn.textContent='불러오는 중…'; btn.disabled=true; }
   try{
     const r=await fetch(SRV_URL+'/?fpos=spot'); const d=await r.json();
-    if(d&&d.ok&&d.netValue!=null&&d.avgK){ $('#pnlSpotV').value=Math.round(d.netValue); $('#pnlSpotK').value=d.avgK.toFixed(2); if(d.curK) $('#pnlCur').value=d.curK.toFixed(2); readPnlInputs(); btn.textContent='자동추정 완료'; }
-    else { btn.textContent='자동 실패(수동 입력)'; }
-  }catch(e){ btn.textContent='자동 실패(수동 입력)'; }
-  setTimeout(()=>{ btn.textContent='외국인 현물 자동추정'; btn.disabled=false; }, 2500);
+    if(d&&d.ok){
+      if(d.curK){ $('#pnlCur').value=(+d.curK).toFixed(2); }
+      if(d.netValue!=null&&d.avgK){ $('#pnlSpotV').value=Math.round(d.netValue); $('#pnlSpotK').value=(+d.avgK).toFixed(2); }
+      readPnlInputs();
+      if(btn&&!silent) btn.textContent= (d.netValue!=null?'자동추정 완료':'현재지수 입력됨');
+    } else if(btn&&!silent) btn.textContent='자동 실패';
+  }catch(e){ if(btn&&!silent) btn.textContent='자동 실패'; }
+  if(btn&&!silent) setTimeout(()=>{ btn.textContent='외국인 현물 자동추정'; btn.disabled=false; }, 2500);
 }
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=10;
