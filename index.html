@@ -323,6 +323,7 @@
   .val-tbl .rchg{display:block;font-size:11px;font-weight:600;margin-top:1px}
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
+  .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
   .val-tbl td.al{text-align:left}
   /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
   .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
@@ -580,6 +581,7 @@
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
  <div id="valMulti" style="display:none"></div>
+ <div id="valNote" class="val-note" style="display:none"></div>
  <div class="valfull-foot" id="valFoot">
   <span class="val-note">자료배포는 금지합니다</span>
   <button class="val-reset" id="valSave">서버 저장</button>
@@ -1683,10 +1685,19 @@ function toast(msg){
   clearTimeout(el._t); el._t=setTimeout(()=>{ el.style.opacity='0'; },2200);
 }
 function isNeg(s){ return /^-/.test(String(s).trim()); }
+const VAL_NOTES={
+ kr:'• 비중·종목: 매주 수동 갱신(라벨의 기준 주차).  • 현재가·전일대비%: 네이버 실시간 시세.  • 목표가: 네이버 증권사 컨센서스.  • 52주최고가: 네이버.  • 상승여력·낙폭: 현재가 기준 자동 계산.  • 적정가·기록: 직접 입력(종목코드 기준 저장).',
+ us:'• 비중·적정주가·목표주가·PEG·P/E(F): 직접 관리값(상단 기준일, 수동 갱신).  • 현재가·전일대비%: 야후/네이버 실시간 시세.  • 52주최고가: 야후/네이버.  • 상승여력(목표·적정 대비): 실시간 현재가 기준 자동 계산.',
+ usc:'• 비중·변동: MP 분석 자료(수동 갱신).  • 현재가·목표가·52주최고가: 실시간 시세/컨센서스.  • 상승여력: 현재가 기준 자동 계산.  • 기록: 직접 입력(보존).',
+ etf:'• 비중: 직접 관리값(수동 갱신).  • 현재가·등락률: 네이버/야후 실시간 시세.  한국·미국 ETF를 한 화면에 모아 봅니다.',
+ invest:'수집·계산 과정\n• 모집단: 네이버 코스피 시가총액 상위 100종목.\n• 낙폭: (현재가−52주최고가)/52주최고가 — 큰 순으로 상위 50을 추려 ROE 조회.\n• ROE: 네이버 재무(분기) 최근값 + 전분기 대비 증감. 기준은 ROE 필터(전체/5/10/상승).\n• 외국인: 네이버 외국인 순매매 최근 5거래일(★=순매수, 과거→최근). 장 마감(18:30) 기준 1일 저장.\n• 목표가: 네이버 증권사 컨센서스 → 상승여력 자동 계산.\n• 보고서: 네이버 종목분석 최근 1건(제목·발표일·분야 자동분류, 원문 링크). 1일 저장.\n• 시세·ROE·외국인·보고서는 하루 1회 수집, ↻ 새로고침 시 다시 수집합니다.'
+};
+function applyValNote(m){ const el=$('#valNote'); if(!el) return; const txt=VAL_NOTES[m]; if(!txt){ el.style.display='none'; el.textContent=''; return; } el.style.display=''; el.innerHTML=escHtml(txt).replace(/\n/g,'<br>'); }
 function renderVal(){
   const sc=$('#valScroll'), em=$('#valEmpty'), multi=$('#valMulti'), foot=$('#valFoot');
   const t=$('#valTbl');
   if(!t) return;
+  applyValNote(valMarket);
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
@@ -2281,8 +2292,20 @@ function saveInvestCache(){ try{ localStorage.setItem('inv_pool', JSON.stringify
 function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_POOL=o.rows; return true; } } }catch(e){} return false; }
 function refreshInvest(){ try{ localStorage.removeItem('inv_pool'); localStorage.removeItem('inv_reports'); localStorage.removeItem('inv_frgn'); }catch(e){} REPORT={}; reportCacheInit=true; FRGN={}; frgnCacheInit=true; INVEST_POOL=[]; investLoaded=false; loadInvest(); }
 let FRGN={}, frgnLoading=false, frgnCacheInit=false;
-function loadFrgnCache(){ if(frgnCacheInit) return; frgnCacheInit=true; try{ const raw=localStorage.getItem('inv_frgn'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&o.map) Object.assign(FRGN,o.map); } }catch(e){} }
-function saveFrgnCache(){ try{ localStorage.setItem('inv_frgn', JSON.stringify({date:invToday(), map:FRGN})); }catch(e){} }
+/* 장 마감 기준 기간키: 평일 18:30(KST) 이후엔 그날 마감본, 그 전이면 직전 거래일 마감본 */
+function frgnPeriod(){
+  const now=new Date();
+  const kst=new Date(now.getTime()+now.getTimezoneOffset()*60000+9*3600000);
+  const mins=kst.getHours()*60+kst.getMinutes();
+  const CUT=18*60+30;
+  let base=new Date(Date.UTC(kst.getFullYear(),kst.getMonth(),kst.getDate()));
+  if(mins<CUT) base=new Date(base.getTime()-86400000);
+  let dow=base.getUTCDay();
+  while(dow===0||dow===6){ base=new Date(base.getTime()-86400000); dow=base.getUTCDay(); }
+  return base.getUTCFullYear()+'-'+String(base.getUTCMonth()+1).padStart(2,'0')+'-'+String(base.getUTCDate()).padStart(2,'0');
+}
+function loadFrgnCache(){ if(frgnCacheInit) return; frgnCacheInit=true; try{ const raw=localStorage.getItem('inv_frgn'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===frgnPeriod()&&o.map) Object.assign(FRGN,o.map); } }catch(e){} }
+function saveFrgnCache(){ try{ localStorage.setItem('inv_frgn', JSON.stringify({date:frgnPeriod(), map:FRGN})); }catch(e){} }
 async function ensureForeign(codes){
   loadFrgnCache();
   const need=codes.filter(c=>!(c in FRGN));
@@ -2370,7 +2393,7 @@ async function loadInvest(){
 function setRoeMin(v){ roeMin=v; renderInvest(); }
 function renderInvest(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
-  loadReportCache();
+  loadReportCache(); loadFrgnCache();
   if(em) em.style.display='none'; if(sc) sc.style.display='';
   // ROE 질 필터: roeMin>0이면 ROE 있는 것 중 기준 이상만, 0이면 전체
   let rows = (roeMin==='up')
