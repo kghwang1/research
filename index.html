@@ -353,6 +353,11 @@
   .pnl-chart{background:#0f1118;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px}
   .pnl-sum{font-size:13px;line-height:1.5;color:var(--ink,#ddd)}
   .pnl-sum .dim{color:var(--dim);font-size:15.6px}
+  .pnl-values{background:var(--panel);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:2px}
+  .pnl-values .pv-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:14px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .pnl-values .pv-row:last-child{border-bottom:none}
+  .pnl-values .pv-row span{color:var(--sub)}
+  .pnl-values .pv-row b{color:var(--ink,#eee);font-size:15px}
   .pnl-inputs{display:flex;flex-direction:column;gap:8px;background:var(--panel);border-radius:12px;padding:12px}
   .pnl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .pnl-row .pl{font-size:12px;color:var(--sub);min-width:62px}
@@ -647,11 +652,7 @@
   </div>
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
-  <div class="pnl-inputs" id="pnlInputs">
-   <div class="pnl-row pnl-spot"><span class="pl">현물 순매수</span><input id="pnlSpotV" type="text" inputmode="numeric" placeholder="억원 (매수+ / 매도−)"><button type="button" class="signbtn" onclick="pnlSign('pnlSpotV')">±</button><span class="pl">평균 K200</span><input id="pnlSpotK" type="number" inputmode="decimal" placeholder="지수"></div>
-   <div class="pnl-row pnl-fut"><span class="pl">선물 순매수</span><input id="pnlFutN" type="text" inputmode="numeric" placeholder="계약 (매수+ / 매도−)"><button type="button" class="signbtn" onclick="pnlSign('pnlFutN')">±</button><span class="pl">평균 K200</span><input id="pnlFutK" type="number" inputmode="decimal" placeholder="지수"></div>
-   <div class="pnl-row"><span class="pl">현재 K200</span><input id="pnlCur" type="number" inputmode="decimal" placeholder="현재지수"><button class="pnl-auto" id="pnlAuto">외국인 현물 자동추정</button></div>
-  </div>
+  <div class="pnl-values" id="pnlValues"></div>
   <div class="pnl-note" id="pnlNote"></div>
  </div>
 </div>
@@ -2373,38 +2374,30 @@ const PNL={mode:'spot', spotV:null, spotK:null, futN:null, futK:null, cur:null};
 const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
 function openPnl(){
   $('#pnlFull').classList.add('on');
-  ['pnlSpotV','pnlSpotK','pnlFutN','pnlFutK','pnlCur'].forEach(id=>{ const el=$('#'+id); if(el&&!el._wired){ el._wired=1; el.oninput=readPnlInputs; } });
-  $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); syncPnlInputs(); renderPnl(); }; });
-  const auto=$('#pnlAuto'); if(auto&&!auto._wired){ auto._wired=1; auto.onclick=()=>pnlAutoFetch(false); }
-  loadPnlInputs(); syncPnlInputs(); renderPnl();
-  pnlAutoFetch(true); // 현재 K200 자동 입력
+  $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderPnl(); }; });
   loadPnlDir(); // 다음날 방향 신호
   const fnet=$('#pnlFutNet'); if(fnet&&!fnet._wired){ fnet._wired=1; fnet.oninput=onFutNet; }
   const snet=$('#pnlSpotNet'); if(snet&&!snet._wired){ snet._wired=1; snet.oninput=onSpotNet; }
   try{ const sv=localStorage.getItem('pnl_futnet'); if(sv!=null&&sv!==''){ $('#pnlFutNet').value=sv; } }catch(e){}
   try{ const sv=localStorage.getItem('pnl_spotnet'); if(sv!=null&&sv!==''){ $('#pnlSpotNet').value=sv; } }catch(e){}
   onFutNet(); onSpotNet();
+  renderPnl();
+  pnlAutoFetch(true); // 현재 K200 자동
 }
+function pnlApplyApprox(){ if(PNL.cur!=null){ if(PNL.spotV!=null) PNL.spotK=PNL.cur; if(PNL.futN!=null) PNL.futK=PNL.cur; } }
 function onSpotNet(){
   const el=$('#pnlSpotDir'); const raw=($('#pnlSpotNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
-  if(!isFinite(v)){ if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_spotnet');}catch(e){} return; }
+  if(!isFinite(v)){ PNL.spotV=null; if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_spotnet');}catch(e){} pnlApplyApprox(); renderPnl(); return; }
   try{ localStorage.setItem('pnl_spotnet', v); }catch(e){}
   if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 쪽 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 쪽 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
-  // 손익곡선 현물: 순매수 반영 + 평균 K200은 현재값으로 근사(실제 평균 체결가는 알 수 없음)
-  const cur=parseFloat(($('#pnlCur').value||'').replace(/,/g,''));
-  const svf=$('#pnlSpotV'); if(svf){ svf.value=v; }
-  const skf=$('#pnlSpotK'); if(skf && isFinite(cur)){ skf.value=cur.toFixed(2); }
-  PNL.spotV=v; if(isFinite(cur)) PNL.spotK=cur;
-  savePnlInputs(); renderPnl();
+  PNL.spotV=v; pnlApplyApprox(); renderPnl();
 }
 function onFutNet(){
   const el=$('#pnlFutDir'); const raw=($('#pnlFutNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
-  if(!isFinite(v)){ if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_futnet');}catch(e){} return; }
+  if(!isFinite(v)){ PNL.futN=null; if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_futnet');}catch(e){} pnlApplyApprox(); renderPnl(); return; }
   try{ localStorage.setItem('pnl_futnet', v); }catch(e){}
   if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 베팅 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 베팅 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
-  // 손익곡선 선물 탭 순매수(계약)에 자동 반영
-  const fn=$('#pnlFutN'); if(fn){ fn.value=v; }
-  PNL.futN=v; savePnlInputs(); renderPnl();
+  PNL.futN=v; pnlApplyApprox(); renderPnl();
 }
 async function loadPnlDir(){
   const box=$('#pnlDir'); if(!box) return;
@@ -2426,19 +2419,17 @@ async function loadPnlDir(){
   }catch(e){ box.innerHTML='<span class="dim">방향 신호 오류.</span>'; }
 }
 function closePnl(){ $('#pnlFull').classList.remove('on'); }
-function loadPnlInputs(){ try{ const o=JSON.parse(localStorage.getItem('pnl_inputs')||'{}'); ['spotV','spotK','futN','futK'].forEach(k=>{ const map={spotV:'pnlSpotV',spotK:'pnlSpotK',futN:'pnlFutN',futK:'pnlFutK'}; if(o[k]!=null&&o[k]!=='') $('#'+map[k]).value=o[k]; }); readPnlInputs(); }catch(e){} }
-function savePnlInputs(){ try{ localStorage.setItem('pnl_inputs', JSON.stringify({spotV:$('#pnlSpotV').value, spotK:$('#pnlSpotK').value, futN:$('#pnlFutN').value, futK:$('#pnlFutK').value})); }catch(e){} }
-function syncPnlInputs(){
-  $('#pnlInputs').querySelector('.pnl-spot').style.display=(PNL.mode==='fut')?'none':'';
-  $('#pnlInputs').querySelector('.pnl-fut').style.display=(PNL.mode==='spot')?'none':'';
+function renderPnlValues(){
+  const el=$('#pnlValues'); if(!el) return;
+  const rows=[
+    ['외국인 선물 순매수', PNL.futN==null?'—':PNL.futN.toLocaleString()+' 계약'],
+    ['외국인 현물 순매수', PNL.spotV==null?'—':PNL.spotV.toLocaleString()+' 억원'],
+    ['현재 K200', PNL.cur==null?'—':(+PNL.cur).toFixed(2)],
+    ['외국인 현물 매수 추정 평균가', PNL.cur==null?'—':(+PNL.cur).toFixed(2)],
+  ];
+  el.innerHTML=rows.map(r=>`<div class="pv-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
 }
 function pnlSign(id){ const el=$('#'+id); if(!el) return; let v=(el.value||'').trim(); if(v===''||v==='-'){ el.value='-'; } else if(v[0]==='-'){ el.value=v.slice(1); } else { el.value='-'+v; } el.dispatchEvent(new Event('input',{bubbles:true})); el.focus(); }
-function readPnlInputs(){
-  const g=id=>{ const v=parseFloat(($('#'+id).value||'').replace(/,/g,'')); return isFinite(v)?v:null; };
-  PNL.spotV=g('pnlSpotV'); PNL.spotK=g('pnlSpotK'); PNL.futN=g('pnlFutN'); PNL.futK=g('pnlFutK'); PNL.cur=g('pnlCur');
-  savePnlInputs();
-  renderPnl();
-}
 function pnlAt(K){ // K = 코스피200 지수 → 손익(억원)
   let v=0;
   if(PNL.mode!=='fut' && PNL.spotV!=null && PNL.spotK){ v += PNL.spotV*(K-PNL.spotK)/PNL.spotK; }
@@ -2452,6 +2443,7 @@ function pnlActive(){ // 입력이 충분한지
 }
 function renderPnl(){
   const box=$('#pnlChart'); if(!box) return;
+  renderPnlValues();
   const note=$('#pnlNote'); if(note) note.innerHTML='<b>읽는 법</b> · 곡선이 우상향=외국인 상승 베팅(net 매수), 우하향=하락 베팅(net 매도). 가로 점선(손익=0)과 만나는 지수가 <b>손익분기점</b>이며, 그보다 위/아래로 갈수록 이익/손실입니다. 값은 입력한 순매수·평균지수 기준 <b>추정</b>이며, 코스피200 지수 기준으로 계산합니다. (선물 1계약=지수 1p당 25만원)';
   // 중심 지수
   let center=PNL.cur || PNL.spotK || PNL.futK || 430;
@@ -2514,18 +2506,11 @@ function renderPnl(){
   sum.innerHTML=s;
 }
 async function pnlAutoFetch(silent){
-  const btn=$('#pnlAuto'); if(!SRV_URL){ if(!silent) alert('서버 설정이 필요합니다.'); return; }
-  if(btn&&!silent){ btn.textContent='불러오는 중…'; btn.disabled=true; }
+  if(!SRV_URL) return;
   try{
     const r=await fetch(SRV_URL+'/?fpos=spot'); const d=await r.json();
-    if(d&&d.ok){
-      if(d.curK){ $('#pnlCur').value=(+d.curK).toFixed(2); }
-      if(d.netValue!=null&&d.avgK){ $('#pnlSpotV').value=Math.round(d.netValue); $('#pnlSpotK').value=(+d.avgK).toFixed(2); }
-      readPnlInputs();
-      if(btn&&!silent) btn.textContent= (d.netValue!=null?'자동추정 완료':'현재지수 입력됨');
-    } else if(btn&&!silent) btn.textContent='자동 실패';
-  }catch(e){ if(btn&&!silent) btn.textContent='자동 실패'; }
-  if(btn&&!silent) setTimeout(()=>{ btn.textContent='외국인 현물 자동추정'; btn.disabled=false; }, 2500);
+    if(d&&d.ok&&d.curK){ PNL.cur=+d.curK; pnlApplyApprox(); renderPnl(); }
+  }catch(e){}
 }
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=10;
