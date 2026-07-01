@@ -2455,6 +2455,14 @@ function pnlInterpret(V,s){
   if(s.ewy!=null) parts.push(`어젯밤 EWY ${s.ewy>=0?'+':''}${s.ewy}% → 내일 ${s.ewy>=0?'우호':'비우호'} 선행신호`);
   return parts.join(' · ')+`. 종합하면 <b style="color:${V.color}">${V.label}</b>입니다.`;
 }
+// 현재 장세(KST): 장전(~08:59) / 장중(09:00~15:30) / 장마감(이후)
+function pnlSession(){
+  const k=new Date(Date.now()+9*3600000); // UTC→KST
+  const hm=k.getUTCHours()*60+k.getUTCMinutes();
+  if(hm<9*60) return '장전';
+  if(hm<=15*60+30) return '장중';
+  return '장마감';
+}
 // 외국인 투자심리 패널 렌더(PNL._dir + 현재 현물/선물 입력값)
 function pnlRenderDir(){
   const box=$('#pnlDir'); if(!box) return;
@@ -2474,13 +2482,14 @@ function pnlRenderDir(){
   let basisHtml='<b style="color:#bbb">—</b>';
   if(D.basis!=null){ const b=D.basis; const kind=b>0?'콘탱고(+)':(b<0?'백워데이션(−)':'중립'); const bc=b>0?'#ff5a5a':(b<0?'#5a9bff':'#bbb'); const tail=D.basisChg!=null?` <span style="font-size:.9em">(${D.basisChg>=0?'+':''}${D.basisChg.toFixed(2)}p)</span>`:''; basisHtml=`<b style="color:${bc}">${b>=0?'+':''}${b.toFixed(2)}p ${kind}${tail}</b>`; }
   const V=pnlVerdict({futN, spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb});
+  const ses=pnlSession();
   let h=`<div class="pd-h">외국인 투자심리 : <b style="color:${V.color}">${V.label}</b></div>`;
-  h+=`<div class="pd-row"><span>외국인 선물 순매수 <span class="dim">(외국인)</span></span>${flowCell(futN,'계약')}</div>`;
-  h+=`<div class="pd-row"><span>외국인 현물 순매수 <span class="dim">(외국인)</span></span>${flowCell(spotV,'억')}</div>`;
   h+=`<div class="pd-row"><span>${prevBiz} EWY 한국ETF <span class="dim">(미국인)</span></span>${priceCell(D.ewyPrice,D.ewyChange,D.ewyRate,ewyC,2)}</div>`;
-  h+=`<div class="pd-row"><span>베이시스 선물−현물 <span class="dim">(혼합)</span></span>${basisHtml}</div>`;
-  h+=`<div class="pd-row"><span>원/달러 환율 <span class="dim">(혼합)</span></span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
-  h+=`<div class="pd-row"><span>비차익 순매수 <span class="dim">(혼합)</span></span>${flowCell(D.nonArb,'억')}</div>`;
+  h+=`<div class="pd-row"><span>${ses} 선물 순매수 <span class="dim">(외국인)</span></span>${flowCell(futN,'계약')}</div>`;
+  h+=`<div class="pd-row"><span>${ses} 현물 순매수 <span class="dim">(외국인)</span></span>${flowCell(spotV,'억')}</div>`;
+  h+=`<div class="pd-row"><span>${ses} 베이시스 선물−현물 <span class="dim">(혼합)</span></span>${basisHtml}</div>`;
+  h+=`<div class="pd-row"><span>${ses} 원/달러 환율 <span class="dim">(혼합)</span></span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
+  h+=`<div class="pd-row"><span>${ses} 비차익 순매수 <span class="dim">(혼합)</span></span>${flowCell(D.nonArb,'억')}</div>`;
   h+=`<div class="pd-note">${pnlInterpret(V,{futN, spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb})}</div>`;
   box.innerHTML=h;
 }
