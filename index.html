@@ -636,7 +636,9 @@
   <div class="pnl-futman">
    <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 오늘)</span></div>
    <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
-   <div class="fm-note">네이버 금융 → 국내증시 → 투자자별 매매동향 → <b>선물</b> 탭의 외국인 값(계약). 매수+ / 매도−. 입력하면 방향 판정 + 손익곡선 선물 탭에 자동 반영.</div>
+   <div class="fm-l" style="margin-top:12px">외국인 현물(코스피) 순매수 <span class="dim">(억원, 오늘)</span></div>
+   <div class="fm-r"><input id="pnlSpotNet" type="text" inputmode="numeric" placeholder="예: -17124"><button type="button" class="signbtn" onclick="pnlSign('pnlSpotNet')">±</button><span id="pnlSpotDir" class="fm-dir"></span></div>
+   <div class="fm-note">네이버 금융 → 국내증시 → 투자자별 매매동향에서 <b>선물 탭=계약</b>, <b>코스피 탭=억원</b>. 매수+ / 매도−. 입력하면 방향 판정 + 손익곡선에 자동 반영됩니다. (코스닥은 넣지 않음)</div>
   </div>
   <div class="pnl-seg" id="pnlSeg">
    <button data-m="spot" class="on">현물</button>
@@ -2378,8 +2380,22 @@ function openPnl(){
   pnlAutoFetch(true); // 현재 K200 자동 입력
   loadPnlDir(); // 다음날 방향 신호
   const fnet=$('#pnlFutNet'); if(fnet&&!fnet._wired){ fnet._wired=1; fnet.oninput=onFutNet; }
+  const snet=$('#pnlSpotNet'); if(snet&&!snet._wired){ snet._wired=1; snet.oninput=onSpotNet; }
   try{ const sv=localStorage.getItem('pnl_futnet'); if(sv!=null&&sv!==''){ $('#pnlFutNet').value=sv; } }catch(e){}
-  onFutNet();
+  try{ const sv=localStorage.getItem('pnl_spotnet'); if(sv!=null&&sv!==''){ $('#pnlSpotNet').value=sv; } }catch(e){}
+  onFutNet(); onSpotNet();
+}
+function onSpotNet(){
+  const el=$('#pnlSpotDir'); const raw=($('#pnlSpotNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
+  if(!isFinite(v)){ if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_spotnet');}catch(e){} return; }
+  try{ localStorage.setItem('pnl_spotnet', v); }catch(e){}
+  if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 쪽 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 쪽 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
+  // 손익곡선 현물: 순매수 반영 + 평균 K200은 현재값으로 근사(실제 평균 체결가는 알 수 없음)
+  const cur=parseFloat(($('#pnlCur').value||'').replace(/,/g,''));
+  const svf=$('#pnlSpotV'); if(svf){ svf.value=v; }
+  const skf=$('#pnlSpotK'); if(skf && isFinite(cur)){ skf.value=cur.toFixed(2); }
+  PNL.spotV=v; if(isFinite(cur)) PNL.spotK=cur;
+  savePnlInputs(); renderPnl();
 }
 function onFutNet(){
   const el=$('#pnlFutDir'); const raw=($('#pnlFutNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
@@ -2469,12 +2485,32 @@ function renderPnl(){
   // 요약
   const sum=$('#pnlSummary');
   if(!pnlActive()){ sum.innerHTML='<span class="dim">아래에 외국인 순매수와 평균지수를 입력하면 손익곡선이 그려집니다. (HTS 투자자별 추정포지션 / KRX 값 입력)</span>'; return; }
+  let curPnl = PNL.cur?pnlAt(PNL.cur):null;
+  const spotApprox = (PNL.spotV!=null&&PNL.spotV!==0&&PNL.spotK!=null)
+    ? `<br><span class="dim">※ 외국인 현물 평균 체결가는 알 수 없어 <b>현재 K200 ${Math.round(PNL.spotK)}</b>로 근사했습니다. 실제 매수가가 이보다 <b>낮으면</b> 수익은 계산값보다 <b>큽니다</b>(반대면 작아짐).</span>`
+    : '';
+  if(PNL.mode==='both'){
+    const spotDir=(PNL.spotV==null||PNL.spotV===0)?null:(PNL.spotV>0);
+    const futDir=(PNL.futN==null||PNL.futN===0)?null:(PNL.futN>0);
+    const tag=b=> b===null?'<span class="dim">입력 없음</span>':(b?'<b style="color:#c00000">상승 쪽(순매수)</b>':'<b style="color:#1257c2">하락 쪽(순매도)</b>');
+    let s=`현물: ${tag(spotDir)}`;
+    if(PNL.spotV!=null&&PNL.spotV!==0) s+=` <span class="dim">(${Math.round(PNL.spotV).toLocaleString()}억)</span>`;
+    s+=`<br>선물: ${tag(futDir)}`;
+    if(PNL.futN!=null&&PNL.futN!==0) s+=` <span class="dim">(${Math.round(PNL.futN).toLocaleString()}계약)</span>`;
+    if(spotDir!==null&&futDir!==null&&spotDir!==futDir){
+      s+='<br><b style="color:#e0a030">⚠ 현물·선물 방향이 반대 → 헷지 가능성</b> <span class="dim">(현물을 팔며 선물로 되사는 움직임일 수 있어 합계 방향은 참고용)</span>';
+    }
+    if(curPnl!=null) s+=`<br><span class="dim">합계 현재손익(참고) </span><b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b> <span class="dim">· 단위(억원 vs 계약)가 달라 합계 곡선 방향은 착시 주의</span>`;
+    s+=spotApprox;
+    sum.innerHTML=s;
+    return;
+  }
   const slope=pnlAt(center+1)-pnlAt(center);
   const dir= slope>0?'<b style="color:#c00000">상승 베팅(net 매수)</b>':(slope<0?'<b style="color:#1257c2">하락 베팅(net 매도)</b>':'중립');
-  let curPnl = PNL.cur?pnlAt(PNL.cur):null;
   let s=`방향: ${dir}`;
   if(bep!=null) s+=` · 손익분기 K200 <b>${bep.toFixed(1)}</b>`;
   if(curPnl!=null) s+=` · 현재손익 <b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
+  if(PNL.mode==='spot') s+=spotApprox;
   sum.innerHTML=s;
 }
 async function pnlAutoFetch(silent){
