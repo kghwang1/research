@@ -284,7 +284,6 @@
   .valfull-top .subtab.on{background:var(--accent2);color:#0a0a0a;border-color:var(--accent2)}
   .valfull-top .vback{color:var(--ink);background:transparent;border-color:var(--line)}
   .valfull .val-scroll{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;border:none;border-radius:0;max-height:none}
-  #valNote{flex:none;max-height:34vh;overflow:auto}
   #valMulti{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:28px}
   #valMulti .val-scroll{flex:none;overflow:visible;max-height:none}
   .valfull-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -331,7 +330,7 @@
   .val-tbl .rchg.up{color:#c00000}
   .val-tbl .rchg.down{color:#1257c2}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
-  #valNote{font-size:14.3px;line-height:1.6}
+  #valNote{font-size:14.3px;line-height:1.6;position:sticky;left:0;width:100vw;box-sizing:border-box;background:var(--bg)}
   .signbtn{flex:0 0 auto;width:40px;padding:8px 0;border-radius:8px;border:1px solid #777;background:#222634;color:#eee;font-size:16px;font-weight:700}
   .signbtn:active{background:#333a4d}
   .pnl-futman{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px}
@@ -608,10 +607,9 @@
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
  </div>
- <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table></div>
+ <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table><div id="valNote" class="val-note" style="display:none"></div></div>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
  <div id="valMulti" style="display:none"></div>
- <div id="valNote" class="val-note" style="display:none"></div>
  <div class="valfull-foot" id="valFoot">
   <span class="val-note">자료배포는 금지합니다</span>
   <button class="val-reset" id="valSave">서버 저장</button>
