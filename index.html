@@ -364,6 +364,13 @@
   .pnl-row input{flex:1;min-width:90px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#0f1118;color:#eee;font-size:14px}
   .pnl-auto{padding:8px 12px;border-radius:8px;border:1px solid #39d98a;background:transparent;color:#39d98a;font-weight:700;font-size:12px}
   .pnl-note{font-size:14.3px;line-height:1.6;color:var(--dim)}
+  .pnl-flow{margin-top:6px}
+  .pnl-flow-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .pnl-flow-h span:first-child{font-size:14px;font-weight:700;color:var(--ink,#eee)}
+  .pnl-flow-open{font-size:12.5px;color:#5a9bff;cursor:pointer}
+  .pnl-flow-crop{position:relative;width:100%;height:560px;overflow:hidden;border-radius:12px;background:#fff}
+  #pnlFlowFrame{position:absolute;left:0;top:-150px;width:100%;height:1050px;border:0}
+  .pnl-flow-note{margin-top:6px;font-size:12.5px;color:var(--dim);text-align:center}
   .val-tbl td.al{text-align:left}
   /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
   .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
@@ -654,6 +661,11 @@
   <div id="pnlSummary" class="pnl-sum"></div>
   <div class="pnl-values" id="pnlValues"></div>
   <div class="pnl-note" id="pnlNote"></div>
+  <div class="pnl-flow">
+   <div class="pnl-flow-h"><span>외국인 선물 투자자별 매매동향 (실시간)</span><span class="pnl-flow-open" onclick="pnlFlowOpen()">네이버에서 열기 ↗</span></div>
+   <div class="pnl-flow-crop"><iframe id="pnlFlowFrame" referrerpolicy="no-referrer"></iframe></div>
+   <div class="pnl-flow-note">선물 탭 · 외국인/개인 순매수(계약). 차트가 안 보이면 「네이버에서 열기」를 누르세요.</div>
+  </div>
  </div>
 </div>
 
@@ -2383,7 +2395,9 @@ function openPnl(){
   onFutNet(); onSpotNet();
   renderPnl();
   pnlAutoFetch(true); // 현재 K200 자동
+  const ff=$('#pnlFlowFrame'); if(ff && (!ff.src || ff.src==='about:blank')) ff.src=FLOW_URL;
 }
+function pnlFlowOpen(){ window.open(FLOW_URL,'_blank','noopener'); }
 function pnlApplyApprox(){ if(PNL.cur!=null){ if(PNL.spotV!=null) PNL.spotK=PNL.cur; if(PNL.futN!=null) PNL.futK=PNL.cur; } }
 function onSpotNet(){
   const el=$('#pnlSpotDir'); const raw=($('#pnlSpotNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
@@ -2445,7 +2459,7 @@ async function loadPnlDir(){
     box.innerHTML=html;
   }catch(e){ box.innerHTML='<span class="dim">방향 신호 오류.</span>'; }
 }
-function closePnl(){ $('#pnlFull').classList.remove('on'); }
+function closePnl(){ $('#pnlFull').classList.remove('on'); const ff=$('#pnlFlowFrame'); if(ff) ff.src='about:blank'; }
 function renderPnlValues(){
   const el=$('#pnlValues'); if(!el) return;
   const rows=[
