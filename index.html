@@ -2416,11 +2416,18 @@ async function loadPnlDir(){
     if(d&&d.ok){
       const e=d.ewyRate, w=d.krwRate, v=d.verdict;
       const label = v==='up'?'<b style="color:#ff5a5a">상승 우호 ▲</b>':(v==='down'?'<b style="color:#5a9bff">하락 우호 ▼</b>':(v==='flat'?'<b style="color:#bbb">중립 ―</b>':'<b>판단 불가</b>'));
-      const fmt=(x)=> x==null?'—':(x>=0?'+':'')+x+'%';
       const ec = e==null?'#bbb':(e>=0?'#ff5a5a':'#5a9bff');
       const wc = w==null?'#bbb':(w>=0?'#5a9bff':'#ff5a5a');
+      // 값 (변동폭 / 변동률%)  price:소수자리, chg:변동폭 소수자리
+      const cell=(price,chg,rate,color,pdec,cdec)=>{
+        if(price==null) return '<b style="color:#bbb">—</b>';
+        const pr=price.toLocaleString(undefined,{minimumFractionDigits:pdec,maximumFractionDigits:pdec});
+        let tail='';
+        if(chg!=null&&rate!=null){ const cs=(chg>=0?'+':'')+chg.toLocaleString(undefined,{minimumFractionDigits:cdec,maximumFractionDigits:cdec}); tail=` <span style="font-size:.9em">(${cs} / ${rate>=0?'+':''}${rate}%)</span>`; }
+        return `<b style="color:${color}">${pr}${tail}</b>`;
+      };
       html += `<div class="pd-h">외국인 방향 : ${label}</div>`+
-        `<div class="pd-row"><span>${prevBiz} EWY 미국상장 한국 ETF</span><b style="color:${ec}">${fmt(e)}</b></div>`;
+        `<div class="pd-row"><span>${prevBiz} EWY 미국상장 한국 ETF</span>${cell(d.ewyPrice,d.ewyChange,e,ec,2,2)}</div>`;
       // 베이시스 (실시간)
       if(br&&br.items){
         const sp=br.items.find(x=>x.symbol==='^KS200'), ft=br.items.find(x=>x.symbol==='KFUT');
@@ -2430,7 +2437,7 @@ async function loadPnlDir(){
           html += `<div class="pd-row"><span>실시간 베이시스 (선물−현물)</span><b>${b>=0?'+':''}${b.toFixed(2)}p ${kind}</b></div>`;
         }
       }
-      html += `<div class="pd-row"><span>실시간 원/달러 환율</span><b style="color:${wc}">${fmt(w)}</b></div>`;
+      html += `<div class="pd-row"><span>실시간 원/달러 환율</span>${cell(d.krwPrice,d.krwChange,w,wc,2,2)}</div>`;
     } else {
       html += `<div class="pd-h">외국인 방향</div><div class="pd-row"><span class="dim">방향 신호를 불러오지 못했습니다.</span></div>`;
     }
