@@ -378,6 +378,11 @@
   .inv-tbl td.rpt .rpt-tag{color:#7c83ff;font-weight:700;margin-right:2px}
   .inv-tbl td.rpt a.rptlink{color:inherit;text-decoration:none;border-bottom:none}
   .inv-tbl td.rpt a.rptlink:active{opacity:.6}
+  .mp td.rpt{white-space:normal;line-height:1.35;font-size:11.5px;vertical-align:top}
+  .mp td.rpt .rpt-tag{color:#7c83ff;font-weight:700;margin-right:2px}
+  .mp td.rpt a.rptlink{color:inherit;text-decoration:none;border-bottom:none}
+  .mp td.rpt a.rptlink:active{opacity:.6}
+  .mp td.rpt .rsub{color:var(--mut)}
   .inv-tbl td.frgnc{white-space:nowrap;font-size:13px;letter-spacing:1px}
   .inv-tbl td.frgnc .fbuy{color:#c00000}
   .inv-tbl td.frgnc .fno{color:#bbb}
@@ -1751,7 +1756,7 @@ function toast(msg){
 }
 function isNeg(s){ return /^-/.test(String(s).trim()); }
 const VAL_NOTES={
- kr:'• 비중·종목: 매주 수동 갱신(라벨의 기준 주차).  • 현재가·전일대비%: 네이버 실시간 시세.  • 목표가: 네이버 증권사 컨센서스.  • 52주최고가: 네이버.  • 상승여력·낙폭: 현재가 기준 자동 계산.  • 적정가·기록: 직접 입력(종목코드 기준 저장).',
+ kr:'• 비중·종목: 매주 수동 갱신(라벨의 기준 주차).  • 현재가·전일대비%: 네이버 실시간 시세.  • 목표가: 네이버 증권사 컨센서스.  • 52주최고가: 네이버.  • 상승여력·낙폭: 현재가 기준 자동 계산.  • 보고서: 네이버 종목분석 최근 1건(발표일·분야 자동분류, 원문 링크). 하루 1회 수집, ↻ 새로고침 시 다시 수집.',
  us:'• 비중·적정주가·목표주가·PEG·P/E(F): 직접 관리값(상단 기준일, 수동 갱신).  • 현재가·전일대비%: 야후/네이버 실시간 시세.  • 52주최고가: 야후/네이버.  • 상승여력(목표·적정 대비): 실시간 현재가 기준 자동 계산.',
  usc:'• 비중·변동: MP 분석 자료(수동 갱신).  • 현재가·목표가·52주최고가: 실시간 시세/컨센서스.  • 상승여력: 현재가 기준 자동 계산.  • 기록: 직접 입력(보존).',
  etf:'• 비중: 직접 관리값(수동 갱신).  • 현재가·등락률: 네이버/야후 실시간 시세.  한국·미국 ETF를 한 화면에 모아 봅니다.',
@@ -2079,11 +2084,12 @@ function krUpside(target, cur){
   if(isNaN(a)||isNaN(b)||b===0) return '';
   return ((a-b)/b*100).toFixed(1);
 }
-/* 한국 표: [심볼][종목명][비중%][조정비율%][현재가][적정가][상승여력%][기록] */
+/* 한국 표: [종목][비중%][현재가][목표가][52주최고가][보고서] */
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
-  const W=[178,52,76,104,112,96];
-  const H=["종목","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","기록"];
+  loadReportCache();
+  const W=[178,52,76,104,112,210];
+  const H=["종목","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -2100,22 +2106,28 @@ function renderKrTable(){
     const hdHtml = hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '';
     const stkInner=`<span class="kn">${r[1]||''}</span>`+(r[0]?`<span class="kc">${r[0]}</span>`:'');
     const stkCell = code ? `<a href="#" class="krlink" data-code="${code}">${stkInner}</a>` : stkInner;
+    // 보고서 셀 (투자종목과 동일)
+    let repCell;
+    if(!code) repCell='';
+    else { const rep=REPORT[code];
+      if(rep===undefined) repCell='<span class="rsub">…</span>';
+      else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
+      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${rep.link}" target="_blank" rel="noopener" class="rptlink">${inner}</a>` : inner; }
+    }
     h+='<tr>';
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
     h+=`<td class="mp-r">${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
-    h+=`<td class="mp-l kredit" contenteditable data-r="${ri}" data-f="5">${r[5]==null?'':r[5]}</td>`;
+    h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
   t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
-  t.querySelectorAll('td.kredit').forEach(td=>{
-    td.onblur=()=>{ const r=+td.dataset.r, f=+td.dataset.f; VAL[r][f]=td.textContent.trim(); saveVal(); };
-    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
-  });
+  const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
+  ensureReports(krCodes);
 }
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
 let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
@@ -2536,6 +2548,7 @@ async function ensureReports(codes){
   }
   reportLoading=false; saveReportCache();
   if(valMarket==='invest') renderInvest();
+  else if(valMarket==='kr') renderKrTable();
 }
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
 function qLabel(p){ if(!p) return ''; let m=String(p).match(/(\d{4})[.\-\/](\d{1,2})/); if(!m) m=String(p).match(/^(\d{4})(\d{2})$/); if(!m) return String(p); const y=m[1].slice(2); const mo=+m[2]; const q=mo<=3?1:mo<=6?2:mo<=9?3:4; return q+'Q'+y; }
