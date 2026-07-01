@@ -2410,26 +2410,29 @@ async function loadPnlDir(){
       fetch(SRV_URL+'/?symbols='+encodeURIComponent('^KS200,KFUT')).then(r=>r.json()).catch(()=>null)
     ]);
     let html='';
+    // EWY 기준일 = 직전 영업일(주말·공휴일은 금요일까지)
+    const wk=['일','월','화','수','목','금','토'];
+    const prevBiz=(()=>{ const d=new Date(); d.setDate(d.getDate()-1); while(d.getDay()===0||d.getDay()===6){ d.setDate(d.getDate()-1); } return (d.getMonth()+1)+'.'+d.getDate()+'('+wk[d.getDay()]+')'; })();
     if(d&&d.ok){
       const e=d.ewyRate, w=d.krwRate, v=d.verdict;
       const label = v==='up'?'<b style="color:#ff5a5a">상승 우호 ▲</b>':(v==='down'?'<b style="color:#5a9bff">하락 우호 ▼</b>':(v==='flat'?'<b style="color:#bbb">중립 ―</b>':'<b>판단 불가</b>'));
       const fmt=(x)=> x==null?'—':(x>=0?'+':'')+x+'%';
       const ec = e==null?'#bbb':(e>=0?'#ff5a5a':'#5a9bff');
       const wc = w==null?'#bbb':(w>=0?'#5a9bff':'#ff5a5a');
-      html += `<div class="pd-h">${dl} 외국인 방향 · ${label}</div>`+
-        `<div class="pd-row"><span>EWY · 미국 상장 한국ETF</span><b style="color:${ec}">${fmt(e)}</b></div>`+
-        `<div class="pd-row"><span>원/달러 환율</span><b style="color:${wc}">${fmt(w)}</b></div>`;
-    } else {
-      html += `<div class="pd-h">${dl} 외국인 방향</div><div class="pd-row"><span class="dim">방향 신호를 불러오지 못했습니다.</span></div>`;
-    }
-    // 베이시스 (선물 − 현물)
-    if(br&&br.items){
-      const sp=br.items.find(x=>x.symbol==='^KS200'), ft=br.items.find(x=>x.symbol==='KFUT');
-      if(sp&&ft&&sp.price!=null&&ft.price!=null){
-        const b=ft.price-sp.price;
-        const kind = b>0?'<b style="color:#ff5a5a">콘탱고(+)</b>':(b<0?'<b style="color:#5a9bff">백워데이션(−)</b>':'<b style="color:#bbb">중립</b>');
-        html += `<div class="pd-row" style="border-top:1px solid rgba(255,255,255,.08);margin-top:5px;padding-top:8px"><span>베이시스 (선물−현물)</span><b>${b>=0?'+':''}${b.toFixed(2)}p · ${kind}</b></div>`;
+      html += `<div class="pd-h">외국인 방향 : ${label}</div>`+
+        `<div class="pd-row"><span>${prevBiz} EWY 미국상장 한국 ETF</span><b style="color:${ec}">${fmt(e)}</b></div>`;
+      // 베이시스 (실시간)
+      if(br&&br.items){
+        const sp=br.items.find(x=>x.symbol==='^KS200'), ft=br.items.find(x=>x.symbol==='KFUT');
+        if(sp&&ft&&sp.price!=null&&ft.price!=null){
+          const b=ft.price-sp.price;
+          const kind = b>0?'<b style="color:#ff5a5a">콘탱고(+)</b>':(b<0?'<b style="color:#5a9bff">백워데이션(−)</b>':'<b style="color:#bbb">중립</b>');
+          html += `<div class="pd-row"><span>실시간 베이시스 (선물−현물)</span><b>${b>=0?'+':''}${b.toFixed(2)}p ${kind}</b></div>`;
+        }
       }
+      html += `<div class="pd-row"><span>실시간 원/달러 환율</span><b style="color:${wc}">${fmt(w)}</b></div>`;
+    } else {
+      html += `<div class="pd-h">외국인 방향</div><div class="pd-row"><span class="dim">방향 신호를 불러오지 못했습니다.</span></div>`;
     }
     html += `<div class="pd-note">EWY는 한국 장 마감 후 <b>미국장 등락</b>이라 다음날 선행 신호입니다. 원/달러 <b>상승=원화 약세</b>(외국인 매도 압력). 베이시스 <b>콘탱고(+)=매수 우위</b>, <b>백워데이션(−)=매도 압력</b>. KRX 외국인 선물 확정치는 서버 접근이 막혀 이 <b>대체 추정</b>을 씁니다.</div>`;
     box.innerHTML=html;
