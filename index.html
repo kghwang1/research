@@ -346,7 +346,7 @@
   .pnl-dir .pd-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:var(--sub)}
   .pnl-dir .pd-row b{font-size:13px}
   .pnl-dir .pd-note{margin-top:7px;font-size:13.7px;line-height:1.55;color:var(--dim)}
-  .pnl-wrap{flex:1;overflow-y:auto;padding:12px 14px 28px;display:flex;flex-direction:column;gap:12px}
+  .pnl-wrap{padding:2px 0 20px;display:flex;flex-direction:column;gap:12px}
   .pnl-seg{display:flex;gap:6px}
   .pnl-seg button{flex:1;padding:9px 0;border:1px solid #555;border-radius:10px;background:transparent;color:var(--ink,#ddd);font-weight:700;font-size:14px}
   .pnl-seg button.on{background:#7c83ff;border-color:#7c83ff;color:#fff}
@@ -559,6 +559,15 @@
  <!-- ===== INFO (정보) ===== -->
  <section id="info">
   <div id="infoCards" class="val-submenu"></div>
+  <div class="broker-box" style="margin-top:12px">
+   <div class="broker-title">증권사 앱 바로가기</div>
+   <div class="broker-row">
+    <button class="broker-btn" onclick="openBroker('com.kiwoom.heromts')"><b>영웅문S</b></button>
+    <button class="broker-btn" onclick="openBroker('com.miraeasset.trade')"><b>M-stock</b></button>
+    <button class="broker-btn" onclick="openBroker('com.shinhaninvest.nsmts')"><b>SOL stock</b></button>
+   </div>
+   <div class="broker-note">설치돼 있으면 앱이 열리고, 없으면 스토어로 이동합니다. (안드로이드 크롬에서 가장 잘 동작)</div>
+  </div>
  </section>
 
  <!-- ===== MARKET (시황) ===== -->
@@ -600,19 +609,29 @@
 
  <!-- ===== VALUATION (적정주가) ===== -->
  <section id="valuation">
-  <div class="val-submenu">
-   <a class="rv-card" id="goFlow" href="#" onclick="event.preventDefault();openFlow();return false;"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" id="goPnl" href="#" onclick="event.preventDefault();openPnl();return false;"><span class="ic">📐</span><span class="tx"><span class="tt">손익곡선</span><span class="sb">외국인 포지션 손익 · 현물/선물/현선물합</span></span><span class="go">열기 ›</span></a>
-   <div class="broker-box">
-    <div class="broker-title">증권사 앱 바로가기</div>
-    <div class="broker-row">
-     <button class="broker-btn" onclick="openBroker('com.kiwoom.heromts')"><b>영웅문S</b></button>
-     <button class="broker-btn" onclick="openBroker('com.miraeasset.trade')"><b>M-stock</b></button>
-     <button class="broker-btn" onclick="openBroker('com.shinhaninvest.nsmts')"><b>SOL stock</b></button>
-    </div>
-    <div class="broker-note">설치돼 있으면 앱이 열리고, 없으면 스토어로 이동합니다. (안드로이드 크롬에서 가장 잘 동작)</div>
-   </div>
+  <div class="pnl-wrap">
+  <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
+  <div class="pnl-futman">
+   <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 오늘)</span></div>
+   <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
+   <div class="fm-l" style="margin-top:12px">외국인 현물(코스피) 순매수 <span class="dim">(억원, 오늘)</span></div>
+   <div class="fm-r"><input id="pnlSpotNet" type="text" inputmode="numeric" placeholder="예: -17124"><button type="button" class="signbtn" onclick="pnlSign('pnlSpotNet')">±</button><span id="pnlSpotDir" class="fm-dir"></span></div>
   </div>
+  <div class="pnl-seg" id="pnlSeg">
+   <button data-m="spot" class="on">현물</button>
+   <button data-m="fut">선물</button>
+   <button data-m="both">현·선물 합</button>
+  </div>
+  <div id="pnlChart" class="pnl-chart"></div>
+  <div id="pnlSummary" class="pnl-sum"></div>
+  <div class="pnl-values" id="pnlValues"></div>
+  <div class="pnl-note" id="pnlNote"></div>
+  <div class="pnl-flow">
+   <div class="pnl-flow-h"><span>외국인 선물 투자자별 매매동향 (실시간)</span><span class="pnl-flow-open" onclick="pnlFlowOpen()">네이버에서 열기 ↗</span></div>
+   <div class="pnl-flow-crop"><iframe id="pnlFlowFrame" referrerpolicy="no-referrer"></iframe></div>
+   <div class="pnl-flow-note">선물 탭 · 외국인/개인 순매수(계약). 차트가 안 보이면 「네이버에서 열기」를 누르세요.</div>
+  </div>
+ </div>
  </section>
 
 </div>
@@ -638,35 +657,7 @@
 </div>
 
 <!-- ===== 손익곡선 (외국인 포지션) ===== -->
-<div id="pnlFull" class="valfull">
- <div class="valfull-top">
-  <div class="subtab vback" onclick="closePnl()">‹ 이전</div>
-  <div class="subtab on" style="flex:1;cursor:default">손익곡선 · 외국인 포지션</div>
- </div>
- <div class="pnl-wrap">
-  <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
-  <div class="pnl-futman">
-   <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 오늘)</span></div>
-   <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
-   <div class="fm-l" style="margin-top:12px">외국인 현물(코스피) 순매수 <span class="dim">(억원, 오늘)</span></div>
-   <div class="fm-r"><input id="pnlSpotNet" type="text" inputmode="numeric" placeholder="예: -17124"><button type="button" class="signbtn" onclick="pnlSign('pnlSpotNet')">±</button><span id="pnlSpotDir" class="fm-dir"></span></div>
-  </div>
-  <div class="pnl-seg" id="pnlSeg">
-   <button data-m="spot" class="on">현물</button>
-   <button data-m="fut">선물</button>
-   <button data-m="both">현·선물 합</button>
-  </div>
-  <div id="pnlChart" class="pnl-chart"></div>
-  <div id="pnlSummary" class="pnl-sum"></div>
-  <div class="pnl-values" id="pnlValues"></div>
-  <div class="pnl-note" id="pnlNote"></div>
-  <div class="pnl-flow">
-   <div class="pnl-flow-h"><span>외국인 선물 투자자별 매매동향 (실시간)</span><span class="pnl-flow-open" onclick="pnlFlowOpen()">네이버에서 열기 ↗</span></div>
-   <div class="pnl-flow-crop"><iframe id="pnlFlowFrame" referrerpolicy="no-referrer"></iframe></div>
-   <div class="pnl-flow-note">선물 탭 · 외국인/개인 순매수(계약). 차트가 안 보이면 「네이버에서 열기」를 누르세요.</div>
-  </div>
- </div>
-</div>
+
 
 <!-- ===== 매매동향 (네이버 임베드) ===== -->
 <div id="flowFull" class="valfull flowfull">
@@ -782,6 +773,7 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   $$('section').forEach(x=>x.classList.remove('on'));
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
   if(t.dataset.t==='market'){ renderMarket(); }
+  if(t.dataset.t==='valuation'){ openPnl(); }
   if(t.dataset.t==='hub'){ loadReportEmbed(); }
   if(t.dataset.t==='info'){ renderInfoCards(); }
 });
@@ -2384,7 +2376,6 @@ function closeValFull(){ $('#valFull').classList.remove('on'); }
 const PNL={mode:'spot', spotV:null, spotK:null, futN:null, futK:null, cur:null};
 const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
 function openPnl(){
-  $('#pnlFull').classList.add('on');
   $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderPnl(); }; });
   loadPnlDir(); // 다음날 방향 신호
   const fnet=$('#pnlFutNet'); if(fnet&&!fnet._wired){ fnet._wired=1; fnet.oninput=onFutNet; }
@@ -2418,9 +2409,10 @@ async function loadPnlDir(){
   box.innerHTML='<span class="dim">불러오는 중…</span>';
   const dl=(()=>{const d=new Date();const w=['일','월','화','수','목','금','토'][d.getDay()];return (d.getMonth()+1)+'.'+d.getDate()+'('+w+')';})();
   try{
-    const [d, br] = await Promise.all([
+    const [d, br, pg] = await Promise.all([
       fetch(SRV_URL+'/?fdir=1').then(r=>r.json()).catch(()=>null),
-      fetch(SRV_URL+'/?symbols='+encodeURIComponent('^KS200,KFUT')).then(r=>r.json()).catch(()=>null)
+      fetch(SRV_URL+'/?symbols='+encodeURIComponent('^KS200,KFUT')).then(r=>r.json()).catch(()=>null),
+      fetch(SRV_URL+'/?prog=1').then(r=>r.json()).catch(()=>null)
     ]);
     let html='';
     // EWY 기준일 = 직전 영업일(주말·공휴일은 금요일까지)
@@ -2451,14 +2443,20 @@ async function loadPnlDir(){
         }
       }
       html += `<div class="pd-row"><span>실시간 원/달러 환율</span>${cell(d.krwPrice,d.krwChange,w,wc,2,2)}</div>`;
+      // 비차익 순매수(오늘, 코스피) — 방향성 자금
+      if(pg&&pg.ok&&pg.nonArbNet!=null){
+        const na=pg.nonArbNet, ac=na>0?'#ff5a5a':(na<0?'#5a9bff':'#bbb');
+        const kd=na>0?'매수(방향성 ↑)':(na<0?'매도(방향성 ↓)':'중립');
+        html += `<div class="pd-row"><span>오늘 비차익 순매수 (코스피)</span><b style="color:${ac}">${na>=0?'+':''}${na.toLocaleString()}억 · ${kd}</b></div>`;
+      }
     } else {
       html += `<div class="pd-h">외국인 방향</div><div class="pd-row"><span class="dim">방향 신호를 불러오지 못했습니다.</span></div>`;
     }
-    html += `<div class="pd-note">EWY는 한국 장 마감 후 <b>미국장 등락</b>이라 다음날 선행 신호입니다. 원/달러 <b>상승=원화 약세</b>(외국인 매도 압력). 베이시스 <b>콘탱고(+)=매수 우위</b>, <b>백워데이션(−)=매도 압력</b>. KRX 외국인 선물 확정치는 서버 접근이 막혀 이 <b>대체 추정</b>을 씁니다.</div>`;
+    html += `<div class="pd-note">EWY는 한국 장 마감 후 <b>미국장 등락</b>이라 다음날 선행 신호입니다. 원/달러 <b>상승=원화 약세</b>(외국인 매도 압력). 베이시스 <b>콘탱고(+)=매수 우위</b>, <b>백워데이션(−)=매도 압력</b>. <b>비차익</b>은 베이시스와 무관한 <b>방향성 매매</b>라, 지수·베이시스와 <b>같은 방향일 때 신뢰</b>가 높습니다. KRX 외국인 선물 확정치는 서버 접근이 막혀 이 <b>대체 추정</b>을 씁니다.</div>`;
     box.innerHTML=html;
   }catch(e){ box.innerHTML='<span class="dim">방향 신호 오류.</span>'; }
 }
-function closePnl(){ $('#pnlFull').classList.remove('on'); const ff=$('#pnlFlowFrame'); if(ff) ff.src='about:blank'; }
+function closePnl(){ const ff=$('#pnlFlowFrame'); if(ff) ff.src='about:blank'; }
 function renderPnlValues(){
   const el=$('#pnlValues'); if(!el) return;
   const rows=[
