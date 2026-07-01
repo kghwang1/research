@@ -111,6 +111,11 @@
   .broker-btn:active{border-color:var(--accent2)}
   .broker-note{margin-top:10px;color:var(--sub);font-size:12px;line-height:1.5}
   .flowfull{--flowcrop:150px}
+  #hub .rpt-embed{position:relative;overflow:hidden;height:calc(100vh - 190px);min-height:420px;border:1px solid var(--line);border-radius:12px;background:#fff}
+  #hub .rpt-crop{position:absolute;inset:0;overflow:hidden}
+  #hub #rptFrame{position:absolute;left:0;top:-96px;width:100%;height:calc(100% + 96px);border:0;background:#fff}
+  #hub .rpt-note{padding:8px 4px;color:var(--sub);font-size:12px;text-align:center}
+  #hub .rpt-note a{color:var(--accent)}
   .flowfull .flow-body{flex:1;position:relative;overflow:hidden}
   .flow-crop{position:absolute;inset:0;overflow:hidden}
   #flowFrame{position:absolute;left:0;top:calc(-1 * var(--flowcrop));width:100%;height:calc(100% + var(--flowcrop));border:0;background:#fff}
@@ -501,20 +506,37 @@
   </div>
   <div class="tabs">
    <div class="tab on" data-t="market">시황</div>
-   <div class="tab" data-t="valuation">주식</div>
-   <div class="tab" data-t="hub">리포트</div>
-   <div class="tab" data-t="archive">아카이브</div>
+   <div class="tab" data-t="valuation">추세</div>
+   <div class="tab" data-t="port">포트</div>
    <div class="tab" data-t="watch">방송</div>
+   <div class="tab" data-t="hub">리포트</div>
+   <div class="tab" data-t="info">정보</div>
   </div>
  </div>
 </header>
 
 <div class="wrap">
 
- <!-- ===== HUB ===== -->
+ <!-- ===== HUB (리포트: 네이버 종목분석 임베드) ===== -->
  <section id="hub">
-  <!-- 검색/오늘 리서치 결과 -->
-  <div id="rvResult"></div>
+  <div class="rpt-embed"><div class="rpt-crop"><iframe id="rptFrame" referrerpolicy="no-referrer"></iframe></div></div>
+  <div class="rpt-note">네이버 금융 종목분석(무료). 안 보이면 <a href="#" onclick="window.open(REPORT_URL,'_blank','noopener');return false;">네이버에서 열기 ↗</a></div>
+ </section>
+
+ <!-- ===== PORT (포트폴리오 허브) ===== -->
+ <section id="port">
+  <div class="val-submenu">
+   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('kr');return false;"><span class="ic">🇰🇷</span><span class="tx"><span class="tt">한국</span><span class="sb">국내 포트폴리오 · 비중/적정가/상승여력<br>현재가·목표가 실시간</span></span><span class="go">열기 ›</span></a>
+   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">투자종목</span><span class="sb">코스피100 낙폭·ROE·외국인 스크리너<br>보고서 자동 수집</span></span><span class="go">열기 ›</span></a>
+   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('us');return false;"><span class="ic">🇺🇸</span><span class="tx"><span class="tt">미국(반)</span><span class="sb">미국 반도체 포트폴리오 · 적정주가/PEG<br>현재가·52주최고 실시간</span></span><span class="go">열기 ›</span></a>
+   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('usc');return false;"><span class="ic">🏦</span><span class="tx"><span class="tt">미국(체)</span><span class="sb">MP 분석 포트폴리오 · 비중/변동<br>목표가 컨센서스</span></span><span class="go">열기 ›</span></a>
+   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('etf');return false;"><span class="ic">🧺</span><span class="tx"><span class="tt">한·미 ETF</span><span class="sb">한국·미국 ETF 비중 한 화면<br>등락률 실시간</span></span><span class="go">열기 ›</span></a>
+  </div>
+ </section>
+
+ <!-- ===== INFO (정보) ===== -->
+ <section id="info">
+  <div id="infoCards" class="val-submenu"></div>
  </section>
 
  <!-- ===== MARKET (시황) ===== -->
@@ -540,23 +562,6 @@
   </div>
  </section>
 
- <!-- ===== ARCHIVE ===== -->
- <section id="archive">
-  <div class="paste-box">
-   <div class="paste-title">📋 네이버 리포트 붙여넣기</div>
-   <textarea id="pasteIn" placeholder="네이버 증권 리포트 화면에서 종목명·제목·증권사·투자의견을 긁어 그대로 붙여넣고 [자동 등록]을 누르세요. 목표주가·현재가·상승여력은 네이버에서 자동 표시됩니다."></textarea>
-   <button class="btn btn-q" id="pasteGo">자동 등록 ↓</button>
-   <div class="paste-hint" id="pasteHint"></div>
-  </div>
-  <button class="btn btn-add" id="openAdd">＋ 직접 등록</button>
-  <div class="count" id="arcCount"></div>
-  <div id="arcList"></div>
-  <div class="srv-row">
-   <button class="srv-btn" id="arcSave">서버 저장</button>
-   <button class="srv-btn" id="arcLoad">서버 불러오기</button>
-  </div>
- </section>
-
  <!-- ===== BROADCAST (방송) ===== -->
  <section id="watch">
   <div class="watch-bar">
@@ -574,7 +579,6 @@
  <!-- ===== VALUATION (적정주가) ===== -->
  <section id="valuation">
   <div class="val-submenu">
-   <a class="rv-card primary" id="goInvest" href="#"><span class="ic">📊</span><span class="tx"><span class="tt">포트폴리오</span><span class="sb">한국·미국·ETF 비중 · 적정가</span></span><span class="go">열기 ›</span></a>
    <a class="rv-card" id="goFlow" href="#" onclick="event.preventDefault();openFlow();return false;"><span class="ic">📈</span><span class="tx"><span class="tt">매매동향</span><span class="sb">투자자별 매매동향 · 네이버 금융</span></span><span class="go">열기 ›</span></a>
    <a class="rv-card" id="goPnl" href="#" onclick="event.preventDefault();openPnl();return false;"><span class="ic">📐</span><span class="tx"><span class="tt">손익곡선</span><span class="sb">외국인 포지션 손익 · 현물/선물/현선물합</span></span><span class="go">열기 ›</span></a>
    <div class="broker-box">
@@ -755,9 +759,17 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   $$('section').forEach(x=>x.classList.remove('on'));
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
   if(t.dataset.t==='market'){ renderMarket(); }
-  if(t.dataset.t==='archive'&&!livePricesLoaded){ loadLivePrices(); }
-  if(t.dataset.t==='valuation'){ const g=$('#goInvest'); if(g) g.onclick=ev=>{ ev.preventDefault(); openValFull(); }; }
+  if(t.dataset.t==='hub'){ loadReportEmbed(); }
+  if(t.dataset.t==='info'){ renderInfoCards(); }
 });
+const REPORT_URL='https://finance.naver.com/research/company_list.naver';
+function loadReportEmbed(){ const f=$('#rptFrame'); if(f && (!f.src || f.src==='about:blank')) f.src=REPORT_URL; }
+function renderInfoCards(){
+  const el=$('#infoCards'); if(!el || el._done) return; el._done=1;
+  el.innerHTML =
+    card('https://comp.fnguide.com/','📊','컴퍼니가이드','종목 재무·밸류에이션·목표주가 컨센서스')+
+    card('https://dart.fss.or.kr/','🏛️','전자공시(DART)','기업 공시·실적 원문 · 금감원 공식');
+}
 
 /* ---------- archive render ---------- */
 /* 아카이브 라이브 현재가 + 컨센서스 목표주가 (아카이브 탭 열 때 1회 조회) */
@@ -858,7 +870,7 @@ function openReport(r){
   setOp(r?.op||'매수');
   $('#ovReport').classList.add('on');
 }
-$('#openAdd').onclick=()=>openReport(null);
+{ const _oa=$('#openAdd'); if(_oa) _oa.onclick=()=>openReport(null); }
 
 /* 원문 링크 다중 입력 */
 function addUrlRow(val){
@@ -991,7 +1003,7 @@ function parseNaverReport(raw){
   return out;
 }
 
-$('#pasteGo').onclick=()=>{
+{ const _pg=$('#pasteGo'); if(_pg) _pg.onclick=()=>{
   const raw=$('#pasteIn').value;
   const hint=$('#pasteHint');
   if(!raw.trim()){ hint.textContent='먼저 네이버 리포트 내용을 붙여넣어 주세요.'; hint.className='paste-hint err'; return; }
@@ -1009,7 +1021,7 @@ $('#pasteGo').onclick=()=>{
   $('#pasteIn').value='';
   hint.innerHTML=`✓ 등록됨: <b>${esc(data.name)}</b> · ${esc(data.broker||'증권사 미상')} · ${data.op}<br>목표주가·현재가·상승여력은 네이버에서 자동 표시됩니다. 빠진 항목이 있으면 카드를 눌러 수정하세요.`;
   hint.className='paste-hint ok';
-};
+}; }
 window.editReport=id=>openReport(REPORTS.find(r=>r.id===id));
 window.delReport=id=>{ if(confirm('이 리포트를 삭제할까요?')){REPORTS=REPORTS.filter(r=>r.id!==id);saveReports();renderArchive();}};
 
@@ -1450,7 +1462,7 @@ function renderChips(){
       broker:'예시증권',date:todayISO(),op:'매수',target:'95000',cur:'78000',url:'',
       memo:'· 2Q 영업이익 컨센서스 상회\n· HBM3E 양산 본격화\n※ 이건 예시입니다. 삭제 후 직접 등록해 보세요.'}];
   }
-  renderArchive(); renderWatch(); renderChips(); renderResult('','');
+  renderWatch(); renderChips();
   await loadSrvUrl();
   $('#srvSave').onclick=saveSrvUrl;
   renderMarket();
@@ -2294,9 +2306,8 @@ function renderInfo(box){
       closeValFull();
       $$('.tab').forEach(x=>x.classList.remove('on'));
       $$('section').forEach(x=>x.classList.remove('on'));
-      const vt=document.querySelector('.tab[data-t="valuation"]'); if(vt) vt.classList.add('on');
-      const vs=$('#valuation'); if(vs) vs.classList.add('on');
-      const g=$('#goInvest'); if(g) g.onclick=ev=>{ ev.preventDefault(); openValFull(); };
+      const vt=document.querySelector('.tab[data-t="port"]'); if(vt) vt.classList.add('on');
+      const vs=$('#port'); if(vs) vs.classList.add('on');
       return;
     }
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
@@ -2331,6 +2342,11 @@ function openValFull(){
   valMarket='kr';
   $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x.dataset.m==='kr'));
   $('#valFull').classList.add('on'); renderVal(); fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); ensureServer('kr');
+}
+function openPort(m){
+  $('#valFull').classList.add('on');
+  const s=document.querySelector('#valSub .subtab[data-m="'+m+'"]');
+  if(s){ s.click(); } else { openValFull(); }
 }
 function closeValFull(){ $('#valFull').classList.remove('on'); }
 /* ===== 손익곡선 (외국인 포지션) ===== */
