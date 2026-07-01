@@ -368,7 +368,7 @@
   .pnl-flow-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
   .pnl-flow-h span:first-child{font-size:14px;font-weight:700;color:var(--ink,#eee)}
   .pnl-flow-open{font-size:12.5px;color:#5a9bff;cursor:pointer}
-  .pnl-flow-crop{position:relative;width:100%;height:560px;overflow:hidden;border-radius:12px;background:#fff}
+  .pnl-flow-crop{position:relative;width:100%;height:448px;overflow:hidden;border-radius:12px;background:#fff}
   #pnlFlowFrame{position:absolute;left:0;top:-150px;width:100%;height:1050px;border:0}
   .pnl-flow-note{margin-top:6px;font-size:12.5px;color:var(--dim);text-align:center}
   .val-tbl td.al{text-align:left}
@@ -650,7 +650,6 @@
    <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
    <div class="fm-l" style="margin-top:12px">외국인 현물(코스피) 순매수 <span class="dim">(억원, 오늘)</span></div>
    <div class="fm-r"><input id="pnlSpotNet" type="text" inputmode="numeric" placeholder="예: -17124"><button type="button" class="signbtn" onclick="pnlSign('pnlSpotNet')">±</button><span id="pnlSpotDir" class="fm-dir"></span></div>
-   <div class="fm-note">네이버 금융 → 국내증시 → 투자자별 매매동향에서 <b>선물 탭=계약</b>, <b>코스피 탭=억원</b>. 매수+ / 매도−. 입력하면 방향 판정 + 손익곡선에 자동 반영됩니다. (코스닥은 넣지 않음)</div>
   </div>
   <div class="pnl-seg" id="pnlSeg">
    <button data-m="spot" class="on">현물</button>
@@ -2485,7 +2484,7 @@ function pnlActive(){ // 입력이 충분한지
 function renderPnl(){
   const box=$('#pnlChart'); if(!box) return;
   renderPnlValues();
-  const note=$('#pnlNote'); if(note) note.innerHTML='<b>읽는 법</b> · 곡선이 우상향=외국인 상승 베팅(net 매수), 우하향=하락 베팅(net 매도). 가로 점선(손익=0)과 만나는 지수가 <b>손익분기점</b>이며, 그보다 위/아래로 갈수록 이익/손실입니다. 값은 입력한 순매수·평균지수 기준 <b>추정</b>이며, 코스피200 지수 기준으로 계산합니다. (선물 1계약=지수 1p당 25만원)';
+  const note=$('#pnlNote'); if(note) note.innerHTML='';
   // 중심 지수
   let center=PNL.cur || PNL.spotK || PNL.futK || 430;
   const lo=center*0.85, hi=center*1.15;
