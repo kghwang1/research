@@ -383,6 +383,9 @@
   .mp td.rpt a.rptlink{color:inherit;text-decoration:none;border-bottom:none}
   .mp td.rpt a.rptlink:active{opacity:.6}
   .mp td.rpt .rsub{color:var(--mut)}
+  .mp td.frgnc{white-space:nowrap;font-size:13px;letter-spacing:1px;text-align:center}
+  .mp td.frgnc .fbuy{color:#c00000}
+  .mp td.frgnc .fno{color:#bbb}
   .inv-tbl td.frgnc{white-space:nowrap;font-size:13px;letter-spacing:1px}
   .inv-tbl td.frgnc .fbuy{color:#c00000}
   .inv-tbl td.frgnc .fno{color:#bbb}
@@ -2084,12 +2087,12 @@ function krUpside(target, cur){
   if(isNaN(a)||isNaN(b)||b===0) return '';
   return ((a-b)/b*100).toFixed(1);
 }
-/* 한국 표: [종목][비중%][현재가][목표가][52주최고가][보고서] */
+/* 한국 표: [종목][비중%][현재가][52주최고가][외국인][목표가][보고서] */
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
-  loadReportCache();
-  const W=[178,52,76,104,112,210];
-  const H=["종목","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","보고서<br>(발표일,분야)"];
+  loadReportCache(); loadFrgnCache();
+  const W=[178,52,76,112,82,104,210];
+  const H=["종목","비중(%)","현재가<br>(전일대비%)","52주최고가","외국인<br>(5일순매수)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -2118,8 +2121,9 @@ function renderKrTable(){
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
     h+=`<td class="mp-r">${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
-    h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
+    h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
+    h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
@@ -2127,7 +2131,7 @@ function renderKrTable(){
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
   t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
-  ensureReports(krCodes);
+  ensureReports(krCodes); ensureForeign(krCodes);
 }
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
 let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
@@ -2524,6 +2528,7 @@ async function ensureForeign(codes){
   }
   frgnLoading=false; saveFrgnCache();
   if(valMarket==='invest') renderInvest();
+  else if(valMarket==='kr') renderKrTable();
 }
 function frgnCell(code){
   const f=FRGN[code];
