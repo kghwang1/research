@@ -2402,20 +2402,37 @@ function onFutNet(){
 async function loadPnlDir(){
   const box=$('#pnlDir'); if(!box) return;
   if(!SRV_URL){ box.style.display='none'; return; }
-  box.innerHTML='<span class="dim">다음날 방향 불러오는 중…</span>';
+  box.innerHTML='<span class="dim">불러오는 중…</span>';
+  const dl=(()=>{const d=new Date();const w=['일','월','화','수','목','금','토'][d.getDay()];return (d.getMonth()+1)+'.'+d.getDate()+'('+w+')';})();
   try{
-    const r=await fetch(SRV_URL+'/?fdir=1'); const d=await r.json();
-    if(!d||!d.ok){ box.innerHTML='<span class="dim">방향 신호를 불러오지 못했습니다.</span>'; return; }
-    const e=d.ewyRate, w=d.krwRate, v=d.verdict;
-    const label = v==='up'?'<b style="color:#ff5a5a">상승 우호 ▲</b>':(v==='down'?'<b style="color:#5a9bff">하락 우호 ▼</b>':(v==='flat'?'<b style="color:#bbb">중립 ―</b>':'<b>판단 불가</b>'));
-    const fmt=(x)=> x==null?'—':(x>=0?'+':'')+x+'%';
-    const ec = e==null?'#bbb':(e>=0?'#ff5a5a':'#5a9bff');
-    const wc = w==null?'#bbb':(w>=0?'#5a9bff':'#ff5a5a'); // 원달러↑=원화약세=악재(파랑)
-    box.innerHTML =
-      `<div class="pd-h">다음날 외국인 방향(추정) · ${label}</div>`+
-      `<div class="pd-row"><span>EWY · 미국 상장 한국ETF</span><b style="color:${ec}">${fmt(e)}</b></div>`+
-      `<div class="pd-row"><span>원/달러 환율</span><b style="color:${wc}">${fmt(w)}</b></div>`+
-      `<div class="pd-note">EWY는 한국 장 마감 후 <b>미국장 등락</b>이라 다음날 선행 신호입니다. 원/달러 <b>상승=원화 약세</b>(외국인 매도 압력). KRX 외국인 선물 확정치는 서버 접근이 막혀 이 <b>대체 추정</b>을 씁니다.</div>`;
+    const [d, br] = await Promise.all([
+      fetch(SRV_URL+'/?fdir=1').then(r=>r.json()).catch(()=>null),
+      fetch(SRV_URL+'/?symbols='+encodeURIComponent('^KS200,KFUT')).then(r=>r.json()).catch(()=>null)
+    ]);
+    let html='';
+    if(d&&d.ok){
+      const e=d.ewyRate, w=d.krwRate, v=d.verdict;
+      const label = v==='up'?'<b style="color:#ff5a5a">상승 우호 ▲</b>':(v==='down'?'<b style="color:#5a9bff">하락 우호 ▼</b>':(v==='flat'?'<b style="color:#bbb">중립 ―</b>':'<b>판단 불가</b>'));
+      const fmt=(x)=> x==null?'—':(x>=0?'+':'')+x+'%';
+      const ec = e==null?'#bbb':(e>=0?'#ff5a5a':'#5a9bff');
+      const wc = w==null?'#bbb':(w>=0?'#5a9bff':'#ff5a5a');
+      html += `<div class="pd-h">${dl} 외국인 방향 · ${label}</div>`+
+        `<div class="pd-row"><span>EWY · 미국 상장 한국ETF</span><b style="color:${ec}">${fmt(e)}</b></div>`+
+        `<div class="pd-row"><span>원/달러 환율</span><b style="color:${wc}">${fmt(w)}</b></div>`;
+    } else {
+      html += `<div class="pd-h">${dl} 외국인 방향</div><div class="pd-row"><span class="dim">방향 신호를 불러오지 못했습니다.</span></div>`;
+    }
+    // 베이시스 (선물 − 현물)
+    if(br&&br.items){
+      const sp=br.items.find(x=>x.symbol==='^KS200'), ft=br.items.find(x=>x.symbol==='KFUT');
+      if(sp&&ft&&sp.price!=null&&ft.price!=null){
+        const b=ft.price-sp.price;
+        const kind = b>0?'<b style="color:#ff5a5a">콘탱고(+)</b>':(b<0?'<b style="color:#5a9bff">백워데이션(−)</b>':'<b style="color:#bbb">중립</b>');
+        html += `<div class="pd-row" style="border-top:1px solid rgba(255,255,255,.08);margin-top:5px;padding-top:8px"><span>베이시스 (선물−현물)</span><b>${b>=0?'+':''}${b.toFixed(2)}p · ${kind}</b></div>`;
+      }
+    }
+    html += `<div class="pd-note">EWY는 한국 장 마감 후 <b>미국장 등락</b>이라 다음날 선행 신호입니다. 원/달러 <b>상승=원화 약세</b>(외국인 매도 압력). 베이시스 <b>콘탱고(+)=매수 우위</b>, <b>백워데이션(−)=매도 압력</b>. KRX 외국인 선물 확정치는 서버 접근이 막혀 이 <b>대체 추정</b>을 씁니다.</div>`;
+    box.innerHTML=html;
   }catch(e){ box.innerHTML='<span class="dim">방향 신호 오류.</span>'; }
 }
 function closePnl(){ $('#pnlFull').classList.remove('on'); }
@@ -2478,9 +2495,6 @@ function renderPnl(){
   const sum=$('#pnlSummary');
   if(!pnlActive()){ sum.innerHTML='<span class="dim">아래에 외국인 순매수와 평균지수를 입력하면 손익곡선이 그려집니다. (HTS 투자자별 추정포지션 / KRX 값 입력)</span>'; return; }
   let curPnl = PNL.cur?pnlAt(PNL.cur):null;
-  const spotApprox = (PNL.spotV!=null&&PNL.spotV!==0&&PNL.spotK!=null)
-    ? `<br><span class="dim">※ 외국인 현물 평균 체결가는 알 수 없어 <b>현재 K200 ${Math.round(PNL.spotK)}</b>로 근사했습니다. 실제 매수가가 이보다 <b>낮으면</b> 수익은 계산값보다 <b>큽니다</b>(반대면 작아짐).</span>`
-    : '';
   if(PNL.mode==='both'){
     const spotDir=(PNL.spotV==null||PNL.spotV===0)?null:(PNL.spotV>0);
     const futDir=(PNL.futN==null||PNL.futN===0)?null:(PNL.futN>0);
@@ -2490,10 +2504,9 @@ function renderPnl(){
     s+=`<br>선물: ${tag(futDir)}`;
     if(PNL.futN!=null&&PNL.futN!==0) s+=` <span class="dim">(${Math.round(PNL.futN).toLocaleString()}계약)</span>`;
     if(spotDir!==null&&futDir!==null&&spotDir!==futDir){
-      s+='<br><b style="color:#e0a030">⚠ 현물·선물 방향이 반대 → 헷지 가능성</b> <span class="dim">(현물을 팔며 선물로 되사는 움직임일 수 있어 합계 방향은 참고용)</span>';
+      s+='<br><b style="color:#e0a030">⚠ 현물·선물 방향이 반대 → 헷지 가능성</b>';
     }
-    if(curPnl!=null) s+=`<br><span class="dim">합계 현재손익(참고) </span><b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b> <span class="dim">· 단위(억원 vs 계약)가 달라 합계 곡선 방향은 착시 주의</span>`;
-    s+=spotApprox;
+    if(curPnl!=null) s+=`<br><span class="dim">합계 현재손익(참고) </span><b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
     sum.innerHTML=s;
     return;
   }
@@ -2502,7 +2515,6 @@ function renderPnl(){
   let s=`방향: ${dir}`;
   if(bep!=null) s+=` · 손익분기 K200 <b>${bep.toFixed(1)}</b>`;
   if(curPnl!=null) s+=` · 현재손익 <b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
-  if(PNL.mode==='spot') s+=spotApprox;
   sum.innerHTML=s;
 }
 async function pnlAutoFetch(silent){
