@@ -612,7 +612,7 @@
   <div class="pnl-wrap">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
   <div class="pnl-futman">
-   <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 오늘)</span></div>
+   <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 실시간 · 자동)</span></div>
    <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
    <div class="fm-l" style="margin-top:12px">야간선물 <span class="dim">(가격 · 등락률%, 미래에셋 등 앱에서 직접 입력)</span></div>
    <div class="fm-r"><input id="pnlNfPrice" type="text" inputmode="decimal" placeholder="가격 예: 1327.25" style="flex:1.2"><input id="pnlNfRate" type="text" inputmode="decimal" placeholder="등락률 예: -1.19" style="flex:1"><button type="button" class="signbtn" onclick="pnlSign('pnlNfRate')">±</button><span id="pnlNfDir" class="fm-dir"></span></div>
@@ -2622,9 +2622,10 @@ function renderPnl(){
 async function pnlAutoFetch(silent){
   if(!SRV_URL) return;
   try{
-    const [d, fv] = await Promise.all([
+    const [d, fv, ff] = await Promise.all([
       fetch(SRV_URL+'/?fpos=spot').then(r=>r.json()).catch(()=>null),
-      fetch(SRV_URL+'/?finv=1').then(r=>r.json()).catch(()=>null)
+      fetch(SRV_URL+'/?finv=1').then(r=>r.json()).catch(()=>null),
+      fetch(SRV_URL+'/?ffut2=1').then(r=>r.json()).catch(()=>null)
     ]);
     if(d&&d.ok&&d.curK){ PNL.cur=+d.curK; }
     if(fv&&fv.ok&&fv.foreign!=null){
@@ -2632,6 +2633,12 @@ async function pnlAutoFetch(silent){
       PNL.spotV=fv.foreign;
       const dir=$('#pnlSpotDir'); if(dir) dir.innerHTML = fv.foreign>0?'<b style="color:#ff5a5a">상승 쪽 ▲</b>':(fv.foreign<0?'<b style="color:#5a9bff">하락 쪽 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
       try{ localStorage.setItem('pnl_spotnet', fv.foreign); }catch(e){}
+    }
+    if(ff&&ff.ok&&ff.foreign!=null){
+      const el=$('#pnlFutNet'); if(el) el.value=ff.foreign;
+      PNL.futN=ff.foreign;
+      const dir=$('#pnlFutDir'); if(dir) dir.innerHTML = ff.foreign>0?'<b style="color:#ff5a5a">상승 베팅 ▲</b>':(ff.foreign<0?'<b style="color:#5a9bff">하락 베팅 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
+      try{ localStorage.setItem('pnl_futnet', ff.foreign); }catch(e){}
     }
     pnlApplyApprox(); renderPnl();
   }catch(e){}
