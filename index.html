@@ -1196,7 +1196,7 @@ const MK = {
     {sym:'^KQ11', nm:'코스닥'},
     {sym:'^KS200', nm:'코스피200'},
     {sym:'KFUT', nm:'코스피200 선물'},
-    {sym:'EWY', nm:'MSCI 한국'}
+    {sym:'EWY', nm:'EWY 한국ETF'}
   ],
   gridUS:[
     {sym:'^GSPC', nm:'S&P500'},
@@ -1353,7 +1353,7 @@ function mkSkeleton(){
   for(const gid in MK){
     const g=document.getElementById(gid); if(!g) continue;
     g.innerHTML=MK[gid].map(it=>
-      `<div class="qc" id="qc-${cssId(it.sym)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
+      `<div class="qc" id="qc-${cssId(it.sym+'-'+it.nm)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
          <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcsym">${it.sym}</span></div>
          <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
        </div>`).join('');
@@ -1394,7 +1394,7 @@ async function renderMarket(){
       const d=await r.json();
       const items=(d&&d.items)||[];
       for(const it of MK[gid]){
-        const cell=document.getElementById('qc-'+cssId(it.sym));
+        const cell=document.getElementById('qc-'+cssId(it.sym+'-'+it.nm));
         if(!cell) continue;
         const q=items.find(x=>x.symbol===it.sym);
         const box=cell.querySelector('.qcr');
@@ -1412,7 +1412,7 @@ async function renderMarket(){
       }
     }catch(e){
       for(const it of MK[gid]){
-        const cell=document.getElementById('qc-'+cssId(it.sym));
+        const cell=document.getElementById('qc-'+cssId(it.sym+'-'+it.nm));
         if(cell) cell.querySelector('.qcr').innerHTML='<span class="qcld">연결 실패</span>';
       }
     }
