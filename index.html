@@ -341,11 +341,14 @@
   .pnl-futman .fm-dir{font-size:14px;white-space:nowrap}
   .pnl-futman .fm-note{margin-top:8px;font-size:13.7px;line-height:1.55;color:var(--dim)}
   .pnl-dir{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;font-size:12.5px}
-  .pnl-dir .dim{color:var(--dim)}
-  .pnl-dir .pd-h{font-size:14px;font-weight:700;margin-bottom:7px;color:var(--ink,#eee)}
-  .pnl-dir .pd-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:var(--sub)}
+  .pnl-dir .dim{color:var(--dim);font-size:15px}
+  .pnl-dir .pd-h{font-size:14.7px;font-weight:700;margin-bottom:7px;color:#ffd400}
+  .pnl-dir .pd-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:#fff;font-size:14.85px}
   .pnl-dir .pd-row b{font-size:13px}
   .pnl-dir .pd-note{margin-top:7px;font-size:13.7px;line-height:1.55;color:var(--dim)}
+  .pnl-dir .pd-nf-in{display:flex;align-items:center;gap:6px;justify-content:flex-end;padding:3px 0 5px}
+  .pnl-dir .pd-nf-in input{width:64px;padding:5px 7px;border-radius:7px;border:1px solid #555;background:#0f1118;color:#eee;font-size:13px;text-align:right}
+  .pnl-dir .pd-nf-in .signbtn{padding:4px 9px;font-size:12px}
   .pnl-wrap{padding:2px 0 20px;display:flex;flex-direction:column;gap:12px}
   .pnl-seg{display:flex;gap:6px}
   .pnl-seg button{flex:1;padding:9px 0;border:1px solid #555;border-radius:10px;background:transparent;color:var(--ink,#ddd);font-weight:700;font-size:14px}
@@ -611,12 +614,6 @@
  <section id="valuation">
   <div class="pnl-wrap">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
-  <div class="pnl-futman">
-   <div class="fm-l">외국인 선물 순매수 <span class="dim">(계약, 실시간 · 자동)</span></div>
-   <div class="fm-r"><input id="pnlFutNet" type="text" inputmode="numeric" placeholder="예: -2458"><button type="button" class="signbtn" onclick="pnlSign('pnlFutNet')">±</button><span id="pnlFutDir" class="fm-dir"></span></div>
-   <div class="fm-l" style="margin-top:12px">야간선물 <span class="dim">(가격 · 등락률%, 미래에셋 등 앱에서 직접 입력)</span></div>
-   <div class="fm-r"><input id="pnlNfPrice" type="text" inputmode="decimal" placeholder="가격 예: 1327.25" style="flex:1.2"><input id="pnlNfRate" type="text" inputmode="decimal" placeholder="등락률 예: -1.19" style="flex:1"><button type="button" class="signbtn" onclick="pnlSign('pnlNfRate')">±</button><span id="pnlNfDir" class="fm-dir"></span></div>
-  </div>
   <div class="pnl-seg" id="pnlSeg">
    <button data-m="spot" class="on">현물</button>
    <button data-m="fut">선물</button>
@@ -624,7 +621,6 @@
   </div>
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
-  <div class="pnl-values" id="pnlValues"></div>
   <div class="pnl-note" id="pnlNote"></div>
   <div class="pnl-flow">
    <div class="pnl-flow-h"><span>외국인 선물 투자자별 매매동향 (실시간)</span><span class="pnl-flow-open" onclick="pnlFlowOpen()">네이버에서 열기 ↗</span></div>
@@ -2377,15 +2373,13 @@ const PNL={mode:'spot', spotV:null, spotK:null, futN:null, futK:null, cur:null, 
 const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
 function openPnl(){
   $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderPnl(); }; });
-  loadPnlDir(); // 다음날 방향 신호
-  const fnet=$('#pnlFutNet'); if(fnet&&!fnet._wired){ fnet._wired=1; fnet.oninput=onFutNet; }
-  const nfp=$('#pnlNfPrice'); if(nfp&&!nfp._wired){ nfp._wired=1; nfp.oninput=onNightFut; }
-  const nfr=$('#pnlNfRate'); if(nfr&&!nfr._wired){ nfr._wired=1; nfr.oninput=onNightFut; }
-  try{ const sv=localStorage.getItem('pnl_futnet'); if(sv!=null&&sv!==''){ $('#pnlFutNet').value=sv; } }catch(e){}
-  try{ const p=localStorage.getItem('pnl_nfprice'); if(p!=null&&p!==''){ $('#pnlNfPrice').value=p; } const rt=localStorage.getItem('pnl_nfrate'); if(rt!=null&&rt!==''){ $('#pnlNfRate').value=rt; } }catch(e){}
-  onFutNet(); onNightFut();
+  try{
+    const p=localStorage.getItem('pnl_nfprice'); if(p!=null&&p!==''){ PNL.nfPrice=parseFloat(p); }
+    const rt=localStorage.getItem('pnl_nfrate'); if(rt!=null&&rt!==''){ PNL.nfRate=parseFloat(rt); }
+  }catch(e){}
+  loadPnlDir(); // 투자심리 신호(야간선물 입력란 포함해 렌더)
   renderPnl();
-  pnlAutoFetch(true); // 현재 K200 자동
+  pnlAutoFetch(true); // 현재 K200·외국인 선물/코스피 순매수 자동
   const ff=$('#pnlFlowFrame'); if(ff && (!ff.src || ff.src==='about:blank')) ff.src=FLOW_URL;
 }
 function pnlFlowOpen(){ window.open(FLOW_URL,'_blank','noopener'); }
@@ -2396,22 +2390,14 @@ function onNightFut(){
   PNL.nfPrice=isFinite(pr)?pr:null;
   PNL.nfRate=isFinite(rt)?rt:null;
   try{ localStorage.setItem('pnl_nfprice', isFinite(pr)?pr:''); localStorage.setItem('pnl_nfrate', isFinite(rt)?rt:''); }catch(e){}
-  const el=$('#pnlNfDir'); if(el){ el.innerHTML = PNL.nfRate==null?'':(PNL.nfRate>0?'<b style="color:#ff5a5a">▲</b>':(PNL.nfRate<0?'<b style="color:#5a9bff">▼</b>':'―')); }
-  if(PNL._dir) pnlRenderDir();
+  pnlUpdateVerdictOnly();
 }
-function onSpotNet(){
-  const el=$('#pnlSpotDir'); const raw=($('#pnlSpotNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
-  if(!isFinite(v)){ PNL.spotV=null; if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_spotnet');}catch(e){} pnlApplyApprox(); renderPnl(); return; }
-  try{ localStorage.setItem('pnl_spotnet', v); }catch(e){}
-  if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 쪽 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 쪽 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
-  PNL.spotV=v; pnlApplyApprox(); renderPnl();
-}
-function onFutNet(){
-  const el=$('#pnlFutDir'); const raw=($('#pnlFutNet').value||'').replace(/,/g,''); const v=parseFloat(raw);
-  if(!isFinite(v)){ PNL.futN=null; if(el) el.innerHTML=''; try{localStorage.removeItem('pnl_futnet');}catch(e){} pnlApplyApprox(); renderPnl(); return; }
-  try{ localStorage.setItem('pnl_futnet', v); }catch(e){}
-  if(el) el.innerHTML = v>0?'<b style="color:#ff5a5a">상승 베팅 ▲</b>':(v<0?'<b style="color:#5a9bff">하락 베팅 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
-  PNL.futN=v; pnlApplyApprox(); renderPnl();
+// 입력 포커스를 유지한 채 상단 판정·하단 해석 문구만 갱신(전체 재렌더 없음)
+function pnlUpdateVerdictOnly(){
+  const box=$('#pnlDir'); const D=PNL._dir; if(!box||!D) return;
+  const V=pnlVerdict({futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
+  const h=box.querySelector('.pd-h'); if(h) h.innerHTML=`외국인 투자심리 : ${V.label}`;
+  const note=box.querySelector('.pd-note'); if(note) note.innerHTML=pnlInterpret(V,{futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
 }
 async function loadPnlDir(){
   const box=$('#pnlDir'); if(!box) return;
@@ -2517,36 +2503,25 @@ function pnlRenderDir(){
   const sesF=pnlSessionFixed();
   const ewyL=pnlEwyLabel(prevBiz);
   const nightL=pnlNightLabel(prevBiz);
-  // 야간선물 셀: 가격 (등락률%)
-  let nfHtml='<b style="color:#bbb">—</b>';
-  if(PNL.nfPrice!=null||PNL.nfRate!=null){
-    const c=PNL.nfRate==null?'#eee':(PNL.nfRate>0?'#ff5a5a':(PNL.nfRate<0?'#5a9bff':'#bbb'));
-    const pr=PNL.nfPrice!=null?PNL.nfPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
-    const rt=PNL.nfRate!=null?` <span style="font-size:.9em">(${PNL.nfRate>=0?'+':''}${PNL.nfRate}%)</span>`:'';
-    nfHtml=`<b style="color:${c}">${pr}${rt}</b>`;
-  }
-  let h=`<div class="pd-h">외국인 투자심리 : <b style="color:${V.color}">${V.label}</b></div>`;
-  h+=`<div class="pd-row"><span>${ewyL} EWY 한국ETF <span class="dim">(미국인)</span></span>${priceCell(D.ewyPrice,D.ewyChange,D.ewyRate,ewyC,2)}</div>`;
-  h+=`<div class="pd-row"><span>${nightL} 야간선물 <span class="dim">(외국인 글로벌)</span></span>${nfHtml}</div>`;
-  h+=`<div class="pd-row"><span>${sesF} 선물 순매수 <span class="dim">(외국인)</span></span>${flowCell(futN,'계약')}</div>`;
-  h+=`<div class="pd-row"><span>${sesF} 코스피 순매수 <span class="dim">(외국인)</span></span>${flowCell(spotV,'억')}</div>`;
-  h+=`<div class="pd-row"><span>${sesF} 베이시스 선물−현물 <span class="dim">(혼합)</span></span>${basisHtml}</div>`;
-  h+=`<div class="pd-row"><span>${sesF} 비차익 순매수 <span class="dim">(혼합)</span></span>${flowCell(D.nonArb,'억')}</div>`;
-  h+=`<div class="pd-row"><span>현시세 원/달러 환율 <span class="dim">(혼합)</span></span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
+  let h=`<div class="pd-h">외국인 투자심리 : ${V.label}</div>`;
+  h+=`<div class="pd-row"><span>(${ewyL}) EWY 한국ETF<span class="dim">(미국)</span></span>${priceCell(D.ewyPrice,D.ewyChange,D.ewyRate,ewyC,2)}</div>`;
+  h+=`<div class="pd-row"><span>${sesF} 선물순매수<span class="dim">(외국인)</span></span>${flowCell(futN,'계약')}</div>`;
+  h+=`<div class="pd-row"><span>${sesF} 코스피순매수<span class="dim">(외국인)</span></span>${flowCell(spotV,'억')}</div>`;
+  h+=`<div class="pd-row"><span>${sesF} 선물-현물</span>${basisHtml}</div>`;
+  h+=`<div class="pd-row"><span>${sesF} 비차익 거래</span>${flowCell(D.nonArb,'억')}</div>`;
+  h+=`<div class="pd-row"><span>현시세 원/달러 환율</span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
+  h+=`<div class="pd-row"><span>(${nightL}) 야간선물<span class="dim">(해외)</span></span></div>`+
+     `<div class="pd-nf-in">`+
+       `<input id="pnlNfPrice" type="text" inputmode="decimal" placeholder="가격" value="${PNL.nfPrice!=null?PNL.nfPrice:''}">`+
+       `<input id="pnlNfRate" type="text" inputmode="decimal" placeholder="등락률%" value="${PNL.nfRate!=null?PNL.nfRate:''}">`+
+       `<button type="button" class="signbtn" onclick="pnlSign('pnlNfRate')">±</button>`+
+     `</div>`;
   h+=`<div class="pd-note">${pnlInterpret(V,{futN, spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate})}</div>`;
   box.innerHTML=h;
+  const nfp=$('#pnlNfPrice'); if(nfp&&!nfp._wired){ nfp._wired=1; nfp.oninput=onNightFut; }
+  const nfr=$('#pnlNfRate'); if(nfr&&!nfr._wired){ nfr._wired=1; nfr.oninput=onNightFut; }
 }
 function closePnl(){ const ff=$('#pnlFlowFrame'); if(ff) ff.src='about:blank'; }
-function renderPnlValues(){
-  const el=$('#pnlValues'); if(!el) return;
-  const rows=[
-    ['외국인 선물 순매수', PNL.futN==null?'—':PNL.futN.toLocaleString()+' 계약'],
-    ['외국인 현물 순매수', PNL.spotV==null?'—':PNL.spotV.toLocaleString()+' 억원'],
-    ['현재 K200', PNL.cur==null?'—':(+PNL.cur).toFixed(2)],
-    ['외국인 현물 매수 추정 평균가', PNL.cur==null?'—':(+PNL.cur).toFixed(2)],
-  ];
-  el.innerHTML=rows.map(r=>`<div class="pv-row"><span>${r[0]}</span><b>${r[1]}</b></div>`).join('');
-}
 function pnlSign(id){ const el=$('#'+id); if(!el) return; let v=(el.value||'').trim(); if(v===''||v==='-'){ el.value='-'; } else if(v[0]==='-'){ el.value=v.slice(1); } else { el.value='-'+v; } el.dispatchEvent(new Event('input',{bubbles:true})); el.focus(); }
 function pnlAt(K){ // K = 코스피200 지수 → 손익(억원)
   let v=0;
@@ -2561,7 +2536,6 @@ function pnlActive(){ // 입력이 충분한지
 }
 function renderPnl(){
   const box=$('#pnlChart'); if(!box) return;
-  renderPnlValues();
   if(PNL._dir) pnlRenderDir();
   const note=$('#pnlNote'); if(note) note.innerHTML='';
   // 중심 지수
@@ -2593,31 +2567,29 @@ function renderPnl(){
   if(pnlActive()) svg+=`<path d="${path}" fill="none" stroke="#39d98a" stroke-width="2"/>`;
   svg+='</svg>';
   box.innerHTML=svg;
-  // 요약
+  // 요약: 방향 / 손익분기·현재손익 / 외국인 매수 추정 평균가
   const sum=$('#pnlSummary');
-  if(!pnlActive()){ sum.innerHTML='<span class="dim">아래에 외국인 순매수와 평균지수를 입력하면 손익곡선이 그려집니다. (HTS 투자자별 추정포지션 / KRX 값 입력)</span>'; return; }
+  if(!pnlActive()){ sum.innerHTML='<span class="dim">외국인 선물·코스피 순매수 신호를 불러오면 손익곡선이 그려집니다.</span>'; return; }
   let curPnl = PNL.cur?pnlAt(PNL.cur):null;
+  const bepTxt = bep!=null ? bep.toFixed(1) : '—';
+  const pnlTxt = curPnl!=null ? `<b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>` : '—';
+  let dirTxt, avgLabel, avgVal;
   if(PNL.mode==='both'){
     const spotDir=(PNL.spotV==null||PNL.spotV===0)?null:(PNL.spotV>0);
     const futDir=(PNL.futN==null||PNL.futN===0)?null:(PNL.futN>0);
-    const tag=b=> b===null?'<span class="dim">입력 없음</span>':(b?'<b style="color:#c00000">상승 쪽(순매수)</b>':'<b style="color:#1257c2">하락 쪽(순매도)</b>');
-    let s=`현물: ${tag(spotDir)}`;
-    if(PNL.spotV!=null&&PNL.spotV!==0) s+=` <span class="dim">(${Math.round(PNL.spotV).toLocaleString()}억)</span>`;
-    s+=`<br>선물: ${tag(futDir)}`;
-    if(PNL.futN!=null&&PNL.futN!==0) s+=` <span class="dim">(${Math.round(PNL.futN).toLocaleString()}계약)</span>`;
-    if(spotDir!==null&&futDir!==null&&spotDir!==futDir){
-      s+='<br><b style="color:#e0a030">⚠ 현물·선물 방향이 반대 → 헷지 가능성</b>';
-    }
-    if(curPnl!=null) s+=`<br><span class="dim">합계 현재손익(참고) </span><b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
-    sum.innerHTML=s;
-    return;
+    const tag=b=> b===null?'<span class="dim">—</span>':(b?'<b style="color:#c00000">상승 쪽</b>':'<b style="color:#1257c2">하락 쪽</b>');
+    dirTxt=`현물 ${tag(spotDir)} · 선물 ${tag(futDir)}`;
+    if(spotDir!==null&&futDir!==null&&spotDir!==futDir) dirTxt+=' <b style="color:#e0a030">⚠헷지 의심</b>';
+    avgLabel='외국인 코스피·선물 매수 추정 평균가';
+    avgVal=PNL.cur!=null?(+PNL.cur).toFixed(2):'—';
+  } else {
+    const slope=pnlAt(center+1)-pnlAt(center);
+    dirTxt = slope>0?'<b style="color:#c00000">상승 베팅(net 매수)</b>':(slope<0?'<b style="color:#1257c2">하락 베팅(net 매도)</b>':'중립');
+    avgLabel = PNL.mode==='fut' ? '외국인 선물 매수 추정 평균가' : '외국인 코스피 매수 추정 평균가';
+    const avgK = PNL.mode==='fut' ? PNL.futK : PNL.spotK;
+    avgVal = avgK!=null?(+avgK).toFixed(2):'—';
   }
-  const slope=pnlAt(center+1)-pnlAt(center);
-  const dir= slope>0?'<b style="color:#c00000">상승 베팅(net 매수)</b>':(slope<0?'<b style="color:#1257c2">하락 베팅(net 매도)</b>':'중립');
-  let s=`방향: ${dir}`;
-  if(bep!=null) s+=` · 손익분기 K200 <b>${bep.toFixed(1)}</b>`;
-  if(curPnl!=null) s+=` · 현재손익 <b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>`;
-  sum.innerHTML=s;
+  sum.innerHTML = `방향: ${dirTxt}<br>손익분기 : <b>${bepTxt}</b>, 현재손익: ${pnlTxt}<br>${avgLabel}: <b>${avgVal}</b>`;
 }
 async function pnlAutoFetch(silent){
   if(!SRV_URL) return;
@@ -2628,19 +2600,10 @@ async function pnlAutoFetch(silent){
       fetch(SRV_URL+'/?ffut2=1').then(r=>r.json()).catch(()=>null)
     ]);
     if(d&&d.ok&&d.curK){ PNL.cur=+d.curK; }
-    if(fv&&fv.ok&&fv.foreign!=null){
-      const el=$('#pnlSpotNet'); if(el) el.value=fv.foreign;
-      PNL.spotV=fv.foreign;
-      const dir=$('#pnlSpotDir'); if(dir) dir.innerHTML = fv.foreign>0?'<b style="color:#ff5a5a">상승 쪽 ▲</b>':(fv.foreign<0?'<b style="color:#5a9bff">하락 쪽 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
-      try{ localStorage.setItem('pnl_spotnet', fv.foreign); }catch(e){}
-    }
-    if(ff&&ff.ok&&ff.foreign!=null){
-      const el=$('#pnlFutNet'); if(el) el.value=ff.foreign;
-      PNL.futN=ff.foreign;
-      const dir=$('#pnlFutDir'); if(dir) dir.innerHTML = ff.foreign>0?'<b style="color:#ff5a5a">상승 베팅 ▲</b>':(ff.foreign<0?'<b style="color:#5a9bff">하락 베팅 ▼</b>':'<b style="color:#bbb">중립 ―</b>');
-      try{ localStorage.setItem('pnl_futnet', ff.foreign); }catch(e){}
-    }
+    if(fv&&fv.ok&&fv.foreign!=null){ PNL.spotV=fv.foreign; }
+    if(ff&&ff.ok&&ff.foreign!=null){ PNL.futN=ff.foreign; }
     pnlApplyApprox(); renderPnl();
+    if(PNL._dir) pnlRenderDir();
   }catch(e){}
 }
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
