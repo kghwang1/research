@@ -2397,6 +2397,7 @@ function pnlUpdateVerdictOnly(){
   const box=$('#pnlDir'); const D=PNL._dir; if(!box||!D) return;
   const V=pnlVerdict({futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
   const h=box.querySelector('.pd-h'); if(h) h.innerHTML=`외국인 투자심리 : ${V.label}`;
+  const nf=$('#pnlNfCell'); if(nf) nf.innerHTML=pnlNfCellHtml();
   const note=box.querySelector('.pd-note'); if(note) note.innerHTML=pnlInterpret(V,{futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
 }
 async function loadPnlDir(){
@@ -2481,6 +2482,14 @@ function pnlSessionFixed(){
   const hm=k.getUTCHours()*60+k.getUTCMinutes();
   return (hm>=9*60&&hm<=15*60+30)?'장중':'장마감';
 }
+// 야간선물 값 셀: 다른 신호와 같은 형식(가격 (등락률%))
+function pnlNfCellHtml(){
+  if(PNL.nfPrice==null&&PNL.nfRate==null) return '<b style="color:#bbb">—</b>';
+  const c=PNL.nfRate==null?'#eee':(PNL.nfRate>0?'#ff5a5a':(PNL.nfRate<0?'#5a9bff':'#bbb'));
+  const pr=PNL.nfPrice!=null?PNL.nfPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  const rt=PNL.nfRate!=null?` <span style="font-size:.9em">(${PNL.nfRate>=0?'+':''}${PNL.nfRate}%)</span>`:'';
+  return `<b style="color:${c}">${pr}${rt}</b>`;
+}
 // 외국인 투자심리 패널 렌더(PNL._dir + 현재 현물/선물 입력값)
 function pnlRenderDir(){
   const box=$('#pnlDir'); if(!box) return;
@@ -2510,7 +2519,7 @@ function pnlRenderDir(){
   h+=`<div class="pd-row"><span>${sesF} 선물-현물</span>${basisHtml}</div>`;
   h+=`<div class="pd-row"><span>${sesF} 비차익 거래</span>${flowCell(D.nonArb,'억')}</div>`;
   h+=`<div class="pd-row"><span>현시세 원/달러 환율</span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
-  h+=`<div class="pd-row"><span>(${nightL}) 야간선물<span class="dim">(해외)</span></span></div>`+
+  h+=`<div class="pd-row"><span>(${nightL}) 야간선물<span class="dim">(해외)</span></span><span id="pnlNfCell">${pnlNfCellHtml()}</span></div>`+
      `<div class="pd-nf-in">`+
        `<input id="pnlNfPrice" type="text" inputmode="decimal" placeholder="가격" value="${PNL.nfPrice!=null?PNL.nfPrice:''}">`+
        `<input id="pnlNfRate" type="text" inputmode="decimal" placeholder="등락률%" value="${PNL.nfRate!=null?PNL.nfRate:''}">`+
