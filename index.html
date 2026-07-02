@@ -354,6 +354,9 @@
   .pnl-seg button{flex:1;padding:9px 0;border:1px solid #555;border-radius:10px;background:transparent;color:var(--ink,#ddd);font-weight:700;font-size:14px}
   .pnl-seg button.on{background:#7c83ff;border-color:#7c83ff;color:#fff}
   .pnl-chart{background:#0f1118;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:6px}
+  .pnl-legend{display:flex;gap:14px;justify-content:center;padding:4px 0 2px;font-size:12px;color:var(--dim)}
+  .pnl-legend span{display:flex;align-items:center;gap:5px}
+  .pnl-legend i{display:inline-block;width:10px;height:10px;border-radius:3px}
   .pnl-sum{font-size:13px;line-height:1.5;color:var(--ink,#ddd)}
   .pnl-sum .dim{color:var(--dim);font-size:15.6px}
   .pnl-values{background:var(--panel);border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:2px}
@@ -614,11 +617,6 @@
  <section id="valuation">
   <div class="pnl-wrap">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
-  <div class="pnl-seg" id="pnlSeg">
-   <button data-m="spot" class="on">현물</button>
-   <button data-m="fut">선물</button>
-   <button data-m="both">현·선물 합</button>
-  </div>
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
   <div class="pnl-note" id="pnlNote"></div>
@@ -2369,10 +2367,9 @@ function openPort(m){
 }
 function closeValFull(){ $('#valFull').classList.remove('on'); }
 /* ===== 손익곡선 (외국인 포지션) ===== */
-const PNL={mode:'spot', spotV:null, spotK:null, futN:null, futK:null, cur:null, nfPrice:null, nfRate:null};
+const PNL={mode:'both', spotV:null, spotK:null, futN:null, futK:null, cur:null, nfPrice:null, nfRate:null};
 const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
 function openPnl(){
-  $$('#pnlSeg button').forEach(b=>{ b.onclick=()=>{ PNL.mode=b.dataset.m; $$('#pnlSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderPnl(); }; });
   try{
     const p=localStorage.getItem('pnl_nfprice'); if(p!=null&&p!==''){ PNL.nfPrice=parseFloat(p); }
     const rt=localStorage.getItem('pnl_nfrate'); if(rt!=null&&rt!==''){ PNL.nfRate=parseFloat(rt); }
@@ -2532,73 +2529,76 @@ function pnlRenderDir(){
 }
 function closePnl(){ const ff=$('#pnlFlowFrame'); if(ff) ff.src='about:blank'; }
 function pnlSign(id){ const el=$('#'+id); if(!el) return; let v=(el.value||'').trim(); if(v===''||v==='-'){ el.value='-'; } else if(v[0]==='-'){ el.value=v.slice(1); } else { el.value='-'+v; } el.dispatchEvent(new Event('input',{bubbles:true})); el.focus(); }
-function pnlAt(K){ // K = 코스피200 지수 → 손익(억원)
-  let v=0;
-  if(PNL.mode!=='fut' && PNL.spotV!=null && PNL.spotK){ v += PNL.spotV*(K-PNL.spotK)/PNL.spotK; }
-  if(PNL.mode!=='spot' && PNL.futN!=null && PNL.futK!=null){ v += PNL.futN*PT_PER*(K-PNL.futK); }
-  return v;
+function pnlSeriesVal(K, kind){
+  if(kind==='spot'){ if(PNL.spotV!=null && PNL.spotK) return PNL.spotV*(K-PNL.spotK)/PNL.spotK; return null; }
+  if(kind==='fut'){ if(PNL.futN!=null && PNL.futK!=null) return PNL.futN*PT_PER*(K-PNL.futK); return null; }
+  const s=pnlSeriesVal(K,'spot'), f=pnlSeriesVal(K,'fut');
+  if(s==null && f==null) return null;
+  return (s||0)+(f||0);
 }
-function pnlActive(){ // 입력이 충분한지
-  if(PNL.mode==='spot') return PNL.spotV!=null&&PNL.spotK;
-  if(PNL.mode==='fut') return PNL.futN!=null&&PNL.futK!=null;
+function pnlActive(){ // 입력이 충분한지(현물 또는 선물 중 하나라도)
   return (PNL.spotV!=null&&PNL.spotK)||(PNL.futN!=null&&PNL.futK!=null);
 }
 function renderPnl(){
   const box=$('#pnlChart'); if(!box) return;
   if(PNL._dir) pnlRenderDir();
   const note=$('#pnlNote'); if(note) note.innerHTML='';
+  const spotActive = PNL.spotV!=null && PNL.spotK;
+  const futActive = PNL.futN!=null && PNL.futK!=null;
+  const bothActive = spotActive || futActive;
   // 중심 지수
   let center=PNL.cur || PNL.spotK || PNL.futK || 430;
   const lo=center*0.85, hi=center*1.15;
-  const N=60, xs=[], ys=[];
-  for(let i=0;i<=N;i++){ const K=lo+(hi-lo)*i/N; xs.push(K); ys.push(pnlActive()?pnlAt(K):0); }
+  const N=60, xs=[], ysSpot=[], ysFut=[], ysBoth=[];
+  for(let i=0;i<=N;i++){
+    const K=lo+(hi-lo)*i/N; xs.push(K);
+    ysSpot.push(spotActive?pnlSeriesVal(K,'spot'):null);
+    ysFut.push(futActive?pnlSeriesVal(K,'fut'):null);
+    ysBoth.push(bothActive?pnlSeriesVal(K,'both'):null);
+  }
   const W=320,H=200,pad=34;
   const xmin=lo,xmax=hi;
-  let ymin=Math.min(...ys,0), ymax=Math.max(...ys,0);
+  const allVals=[0, ...ysSpot.filter(v=>v!=null), ...ysFut.filter(v=>v!=null), ...ysBoth.filter(v=>v!=null)];
+  let ymin=Math.min(...allVals), ymax=Math.max(...allVals);
   if(ymin===ymax){ ymin-=1; ymax+=1; }
   const padY=(ymax-ymin)*0.12||1; ymin-=padY; ymax+=padY;
   const X=K=>pad+(K-xmin)/(xmax-xmin)*(W-pad-8);
   const Y=v=>H-pad-(v-ymin)/(ymax-ymin)*(H-pad-10);
-  const path=xs.map((K,i)=>(i?'L':'M')+X(K).toFixed(1)+' '+Y(ys[i]).toFixed(1)).join(' ');
+  const pathOf=ys=>ys.map((v,i)=>(i?'L':'M')+X(xs[i]).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
   let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet">`;
   // zero line
   if(ymin<0&&ymax>0){ const y0=Y(0); svg+=`<line x1="${pad}" y1="${y0}" x2="${W-8}" y2="${y0}" stroke="#888" stroke-dasharray="4 3"/>`; }
   // current index line
   if(PNL.cur){ const xc=X(PNL.cur); svg+=`<line x1="${xc}" y1="10" x2="${xc}" y2="${H-pad}" stroke="#7c83ff" stroke-dasharray="3 3"/><text x="${xc}" y="9" fill="#7c83ff" font-size="9" text-anchor="middle">현재 ${Math.round(PNL.cur)}</text>`; }
-  // break-even (where y crosses 0)
+  // break-even (합계 기준, y가 0을 지나는 지점)
   let bep=null;
-  for(let i=1;i<ys.length;i++){ if((ys[i-1]<=0&&ys[i]>=0)||(ys[i-1]>=0&&ys[i]<=0)){ const t=(0-ys[i-1])/((ys[i]-ys[i-1])||1); bep=xs[i-1]+(xs[i]-xs[i-1])*t; break; } }
-  if(bep!=null&&pnlActive()){ const xb=X(bep); svg+=`<line x1="${xb}" y1="10" x2="${xb}" y2="${H-pad}" stroke="#c00000" stroke-dasharray="2 2"/><text x="${xb}" y="${H-pad+11}" fill="#c00000" font-size="9" text-anchor="middle">BEP ${Math.round(bep)}</text>`; }
+  if(bothActive){ for(let i=1;i<ysBoth.length;i++){ if((ysBoth[i-1]<=0&&ysBoth[i]>=0)||(ysBoth[i-1]>=0&&ysBoth[i]<=0)){ const t=(0-ysBoth[i-1])/((ysBoth[i]-ysBoth[i-1])||1); bep=xs[i-1]+(xs[i]-xs[i-1])*t; break; } } }
+  if(bep!=null){ const xb=X(bep); svg+=`<line x1="${xb}" y1="10" x2="${xb}" y2="${H-pad}" stroke="#c00000" stroke-dasharray="2 2"/><text x="${xb}" y="${H-pad+11}" fill="#c00000" font-size="9" text-anchor="middle">BEP ${Math.round(bep)}</text>`; }
   // axes labels
   svg+=`<text x="${pad}" y="${H-pad+11}" fill="#888" font-size="8">${Math.round(xmin)}</text><text x="${W-8}" y="${H-pad+11}" fill="#888" font-size="8" text-anchor="end">${Math.round(xmax)}</text>`;
   svg+=`<text x="2" y="14" fill="#888" font-size="8">${Math.round(ymax)}억</text><text x="2" y="${H-pad}" fill="#888" font-size="8">${Math.round(ymin)}억</text>`;
-  // payoff line
-  if(pnlActive()) svg+=`<path d="${path}" fill="none" stroke="#39d98a" stroke-width="2"/>`;
+  // 세 선: 현물(초록) · 선물(주황) · 합계(하늘색, 굵게)
+  if(spotActive) svg+=`<path d="${pathOf(ysSpot)}" fill="none" stroke="#39d98a" stroke-width="1.6"/>`;
+  if(futActive) svg+=`<path d="${pathOf(ysFut)}" fill="none" stroke="#ffb020" stroke-width="1.6"/>`;
+  if(bothActive) svg+=`<path d="${pathOf(ysBoth)}" fill="none" stroke="#4fd8ff" stroke-width="2.2"/>`;
   svg+='</svg>';
+  if(bothActive){
+    svg+=`<div class="pnl-legend"><span><i style="background:#39d98a"></i>현물</span><span><i style="background:#ffb020"></i>선물</span><span><i style="background:#4fd8ff"></i>현·선물 합</span></div>`;
+  }
   box.innerHTML=svg;
   // 요약: 방향 / 손익분기·현재손익 / 외국인 매수 추정 평균가
   const sum=$('#pnlSummary');
   if(!pnlActive()){ sum.innerHTML='<span class="dim">외국인 선물·코스피 순매수 신호를 불러오면 손익곡선이 그려집니다.</span>'; return; }
-  let curPnl = PNL.cur?pnlAt(PNL.cur):null;
+  const curPnl = (PNL.cur&&bothActive) ? pnlSeriesVal(PNL.cur,'both') : null;
   const bepTxt = bep!=null ? bep.toFixed(1) : '—';
   const pnlTxt = curPnl!=null ? `<b style="color:${curPnl>=0?'#c00000':'#1257c2'}">${curPnl>=0?'+':''}${Math.round(curPnl).toLocaleString()}억</b>` : '—';
-  let dirTxt, avgLabel, avgVal;
-  if(PNL.mode==='both'){
-    const spotDir=(PNL.spotV==null||PNL.spotV===0)?null:(PNL.spotV>0);
-    const futDir=(PNL.futN==null||PNL.futN===0)?null:(PNL.futN>0);
-    const tag=b=> b===null?'<span class="dim">—</span>':(b?'<b style="color:#c00000">상승 쪽</b>':'<b style="color:#1257c2">하락 쪽</b>');
-    dirTxt=`현물 ${tag(spotDir)} · 선물 ${tag(futDir)}`;
-    if(spotDir!==null&&futDir!==null&&spotDir!==futDir) dirTxt+=' <b style="color:#e0a030">⚠헷지 의심</b>';
-    avgLabel='외국인 코스피·선물 매수 추정 평균가';
-    avgVal=PNL.cur!=null?(+PNL.cur).toFixed(2):'—';
-  } else {
-    const slope=pnlAt(center+1)-pnlAt(center);
-    dirTxt = slope>0?'<b style="color:#c00000">상승 베팅(net 매수)</b>':(slope<0?'<b style="color:#1257c2">하락 베팅(net 매도)</b>':'중립');
-    avgLabel = PNL.mode==='fut' ? '외국인 선물 매수 추정 평균가' : '외국인 코스피 매수 추정 평균가';
-    const avgK = PNL.mode==='fut' ? PNL.futK : PNL.spotK;
-    avgVal = avgK!=null?(+avgK).toFixed(2):'—';
-  }
-  sum.innerHTML = `방향: ${dirTxt}<br>손익분기 : <b>${bepTxt}</b>, 현재손익: ${pnlTxt}<br>${avgLabel}: <b>${avgVal}</b>`;
+  const spotDir=(PNL.spotV==null||PNL.spotV===0)?null:(PNL.spotV>0);
+  const futDir=(PNL.futN==null||PNL.futN===0)?null:(PNL.futN>0);
+  const tag=b=> b===null?'<span class="dim">—</span>':(b?'<b style="color:#c00000">상승 쪽</b>':'<b style="color:#1257c2">하락 쪽</b>');
+  let dirTxt=`현물 ${tag(spotDir)} · 선물 ${tag(futDir)}`;
+  if(spotDir!==null&&futDir!==null&&spotDir!==futDir) dirTxt+=' <b style="color:#e0a030">⚠헷지 의심</b>';
+  const avgVal=PNL.cur!=null?(+PNL.cur).toFixed(2):'—';
+  sum.innerHTML = `방향: ${dirTxt}<br>손익분기 : <b>${bepTxt}</b>, 현재손익: ${pnlTxt}<br>외국인 코스피·선물 매수 추정 평균가: <b>${avgVal}</b>`;
 }
 async function pnlAutoFetch(silent){
   if(!SRV_URL) return;
