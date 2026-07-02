@@ -1515,7 +1515,7 @@ function valQuoteSym(sym){
 function valNaverLink(sym){
   sym=String(sym==null?'':sym).trim();
   if(KR_CODE[sym]) return 'https://m.stock.naver.com/domestic/stock/'+KR_CODE[sym]+'/total';
-  return 'https://m.search.naver.com/search.naver?query='+encodeURIComponent(sym+' 주가');
+  return 'https://finance.naver.com/search/search.naver?query='+encodeURIComponent(sym+' 주가');
 }
 /* 콤마/% 제거 후 숫자화 (불가하면 null) */
 function valNum(s){ if(s==null) return null; s=String(s).replace(/[,%\s]/g,''); if(s===''||s==='-') return null; const n=parseFloat(s); return isFinite(n)?n:null; }
@@ -1545,7 +1545,7 @@ function openNaverWorld(sym){
   const qs=valQuoteSym(sym);
   const ticker=(qs&&!qs.startsWith('STK:'))?qs:sym;
   // worker가 월드스톡 주소를 못 찾으면 네이버에서 '티커'만 검색 (금융 카드가 바로 뜸)
-  const fallback='https://search.naver.com/search.naver?query='+encodeURIComponent(ticker);
+  const fallback='https://finance.naver.com/search/search.naver?query='+encodeURIComponent(ticker);
   const w=window.open('about:blank','_blank');
   const go=u=>{ if(w){ w.location=u; } else { location.href=u; } };
   if(!SRV_URL){ go(fallback); return; }
@@ -1556,7 +1556,7 @@ function openNaverWorld(sym){
 }
 /* 네이버 통합검색으로 열기 (한국 ETF 종목명 등) */
 function openNaverSearch(q){
-  const u='https://search.naver.com/search.naver?query='+encodeURIComponent(q);
+  const u='https://finance.naver.com/search/search.naver?query='+encodeURIComponent(q);
   const w=window.open('about:blank','_blank');
   if(w){ w.location=u; } else { location.href=u; }
 }
