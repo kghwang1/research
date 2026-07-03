@@ -343,6 +343,7 @@
   .pnl-dir{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px;font-size:12.5px}
   .pnl-dir .dim{color:var(--dim);font-size:15px}
   .pnl-dir .pd-h{font-size:14.7px;font-weight:700;margin-bottom:7px;color:#d4af00}
+  .pnl-chart-title{font-size:14.7px;font-weight:700;margin-bottom:7px;color:#d4af00}
   .pnl-dir .pd-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:#fff;font-size:14.85px}
   .pnl-dir .pd-row b{font-size:13px}
   .pnl-dir .pd-note{margin-top:7px;font-size:13.7px;line-height:1.55;color:var(--dim)}
@@ -618,6 +619,7 @@
  <section id="valuation">
   <div class="pnl-wrap">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
+  <div class="pnl-chart-title">외국인 손익 곡선</div>
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
   <div class="pnl-note" id="pnlNote"></div>
@@ -2492,8 +2494,7 @@ function pnlNfCellHtml(){
 function pnlRenderDir(){
   const box=$('#pnlDir'); if(!box) return;
   const D=PNL._dir; if(!D){ return; }
-  const wk=['일','월','화','수','목','금','토'];
-  const prevBiz=(()=>{ const d=new Date(); d.setDate(d.getDate()-1); while(d.getDay()===0||d.getDay()===6){ d.setDate(d.getDate()-1); } return (d.getMonth()+1)+'.'+d.getDate()+'('+wk[d.getDay()]+')'; })();
+  const prevBiz=(()=>{ const d=new Date(); d.setDate(d.getDate()-1); while(d.getDay()===0||d.getDay()===6){ d.setDate(d.getDate()-1); } return (d.getMonth()+1)+'.'+d.getDate(); })();
   const priceCell=(price,chg,rate,color,dec)=>{
     if(price==null) return '<b style="color:#bbb">—</b>';
     const pr=price.toLocaleString(undefined,{minimumFractionDigits:dec,maximumFractionDigits:dec});
@@ -2522,7 +2523,7 @@ function pnlRenderDir(){
   h+=`<div class="pd-row"><span>현시세 원/달러 환율</span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
   h+=`<div class="pd-row"><span>${sesF} 선물순매수<span class="dim">(외국인)</span></span>${flowCell(futN,'계약')}</div>`;
   h+=`<div class="pd-row"><span>${sesF} 코스피순매수<span class="dim">(외국인)</span></span>${flowCell(spotV,'억')}</div>`;
-  h+=`<div class="pd-row"><span>${sesF} 선물-현물</span>${basisHtml}</div>`;
+  h+=`<div class="pd-row"><span>${sesF} 선물-현물가격</span>${basisHtml}</div>`;
   h+=`<div class="pd-row"><span>${sesF} 비차익 거래</span>${flowCell(D.nonArb,'억')}</div>`;
   h+=`<div class="pd-note">${pnlInterpret(V,{futN, spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate})}</div>`;
   box.innerHTML=h;
