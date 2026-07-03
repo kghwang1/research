@@ -2506,7 +2506,15 @@ function pnlRenderDir(){
   const ewyC=D.ewyRate==null?'#bbb':(D.ewyRate>=0?'#ff5a5a':'#5a9bff');
   const krwC=D.krwRate==null?'#bbb':(D.krwRate>=0?'#5a9bff':'#ff5a5a');
   let basisHtml='<b style="color:#bbb">—</b>';
-  if(D.basis!=null){ const b=D.basis; const kind=b>0?'콘탱고(+)':(b<0?'백워데이션(−)':'중립'); const bc=b>0?'#ff5a5a':(b<0?'#5a9bff':'#bbb'); const tail=D.basisChg!=null?` <span style="font-size:.9em">(${D.basisChg>=0?'+':''}${D.basisChg.toFixed(2)}p)</span>`:''; basisHtml=`<b style="color:${bc}">${b>=0?'+':''}${b.toFixed(2)}p ${kind}${tail}</b>`; }
+  if(D.basis!=null){
+    const b=D.basis; const kind=b>0?'콘탱고(+)':(b<0?'백워데이션(−)':'중립'); const bc=b>0?'#ff5a5a':(b<0?'#5a9bff':'#bbb');
+    let tail='';
+    if(D.basisChg!=null && D.basisChg!==0){
+      const dir = D.basisChg>0?'상승':'하락';
+      tail=` <span style="font-size:.9em">(${Math.abs(D.basisChg).toFixed(2)}${dir})</span>`;
+    }
+    basisHtml=`<b style="color:${bc}">${b>=0?'+':''}${b.toFixed(2)}P ${kind}${tail}</b>`;
+  }
   const V=pnlVerdict({futN, spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
   const sesF=pnlSessionFixed();
   const ewyL=pnlEwyLabel(prevBiz);
