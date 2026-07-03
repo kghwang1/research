@@ -346,7 +346,7 @@
   .pnl-dir .pd-row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:#fff;font-size:14.85px}
   .pnl-dir .pd-row b{font-size:13px}
   .pnl-dir .pd-note{margin-top:7px;font-size:13.7px;line-height:1.55;color:var(--dim)}
-  .pnl-dir .pd-nf-in{display:flex;align-items:center;gap:6px;justify-content:flex-end;padding:3px 0 5px;flex-wrap:wrap}
+  .pnl-dir .pd-nf-in{display:flex;align-items:center;gap:6px;justify-content:flex-end;padding:5px 0 3px;flex-wrap:wrap}
   .pnl-dir .pd-nf-in .nf-apply{background:var(--accent2);color:#0a0a0a;font-weight:700;border-color:var(--accent2)}
   .pnl-dir .pd-nf-in input{width:64px;padding:5px 7px;border-radius:7px;border:1px solid #555;background:#0f1118;color:#eee;font-size:13px;text-align:right}
   .pnl-dir .pd-nf-in .signbtn{padding:4px 9px;font-size:12px}
@@ -2511,13 +2511,13 @@ function pnlRenderDir(){
   const ewyL=pnlEwyLabel(prevBiz);
   const nightL=pnlNightLabel(prevBiz);
   let h=`<div class="pd-h">외국인 투자심리 : ${V.label}</div>`;
-  h+=`<div class="pd-row"><span>(${nightL}) 야간선물<span class="dim">(해외)</span></span><span id="pnlNfCell">${pnlNfCellHtml()}</span></div>`+
-     `<div class="pd-nf-in">`+
+  h+=`<div class="pd-nf-in">`+
        `<input id="pnlNfPrice" type="text" inputmode="decimal" placeholder="가격" value="${PNL.nfPrice!=null?PNL.nfPrice:''}">`+
        `<input id="pnlNfRate" type="text" inputmode="decimal" placeholder="등락률%" value="${PNL.nfRate!=null?PNL.nfRate:''}">`+
        `<button type="button" class="signbtn" onclick="pnlSign('pnlNfRate')">±</button>`+
        `<button type="button" class="signbtn nf-apply" onclick="onNightFut()">반영</button>`+
-     `</div>`;
+     `</div>`+
+     `<div class="pd-row"><span>(${nightL}) 야간선물<span class="dim">(해외)</span></span><span id="pnlNfCell">${pnlNfCellHtml()}</span></div>`;
   h+=`<div class="pd-row"><span>(${ewyL}) EWY 한국ETF<span class="dim">(미국)</span></span>${priceCell(D.ewyPrice,D.ewyChange,D.ewyRate,ewyC,2)}</div>`;
   h+=`<div class="pd-row"><span>현시세 원/달러 환율</span>${priceCell(D.krwPrice,D.krwChange,D.krwRate,krwC,2)}</div>`;
   h+=`<div class="pd-row"><span>${sesF} 선물순매수<span class="dim">(외국인)</span></span>${flowCell(futN,'계약')}</div>`;
