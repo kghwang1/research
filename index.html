@@ -797,8 +797,14 @@ function openPdf(url, title){
   const t=$('#pdfTitle'); if(t) t.textContent=title||'리포트';
   const o=$('#pdfOrig'); if(o) o.href=url;
   $('#pdfFull').classList.add('on');
+  const vp=document.querySelector('meta[name="viewport"]');
+  if(vp){ vp.dataset.orig=vp.getAttribute('content'); vp.setAttribute('content','width=device-width, initial-scale=1.0'); }
 }
-function closePdf(){ $('#pdfFull').classList.remove('on'); const f=$('#pdfFrame'); if(f) f.src='about:blank'; }
+function closePdf(){
+  $('#pdfFull').classList.remove('on'); const f=$('#pdfFrame'); if(f) f.src='about:blank';
+  const vp=document.querySelector('meta[name="viewport"]');
+  if(vp&&vp.dataset.orig){ vp.setAttribute('content',vp.dataset.orig); }
+}
 document.addEventListener('click', function(ev){
   const a=ev.target.closest('a.rptlink'); if(!a) return;
   ev.preventDefault(); openPdf(a.dataset.href, a.dataset.title);
