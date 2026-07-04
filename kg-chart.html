@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KG 챠트분석</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 12px; }
+
+/* 헤더 - 3줄 구조 */
+#header {
+  display: flex; flex-direction: column;
+  border-bottom: 1px solid #21262d;
+  flex-shrink: 0; background: #161b22;
+}
+/* 1줄: 타이틀 + 날짜 */
+#header-row1 {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 10px 3px;
+  border-bottom: 1px solid #21262d;
+}
+.title { color: #58a6ff; font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+#header-date { color: #8b949e; font-size: 11px; }
+
+/* 2줄: 검색창 + 기간버튼 */
+#header-row2 {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 10px;
+  border-bottom: 1px solid #21262d;
+}
+#search-wrap { position: relative; flex: 1; max-width: 300px; }
+#search-input {
+  background: #0d1117; border: 1px solid #21262d;
+  color: #e6edf3; padding: 4px 8px; border-radius: 4px;
+  font-size: 12px; width: 100%;
+}
+#stock-dropdown {
+  position: absolute; top: 100%; left: 0;
+  background: #1c2128; border: 1px solid #21262d;
+  border-radius: 4px; z-index: 100;
+  min-width: 200px; max-height: 220px; overflow-y: auto; display: none;
+}
+.stock-item { padding: 6px 10px; cursor: pointer; border-bottom: 1px solid #21262d; display: flex; justify-content: space-between; }
+.stock-item:hover { background: #21262d; }
+.stock-code { color: #8b949e; }
+#stock-name { display: none; }
+#stock-code-display { display: none; }
+.period-btn { background: #161b22; color: #8b949e; border: 1px solid #21262d; padding: 3px 7px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 700; }
+.period-btn.active { background: #58a6ff; color: #000; }
+#period-group { display: flex; gap: 3px; margin-left: auto; }
+
+/* 3줄: 주가 정보 */
+#header-row3 {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 10px;
+}
+#ohlc-info { display: flex; gap: 10px; color: #8b949e; flex-wrap: wrap; }
+#ohlc-info .price { font-weight: 700; font-size: 14px; }
+#ohlc-info .label { color: #8b949e; font-size: 10px; margin-right: 1px; }
+
+/* 본체 */
+#body { display: flex; flex: 1; overflow: hidden; position: relative; }
+
+/* 사이드 패널 */
+#sidebar {
+  width: 156px; background: #161b22;
+  border-right: 1px solid #21262d;
+  overflow-y: auto; flex-shrink: 0;
+  transition: width 0.22s ease, opacity 0.22s ease;
+}
+#sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; border: none; }
+.group-title { padding: 6px 8px 2px; font-size: 10px; color: #58a6ff; font-weight: 700; white-space: nowrap; }
+.ind-label { display: flex; align-items: center; gap: 5px; padding: 4px 8px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+.ind-label:hover { background: #21262d; }
+.ind-label input { cursor: pointer; flex-shrink: 0; }
+.ind-label span { color: #8b949e; }
+.ind-label.active span { color: inherit; }
+
+/* 토글 버튼 */
+#toggle-btn {
+  position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+  z-index: 50; width: 18px; height: 48px;
+  background: #21262d; border: 1px solid #30363d;
+  border-left: none; border-radius: 0 6px 6px 0;
+  cursor: pointer; color: #8b949e; font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+  transition: left 0.22s ease;
+  user-select: none;
+}
+#toggle-btn:hover { background: #30363d; color: #e6edf3; }
+#toggle-btn.collapsed { left: 0; }
+
+/* 챠트 영역 */
+#chart-area {
+  flex: 1; display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 2px 4px 4px; gap: 3px;
+}
+#chart-area::-webkit-scrollbar { width: 4px; }
+#chart-area::-webkit-scrollbar-track { background: #0d1117; }
+#chart-area::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
+
+/* 메인 캔들 - 고정 높이 */
+#candle-wrap {
+  flex: 0 0 320px; height: 320px;
+  border: 1px solid #21262d; border-radius: 4px;
+  overflow: hidden; position: sticky; top: 0; z-index: 10;
+}
+#candle-canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
+
+/* 보조지표 패널 - 각각 고정 높이 */
+.sub-wrap {
+  flex: 0 0 140px; height: 140px;
+  border: 1px solid #30363d;
+  border-top: 2px solid #388bfd44;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #161b22;
+}
+.sub-canvas { width: 100%; height: 100%; display: block; }
+
+/* 스크롤바 */
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-track { background: #0d1117; }
+#sidebar::-webkit-scrollbar-thumb { background: #21262d; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div id="header">
+  <!-- 1줄: 타이틀 + 날짜 -->
+  <div id="header-row1">
+    <span class="title">
+      <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="지표 패널" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:2px 7px;border-radius:4px;cursor:pointer;font-size:12px;">☰</button>
+      📈 KG 챠트분석
+    </span>
+    <span id="header-date">-</span>
+  </div>
+
+  <!-- 2줄: 검색창 + 기간버튼 -->
+  <div id="header-row2">
+    <div id="search-wrap">
+      <input id="search-input" placeholder="종목명/코드 검색" autocomplete="off">
+      <div id="stock-dropdown"></div>
+    </div>
+    <span id="stock-name" style="display:none"></span>
+    <span id="stock-code-display" style="display:none"></span>
+    <div id="period-group">
+      <button class="period-btn" data-period="22">1M</button>
+      <button class="period-btn active" data-period="66">3M</button>
+      <button class="period-btn" data-period="130">6M</button>
+      <button class="period-btn" data-period="200">1Y</button>
+    </div>
+  </div>
+
+  <!-- 3줄: 주가 정보 -->
+  <div id="header-row3">
+    <div id="ohlc-info">
+      <span class="price" id="info-close">-</span>
+      <span><span class="label">시</span><span id="info-open">-</span></span>
+      <span><span class="label">고</span><span id="info-high" style="color:#ef5350">-</span></span>
+      <span><span class="label">저</span><span id="info-low" style="color:#1976d2">-</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- 본체 -->
+<div id="body">
+  <!-- 사이드바 -->
+  <div id="sidebar">
+    <div class="group-title">▶ 오버레이</div>
+    <label class="ind-label" data-key="MA" style="--col:#f0a836">
+      <input type="checkbox" checked> <span>이동평균(MA)</span>
+    </label>
+    <label class="ind-label" data-key="BB" style="--col:#39d353">
+      <input type="checkbox"> <span>볼린저밴드</span>
+    </label>
+    <label class="ind-label" data-key="ICHIMOKU" style="--col:#ff7eb6">
+      <input type="checkbox"> <span>일목균형표</span>
+    </label>
+    <label class="ind-label" data-key="PSAR" style="--col:#f78166">
+      <input type="checkbox"> <span>파라볼릭(PSAR)</span>
+    </label>
+    <label class="ind-label" data-key="DEMA" style="--col:#a8ff78">
+      <input type="checkbox"> <span>DEMA(이중지수)</span>
+    </label>
+    <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4">
+      <input type="checkbox"> <span>VIDYA(가변이동평균)</span>
+    </label>
+
+    <div class="group-title">▶ 추세지표</div>
+    <label class="ind-label" data-key="MACD" style="--col:#58a6ff">
+      <input type="checkbox" checked> <span>MACD(12,26,9)</span>
+    </label>
+    <label class="ind-label" data-key="ADX" style="--col:#3fb950">
+      <input type="checkbox"> <span>ADX/DMI(14)</span>
+    </label>
+    <label class="ind-label" data-key="CCI" style="--col:#f78166">
+      <input type="checkbox"> <span>CCI(20)</span>
+    </label>
+    <label class="ind-label" data-key="AROON" style="--col:#bc8cff">
+      <input type="checkbox"> <span>Aroon(25)</span>
+    </label>
+    <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6">
+      <input type="checkbox"> <span>Force Index(13)</span>
+    </label>
+    <label class="ind-label" data-key="TRIX" style="--col:#a8ff78">
+      <input type="checkbox"> <span>TRIX(15)</span>
+    </label>
+    <label class="ind-label" data-key="TSI" style="--col:#4ecdc4">
+      <input type="checkbox"> <span>TSI(25,13)</span>
+    </label>
+
+    <div class="group-title">▶ 모멘텀지표</div>
+    <label class="ind-label" data-key="RSI" style="--col:#3fb950">
+      <input type="checkbox" checked> <span>RSI(14)</span>
+    </label>
+    <label class="ind-label" data-key="SMI" style="--col:#f0a836">
+      <input type="checkbox"> <span>SMI(13,25,2)</span>
+    </label>
+    <label class="ind-label" data-key="STOCHRSI" style="--col:#bc8cff">
+      <input type="checkbox"> <span>StochRSI(14)</span>
+    </label>
+    <label class="ind-label" data-key="STOCH" style="--col:#39d353">
+      <input type="checkbox"> <span>Stochastic Fast</span>
+    </label>
+    <label class="ind-label" data-key="SLOWSTOCH" style="--col:#ff7eb6">
+      <input type="checkbox"> <span>Stochastic Slow</span>
+    </label>
+    <label class="ind-label" data-key="CMO" style="--col:#f78166">
+      <input type="checkbox"> <span>CMO(14)</span>
+    </label>
+    <label class="ind-label" data-key="DMI_DYN" style="--col:#a8ff78">
+      <input type="checkbox"> <span>Dynamic MI</span>
+    </label>
+    <label class="ind-label" data-key="MASS" style="--col:#4ecdc4">
+      <input type="checkbox"> <span>Mass Index(25)</span>
+    </label>
+    <label class="ind-label" data-key="DISPARITY" style="--col:#58a6ff">
+      <input type="checkbox"> <span>이격도(20)</span>
+    </label>
+    <label class="ind-label" data-key="CHAIKIN_OSC" style="--col:#ff7eb6">
+      <input type="checkbox"> <span>차이킨 오실레이터</span>
+    </label>
+    <label class="ind-label" data-key="MOM" style="--col:#3fb950">
+      <input type="checkbox"> <span>모멘텀(12)</span>
+    </label>
+    <label class="ind-label" data-key="WILLR" style="--col:#f78166">
+      <input type="checkbox"> <span>Williams %R(14)</span>
+    </label>
+
+    <div class="group-title">▶ 변동성지표</div>
+    <label class="ind-label" data-key="ATR" style="--col:#f78166">
+      <input type="checkbox"> <span>ATR(14)</span>
+    </label>
+    <label class="ind-label" data-key="BBW" style="--col:#39d353">
+      <input type="checkbox"> <span>볼린저밴드 폭</span>
+    </label>
+    <label class="ind-label" data-key="RVI" style="--col:#bc8cff">
+      <input type="checkbox"> <span>RVI(상대변동성)</span>
+    </label>
+    <label class="ind-label" data-key="INERTIA" style="--col:#a8ff78">
+      <input type="checkbox"> <span>관성지수(Inertia)</span>
+    </label>
+    <label class="ind-label" data-key="CHAIKIN_VOL" style="--col:#4ecdc4">
+      <input type="checkbox"> <span>차이킨 변동성</span>
+    </label>
+
+    <div class="group-title">▶ 거래량지표</div>
+    <label class="ind-label" data-key="VOLUME" style="--col:#8b949e">
+      <input type="checkbox" checked> <span>거래량</span>
+    </label>
+    <label class="ind-label" data-key="OBV" style="--col:#39d353">
+      <input type="checkbox"> <span>OBV</span>
+    </label>
+    <label class="ind-label" data-key="CMF" style="--col:#ff7eb6">
+      <input type="checkbox"> <span>Chaikin MF(20)</span>
+    </label>
+    <label class="ind-label" data-key="MFI" style="--col:#a8ff78">
+      <input type="checkbox"> <span>MFI(14)</span>
+    </label>
+    <label class="ind-label" data-key="PVT" style="--col:#4ecdc4">
+      <input type="checkbox"> <span>PVT</span>
+    </label>
+    <label class="ind-label" data-key="WILLIAMS_AD" style="--col:#58a6ff">
+      <input type="checkbox"> <span>Williams A/D</span>
+    </label>
+  </div>
+
+  <div id="toggle-btn" onclick="toggleSidebar()" title="지표 패널 열기/닫기">›</div>
+
+<!-- 챠트 영역 -->
+  <div id="chart-area">
+    <div id="candle-wrap">
+      <canvas id="candle-canvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// 색상
+// ══════════════════════════════════════
+const C = {
+  bg:'#0d1117', panel:'#161b22', panel2:'#1c2128',
+  border:'#21262d', text:'#e6edf3', muted:'#8b949e',
+  up:'#ef5350', down:'#1976d2',
+  accent:'#58a6ff', green:'#3fb950', yellow:'#f0a836',
+  purple:'#bc8cff', cyan:'#39d353', orange:'#f78166',
+  pink:'#ff7eb6', lime:'#a8ff78', teal:'#4ecdc4',
+};
+
+// ══════════════════════════════════════
+// 종목 목록
+// ══════════════════════════════════════
+const STOCKS = [
+  {code:'KOSPI', name:'코스피', price:2680},
+  {code:'005930', name:'삼성전자', price:72000},
+  {code:'000660', name:'SK하이닉스', price:198000},
+  {code:'035420', name:'NAVER', price:185000},
+  {code:'035720', name:'카카오', price:38000},
+  {code:'005380', name:'현대차', price:245000},
+  {code:'051910', name:'LG화학', price:312000},
+  {code:'207940', name:'삼성바이오', price:920000},
+  {code:'006400', name:'삼성SDI', price:278000},
+  {code:'068270', name:'셀트리온', price:155000},
+  {code:'105560', name:'KB금융', price:89000},
+  {code:'055550', name:'신한지주', price:52000},
+  {code:'086790', name:'하나금융지주', price:68000},
+  {code:'003550', name:'LG', price:98000},
+  {code:'028260', name:'삼성물산', price:142000},
+];
+
+// ══════════════════════════════════════
+// 더미 데이터
+// ══════════════════════════════════════
+function genDummy(n=200, startPrice=50000) {
+  const data=[]; let price=startPrice;
+  let date=new Date('2024-05-01');
+  for(let i=0;i<n;i++){
+    while([0,6].includes(date.getDay())) date.setDate(date.getDate()+1);
+    const chg=(Math.random()-0.48)*price*0.018;
+    const open=price; price=Math.max(price+chg,100);
+    const hi=Math.max(open,price)*(1+Math.random()*0.01);
+    const lo=Math.min(open,price)*(1-Math.random()*0.01);
+    data.push({date:date.toISOString().slice(0,10), open:Math.round(open), high:Math.round(hi), low:Math.round(lo), close:Math.round(price), volume:Math.round(Math.random()*8e6+5e5)});
+    date=new Date(date); date.setDate(date.getDate()+1);
+  }
+  return data;
+}
+
+// ══════════════════════════════════════
+// 수학 유틸
+// ══════════════════════════════════════
+function ema(arr, len) {
+  const k=2/(len+1), r=new Array(arr.length).fill(null);
+  let sum=0, cnt=0;
+  for(let i=0;i<arr.length;i++){
+    if(arr[i]==null) continue;
+    if(cnt<len){sum+=arr[i];cnt++;if(cnt===len)r[i]=sum/len;}
+    else r[i]=arr[i]*k+r[i-1]*(1-k);
+  }
+  return r;
+}
+function sma(arr,len){
+  return arr.map((_,i)=>{
+    if(i<len-1)return null;
+    return arr.slice(i-len+1,i+1).reduce((a,b)=>a+(b||0),0)/len;
+  });
+}
+function stdev(arr,len){
+  return arr.map((_,i)=>{
+    if(i<len-1)return null;
+    const s=arr.slice(i-len+1,i+1);
+    const m=s.reduce((a,b)=>a+b,0)/len;
+    return Math.sqrt(s.reduce((a,b)=>a+(b-m)**2,0)/len);
+  });
+}
+function highest(arr,len,i){return Math.max(...arr.slice(Math.max(0,i-len+1),i+1).filter(v=>v!=null));}
+function lowest(arr,len,i){return Math.min(...arr.slice(Math.max(0,i-len+1),i+1).filter(v=>v!=null));}
+
+// ══════════════════════════════════════
+// 지표 계산
+// ══════════════════════════════════════
+const CALC = {
+  MA:(d)=>{const c=d.map(x=>x.close);return{ma5:sma(c,5),ma20:sma(c,20),ma60:sma(c,60),ma120:sma(c,120)};},
+  BB:(d)=>{const c=d.map(x=>x.close),mid=sma(c,20),sd=stdev(c,20);return{upper:mid.map((v,i)=>v&&sd[i]?v+2*sd[i]:null),mid,lower:mid.map((v,i)=>v&&sd[i]?v-2*sd[i]:null)};},
+  ICHIMOKU:(d)=>{
+    const h=d.map(x=>x.high),l=d.map(x=>x.low),c=d.map(x=>x.close);
+    const tenkan=d.map((_,i)=>i<8?null:(highest(h,9,i)+lowest(l,9,i))/2);
+    const kijun=d.map((_,i)=>i<25?null:(highest(h,26,i)+lowest(l,26,i))/2);
+    const senkouA=tenkan.map((v,i)=>v&&kijun[i]?(v+kijun[i])/2:null);
+    const senkouB=d.map((_,i)=>i<51?null:(highest(h,52,i)+lowest(l,52,i))/2);
+    return{tenkan,kijun,senkouA,senkouB,chikou:c};
+  },
+  PSAR:(d)=>{
+    const psar=new Array(d.length).fill(null);
+    let bull=true,af=0.02,ep=d[0].low,sar=d[0].high;
+    for(let i=1;i<d.length;i++){
+      sar=sar+af*(ep-sar);
+      if(bull){if(d[i].low<sar){bull=false;sar=ep;af=0.02;ep=d[i].low;}else{if(d[i].high>ep){ep=d[i].high;af=Math.min(af+0.02,0.2);}}}
+      else{if(d[i].high>sar){bull=true;sar=ep;af=0.02;ep=d[i].high;}else{if(d[i].low<ep){ep=d[i].low;af=Math.min(af+0.02,0.2);}}}
+      psar[i]=sar;
+    }
+    return{psar};
+  },
+  DEMA:(d)=>{const c=d.map(x=>x.close),e1=ema(c,20),e2=ema(e1,20);return{dema:e1.map((v,i)=>v&&e2[i]?2*v-e2[i]:null)};},
+  VIDYA:(d)=>{
+    const c=d.map(x=>x.close),period=14;
+    const cmo=c.map((_,i)=>{
+      if(i<period)return null;
+      let up=0,dn=0;
+      for(let j=i-period+1;j<=i;j++){const diff=c[j]-c[j-1];if(diff>0)up+=diff;else dn-=diff;}
+      return Math.abs((up-dn)/((up+dn)||1));
+    });
+    const k=2/(period+1),vidya=new Array(c.length).fill(null);
+    for(let i=period;i<c.length;i++){if(cmo[i]==null)continue;const prev=vidya[i-1]??c[i];vidya[i]=c[i]*k*cmo[i]+prev*(1-k*cmo[i]);}
+    return{vidya};
+  },
+  MACD:(d)=>{
+    const c=d.map(x=>x.close),e12=ema(c,12),e26=ema(c,26);
+    const macd=e12.map((v,i)=>v&&e26[i]?v-e26[i]:null);
+    const signal=ema(macd,9);
+    return{macd,signal,hist:macd.map((v,i)=>v&&signal[i]?v-signal[i]:null)};
+  },
+  ADX:(d)=>{
+    const period=14,pdm=[],ndm=[],tr=[];
+    for(let i=1;i<d.length;i++){
+      const up=d[i].high-d[i-1].high,dn=d[i-1].low-d[i].low;
+      pdm.push(up>dn&&up>0?up:0); ndm.push(dn>up&&dn>0?dn:0);
+      tr.push(Math.max(d[i].high-d[i].low,Math.abs(d[i].high-d[i-1].close),Math.abs(d[i].low-d[i-1].close)));
+    }
+    const smooth=(arr)=>{const r=new Array(d.length).fill(null);let s=arr.slice(0,period).reduce((a,b)=>a+b,0);r[period]=s;for(let i=period;i<arr.length;i++){s=s-s/period+arr[i];r[i+1]=s;}return r;};
+    const str=smooth(tr),sp=smooth(pdm),sn=smooth(ndm);
+    const pdi=str.map((v,i)=>v?(sp[i]/v)*100:null),ndi=str.map((v,i)=>v?(sn[i]/v)*100:null);
+    const dx=pdi.map((v,i)=>v&&ndi[i]?(Math.abs(v-ndi[i])/((v+ndi[i])||1))*100:null);
+    return{adx:ema(dx,period),pdi,ndi};
+  },
+  CCI:(d)=>{const tp=d.map(x=>(x.high+x.low+x.close)/3);return{cci:tp.map((_,i)=>{if(i<19)return null;const sl=tp.slice(i-19,i+1),m=sl.reduce((a,b)=>a+b)/20,md=sl.reduce((a,b)=>a+Math.abs(b-m),0)/20;return(tp[i]-m)/(0.015*(md||1e-10));})};},
+  AROON:(d)=>{
+    const period=25;
+    const up=d.map((_,i)=>{if(i<period)return null;const sl=d.slice(i-period,i+1),mi=sl.reduce((mi,x,j)=>x.high>sl[mi].high?j:mi,0);return(mi/period)*100;});
+    const dn=d.map((_,i)=>{if(i<period)return null;const sl=d.slice(i-period,i+1),mi=sl.reduce((mi,x,j)=>x.low<sl[mi].low?j:mi,0);return(mi/period)*100;});
+    return{up,dn,osc:up.map((v,i)=>v!=null&&dn[i]!=null?v-dn[i]:null)};
+  },
+  FORCE:(d)=>{const fi=d.map((x,i)=>i===0?null:(x.close-d[i-1].close)*x.volume);return{force:ema(fi,13)};},
+  TRIX:(d)=>{const c=d.map(x=>x.close),e1=ema(c,15),e2=ema(e1,15),e3=ema(e2,15);const trix=e3.map((v,i)=>v&&e3[i-1]?((v-e3[i-1])/e3[i-1])*100:null);return{trix,signal:sma(trix,9)};},
+  TSI:(d)=>{
+    const c=d.map(x=>x.close),pc=c.map((v,i)=>i===0?null:v-c[i-1]),apc=pc.map(v=>v==null?null:Math.abs(v));
+    const e25_13=ema(ema(pc,25),13),ae25_13=ema(ema(apc,25),13);
+    const tsi=e25_13.map((v,i)=>v&&ae25_13[i]?(v/ae25_13[i])*100:null);
+    return{tsi,signal:ema(tsi,7)};
+  },
+  RSI:(d)=>{
+    const c=d.map(x=>x.close),gains=[],losses=[];
+    for(let i=1;i<c.length;i++){const diff=c[i]-c[i-1];gains.push(diff>0?diff:0);losses.push(diff<0?-diff:0);}
+    const rsi=[null];let ag=gains.slice(0,14).reduce((a,b)=>a+b,0)/14,al=losses.slice(0,14).reduce((a,b)=>a+b,0)/14;
+    rsi.push(...new Array(13).fill(null));rsi.push(100-100/(1+ag/(al||1e-10)));
+    for(let i=14;i<gains.length;i++){ag=(ag*13+gains[i])/14;al=(al*13+losses[i])/14;rsi.push(100-100/(1+ag/(al||1e-10)));}
+    return{rsi};
+  },
+  SMI:(d)=>{
+    const n=d.length,period=13,sk=25,sd=3,D=[],Ds=[];
+    for(let i=0;i<n;i++){if(i<period-1){D.push(null);Ds.push(null);continue;}const hh=Math.max(...d.slice(i-period+1,i+1).map(x=>x.high)),ll=Math.min(...d.slice(i-period+1,i+1).map(x=>x.low));D.push(d[i].close-(hh+ll)/2);Ds.push(hh-ll);}
+    const d2=ema(ema(D,sk),sk),ds2=ema(ema(Ds,sk),sk);
+    const smi=d2.map((v,i)=>v!=null&&ds2[i]?(v/(ds2[i]/2))*100:null);
+    return{smi,signal:ema(smi,sd)};
+  },
+  STOCHRSI:(d)=>{
+    const rsi=CALC.RSI(d).rsi;
+    const srsi=rsi.map((_,i)=>{if(i<27)return null;const sl=rsi.slice(i-13,i+1).filter(v=>v!=null),mn=Math.min(...sl),mx=Math.max(...sl);return mx===mn?50:((rsi[i]-mn)/(mx-mn))*100;});
+    return{k:srsi,d:sma(srsi,3)};
+  },
+  STOCH:(d)=>{
+    const K=d.map((_,i)=>{if(i<13)return null;const sl=d.slice(i-13,i+1),hh=Math.max(...sl.map(x=>x.high)),ll=Math.min(...sl.map(x=>x.low));return hh===ll?50:((d[i].close-ll)/(hh-ll))*100;});
+    return{k:K,d:sma(K,3)};
+  },
+  SLOWSTOCH:(d)=>{
+    const K=d.map((_,i)=>{if(i<13)return null;const sl=d.slice(i-13,i+1),hh=Math.max(...sl.map(x=>x.high)),ll=Math.min(...sl.map(x=>x.low));return hh===ll?50:((d[i].close-ll)/(hh-ll))*100;});
+    const slowK=sma(K,3);return{k:slowK,d:sma(slowK,3)};
+  },
+  CMO:(d)=>{const c=d.map(x=>x.close);return{cmo:c.map((_,i)=>{if(i<14)return null;let up=0,dn=0;for(let j=i-13;j<=i;j++){const diff=c[j]-c[j-1];if(diff>0)up+=diff;else dn-=diff;}return((up-dn)/((up+dn)||1e-10))*100;})};},
+  DMI_DYN:(d)=>{
+    const c=d.map(x=>x.close),sd=stdev(c,10);
+    const dmi=c.map((_,i)=>{
+      if(i<15)return null;const vol=sd[i]||1,rsiLen=Math.max(3,Math.min(30,Math.round(14/vol)));
+      if(i<rsiLen)return null;let ag=0,al=0;
+      for(let j=i-rsiLen+1;j<=i;j++){const diff=c[j]-c[j-1];if(diff>0)ag+=diff;else al-=diff;}
+      ag/=rsiLen;al/=rsiLen;return 100-100/(1+ag/(al||1e-10));
+    });
+    return{dmi};
+  },
+  MASS:(d)=>{
+    const hl=d.map(x=>x.high-x.low),e1=ema(hl,9),e2=ema(e1,9);
+    const ratio=e1.map((v,i)=>v&&e2[i]?v/e2[i]:null);
+    return{mass:ratio.map((_,i)=>{if(i<24)return null;return ratio.slice(i-24,i+1).reduce((a,b)=>a+(b||0),0);})};
+  },
+  DISPARITY:(d)=>{const c=d.map(x=>x.close),ma=sma(c,20);return{disp:c.map((v,i)=>ma[i]?(v/ma[i])*100:null)};},
+  CHAIKIN_OSC:(d)=>{
+    let cum=0;const adlCum=d.map(x=>{const mfm=x.high===x.low?0:((x.close-x.low)-(x.high-x.close))/(x.high-x.low);cum+=mfm*x.volume;return cum;});
+    const e3=ema(adlCum,3),e10=ema(adlCum,10);
+    return{osc:e3.map((v,i)=>v&&e10[i]?v-e10[i]:null)};
+  },
+  MOM:(d)=>{const c=d.map(x=>x.close);return{mom:c.map((v,i)=>i>=12?v-c[i-12]:null)};},
+  WILLR:(d)=>{return{wr:d.map((_,i)=>{if(i<13)return null;const sl=d.slice(i-13,i+1),hh=Math.max(...sl.map(x=>x.high)),ll=Math.min(...sl.map(x=>x.low));return hh===ll?-50:((hh-d[i].close)/(hh-ll))*-100;})};},
+  ATR:(d)=>{const tr=d.map((x,i)=>i===0?x.high-x.low:Math.max(x.high-x.low,Math.abs(x.high-d[i-1].close),Math.abs(x.low-d[i-1].close)));return{atr:sma(tr,14)};},
+  BBW:(d)=>{const c=d.map(x=>x.close),mid=sma(c,20),sd=stdev(c,20);return{bbw:mid.map((v,i)=>v&&sd[i]?(sd[i]*4)/v*100:null)};},
+  RVI:(d)=>{
+    const c=d.map(x=>x.close),sd=stdev(c,10);
+    const upSd=sd.map((v,i)=>c[i]>c[i-1]?v||0:0),dnSd=sd.map((v,i)=>c[i]<=c[i-1]?v||0:0);
+    const eu=ema(upSd,14),ed=ema(dnSd,14);
+    return{rvi:eu.map((v,i)=>v!=null&&ed[i]!=null?(v/((v+ed[i])||1))*100:null)};
+  },
+  INERTIA:(d)=>{
+    const c=d.map(x=>x.close);
+    const lrv=c.map((_,i)=>{if(i<19)return null;const sl=c.slice(i-19,i+1),n=sl.length,sx=n*(n-1)/2,sy=sl.reduce((a,b)=>a+b,0),sx2=sl.reduce((a,_,j)=>a+j*j,0),sxy=sl.reduce((a,b,j)=>a+j*b,0),slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1),intercept=(sy-slope*sx)/n;return intercept+slope*(n-1);});
+    return{inertia:ema(lrv,14)};
+  },
+  CHAIKIN_VOL:(d)=>{const hl=d.map(x=>x.high-x.low),e=ema(hl,10);return{cv:e.map((v,i)=>i>=10&&e[i-10]?((v-e[i-10])/e[i-10])*100:null)};},
+  VOLUME:(d)=>{return{vol:d.map(x=>x.volume)};},
+  OBV:(d)=>{let obv=0;return{obv:d.map((x,i)=>{if(i>0)obv+=x.close>d[i-1].close?x.volume:x.close<d[i-1].close?-x.volume:0;return obv;})};},
+  CMF:(d)=>{
+    const mfv=d.map(x=>{const mfm=x.high===x.low?0:((x.close-x.low)-(x.high-x.close))/(x.high-x.low);return mfm*x.volume;});
+    return{cmf:mfv.map((_,i)=>{if(i<19)return null;const sm=mfv.slice(i-19,i+1).reduce((a,b)=>a+b,0),sv=d.slice(i-19,i+1).reduce((a,b)=>a+b.volume,0);return sm/(sv||1);})};
+  },
+  MFI:(d)=>{
+    const tp=d.map(x=>(x.high+x.low+x.close)/3);
+    return{mfi:tp.map((_,i)=>{if(i<14)return null;let pos=0,neg=0;for(let j=i-13;j<=i;j++){const mf=tp[j]*d[j].volume;if(j>0&&tp[j]>tp[j-1])pos+=mf;else neg+=mf;}return 100-100/(1+pos/(neg||1e-10));})};
+  },
+  PVT:(d)=>{let pvt=0;return{pvt:d.map((x,i)=>{if(i>0)pvt+=((x.close-d[i-1].close)/(d[i-1].close||1))*x.volume;return pvt;})};},
+  WILLIAMS_AD:(d)=>{let ad=0;return{wad:d.map((x,i)=>{if(i>0){const pc=d[i-1].close,th=Math.max(x.high,pc),tl=Math.min(x.low,pc);if(x.close>pc)ad+=x.close-tl;else if(x.close<pc)ad+=x.close-th;}return ad;})};},
+};
+
+// 지표 설정
+const IND_CFG = {
+  MACD:{color:C.accent,lines:[0]},
+  ADX:{color:C.green,range:[0,100],lines:[25]},
+  CCI:{color:C.orange,lines:[100,0,-100]},
+  AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
+  FORCE:{color:C.pink,lines:[0]},
+  TRIX:{color:C.lime,lines:[0]},
+  TSI:{color:C.teal,lines:[25,0,-25]},
+  RSI:{color:C.green,range:[0,100],lines:[70,50,30]},
+  SMI:{color:C.yellow,range:[-100,100],lines:[40,0,-40]},
+  STOCHRSI:{color:C.purple,range:[0,100],lines:[80,50,20]},
+  STOCH:{color:C.cyan,range:[0,100],lines:[80,50,20]},
+  SLOWSTOCH:{color:C.pink,range:[0,100],lines:[80,50,20]},
+  CMO:{color:C.orange,lines:[50,0,-50]},
+  DMI_DYN:{color:C.lime,range:[0,100],lines:[70,30]},
+  MASS:{color:C.teal,lines:[27,26.5]},
+  DISPARITY:{color:C.accent,lines:[105,100,95]},
+  CHAIKIN_OSC:{color:C.pink,lines:[0]},
+  MOM:{color:C.green,lines:[0]},
+  WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
+  ATR:{color:C.orange},
+  BBW:{color:C.cyan},
+  RVI:{color:C.purple,range:[0,100],lines:[50]},
+  INERTIA:{color:C.lime,lines:[50]},
+  CHAIKIN_VOL:{color:C.teal,lines:[0]},
+  VOLUME:{color:C.muted},
+  OBV:{color:C.cyan},
+  CMF:{color:C.pink,lines:[0]},
+  MFI:{color:C.lime,range:[0,100],lines:[80,50,20]},
+  PVT:{color:C.teal},
+  WILLIAMS_AD:{color:C.accent},
+};
+
+// ══════════════════════════════════════
+// 앱 상태
+// ══════════════════════════════════════
+let state = {
+  stock: STOCKS[0],
+  data: [],
+  period: 66,
+  range: [0, 66],
+  overlays: {MA:true, BB:false, ICHIMOKU:false, PSAR:false, DEMA:false, VIDYA:false},
+  selected: {VOLUME:true, MACD:true, RSI:true},
+  hoverIdx: -1,
+};
+
+// ══════════════════════════════════════
+// 초기화
+// ══════════════════════════════════════
+// ══════════════════════════════════════
+// 사이드바 토글
+// ══════════════════════════════════════
+let sidebarOpen = false; // 기본값: 닫힘
+
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  const sb = document.getElementById('sidebar');
+  const tb = document.getElementById('toggle-btn');
+  const stb = document.getElementById('sidebar-toggle-btn');
+  if (sidebarOpen) {
+    sb.classList.remove('collapsed');
+    tb.textContent = '‹';
+    tb.style.left = '156px';
+    if (stb) stb.style.color = '#58a6ff';
+  } else {
+    sb.classList.add('collapsed');
+    tb.textContent = '›';
+    tb.style.left = '0';
+    if (stb) stb.style.color = '#8b949e';
+  }
+  // 챠트 다시 그리기 (레이아웃 변경 후)
+  setTimeout(() => renderAll(), 250);
+}
+
+function init() {
+  // 초기 사이드바 닫힘
+  document.getElementById('sidebar').classList.add('collapsed');
+  document.getElementById('toggle-btn').style.left = '0';
+
+  // URL 파라미터로 종목 자동 로드
+  // 예: kg-chart.html?code=005930&name=삼성전자
+  const params = new URLSearchParams(location.search);
+  const urlCode = params.get('code');
+  const urlName = params.get('name');
+  if (urlCode) {
+    const stock = { code: urlCode, name: urlName || urlCode, price: 50000 };
+    // 미국 주식이면 yahooSym 그대로
+    if (!/^\d{6}$/.test(urlCode) && urlCode !== 'KOSPI' && urlCode !== 'KOSDAQ') {
+      stock.yahooSym = urlCode;
+    }
+    loadStock(stock);
+  } else {
+    loadStock(state.stock);
+  }
+  setupSidebar();
+  setupHeader();
+  setupSearch();
+}
+
+// ══════════════════════════════════════
+// 실제 데이터 로드 (Worker → 야후 파이낸스)
+// ══════════════════════════════════════
+const WORKER = 'https://quote.kghwang1.workers.dev';
+
+// 종목코드 → 야후 심볼 변환
+function toYahooSymbol(stock) {
+  if (stock.yahooSym) return stock.yahooSym; // 미국주식 직접 지정
+  const code = stock.code;
+  if (code === 'KOSPI')  return '^KS11';
+  if (code === 'KOSDAQ') return '^KQ11';
+  if (/^\d{6}$/.test(code)) return code + '.KS';
+  return code; // 그 외 그대로 (미국 티커 등)
+}
+
+// 기간 → 야후 range 문자열
+function toYahooRange(period) {
+  if (period <= 22)  return '1mo';
+  if (period <= 66)  return '3mo';
+  if (period <= 130) return '6mo';
+  return '1y';
+}
+
+// Worker에서 OHLCV 데이터 가져오기
+async function fetchReal(stock) {
+  const sym = toYahooSymbol(stock);
+  const range = toYahooRange(state.period);
+  const url = `${WORKER}/?yahooChart=${encodeURIComponent(sym)}&range=${range}`;
+  try {
+    const res = await fetch(url);
+    const json = await res.json();
+    if (json.ok && json.ohlcv && json.ohlcv.length) return json.ohlcv;
+  } catch(e) {
+    console.error('fetchReal error:', e);
+  }
+  return null;
+}
+
+// 로딩 표시
+function showLoading(msg) {
+  const canvas = document.getElementById('candle-canvas');
+  const wrap = document.getElementById('candle-wrap');
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#161b22'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#58a6ff'; ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(msg, W/2, H/2);
+}
+
+async function loadStock(stock) {
+  state.stock = stock;
+  // 검색창에 선택된 종목명 표시
+  const inp = document.getElementById('search-input');
+  inp.value = stock.name + (stock.code !== stock.name ? '  ' + stock.code : '');
+  showLoading('📡 데이터 로딩중...');
+
+  // 실제 데이터 시도
+  let realData = null;
+  try {
+    realData = await fetchReal(stock);
+  } catch(e) {}
+
+  if (realData && realData.length >= 5) {
+    state.data = realData;
+    state.isReal = true;
+  } else {
+    // 실패시 더미 데이터로 폴백
+    state.data = genDummy(200, stock.price);
+    state.isReal = false;
+    showMsg('⚠️ 실제 데이터 로드 실패 — 더미 데이터로 표시합니다', 3000);
+  }
+
+  state.range = [Math.max(0, state.data.length - state.period), state.data.length];
+  renderAll();
+}
+
+function showMsg(msg, ms) {
+  let el = document.getElementById('toast-msg');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast-msg';
+    el.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#1c2128;color:#e6edf3;border:1px solid #21262d;padding:8px 16px;border-radius:6px;font-size:12px;z-index:999;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg; el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, ms || 3000);
+}
+
+function setupHeader() {
+  document.querySelectorAll('.period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.period = parseInt(btn.dataset.period);
+      state.range = [Math.max(0, state.data.length - state.period), state.data.length];
+      document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderAll();
+    });
+  });
+}
+
+function setupSearch() {
+  const input = document.getElementById('search-input');
+  const dropdown = document.getElementById('stock-dropdown');
+  let searchTimer = null;
+
+  // 드롭다운 항목 클릭 처리
+  function bindItems() {
+    dropdown.querySelectorAll('.stock-item').forEach(item => {
+      item.addEventListener('mousedown', () => {
+        const code = item.dataset.code;
+        const name = item.dataset.name;
+        const yahoo = item.dataset.yahoo;
+        if (code && name) {
+          loadStock({ code, name, price: 50000, yahooSym: yahoo || null });
+          input.value = '';
+          dropdown.style.display = 'none';
+        }
+      });
+    });
+  }
+
+  // 기본 종목 목록 표시
+  function showDefault() {
+    dropdown.innerHTML = STOCKS.map(s =>
+      `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
+        <span>${s.name}</span><span class="stock-code">${s.code}</span>
+      </div>`
+    ).join('');
+    dropdown.style.display = 'block';
+    bindItems();
+  }
+
+  // 네이버 실시간 검색
+  async function searchNaver(q) {
+    dropdown.innerHTML = '<div style="padding:8px 10px;color:#8b949e;font-size:11px">🔍 검색중...</div>';
+    dropdown.style.display = 'block';
+    try {
+      const res = await fetch(`${WORKER}/?find=${encodeURIComponent(q)}`);
+      const json = await res.json();
+      if (json.ok && json.items && json.items.length) {
+        dropdown.innerHTML = json.items.map(s =>
+          `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
+            <span>${s.name}</span><span class="stock-code">${s.code}</span>
+          </div>`
+        ).join('');
+        bindItems();
+      } else {
+        // 검색 결과 없으면 미국주식으로 시도
+        dropdown.innerHTML = `
+          <div class="stock-item" data-code="${q.toUpperCase()}" data-name="${q.toUpperCase()}" data-yahoo="${q.toUpperCase()}">
+            <span>${q.toUpperCase()}</span>
+            <span class="stock-code">미국주식</span>
+          </div>
+          <div style="padding:6px 10px;color:#8b949e;font-size:10px">한국 종목을 찾지 못했습니다</div>`;
+        bindItems();
+      }
+    } catch(e) {
+      // 오류시 기본 목록 필터링
+      const filtered = STOCKS.filter(s => s.name.includes(q) || s.code.includes(q));
+      if (filtered.length) {
+        dropdown.innerHTML = filtered.map(s =>
+          `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
+            <span>${s.name}</span><span class="stock-code">${s.code}</span>
+          </div>`
+        ).join('');
+        bindItems();
+      } else {
+        dropdown.innerHTML = '<div style="padding:8px 10px;color:#8b949e;font-size:11px">검색 실패</div>';
+      }
+    }
+  }
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    clearTimeout(searchTimer);
+    if (!q) { showDefault(); return; }
+    // 300ms 디바운스
+    searchTimer = setTimeout(() => searchNaver(q), 300);
+  });
+
+  input.addEventListener('focus', () => {
+    const q = input.value.trim();
+    if (!q) showDefault(); else searchNaver(q);
+  });
+
+  input.addEventListener('blur', () => {
+    setTimeout(() => { dropdown.style.display = 'none'; }, 200);
+  });
+
+  // 엔터키로 직접 입력
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const q = input.value.trim();
+      if (!q) return;
+      // 6자리 숫자면 한국 종목코드
+      if (/^\d{6}$/.test(q)) {
+        loadStock({ code: q, name: q, price: 50000 });
+      } else {
+        // 그 외는 미국 주식 티커로 처리
+        loadStock({ code: q.toUpperCase(), name: q.toUpperCase(), price: 100, yahooSym: q.toUpperCase() });
+      }
+      input.value = '';
+      dropdown.style.display = 'none';
+    }
+  });
+}
+
+function setupSidebar() {
+  document.querySelectorAll('.ind-label').forEach(label => {
+    const key = label.dataset.key;
+    const cb = label.querySelector('input');
+    const span = label.querySelector('span');
+    const col = getComputedStyle(label).getPropertyValue('--col').trim();
+    if (cb.checked) { label.classList.add('active'); span.style.color = col; }
+    cb.addEventListener('change', () => {
+      if (CALC[key]) {
+        state.selected[key] = cb.checked;
+      } else {
+        state.overlays[key] = cb.checked;
+      }
+      if (cb.checked) { label.classList.add('active'); span.style.color = col; }
+      else { label.classList.remove('active'); span.style.color = ''; }
+      renderAll();
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// 캔들 렌더러
+// ══════════════════════════════════════
+function drawCandle() {
+  const canvas = document.getElementById('candle-canvas');
+  const wrap = document.getElementById('candle-wrap');
+  canvas.style.width = '100%'; canvas.style.height = '100%';
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const {data, range, overlays} = state;
+  if (!data.length) return;
+  const slice = data.slice(...range);
+  const PAD = {l:70, r:8, t:10, b:22};
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+
+  let maxP = Math.max(...slice.map(d => d.high));
+  let minP = Math.min(...slice.map(d => d.low));
+
+  if (overlays.BB) {
+    const bb = CALC.BB(data);
+    const u = bb.upper.slice(...range).filter(Boolean), l = bb.lower.slice(...range).filter(Boolean);
+    if (u.length) maxP = Math.max(maxP, ...u);
+    if (l.length) minP = Math.min(minP, ...l);
+  }
+  if (overlays.ICHIMOKU) {
+    const ich = CALC.ICHIMOKU(data);
+    ['senkouA','senkouB'].forEach(k => {
+      const v = ich[k].slice(...range).filter(Boolean);
+      if (v.length) { maxP = Math.max(maxP, ...v); minP = Math.min(minP, ...v); }
+    });
+  }
+
+  const pad = (maxP - minP) * 0.04;
+  maxP += pad; minP -= pad;
+  const xOf = i => PAD.l + (i + 0.5) * (cw / slice.length);
+  const yOf = v => PAD.t + ch - ((v - minP) / (maxP - minP)) * ch;
+  const bw = Math.max(1, cw / slice.length * 0.55);
+
+  ctx.fillStyle = C.panel; ctx.fillRect(0, 0, W, H);
+
+  // 격자
+  for (let i = 0; i <= 5; i++) {
+    const y = PAD.t + (ch / 5) * i;
+    ctx.strokeStyle = C.border; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+    const v = maxP - ((maxP - minP) / 5) * i;
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(1), PAD.l - 3, y + 3);
+  }
+
+  // 일목균형표 구름
+  if (overlays.ICHIMOKU) {
+    const ich = CALC.ICHIMOKU(data);
+    const sa = ich.senkouA.slice(...range), sb = ich.senkouB.slice(...range);
+    const ten = ich.tenkan.slice(...range), kij = ich.kijun.slice(...range);
+    for (let i = 0; i < slice.length - 1; i++) {
+      if (!sa[i] || !sb[i]) continue;
+      ctx.beginPath();
+      ctx.moveTo(xOf(i), yOf(sa[i])); ctx.lineTo(xOf(i+1), yOf(sa[i+1]||sa[i]));
+      ctx.lineTo(xOf(i+1), yOf(sb[i+1]||sb[i])); ctx.lineTo(xOf(i), yOf(sb[i]));
+      ctx.closePath();
+      ctx.fillStyle = sa[i] > sb[i] ? '#3fb95022' : '#ef535022'; ctx.fill();
+    }
+    const drawL = (arr, col, w) => {
+      const sl = arr.slice(...range);
+      ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); let s = false;
+      sl.forEach((v, i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
+    };
+    drawL(ich.tenkan, '#ef5350', 1); drawL(ich.kijun, '#1976d2', 1.5);
+    drawL(ich.senkouA, '#3fb950', 0.8); drawL(ich.senkouB, '#bc8cff', 0.8);
+  }
+
+  // BB
+  if (overlays.BB) {
+    const bb = CALC.BB(data);
+    ['upper','mid','lower'].forEach((k, ki) => {
+      const sl = bb[k].slice(...range);
+      ctx.strokeStyle = ki===1 ? '#ff980066' : '#39d35366';
+      ctx.lineWidth = ki===1 ? 1 : 0.8; ctx.setLineDash(ki===1 ? [4,4] : []);
+      ctx.beginPath(); let s = false;
+      sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
+      ctx.stroke(); ctx.setLineDash([]);
+    });
+  }
+
+  // MA
+  if (overlays.MA) {
+    const ma = CALC.MA(data);
+    const cols = {ma5:'#ef5350cc', ma20:'#f59e0bcc', ma60:'#3fb950cc', ma120:'#58a6ffcc'};
+    const labels = {ma5:'5', ma20:'20', ma60:'60', ma120:'120'};
+    Object.entries(cols).forEach(([k, col]) => {
+      const sl = ma[k].slice(...range);
+      ctx.strokeStyle = col; ctx.lineWidth = 1;
+      ctx.beginPath(); let s = false;
+      sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
+      ctx.stroke();
+    });
+    let lx = PAD.l + 4;
+    Object.entries(cols).forEach(([k, col]) => {
+      ctx.fillStyle = col; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('MA' + labels[k], lx, PAD.t + 11); lx += 30;
+    });
+  }
+
+  // DEMA
+  if (overlays.DEMA) {
+    const r = CALC.DEMA(data); const sl = r.dema.slice(...range);
+    ctx.strokeStyle = C.lime; ctx.lineWidth = 1.2; ctx.beginPath(); let s = false;
+    sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
+  }
+
+  // VIDYA
+  if (overlays.VIDYA) {
+    const r = CALC.VIDYA(data); const sl = r.vidya.slice(...range);
+    ctx.strokeStyle = C.teal; ctx.lineWidth = 1.2; ctx.beginPath(); let s = false;
+    sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
+  }
+
+  // PSAR
+  if (overlays.PSAR) {
+    const r = CALC.PSAR(data); const sl = r.psar.slice(...range);
+    sl.forEach((v, i) => {
+      if (!v) return;
+      ctx.fillStyle = v > slice[i].close ? C.down : C.up;
+      ctx.beginPath(); ctx.arc(xOf(i), yOf(v), 2, 0, Math.PI*2); ctx.fill();
+    });
+  }
+
+  // 캔들
+  slice.forEach((d, i) => {
+    const x = xOf(i), isUp = d.close >= d.open, col = isUp ? C.up : C.down;
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, yOf(d.high)); ctx.lineTo(x, yOf(d.low)); ctx.stroke();
+    const y1 = yOf(Math.max(d.open, d.close)), bodyH = Math.max(1, yOf(Math.min(d.open, d.close)) - y1);
+    isUp ? ctx.fillRect(x - bw/2, y1, bw, bodyH) : ctx.strokeRect(x - bw/2, y1, bw, bodyH);
+  });
+
+  // 호버 수직선
+  if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
+    ctx.strokeStyle = '#ffffff33'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+  }
+
+  // X축
+  const step = Math.ceil(slice.length / 8);
+  ctx.fillStyle = C.muted; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  slice.forEach((d, i) => { if (i % step === 0) ctx.fillText(d.date.slice(5), xOf(i), H - 6); });
+
+  // 종목명 우상단 표시
+  const stockName = state.stock ? state.stock.name : '';
+  const stockCode = state.stock ? state.stock.code : '';
+  const label = stockName === stockCode ? stockName : stockName + '  ' + stockCode;
+  if (label) {
+    ctx.textAlign = 'right';
+    // 배경 박스
+    const fSize = 13;
+    ctx.font = `bold ${fSize}px 'Noto Sans KR', monospace`;
+    const tw = ctx.measureText(label).width;
+    const bx = W - PAD.r - tw - 8, by = PAD.t + 4;
+    const bw2 = tw + 14, bh = fSize + 8;
+    ctx.fillStyle = '#0d111799';
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx - 2, by - 1, bw2, bh, 4) : ctx.rect(bx - 2, by - 1, bw2, bh);
+    ctx.fill();
+    // 텍스트
+    ctx.fillStyle = '#e6edf3cc';
+    ctx.fillText(label, W - PAD.r - 4, by + fSize);
+  }
+}
+
+// ══════════════════════════════════════
+// 보조지표 렌더러
+// ══════════════════════════════════════
+function drawSub(canvas, key) {
+  if (!canvas || !state.data.length) return;
+  const cfg = IND_CFG[key];
+  const result = CALC[key](state.data);
+  const vals = Object.values(result).map(arr => arr.slice(...state.range));
+  const n = state.range[1] - state.range[0];
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.parentElement.clientWidth, H = canvas.parentElement.clientHeight;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = C.panel2; ctx.fillRect(0, 0, W, H);
+
+  const PAD = {l:70, r:8, t:6, b:4};
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const allVals = vals.flat().filter(v => v != null);
+  if (!allVals.length) return;
+
+  let minV = cfg.range ? cfg.range[0] : Math.min(...allVals);
+  let maxV = cfg.range ? cfg.range[1] : Math.max(...allVals);
+  if (!cfg.range) { const p = (maxV - minV) * 0.1; minV -= p; maxV += p; }
+  if (minV === maxV) { minV -= 1; maxV += 1; }
+
+  const xOf = i => PAD.l + (i + 0.5) * (cw / n);
+  const yOf = v => PAD.t + ch - ((v - minV) / (maxV - minV)) * ch;
+
+  // 기준선
+  (cfg.lines || []).forEach(lv => {
+    if (lv < minV || lv > maxV) return;
+    ctx.strokeStyle = lv === 0 ? '#37415199' : C.border;
+    ctx.lineWidth = lv === 0 ? 1 : 0.5; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, yOf(lv)); ctx.lineTo(W - PAD.r, yOf(lv)); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = C.muted; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+    ctx.fillText(lv, PAD.l - 3, yOf(lv) + 3);
+  });
+
+  const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+
+  vals.forEach((arr, vi) => {
+    if (key === 'VOLUME') {
+      const maxV2 = Math.max(...arr.filter(Boolean));
+      arr.forEach((v, i) => {
+        if (!v) return;
+        const barH = (v / maxV2) * ch, bw = Math.max(1, cw / n * 0.55);
+        const d = state.data[state.range[0] + i];
+        ctx.fillStyle = d && d.close >= d.open ? C.up + '88' : C.down + '88';
+        ctx.fillRect(xOf(i) - bw/2, PAD.t + ch - barH, bw, barH);
+      });
+      return;
+    }
+    if (key === 'MACD' && vi === 2) {
+      arr.forEach((v, i) => {
+        if (v == null) return;
+        const x = xOf(i), bw = Math.max(1, cw / n * 0.5), y0 = yOf(0), yv = yOf(v);
+        ctx.fillStyle = v >= 0 ? C.up + 'bb' : C.down + 'bb';
+        ctx.fillRect(x - bw/2, Math.min(y0, yv), bw, Math.abs(yv - y0));
+      });
+      return;
+    }
+    ctx.strokeStyle = lineColors[vi] || cfg.color; ctx.lineWidth = vi === 0 ? 1.4 : 1;
+    ctx.beginPath(); let s = false;
+    arr.forEach((v, i) => { if (v == null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
+    ctx.stroke();
+  });
+
+  // 호버 수직선
+  if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+    ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+  }
+
+  // 레이블
+  const lastName = {MACD:'MACD', ADX:'ADX', CCI:'CCI', AROON:'Aroon', FORCE:'Force', TRIX:'TRIX', TSI:'TSI',
+    RSI:'RSI', SMI:'SMI', STOCHRSI:'StochRSI', STOCH:'Stoch Fast', SLOWSTOCH:'Stoch Slow',
+    CMO:'CMO', DMI_DYN:'Dyn MI', MASS:'Mass Index', DISPARITY:'이격도', CHAIKIN_OSC:'차이킨Osc',
+    MOM:'모멘텀', WILLR:'Will%R', ATR:'ATR', BBW:'BB폭', RVI:'RVI', INERTIA:'Inertia',
+    CHAIKIN_VOL:'차이킨Vol', VOLUME:'거래량', OBV:'OBV', CMF:'CMF', MFI:'MFI', PVT:'PVT', WILLIAMS_AD:'Williams AD'};
+  const lastVal = vals[0].filter(v => v != null).slice(-1)[0];
+  ctx.fillStyle = cfg.color; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(`${lastName[key] || key}  ${lastVal != null ? lastVal.toFixed(1) : ''}`, PAD.l + 4, PAD.t + 11);
+  ctx.fillStyle = C.muted; ctx.textAlign = 'right';
+  ctx.fillText(maxV.toFixed(0), PAD.l - 3, PAD.t + 10);
+  ctx.fillText(minV.toFixed(0), PAD.l - 3, PAD.t + ch);
+}
+
+// ══════════════════════════════════════
+// 전체 렌더
+// ══════════════════════════════════════
+function renderAll() {
+  const activeKeys = Object.keys(state.selected).filter(k => state.selected[k]);
+  const chartArea = document.getElementById('chart-area');
+
+  // 기존 보조지표 패널 제거
+  chartArea.querySelectorAll('.sub-wrap').forEach(el => el.remove());
+
+  // 보조지표 패널 생성 (스크롤로 모두 표시)
+  activeKeys.forEach(key => {
+    const wrap = document.createElement('div');
+    wrap.className = 'sub-wrap';
+    const canvas = document.createElement('canvas');
+    canvas.className = 'sub-canvas';
+    canvas.style.width = '100%'; canvas.style.height = '100%';
+    wrap.appendChild(canvas);
+    chartArea.appendChild(wrap);
+    setTimeout(() => drawSub(canvas, key), 0);
+  });
+
+  // OHLC 정보 업데이트
+  updateOHLC();
+
+  // 캔들 그리기
+  drawCandle();
+
+  // 마우스 이벤트
+  setupMouseEvent();
+}
+
+function updateOHLC(d) {
+  const slice = state.data.slice(...state.range);
+  const last = d || slice[slice.length - 1];
+  if (!last) return;
+  const el = document.getElementById.bind(document);
+  el('info-close').textContent = last.close.toLocaleString();
+  el('info-close').style.color = last.close >= last.open ? '#ef5350' : '#1976d2';
+  el('info-open').textContent = last.open.toLocaleString();
+  el('info-high').textContent = last.high.toLocaleString();
+  el('info-low').textContent = last.low.toLocaleString();
+  // 날짜는 1줄 헤더에 표시
+  const dateEl = el('header-date');
+  if (dateEl) dateEl.textContent = last.date;
+}
+
+function setupMouseEvent() {
+  const canvas = document.getElementById('candle-canvas');
+  let dragStartX = null, dragStartRange = null, isDragging = false;
+  const n = () => state.range[1] - state.range[0];
+  const PAD_L = 70, PAD_R = 8;
+
+  function getIdx(clientX) {
+    const rect = canvas.getBoundingClientRect();
+    const cw = rect.width - PAD_L - PAD_R;
+    return Math.round((clientX - rect.left - PAD_L) / (cw / n()) - 0.5);
+  }
+
+  function shiftRange(deltaIdx) {
+    const total = state.data.length;
+    const len = n();
+    let s = dragStartRange[0] - deltaIdx;
+    let e = dragStartRange[1] - deltaIdx;
+    if (s < 0) { e -= s; s = 0; }
+    if (e > total) { s -= (e - total); e = total; }
+    s = Math.max(0, s); e = Math.min(total, e);
+    state.range = [s, e];
+  }
+
+  function redrawAll() {
+    drawCandle();
+    document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
+      const key = Object.keys(state.selected).filter(k => state.selected[k])[i];
+      if (key) drawSub(cv, key);
+    });
+  }
+
+  // ── 마우스 ──
+  canvas.onmousedown = (e) => {
+    dragStartX = e.clientX;
+    dragStartRange = [...state.range];
+    isDragging = false;
+    canvas.style.cursor = 'grabbing';
+  };
+
+  canvas.onmousemove = (e) => {
+    if (dragStartX !== null) {
+      const rect = canvas.getBoundingClientRect();
+      const cw = rect.width - PAD_L - PAD_R;
+      const pxPerBar = cw / n();
+      const deltaPx = e.clientX - dragStartX;
+      const deltaIdx = Math.round(deltaPx / pxPerBar);
+      if (Math.abs(deltaPx) > 4) {
+        isDragging = true;
+        state.hoverIdx = -1;
+        shiftRange(deltaIdx);
+        redrawAll();
+        return;
+      }
+    }
+    if (!isDragging) {
+      const idx = getIdx(e.clientX);
+      if (idx >= 0 && idx < n()) {
+        state.hoverIdx = idx;
+        updateOHLC(state.data[state.range[0] + idx]);
+        drawCandle();
+        document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
+          const key = Object.keys(state.selected).filter(k => state.selected[k])[i];
+          if (key) drawSub(cv, key);
+        });
+      }
+    }
+  };
+
+  canvas.onmouseup = () => {
+    dragStartX = null; dragStartRange = null;
+    isDragging = false;
+    canvas.style.cursor = 'crosshair';
+  };
+
+  canvas.onmouseleave = () => {
+    if (!isDragging) {
+      state.hoverIdx = -1;
+      updateOHLC();
+      drawCandle();
+    }
+    dragStartX = null; dragStartRange = null;
+    isDragging = false;
+    canvas.style.cursor = 'crosshair';
+  };
+
+  // ── 터치 (모바일) ──
+  let touchStartX = null, touchStartRange = null;
+  canvas.ontouchstart = (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartRange = [...state.range];
+  };
+  canvas.ontouchmove = (e) => {
+    e.preventDefault();
+    if (touchStartX === null) return;
+    const rect = canvas.getBoundingClientRect();
+    const cw = rect.width - PAD_L - PAD_R;
+    const pxPerBar = cw / n();
+    const deltaPx = e.touches[0].clientX - touchStartX;
+    const deltaIdx = Math.round(deltaPx / pxPerBar);
+    dragStartRange = touchStartRange;
+    shiftRange(deltaIdx);
+    redrawAll();
+  };
+  canvas.ontouchend = () => { touchStartX = null; touchStartRange = null; };
+
+  // ── 휠 줌 ──
+  canvas.onwheel = (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const cw = rect.width - PAD_L - PAD_R;
+    const mouseRatio = Math.max(0, Math.min(1, (e.clientX - rect.left - PAD_L) / cw));
+    const len = n();
+    const delta = e.deltaY > 0 ? Math.ceil(len * 0.1) : -Math.ceil(len * 0.1);
+    const newLen = Math.max(10, Math.min(state.data.length, len + delta));
+    const anchor = Math.round(state.range[0] + len * mouseRatio);
+    let s = Math.round(anchor - newLen * mouseRatio);
+    let e2 = s + newLen;
+    if (s < 0) { e2 -= s; s = 0; }
+    if (e2 > state.data.length) { s -= (e2 - state.data.length); e2 = state.data.length; }
+    state.range = [Math.max(0, s), Math.min(state.data.length, e2)];
+    redrawAll();
+  };
+}
+
+// 리사이즈
+window.addEventListener('resize', () => renderAll());
+
+// 시작!
+init();
+</script>
+</body>
+</html>

@@ -544,6 +544,7 @@
    <div class="tab" data-t="watch">방송</div>
    <div class="tab" data-t="hub">리포트</div>
    <div class="tab" data-t="info">정보</div>
+   <div class="tab" onclick="openChart()">📈챠트</div>
   </div>
  </div>
 </header>
@@ -791,19 +792,25 @@ $$('.tab').forEach(t=>t.onclick=()=>{
 const REPORT_URL='https://finance.naver.com/research/company_list.naver';
 function loadReportEmbed(){ const f=$('#rptFrame'); if(f && (!f.src || f.src==='about:blank')) f.src=REPORT_URL; }
 /* PDF 리포트 뷰어(구글 뷰어로 임베드, 실패 시 원본 링크로 대체) */
+function setViewport(content){
+  const old=document.querySelector('meta[name="viewport"]');
+  if(old) old.parentNode.removeChild(old);
+  const m=document.createElement('meta'); m.name='viewport'; m.content=content;
+  document.head.appendChild(m);
+}
+const VP_LOCK='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+const VP_ZOOM='width=device-width, initial-scale=1.0';
 function openPdf(url, title){
   if(!url) return;
-  const frame=$('#pdfFrame'); if(frame) frame.src='https://docs.google.com/viewer?embedded=true&url='+encodeURIComponent(url);
+  const frame=$('#pdfFrame'); if(frame) frame.src=url; // 원본 PDF 직접 로드 → 크롬 기본 뷰어(핀치줌 지원)
   const t=$('#pdfTitle'); if(t) t.textContent=title||'리포트';
   const o=$('#pdfOrig'); if(o) o.href=url;
   $('#pdfFull').classList.add('on');
-  const vp=document.querySelector('meta[name="viewport"]');
-  if(vp){ vp.dataset.orig=vp.getAttribute('content'); vp.setAttribute('content','width=device-width, initial-scale=1.0'); }
+  setViewport(VP_ZOOM);
 }
 function closePdf(){
   $('#pdfFull').classList.remove('on'); const f=$('#pdfFrame'); if(f) f.src='about:blank';
-  const vp=document.querySelector('meta[name="viewport"]');
-  if(vp&&vp.dataset.orig){ vp.setAttribute('content',vp.dataset.orig); }
+  setViewport(VP_LOCK);
 }
 document.addEventListener('click', function(ev){
   const a=ev.target.closest('a.rptlink'); if(!a) return;
@@ -2164,7 +2171,12 @@ function renderKrTable(){
   });
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
-  t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
+  t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{
+    ev.preventDefault();
+    const c = a.dataset.code;
+    const nm = a.querySelector('.kn') ? a.querySelector('.kn').textContent.trim() : c;
+    if(c) openChart(c, nm);
+  }; });
   const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
   ensureReports(krCodes); ensureForeign(krCodes);
 }
@@ -2869,6 +2881,18 @@ function closeFlow(){
 }
 
 </script>
+
+
+/* ── 챠트앱 연결 ── */
+const CHART_URL = 'https://kghwang1.github.io/research/kg-chart.html';
+function openChart(code, name) {
+  let url = CHART_URL;
+  if (code) {
+    url += '?code=' + encodeURIComponent(code);
+    if (name) url += '&name=' + encodeURIComponent(name);
+  }
+  window.open(url, '_blank', 'noopener');
+}
 
 </script>
 </body>
