@@ -805,68 +805,22 @@ function setViewport(content){
 }
 const VP_LOCK='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
 const VP_ZOOM='width=device-width, initial-scale=1.0';
-// PDF 다운 후 바로 열기 (열기 묻지 않음)
-async function openPdf(url, title){
+function openPdf(url, title){
   if(!url) return;
-
-  // 토스트 메시지 표시
-  showPdfToast('📥 보고서 다운로드 중...');
-
-  try {
-    const res = await fetch(url);
-    if(!res.ok) throw new Error('fetch fail');
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-
-    // blob URL로 새 탭 열기 → 브라우저가 바로 PDF 표시 (열기 묻지 않음)
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.target = '_blank';
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // 1분 후 blob URL 해제
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-    showPdfToast('✅ 보고서 열림', 2000);
-  } catch(e) {
-    // fetch 실패시 직접 열기로 폴백
-    showPdfToast('⚠️ 직접 열기로 전환...', 2000);
-    setTimeout(() => window.open(url, '_blank', 'noopener'), 500);
-  }
+  window.open(url, '_blank', 'noopener');
 }
 function closePdf(){
   $('#pdfFull').classList.remove('on');
   const f=$('#pdfFrame'); if(f) f.src='about:blank';
   setViewport(VP_LOCK);
 }
-// 토스트 메시지
-let _pdfToastTimer = null;
-function showPdfToast(msg, ms){
-  let el = document.getElementById('pdf-toast');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'pdf-toast';
-    el.style.cssText = [
-      'position:fixed','bottom:90px','left:50%','transform:translateX(-50%)',
-      'background:#1a1e2a','color:#e8eaf0','border:1px solid #262b3a',
-      'padding:10px 20px','border-radius:10px','font-size:13px','font-weight:700',
-      'z-index:9999','pointer-events:none','transition:opacity .3s',
-      'box-shadow:0 4px 16px rgba(0,0,0,.5)'
-    ].join(';');
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.style.opacity = '1';
-  clearTimeout(_pdfToastTimer);
-  if(ms){
-    _pdfToastTimer = setTimeout(()=>{ el.style.opacity='0'; }, ms);
-  }
-}
 document.addEventListener('click', function(ev){
   const a=ev.target.closest('a.rptlink'); if(!a) return;
-  ev.preventDefault(); openPdf(a.dataset.href, a.dataset.title);
+  ev.preventDefault();
+  const url = a.dataset.href;
+  if(!url) return;
+  // 바로 새 탭으로 열기
+  window.open(url, '_blank', 'noopener');
 });
 function renderInfoCards(){
   const el=$('#infoCards'); if(!el || el._done) return; el._done=1;
@@ -2221,7 +2175,7 @@ function renderKrTable(){
     else { const rep=REPORT[code];
       if(rep===undefined) repCell='<span class="rsub">…</span>';
       else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="#" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}">${inner}</a>` : inner; }
+      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
     }
     h+='<tr>';
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
@@ -2910,7 +2864,7 @@ function renderInvest(){
     let repCell;
     if(rep===undefined) repCell='<span class="rsub">…</span>';
     else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="#" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}">${inner}</a>` : inner; }
+    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
     h+='<tr>';
     h+=`<td>${i+1}</td>`;
     h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
