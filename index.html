@@ -30,8 +30,9 @@
   .tagline{font-size:12px;color:var(--sub);margin-top:3px}
 
   /* tabs */
-  .tabs{display:flex;gap:6px;margin-top:14px}
-  .tab{flex:1;text-align:center;padding:9px 0;font-size:13px;font-weight:600;color:var(--sub);
+  .tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:14px}
+  .tabs .tab-row2{grid-column:1/6;display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
+  .tab{flex:1;text-align:center;padding:8px 0;font-size:13px;font-weight:600;color:var(--sub);
     background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:.15s}
   .tab.on{color:#0c0e14;background:var(--accent);border-color:var(--accent)}
 
@@ -541,10 +542,12 @@
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
+   <div class="tab" data-chart="1">📈챠트</div>
    <div class="tab" data-t="watch">방송</div>
-   <div class="tab" data-t="hub">리포트</div>
-   <div class="tab" data-t="info">정보</div>
-   <div class="tab" onclick="openChart()">📈챠트</div>
+   <div class="tab-row2">
+    <div class="tab" data-t="hub">리포트</div>
+    <div class="tab" data-t="info">정보</div>
+   </div>
   </div>
  </div>
 </header>
@@ -781,6 +784,8 @@ async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));
 
 /* ---------- tabs ---------- */
 $$('.tab').forEach(t=>t.onclick=()=>{
+  // 챠트 탭: 새 탭으로 열기
+  if(t.dataset.chart) { openChart(); return; }
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
