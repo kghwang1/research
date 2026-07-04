@@ -2868,7 +2868,8 @@ function renderInvest(){
     h+='<tr>';
     h+=`<td>${i+1}</td>`;
     h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
-    h+=`<td>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
+    const invLiveStyle = r.price ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
+    h+=`<td class="invlive" data-code="${r.code}" data-name="${r.name}"${invLiveStyle}>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
     h+=`<td>${roeTxt}</td>`;
     h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
     h+=`<td>${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
@@ -2878,6 +2879,13 @@ function renderInvest(){
   });
   h+='</tbody>';
   t.className='val-tbl inv-tbl'; t.innerHTML=h;
+  // 투자종목 현재가 클릭 → 챠트
+  t.querySelectorAll('td.invlive').forEach(td=>{
+    td.onclick=()=>{
+      const c=td.dataset.code, nm=td.dataset.name;
+      if(c) openChart(c, nm);
+    };
+  });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshInvest;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
