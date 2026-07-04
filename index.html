@@ -680,10 +680,10 @@
  <div class="valfull-top">
   <div class="subtab vback" onclick="closePdf()">‹ 이전</div>
   <div class="subtab" id="pdfTitle" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;cursor:default">리포트</div>
-  <a class="subtab" id="pdfOrig" href="#" target="_blank" rel="noopener">원본 열기 ↗</a>
+  <a class="subtab" id="pdfOrig" href="#" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;">원본 열기 ↗</a>
  </div>
  <div class="pdf-body"><iframe id="pdfFrame" referrerpolicy="no-referrer"></iframe></div>
- <div class="pdf-note">화면이 안 보이면 위 「원본 열기」를 눌러 PDF를 직접 열어보세요.</div>
+ <div class="pdf-note" id="pdfNote">화면이 안 보이면 위 「원본 열기」를 눌러 PDF를 직접 열어보세요.</div>
 </div>
 
 <!-- ===== REPORT MODAL ===== -->
@@ -807,14 +807,27 @@ const VP_LOCK='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-sc
 const VP_ZOOM='width=device-width, initial-scale=1.0';
 function openPdf(url, title){
   if(!url) return;
-  const frame=$('#pdfFrame'); if(frame) frame.src=url; // 원본 PDF 직접 로드 → 크롬 기본 뷰어(핀치줌 지원)
+  // 네이버 PDF는 iframe 차단됨 → 구글 문서 뷰어로 시도, 실패시 새 탭
+  const googleViewer = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
+  const frame=$('#pdfFrame');
+  if(frame){
+    frame.src = googleViewer;
+    // 5초 후에도 로드 안되면 새 탭으로 안내
+    frame._loadTimer = setTimeout(()=>{
+      const note = $('#pdfNote');
+      if(note) note.innerHTML = '⚠️ 미리보기가 안 보이면 <a href="'+url+'" target="_blank" rel="noopener" style="color:var(--accent)">여기를 눌러 PDF 직접 열기 ↗</a>';
+    }, 5000);
+    frame.onload = ()=>{ clearTimeout(frame._loadTimer); };
+  }
   const t=$('#pdfTitle'); if(t) t.textContent=title||'리포트';
-  const o=$('#pdfOrig'); if(o) o.href=url;
+  const o=$('#pdfOrig'); if(o){ o.href=url; o.onclick=ev=>{ ev.preventDefault(); window.open(url,'_blank','noopener'); }; }
   $('#pdfFull').classList.add('on');
   setViewport(VP_ZOOM);
 }
 function closePdf(){
-  $('#pdfFull').classList.remove('on'); const f=$('#pdfFrame'); if(f) f.src='about:blank';
+  $('#pdfFull').classList.remove('on');
+  const f=$('#pdfFrame'); if(f){ clearTimeout(f._loadTimer); f.src='about:blank'; }
+  const note=$('#pdfNote'); if(note) note.innerHTML='화면이 안 보이면 위 「원본 열기」를 눌러 PDF를 직접 열어보세요.';
   setViewport(VP_LOCK);
 }
 document.addEventListener('click', function(ev){
