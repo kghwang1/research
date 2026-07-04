@@ -805,30 +805,64 @@ function setViewport(content){
 }
 const VP_LOCK='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
 const VP_ZOOM='width=device-width, initial-scale=1.0';
-function openPdf(url, title){
+// PDF 다운 후 바로 열기 (열기 묻지 않음)
+async function openPdf(url, title){
   if(!url) return;
-  // 네이버 PDF는 iframe 차단됨 → 구글 문서 뷰어로 시도, 실패시 새 탭
-  const googleViewer = 'https://docs.google.com/viewer?embedded=true&url=' + encodeURIComponent(url);
-  const frame=$('#pdfFrame');
-  if(frame){
-    frame.src = googleViewer;
-    // 5초 후에도 로드 안되면 새 탭으로 안내
-    frame._loadTimer = setTimeout(()=>{
-      const note = $('#pdfNote');
-      if(note) note.innerHTML = '⚠️ 미리보기가 안 보이면 <a href="'+url+'" target="_blank" rel="noopener" style="color:var(--accent)">여기를 눌러 PDF 직접 열기 ↗</a>';
-    }, 5000);
-    frame.onload = ()=>{ clearTimeout(frame._loadTimer); };
+
+  // 토스트 메시지 표시
+  showPdfToast('📥 보고서 다운로드 중...');
+
+  try {
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('fetch fail');
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+
+    // blob URL로 새 탭 열기 → 브라우저가 바로 PDF 표시 (열기 묻지 않음)
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // 1분 후 blob URL 해제
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+    showPdfToast('✅ 보고서 열림', 2000);
+  } catch(e) {
+    // fetch 실패시 직접 열기로 폴백
+    showPdfToast('⚠️ 직접 열기로 전환...', 2000);
+    setTimeout(() => window.open(url, '_blank', 'noopener'), 500);
   }
-  const t=$('#pdfTitle'); if(t) t.textContent=title||'리포트';
-  const o=$('#pdfOrig'); if(o){ o.href=url; o.onclick=ev=>{ ev.preventDefault(); window.open(url,'_blank','noopener'); }; }
-  $('#pdfFull').classList.add('on');
-  setViewport(VP_ZOOM);
 }
 function closePdf(){
   $('#pdfFull').classList.remove('on');
-  const f=$('#pdfFrame'); if(f){ clearTimeout(f._loadTimer); f.src='about:blank'; }
-  const note=$('#pdfNote'); if(note) note.innerHTML='화면이 안 보이면 위 「원본 열기」를 눌러 PDF를 직접 열어보세요.';
+  const f=$('#pdfFrame'); if(f) f.src='about:blank';
   setViewport(VP_LOCK);
+}
+// 토스트 메시지
+let _pdfToastTimer = null;
+function showPdfToast(msg, ms){
+  let el = document.getElementById('pdf-toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'pdf-toast';
+    el.style.cssText = [
+      'position:fixed','bottom:90px','left:50%','transform:translateX(-50%)',
+      'background:#1a1e2a','color:#e8eaf0','border:1px solid #262b3a',
+      'padding:10px 20px','border-radius:10px','font-size:13px','font-weight:700',
+      'z-index:9999','pointer-events:none','transition:opacity .3s',
+      'box-shadow:0 4px 16px rgba(0,0,0,.5)'
+    ].join(';');
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(_pdfToastTimer);
+  if(ms){
+    _pdfToastTimer = setTimeout(()=>{ el.style.opacity='0'; }, ms);
+  }
 }
 document.addEventListener('click', function(ev){
   const a=ev.target.closest('a.rptlink'); if(!a) return;
