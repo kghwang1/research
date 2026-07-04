@@ -1912,7 +1912,15 @@ function renderVal(){
         if(col.kind==='edit') attr=` contenteditable data-r="${ri}" data-c="${col.c}"`;
       }
       if(col.wt) cls+=' wt';
-      html+=`<td class="${cls}"${attr}>${cell}</td>`;
+      // 현재가 셀: 클릭하면 챠트 열기
+      if(col.kind==='live'){
+        const sym2 = String(row[0]||'').trim().toUpperCase();
+        const nm2 = String(row[1]||sym2);
+        const liveStyle = valLive[ri] ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
+        html+=`<td class="${cls} uslive" data-sym="${sym2}" data-name="${nm2}"${liveStyle}>${cell}</td>`;
+      } else {
+        html+=`<td class="${cls}"${attr}>${cell}</td>`;
+      }
     });
     html+='</tr>';
   });
@@ -1932,6 +1940,10 @@ function renderVal(){
   // 미국 종목 Symbol 클릭 → 네이버 월드스톡 페이지로 이동
   t.querySelectorAll('a.nvlink').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); };
+  });
+  // 미국(반) 현재가 클릭 → 챠트
+  t.querySelectorAll('td.uslive').forEach(td=>{
+    td.onclick=()=>{ const s=td.dataset.sym, nm=td.dataset.name; if(s) openChart(s, nm); };
   });
   // 적정주가 헤더 클릭 → 적정가차이 기준 정렬(토글)
   const fairTh=t.querySelector('th.sortable');
@@ -2167,7 +2179,8 @@ function renderKrTable(){
     h+='<tr>';
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
-    h+=`<td class="mp-r">${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
+    const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
+    h+=`<td class="mp-r krlive" data-code="${code}" data-name="${r[1]||''}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
@@ -2176,10 +2189,16 @@ function renderKrTable(){
   });
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
+  // 한국 종목명 클릭 → 네이버 국내 종목 페이지
   t.querySelectorAll('a.krlink').forEach(a=>{ a.onclick=ev=>{
     ev.preventDefault();
     const c = a.dataset.code;
-    const nm = a.querySelector('.kn') ? a.querySelector('.kn').textContent.trim() : c;
+    if(c) openNaverDomestic(c);
+  }; });
+  // 한국 현재가 셀 클릭 → 챠트
+  t.querySelectorAll('td.krlive').forEach(td=>{ td.onclick=()=>{
+    const c = td.dataset.code;
+    const nm = td.dataset.name;
     if(c) openChart(c, nm);
   }; });
   const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
@@ -2240,7 +2259,8 @@ function renderUscTable(){
     h+='<tr>';
     h+=`<td class="al">${stkCell}</td>`;
     h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
-    h+=`<td>${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`;
+    const uscLiveStyle = sym && liveQ ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
+    h+=`<td class="uslive" data-sym="${sym}" data-name="${r[1]||sym}"${uscLiveStyle}>${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`;
     h+=`<td>${tgtStr}${upHtml}</td>`;
     h+=`<td>${hiStr}${hdHtml}</td>`;
     h+=`<td class="uscchg ${chgCls}">${chg}</td>`;
@@ -2249,7 +2269,14 @@ function renderUscTable(){
   });
   h+='</tbody>';
   t.className='val-tbl'; t.innerHTML=h;
+  // 미국 종목명 클릭 → 네이버 월드스톡
   t.querySelectorAll('a.uscnv').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); }; });
+  // 미국 현재가 셀 클릭 → 챠트
+  t.querySelectorAll('td.uslive').forEach(td=>{ td.onclick=()=>{
+    const s = td.dataset.sym;
+    const nm = td.dataset.name;
+    if(s) openChart(s, nm);
+  }; });
   t.querySelectorAll('td.kredit').forEach(td=>{
     td.onblur=()=>{ const r=+td.dataset.r, f=+td.dataset.f; VAL[r][f]=td.textContent.trim(); saveVal(); };
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
@@ -2884,8 +2911,6 @@ function closeFlow(){
   const vt=document.querySelector('.tab[data-t="valuation"]'); if(vt) vt.classList.add('on');
   const vs=$('#valuation'); if(vs) vs.classList.add('on');
 }
-
-</script>
 
 
 /* ── 챠트앱 연결 ── */
