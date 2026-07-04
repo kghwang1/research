@@ -113,6 +113,9 @@
   .broker-note{margin-top:10px;color:var(--sub);font-size:12px;line-height:1.5}
   .flowfull{--flowcrop:150px}
   #hub .rpt-embed{position:relative;overflow:hidden;height:calc(100vh - 190px);min-height:420px;border:1px solid var(--line);border-radius:12px;background:#fff}
+  .pdf-body{flex:1;min-height:0;background:#525659}
+  .pdf-body iframe{width:100%;height:100%;border:0}
+  .pdf-note{padding:8px 12px;font-size:12.5px;color:var(--dim);text-align:center}
   #hub .rpt-crop{position:absolute;inset:0;overflow:hidden}
   #hub #rptFrame{position:absolute;left:0;top:-100px;width:125%;height:calc((100% + 100px) * 1.25);border:0;background:#fff;transform:scale(.8);transform-origin:top left}
   #hub .rpt-note{padding:8px 4px;color:var(--sub);font-size:12px;text-align:center}
@@ -668,6 +671,17 @@
 
 </div>
 
+<!-- ===== PDF 리포트 뷰어 ===== -->
+<div id="pdfFull" class="valfull">
+ <div class="valfull-top">
+  <div class="subtab vback" onclick="closePdf()">‹ 이전</div>
+  <div class="subtab" id="pdfTitle" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;cursor:default">리포트</div>
+  <a class="subtab" id="pdfOrig" href="#" target="_blank" rel="noopener">원본 열기 ↗</a>
+ </div>
+ <div class="pdf-body"><iframe id="pdfFrame" referrerpolicy="no-referrer"></iframe></div>
+ <div class="pdf-note">화면이 안 보이면 위 「원본 열기」를 눌러 PDF를 직접 열어보세요.</div>
+</div>
+
 <!-- ===== REPORT MODAL ===== -->
 <div class="ov" id="ovReport">
  <div class="modal">
@@ -776,6 +790,19 @@ $$('.tab').forEach(t=>t.onclick=()=>{
 });
 const REPORT_URL='https://finance.naver.com/research/company_list.naver';
 function loadReportEmbed(){ const f=$('#rptFrame'); if(f && (!f.src || f.src==='about:blank')) f.src=REPORT_URL; }
+/* PDF 리포트 뷰어(구글 뷰어로 임베드, 실패 시 원본 링크로 대체) */
+function openPdf(url, title){
+  if(!url) return;
+  const frame=$('#pdfFrame'); if(frame) frame.src='https://docs.google.com/viewer?embedded=true&url='+encodeURIComponent(url);
+  const t=$('#pdfTitle'); if(t) t.textContent=title||'리포트';
+  const o=$('#pdfOrig'); if(o) o.href=url;
+  $('#pdfFull').classList.add('on');
+}
+function closePdf(){ $('#pdfFull').classList.remove('on'); const f=$('#pdfFrame'); if(f) f.src='about:blank'; }
+document.addEventListener('click', function(ev){
+  const a=ev.target.closest('a.rptlink'); if(!a) return;
+  ev.preventDefault(); openPdf(a.dataset.href, a.dataset.title);
+});
 function renderInfoCards(){
   const el=$('#infoCards'); if(!el || el._done) return; el._done=1;
   el.innerHTML =
@@ -1774,7 +1801,7 @@ function renderVal(){
   if(!t) return;
   applyValNote(valMarket);
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
-  if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); } return; }
+  if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
@@ -2117,7 +2144,7 @@ function renderKrTable(){
     else { const rep=REPORT[code];
       if(rep===undefined) repCell='<span class="rsub">…</span>';
       else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${rep.link}" target="_blank" rel="noopener" class="rptlink">${inner}</a>` : inner; }
+      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="#" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}">${inner}</a>` : inner; }
     }
     h+='<tr>';
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
@@ -2627,6 +2654,28 @@ async function pnlAutoFetch(silent){
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=10;
 let REPORT={}, reportLoading=false, reportCacheInit=false;
 function invToday(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+/* 투자종목: 현재가·등락률만 가볍게 실시간 갱신(한국 탭과 동일한 방식) — ROE·목표가 등 무거운 데이터는 그대로 캐시 사용 */
+async function refreshInvestPricesLive(){
+  if(!SRV_URL||!INVEST_POOL.length) return;
+  const byCode={}; INVEST_POOL.forEach(r=>{ byCode[r.code]=r; });
+  const codes=Object.keys(byCode), CH=40;
+  for(let i=0;i<codes.length;i+=CH){
+    const part=codes.slice(i,i+CH);
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{
+        if(q&&q.ok&&q.price!=null){
+          const c=String(q.symbol||'').replace('STK:','');
+          const row=byCode[c];
+          if(row){ row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate; }
+        }
+      });
+    }catch(e){}
+  }
+  saveInvestCache();
+  if(valMarket==='invest') renderInvest();
+}
 function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; try{ const raw=localStorage.getItem('inv_reports'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&o.map) Object.assign(REPORT,o.map); } }catch(e){} }
 function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), map:REPORT})); }catch(e){} }
 function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.removeItem('inv_reports'); }catch(e){} renderInvest(); }
@@ -2699,7 +2748,7 @@ function openInvest(force){
 function closeInvest(){ $('#valFull').classList.remove('on'); }
 async function loadInvest(){
   const msg=$('#valEmpty'), tb=$('#valTbl'), sc=$('#valScroll');
-  if(loadInvestCache()){ investLoaded=true; if(msg) msg.style.display='none'; if(sc) sc.style.display=''; renderInvest(); return; }
+  if(loadInvestCache()){ investLoaded=true; if(msg) msg.style.display='none'; if(sc) sc.style.display=''; renderInvest(); refreshInvestPricesLive(); return; }
   if(tb) tb.innerHTML=''; if(sc) sc.style.display='none';
   if(msg){ msg.style.display='block'; msg.textContent='코스피100 시세를 불러오는 중… 수십 초 걸릴 수 있어요.'; }
   if(!SRV_URL){ if(msg) msg.textContent='서버(worker) 설정이 필요합니다.'; return; }
@@ -2764,7 +2813,7 @@ function renderInvest(){
     let repCell;
     if(rep===undefined) repCell='<span class="rsub">…</span>';
     else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${rep.link}" target="_blank" rel="noopener" class="rptlink">${inner}</a>` : inner; }
+    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="#" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}">${inner}</a>` : inner; }
     h+='<tr>';
     h+=`<td>${i+1}</td>`;
     h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
