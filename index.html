@@ -807,7 +807,15 @@ const VP_LOCK='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-sc
 const VP_ZOOM='width=device-width, initial-scale=1.0';
 function openPdf(url, title){
   if(!url) return;
-  window.open(url, '_blank', 'noopener');
+  // PDF URL이면 구글 문서 뷰어로 열기 (다운로드 방지)
+  // 네이버 리포트 페이지(company_read)면 그대로 열기
+  const isPdf = /\.pdf($|\?)/i.test(url) || /pstatic\.net/i.test(url);
+  if(isPdf){
+    const viewer = 'https://docs.google.com/viewer?url=' + encodeURIComponent(url);
+    window.open(viewer, '_blank', 'noopener');
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
 }
 function closePdf(){
   $('#pdfFull').classList.remove('on');
@@ -819,8 +827,7 @@ document.addEventListener('click', function(ev){
   ev.preventDefault();
   const url = a.dataset.href;
   if(!url) return;
-  // 바로 새 탭으로 열기
-  window.open(url, '_blank', 'noopener');
+  openPdf(url, a.dataset.title);
 });
 function renderInfoCards(){
   const el=$('#infoCards'); if(!el || el._done) return; el._done=1;
@@ -2864,7 +2871,7 @@ function renderInvest(){
     let repCell;
     if(rep===undefined) repCell='<span class="rsub">…</span>';
     else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
+    else { const sec=classifySector(rep.title,r.code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="#" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}">${inner}</a>` : inner; }
     h+='<tr>';
     h+=`<td>${i+1}</td>`;
     h+=`<td class="al"><a href="#" class="ivlink" data-code="${r.code}"><span class="sy">${r.name}</span><span class="nm">${r.code}</span></a></td>`;
