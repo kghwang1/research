@@ -198,6 +198,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DEMA(이중지수)</span></label>
     <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VIDYA(가변이동평균)</span></label>
     <label class="ind-label" data-key="VAMA" style="--col:#ffa657"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">거래량조정이평(VAMA)</span></label>
+    <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">매물대(거래량프로파일)</span></label>
 
     <div class="group-title">▶ 추세지표</div>
     <label class="ind-label" data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MACD(12,26,9)</span></label>
@@ -831,7 +832,7 @@ function setupSearch() {
   });
 }
 
-const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','PSAR','DEMA','VIDYA','VAMA'];
+const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','PSAR','DEMA','VIDYA','VAMA','VPROFILE'];
 
 // 기본 표시 지표 불러오기 (localStorage)
 function loadDefaults() {
@@ -1004,11 +1005,6 @@ function drawCandle() {
       sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
       ctx.stroke();
     });
-    let lx = PAD.l + 4;
-    Object.entries(cols).forEach(([k, col]) => {
-      ctx.fillStyle = col; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-      ctx.fillText('MA' + labels[k], lx, PAD.t + 11); lx += 30;
-    });
   }
 
   // DEMA + 시그널선
@@ -1063,6 +1059,49 @@ function drawCandle() {
     });
   }
 
+  // ── 매물대 (Volume Profile) ──
+  if (overlays.VPROFILE) {
+    const BINS = 24; // 가격 구간 수
+    const binVol = new Array(BINS).fill(0);
+    const binBuyVol = new Array(BINS).fill(0); // 상승 거래량
+    // 각 캔들의 거래량을 가격구간에 배분
+    slice.forEach(d => {
+      const midP = (d.high + d.low + d.close) / 3;
+      let bin = Math.floor(((midP - minP) / (maxP - minP)) * BINS);
+      bin = Math.max(0, Math.min(BINS - 1, bin));
+      binVol[bin] += d.volume;
+      if (d.close >= d.open) binBuyVol[bin] += d.volume;
+    });
+    const maxBinVol = Math.max(...binVol);
+    if (maxBinVol > 0) {
+      const binH = ch / BINS;
+      const maxBarW = cw * 0.32; // 최대 막대 폭 (차트폭의 32%)
+      // POC(최대 매물대) 찾기
+      let pocBin = binVol.indexOf(maxBinVol);
+      for (let b = 0; b < BINS; b++) {
+        if (binVol[b] <= 0) continue;
+        const barW = (binVol[b] / maxBinVol) * maxBarW;
+        const y = PAD.t + ch - (b + 1) * binH;
+        // 매수/매도 비율에 따라 색
+        const buyRatio = binBuyVol[b] / binVol[b];
+        const isPoc = (b === pocBin);
+        ctx.fillStyle = isPoc ? '#d2a8ff55'
+          : buyRatio >= 0.5 ? '#ef535033' : '#1976d233';
+        ctx.fillRect(PAD.l, y + 1, barW, binH - 1);
+        // POC 강조 테두리
+        if (isPoc) {
+          ctx.strokeStyle = '#d2a8ffaa'; ctx.lineWidth = 1;
+          ctx.strokeRect(PAD.l, y + 1, barW, binH - 1);
+        }
+      }
+      // POC 라벨
+      const pocY = PAD.t + ch - (pocBin + 0.5) * binH;
+      const pocPrice = minP + ((pocBin + 0.5) / BINS) * (maxP - minP);
+      ctx.fillStyle = '#d2a8ff'; ctx.font = '8px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('POC ' + Math.round(pocPrice).toLocaleString(), PAD.l + 2, pocY - 2);
+    }
+  }
+
   // 캔들
   slice.forEach((d, i) => {
     const x = xOf(i), isUp = d.close >= d.open, col = isUp ? C.up : C.down;
@@ -1102,6 +1141,42 @@ function drawCandle() {
     // 텍스트
     ctx.fillStyle = '#e6edf3cc';
     ctx.fillText(label, W - PAD.r - 4, by + fSize);
+  }
+
+  // ── 좌상단 오버레이 범례 ──
+  const legends = [];
+  if (overlays.MA) {
+    legends.push({t:'MA5', c:'#ef5350'});
+    legends.push({t:'MA20', c:'#f59e0b'});
+    legends.push({t:'MA60', c:'#3fb950'});
+    legends.push({t:'MA120', c:'#58a6ff'});
+  }
+  if (overlays.BB)       legends.push({t:'볼린저(20,2)', c:'#aaaaaa'});
+  if (overlays.ICHIMOKU) legends.push({t:'일목균형표', c:'#ff7eb6'});
+  if (overlays.PSAR)     legends.push({t:'PSAR', c:'#f78166'});
+  if (overlays.DEMA)     legends.push({t:'DEMA(20)', c:'#a8ff78'});
+  if (overlays.VIDYA)    legends.push({t:'VIDYA(14)', c:'#4ecdc4'});
+  if (overlays.VAMA)     legends.push({t:'VAMA(20)', c:'#ffa657'});
+  if (overlays.VPROFILE) legends.push({t:'매물대(POC)', c:'#d2a8ff'});
+
+  if (legends.length) {
+    ctx.textAlign = 'left';
+    ctx.font = 'bold 10px monospace';
+    let lx = PAD.l + 4;
+    let ly = PAD.t + 12;
+    const maxX = W - PAD.r - 100; // 종목명 영역 침범 방지
+    legends.forEach(lg => {
+      const w = ctx.measureText(lg.t).width;
+      // 줄바꿈 (폭 초과시)
+      if (lx + w + 14 > maxX) { lx = PAD.l + 4; ly += 14; }
+      // 색 점
+      ctx.fillStyle = lg.c;
+      ctx.fillRect(lx, ly - 8, 8, 3);
+      // 텍스트
+      ctx.fillStyle = lg.c;
+      ctx.fillText(lg.t, lx + 11, ly);
+      lx += w + 20;
+    });
   }
 }
 
