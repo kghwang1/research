@@ -126,12 +126,12 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 }
 .sub-canvas { width: 100%; height: 100%; display: block; }
 .sub-close {
-  position: absolute; top: 3px; right: 5px;
-  width: 18px; height: 18px;
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px;
   display: flex; align-items: center; justify-content: center;
   background: #21262dcc; color: #8b949e;
   border: 1px solid #30363d; border-radius: 4px;
-  font-size: 11px; cursor: pointer; z-index: 5;
+  font-size: 10px; cursor: pointer; z-index: 5;
   line-height: 1; user-select: none;
 }
 .sub-close:hover { background: #da3633; color: #fff; border-color: #da3633; }
@@ -163,16 +163,12 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     </div>
     <span id="stock-name" style="display:none"></span>
     <span id="stock-code-display" style="display:none"></span>
-    <div id="interval-group" style="display:flex;gap:3px;margin-right:6px">
+    <div id="interval-group" style="display:flex;gap:3px;flex-wrap:wrap">
+      <button class="period-btn" data-interval="5m">5분</button>
+      <button class="period-btn" data-interval="60m">1시간</button>
       <button class="period-btn active" data-interval="1d">일봉</button>
       <button class="period-btn" data-interval="1wk">주봉</button>
       <button class="period-btn" data-interval="1mo">월봉</button>
-    </div>
-    <div id="period-group">
-      <button class="period-btn" data-period="22">1M</button>
-      <button class="period-btn active" data-period="66">3M</button>
-      <button class="period-btn" data-period="130">6M</button>
-      <button class="period-btn" data-period="200">1Y</button>
     </div>
   </div>
 
@@ -549,6 +545,7 @@ let state = {
   range: [0, 66],
   overlays: {},
   selected: {},
+  selectedOrder: [],  // 보조차트 선택 순서 (나중 선택이 아래)
   hoverIdx: -1,
 };
 
@@ -621,25 +618,24 @@ function toYahooSymbol(stock) {
 }
 
 // 기간 → 야후 range 문자열
+// 봉 종류별 데이터 요청 범위 (야후 range)
 function toYahooRange(period, interval) {
   interval = interval || '1d';
-  // 주봉: 표시기간의 약 5배, 월봉: 약 22배 범위 필요
-  if (interval === '1wk') {
-    if (period <= 22)  return '1y';
-    if (period <= 66)  return '2y';
-    if (period <= 130) return '5y';
-    return '10y';
-  }
-  if (interval === '1mo') {
-    if (period <= 22)  return '5y';
-    if (period <= 66)  return '10y';
-    return 'max';
-  }
-  // 일봉 - BB(20일) 등 지표 계산 위해 넉넉히
-  if (period <= 22)  return '3mo';
-  if (period <= 66)  return '6mo';
-  if (period <= 130) return '1y';
-  return '2y';
+  if (interval === '5m')  return '5d';    // 5분봉: 5일 (야후 제한)
+  if (interval === '60m') return '1mo';   // 1시간봉: 1개월
+  if (interval === '1mo') return '10y';   // 월봉
+  if (interval === '1wk') return '3y';    // 주봉
+  return '2y';                            // 일봉
+}
+
+// 초기 표시할 캔들 개수 (이후 손가락 확대/축소로 조절)
+function calcShowCount(period, interval) {
+  interval = interval || '1d';
+  if (interval === '5m')  return 60;   // 5분봉 60개
+  if (interval === '60m') return 50;   // 1시간봉 50개
+  if (interval === '1mo') return 24;   // 월봉 24개(2년)
+  if (interval === '1wk') return 52;   // 주봉 52개(1년)
+  return 90;                           // 일봉 90개
 }
 
 // Worker에서 OHLCV 데이터 가져오기
@@ -697,7 +693,8 @@ async function loadStock(stock) {
   }
 
   // 표시는 선택 기간만큼, 데이터는 넉넉히 받아 지표 계산
-  const showLen = Math.min(state.period, state.data.length);
+  const showCount = calcShowCount(state.period, state.interval);
+  const showLen = Math.min(showCount, state.data.length);
   state.range = [Math.max(0, state.data.length - showLen), state.data.length];
   renderAll();
 }
@@ -715,16 +712,7 @@ function showMsg(msg, ms) {
 }
 
 function setupHeader() {
-  // 기간 버튼 (data-period)
-  document.querySelectorAll('.period-btn[data-period]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      state.period = parseInt(btn.dataset.period);
-      document.querySelectorAll('.period-btn[data-period]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      await loadStock(state.stock);
-    });
-  });
-  // 일봉/주봉/월봉 버튼 (data-interval)
+  // 봉 종류 버튼 (data-interval)
   document.querySelectorAll('.period-btn[data-interval]').forEach(btn => {
     btn.addEventListener('click', async () => {
       state.interval = btn.dataset.interval;
@@ -881,7 +869,7 @@ function setupSidebar() {
       label.classList.add('active');
       span.style.color = col;
       if (OVERLAY_KEYS.includes(key)) state.overlays[key] = true;
-      else state.selected[key] = true;
+      else { state.selected[key] = true; if (!state.selectedOrder.includes(key)) state.selectedOrder.push(key); }
     } else {
       if (OVERLAY_KEYS.includes(key)) state.overlays[key] = false;
       else state.selected[key] = false;
@@ -899,8 +887,17 @@ function setupSidebar() {
     // 뒤칸(표시) 클릭 → 지금 화면에 표시/숨김
     cbShow.addEventListener('change', (e) => {
       e.stopPropagation();
-      if (OVERLAY_KEYS.includes(key)) state.overlays[key] = cbShow.checked;
-      else state.selected[key] = cbShow.checked;
+      if (OVERLAY_KEYS.includes(key)) {
+        state.overlays[key] = cbShow.checked;
+      } else {
+        state.selected[key] = cbShow.checked;
+        // 선택 순서 기록: 새로 켜면 맨 뒤에 추가
+        if (cbShow.checked) {
+          if (!state.selectedOrder.includes(key)) state.selectedOrder.push(key);
+        } else {
+          state.selectedOrder = state.selectedOrder.filter(k => k !== key);
+        }
+      }
       if (cbShow.checked) { label.classList.add('active'); span.style.color = col; }
       else { label.classList.remove('active'); span.style.color = ''; }
       renderAll();
@@ -930,7 +927,7 @@ function drawCandle() {
   const {data, range, overlays} = state;
   if (!data.length) return;
   const slice = data.slice(...range);
-  const PAD = {l:70, r:8, t:10, b:22};
+  const PAD = {l:8, r:62, t:10, b:24};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
 
   let maxP = Math.max(...slice.map(d => d.high));
@@ -958,14 +955,14 @@ function drawCandle() {
 
   ctx.fillStyle = C.panel; ctx.fillRect(0, 0, W, H);
 
-  // 격자
+  // 격자 (세로축 우측)
   for (let i = 0; i <= 5; i++) {
     const y = PAD.t + (ch / 5) * i;
     ctx.strokeStyle = C.border; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
     const v = maxP - ((maxP - minP) / 5) * i;
-    ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'right';
-    ctx.fillText(v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(1), PAD.l - 3, y + 3);
+    ctx.fillStyle = C.muted; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(1), W - PAD.r + 3, y + 3);
   }
 
   // 일목균형표 구름
@@ -1121,6 +1118,47 @@ function drawCandle() {
     isUp ? ctx.fillRect(x - bw/2, y1, bw, bodyH) : ctx.strokeRect(x - bw/2, y1, bw, bodyH);
   });
 
+  // ── 최고가 / 최저가 마커 ──
+  let hiIdx = 0, loIdx = 0;
+  slice.forEach((d, i) => {
+    if (d.high > slice[hiIdx].high) hiIdx = i;
+    if (d.low < slice[loIdx].low) loIdx = i;
+  });
+  const hiVal = slice[hiIdx].high, loVal = slice[loIdx].low;
+  // 최고가 (▼ 위쪽)
+  {
+    const x = xOf(hiIdx), y = yOf(hiVal);
+    ctx.fillStyle = C.up; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('▲ ' + Math.round(hiVal).toLocaleString(), x, y - 6);
+  }
+  // 최저가 (▲ 아래쪽)
+  {
+    const x = xOf(loIdx), y = yOf(loVal);
+    ctx.fillStyle = C.down; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('▼ ' + Math.round(loVal).toLocaleString(), x, y + 14);
+  }
+
+  // ── 현재가 우측 라인 + 라벨 ──
+  const lastPrice = slice[slice.length - 1].close;
+  const lastUp = slice[slice.length - 1].close >= slice[slice.length - 1].open;
+  const priceY = yOf(lastPrice);
+  const priceColor = lastUp ? C.up : C.down;
+  // 점선 가로선
+  ctx.strokeStyle = priceColor + 'aa'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, priceY); ctx.lineTo(W - PAD.r, priceY); ctx.stroke();
+  ctx.setLineDash([]);
+  // 현재가 라벨을 우측 세로축 위치에 표시
+  const pTxt = Math.round(lastPrice).toLocaleString();
+  ctx.font = 'bold 11px monospace';
+  const ptw = ctx.measureText(pTxt).width;
+  const pbx = W - PAD.r + 1;
+  ctx.fillStyle = priceColor;
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(pbx, priceY - 8, Math.max(ptw + 6, PAD.r - 2), 16, 3) : ctx.rect(pbx, priceY - 8, ptw + 6, 16);
+  ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
+  ctx.fillText(pTxt, pbx + 3, priceY + 3);
+
   // 호버 수직선
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
     ctx.strokeStyle = '#ffffff33'; ctx.lineWidth = 1;
@@ -1129,31 +1167,36 @@ function drawCandle() {
 
   // X축
   const step = Math.ceil(slice.length / 8);
-  ctx.fillStyle = C.muted; ctx.font = '9px monospace'; ctx.textAlign = 'center';
-  slice.forEach((d, i) => { if (i % step === 0) ctx.fillText(d.date.slice(5), xOf(i), H - 6); });
+  ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+  slice.forEach((d, i) => { if (i % step === 0) {
+    // 5분/1시간봉이면 시각 표시, 그 외 날짜
+    const lbl = (state.interval==='5m'||state.interval==='60m') ? (d.date.length>10?d.date.slice(5,16):d.date.slice(5)) : d.date.slice(5);
+    ctx.fillText(lbl, xOf(i), H - 7);
+  }});
 
-  // 종목명 우상단 표시
+  // ── 좌상단: 종목명 + 오버레이 범례 (세로 정렬) ──
   const stockName = state.stock ? state.stock.name : '';
   const stockCode = state.stock ? state.stock.code : '';
-  const label = stockName === stockCode ? stockName : stockName + '  ' + stockCode;
-  if (label) {
-    ctx.textAlign = 'right';
-    // 배경 박스
-    const fSize = 13;
-    ctx.font = `bold ${fSize}px 'Noto Sans KR', monospace`;
-    const tw = ctx.measureText(label).width;
-    const bx = W - PAD.r - tw - 8, by = PAD.t + 4;
-    const bw2 = tw + 14, bh = fSize + 8;
-    ctx.fillStyle = '#0d111799';
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(bx - 2, by - 1, bw2, bh, 4) : ctx.rect(bx - 2, by - 1, bw2, bh);
-    ctx.fill();
-    // 텍스트
-    ctx.fillStyle = '#e6edf3cc';
-    ctx.fillText(label, W - PAD.r - 4, by + fSize);
+  const nameLabel = stockName === stockCode ? stockName : stockName + ' ' + stockCode;
+
+  let ly = PAD.t + 12;
+  const lx = PAD.l + 5;
+
+  // 종목명 (첫 줄, 크게)
+  if (nameLabel) {
+    ctx.textAlign = 'left';
+    ctx.font = "bold 13px 'Noto Sans KR', monospace";
+    ctx.fillStyle = '#e6edf3';
+    // 반투명 배경
+    const tw = ctx.measureText(nameLabel).width;
+    ctx.fillStyle = '#0d1117bb';
+    ctx.fillRect(lx - 3, ly - 11, tw + 8, 16);
+    ctx.fillStyle = '#e6edf3';
+    ctx.fillText(nameLabel, lx, ly + 1);
+    ly += 17;
   }
 
-  // ── 좌상단 오버레이 범례 ──
+  // 오버레이 범례 (종목명 아래 세로로)
   const legends = [];
   if (overlays.MA) {
     legends.push({t:'MA5', c:'#ef5350'});
@@ -1171,21 +1214,27 @@ function drawCandle() {
 
   if (legends.length) {
     ctx.textAlign = 'left';
-    ctx.font = 'bold 10px monospace';
-    let lx = PAD.l + 4;
-    let ly = PAD.t + 12;
-    const maxX = W - PAD.r - 100; // 종목명 영역 침범 방지
-    legends.forEach(lg => {
-      const w = ctx.measureText(lg.t).width;
-      // 줄바꿈 (폭 초과시)
-      if (lx + w + 14 > maxX) { lx = PAD.l + 4; ly += 14; }
-      // 색 점
+    ctx.font = 'bold 9px monospace';
+    // MA는 한 줄에 몰아서, 나머지는 세로
+    let curX = lx;
+    const maFour = legends.filter(l => l.t.startsWith('MA'));
+    const others = legends.filter(l => !l.t.startsWith('MA'));
+    // MA 4개 한 줄
+    if (maFour.length) {
+      maFour.forEach(lg => {
+        ctx.fillStyle = lg.c;
+        ctx.fillRect(curX, ly - 6, 7, 3);
+        ctx.fillText(lg.t, curX + 9, ly);
+        curX += ctx.measureText(lg.t).width + 18;
+      });
+      ly += 13;
+    }
+    // 나머지 세로 한 줄씩
+    others.forEach(lg => {
       ctx.fillStyle = lg.c;
-      ctx.fillRect(lx, ly - 8, 8, 3);
-      // 텍스트
-      ctx.fillStyle = lg.c;
-      ctx.fillText(lg.t, lx + 11, ly);
-      lx += w + 20;
+      ctx.fillRect(lx, ly - 6, 7, 3);
+      ctx.fillText(lg.t, lx + 9, ly);
+      ly += 13;
     });
   }
 }
@@ -1206,7 +1255,7 @@ function drawSub(canvas, key) {
   ctx.scale(dpr, dpr);
   ctx.fillStyle = C.panel2; ctx.fillRect(0, 0, W, H);
 
-  const PAD = {l:70, r:8, t:6, b:4};
+  const PAD = {l:8, r:62, t:6, b:4};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
   const allVals = vals.flat().filter(v => v != null);
   if (!allVals.length) return;
@@ -1219,15 +1268,15 @@ function drawSub(canvas, key) {
   const xOf = i => PAD.l + (i + 0.5) * (cw / n);
   const yOf = v => PAD.t + ch - ((v - minV) / (maxV - minV)) * ch;
 
-  // 기준선
+  // 기준선 (라벨 우측)
   (cfg.lines || []).forEach(lv => {
     if (lv < minV || lv > maxV) return;
     ctx.strokeStyle = lv === 0 ? '#37415199' : C.border;
     ctx.lineWidth = lv === 0 ? 1 : 0.5; ctx.setLineDash([3,3]);
     ctx.beginPath(); ctx.moveTo(PAD.l, yOf(lv)); ctx.lineTo(W - PAD.r, yOf(lv)); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = C.muted; ctx.font = '9px monospace'; ctx.textAlign = 'right';
-    ctx.fillText(lv, PAD.l - 3, yOf(lv) + 3);
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(lv, W - PAD.r + 3, yOf(lv) + 3);
   });
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
@@ -1272,18 +1321,28 @@ function drawSub(canvas, key) {
     MOM:'모멘텀', WILLR:'Will%R', ATR:'ATR', BBW:'BB폭', RVI:'RVI', INERTIA:'Inertia',
     CHAIKIN_VOL:'차이킨Vol', VOLUME:'거래량', OBV:'OBV', CMF:'CMF', MFI:'MFI', PVT:'PVT', WILLIAMS_AD:'Williams AD'};
   const lastVal = vals[0].filter(v => v != null).slice(-1)[0];
-  ctx.fillStyle = cfg.color; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(`${lastName[key] || key}  ${lastVal != null ? lastVal.toFixed(1) : ''}`, PAD.l + 4, PAD.t + 11);
-  ctx.fillStyle = C.muted; ctx.textAlign = 'right';
-  ctx.fillText(maxV.toFixed(0), PAD.l - 3, PAD.t + 10);
-  ctx.fillText(minV.toFixed(0), PAD.l - 3, PAD.t + ch);
+  ctx.fillStyle = cfg.color; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(`${lastName[key] || key}  ${lastVal != null ? lastVal.toFixed(1) : ''}`, PAD.l + 22, PAD.t + 11);
+  // max/min 우측 축
+  ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.font = '10px monospace';
+  ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+  ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
 }
 
 // ══════════════════════════════════════
 // 전체 렌더
 // ══════════════════════════════════════
+// 선택된 보조지표를 선택 순서대로 반환
+function getActiveKeys() {
+  // selectedOrder에 있는 것 우선(순서 유지), 빠진 것 뒤에 추가
+  const active = Object.keys(state.selected).filter(k => state.selected[k]);
+  const ordered = state.selectedOrder.filter(k => active.includes(k));
+  active.forEach(k => { if (!ordered.includes(k)) ordered.push(k); });
+  return ordered;
+}
+
 function renderAll() {
-  const activeKeys = Object.keys(state.selected).filter(k => state.selected[k]);
+  const activeKeys = getActiveKeys();
   const chartArea = document.getElementById('chart-area');
 
   // 기존 보조지표 패널 제거
@@ -1313,6 +1372,7 @@ function renderAll() {
       e.stopPropagation();
       // 상태에서 제거
       state.selected[key] = false;
+      state.selectedOrder = state.selectedOrder.filter(k => k !== key);
       // 사이드바 체크박스도 해제
       const label = document.querySelector(`.ind-label[data-key="${key}"]`);
       if (label) {
@@ -1359,7 +1419,7 @@ function setupMouseEvent() {
   const canvas = document.getElementById('candle-canvas');
   let dragStartX = null, dragStartRange = null, isDragging = false;
   const n = () => state.range[1] - state.range[0];
-  const PAD_L = 70, PAD_R = 8;
+  const PAD_L = 8, PAD_R = 62;  // 세로축 우측
 
   function getIdx(clientX) {
     const rect = canvas.getBoundingClientRect();
@@ -1381,7 +1441,7 @@ function setupMouseEvent() {
   function redrawAll() {
     drawCandle();
     document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
-      const key = Object.keys(state.selected).filter(k => state.selected[k])[i];
+      const key = getActiveKeys()[i];
       if (key) drawSub(cv, key);
     });
   }
@@ -1416,7 +1476,7 @@ function setupMouseEvent() {
         updateOHLC(state.data[state.range[0] + idx]);
         drawCandle();
         document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
-          const key = Object.keys(state.selected).filter(k => state.selected[k])[i];
+          const key = getActiveKeys()[i];
           if (key) drawSub(cv, key);
         });
       }
@@ -1440,14 +1500,51 @@ function setupMouseEvent() {
     canvas.style.cursor = 'crosshair';
   };
 
-  // ── 터치 (모바일) ──
+  // ── 터치 (모바일): 1손가락=이동, 2손가락=확대/축소 ──
   let touchStartX = null, touchStartRange = null;
+  let pinchStartDist = null, pinchStartLen = null, pinchStartRange = null, pinchCenterRatio = 0.5;
+
+  function touchDist(e) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
   canvas.ontouchstart = (e) => {
-    touchStartX = e.touches[0].clientX;
-    touchStartRange = [...state.range];
+    if (e.touches.length === 2) {
+      // 핀치 시작
+      pinchStartDist = touchDist(e);
+      pinchStartLen = n();
+      pinchStartRange = [...state.range];
+      const rect = canvas.getBoundingClientRect();
+      const cw = rect.width - PAD_L - PAD_R;
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left - PAD_L;
+      pinchCenterRatio = Math.max(0, Math.min(1, cx / cw));
+      touchStartX = null;
+    } else {
+      touchStartX = e.touches[0].clientX;
+      touchStartRange = [...state.range];
+      pinchStartDist = null;
+    }
   };
+
   canvas.ontouchmove = (e) => {
     e.preventDefault();
+    if (e.touches.length === 2 && pinchStartDist) {
+      // 두 손가락 확대/축소
+      const dist = touchDist(e);
+      const ratio = pinchStartDist / dist; // 벌리면 축소값<1 → 봉수 감소(확대)
+      let newLen = Math.round(pinchStartLen * ratio);
+      newLen = Math.max(8, Math.min(state.data.length, newLen));
+      const anchor = Math.round(pinchStartRange[0] + pinchStartLen * pinchCenterRatio);
+      let s = Math.round(anchor - newLen * pinchCenterRatio);
+      let e2 = s + newLen;
+      if (s < 0) { e2 -= s; s = 0; }
+      if (e2 > state.data.length) { s -= (e2 - state.data.length); e2 = state.data.length; }
+      state.range = [Math.max(0, s), Math.min(state.data.length, e2)];
+      redrawAll();
+      return;
+    }
     if (touchStartX === null) return;
     const rect = canvas.getBoundingClientRect();
     const cw = rect.width - PAD_L - PAD_R;
@@ -1458,7 +1555,10 @@ function setupMouseEvent() {
     shiftRange(deltaIdx);
     redrawAll();
   };
-  canvas.ontouchend = () => { touchStartX = null; touchStartRange = null; };
+  canvas.ontouchend = (e) => {
+    if (e.touches.length < 2) { pinchStartDist = null; }
+    if (e.touches.length === 0) { touchStartX = null; touchStartRange = null; }
+  };
 
   // ── 휠 줌 ──
   canvas.onwheel = (e) => {
