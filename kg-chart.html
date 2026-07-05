@@ -29,7 +29,10 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
   padding: 4px 10px;
   border-bottom: 1px solid #21262d;
 }
-#search-wrap { position: relative; flex: 1; max-width: 300px; }
+#market-toggle { display: flex; gap: 2px; flex-shrink: 0; }
+.mkt-btn { background: #161b22; border: 1px solid #21262d; color: #8b949e; padding: 4px 6px; border-radius: 4px; cursor: pointer; font-size: 13px; line-height: 1; }
+.mkt-btn.active { background: #1f6feb; border-color: #1f6feb; }
+#search-wrap { position: relative; flex: 1; max-width: 280px; }
 #search-input {
   background: #0d1117; border: 1px solid #21262d;
   color: #e6edf3; padding: 4px 8px; border-radius: 4px;
@@ -157,6 +160,10 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
   <!-- 2줄: 검색창 + 기간버튼 -->
   <div id="header-row2">
+    <div id="market-toggle">
+      <button class="mkt-btn active" data-market="kr">🇰🇷</button>
+      <button class="mkt-btn" data-market="us">🌐</button>
+    </div>
     <div id="search-wrap">
       <input id="search-input" placeholder="종목명/코드 검색" autocomplete="off">
       <div id="stock-dropdown"></div>
@@ -546,6 +553,7 @@ let state = {
   overlays: {},
   selected: {},
   selectedOrder: [],  // 보조차트 선택 순서 (나중 선택이 아래)
+  market: 'kr',  // 검색 시장: kr(한국) / us(해외)
   hoverIdx: -1,
 };
 
@@ -638,16 +646,24 @@ function calcShowCount(period, interval) {
   return 90;                           // 일봉 90개
 }
 
-// Worker에서 OHLCV 데이터 가져오기
+// Worker에서 OHLCV 데이터 + 종목정보 가져오기
 async function fetchReal(stock) {
   const sym = toYahooSymbol(stock);
   const range = toYahooRange(state.period, state.interval);
-  // _t 파라미터로 캐시 방지 (일봉/주봉/월봉이 섞이지 않도록)
   const url = `${WORKER}/?yahooChart=${encodeURIComponent(sym)}&range=${range}&interval=${state.interval}&_t=${Date.now()}`;
   try {
     const res = await fetch(url, { cache: 'no-store' });
     const json = await res.json();
-    if (json.ok && json.ohlcv && json.ohlcv.length) return json.ohlcv;
+    if (json.ok && json.ohlcv && json.ohlcv.length) {
+      return {
+        ohlcv: json.ohlcv,
+        name: json.name || sym,
+        validSymbol: json.validSymbol !== false,
+        realSymbol: json.realSymbol || sym,
+        currency: json.currency || '',
+        exchange: json.exchange || '',
+      };
+    }
   } catch(e) {
     console.error('fetchReal error:', e);
   }
@@ -671,22 +687,44 @@ function showLoading(msg) {
 
 async function loadStock(stock) {
   state.stock = stock;
-  // 검색창에 선택된 종목명 표시
   const inp = document.getElementById('search-input');
   inp.value = stock.name + (stock.code !== stock.name ? '  ' + stock.code : '');
   showLoading('📡 데이터 로딩중...');
 
   // 실제 데이터 시도
-  let realData = null;
+  let result = null;
   try {
-    realData = await fetchReal(stock);
+    result = await fetchReal(stock);
   } catch(e) {}
 
-  if (realData && realData.length >= 5) {
-    state.data = realData;
+  const isKorean = /^\d{6}$/.test(stock.code) || stock.code === 'KOSPI' || stock.code === 'KOSDAQ';
+
+  if (result && result.ohlcv && result.ohlcv.length >= 5) {
+    // 미국 티커 검증: 야후가 인식 못하면(validSymbol=false) 오류
+    if (!isKorean && !result.validSymbol) {
+      showLoading('❌ 없는 종목입니다: ' + stock.code);
+      showMsg('❌ "' + stock.code + '" 는(은) 올바른 티커가 아닙니다', 4000);
+      inp.value = '';
+      return;
+    }
+    state.data = result.ohlcv;
     state.isReal = true;
+    // 검증 성공 → 회사 전체이름 표시
+    if (result.name && result.name !== stock.code) {
+      state.stock = { ...stock, fullName: result.name, currency: result.currency };
+      // 검색창에 [티커 - 회사명] 표시
+      if (!isKorean) {
+        inp.value = stock.code + '  ' + result.name;
+      }
+    }
   } else {
-    // 실패시 더미 데이터로 폴백
+    // 데이터 자체를 못 받음
+    if (!isKorean) {
+      showLoading('❌ 종목을 찾을 수 없습니다: ' + stock.code);
+      showMsg('❌ "' + stock.code + '" 종목 데이터가 없습니다', 4000);
+      inp.value = '';
+      return;
+    }
     state.data = genDummy(200, stock.price);
     state.isReal = false;
     showMsg('⚠️ 실제 데이터 로드 실패 — 더미 데이터로 표시합니다', 3000);
@@ -759,41 +797,55 @@ function setupSearch() {
   async function searchNaver(q) {
     dropdown.innerHTML = '<div style="padding:8px 10px;color:#8b949e;font-size:11px">🔍 검색중...</div>';
     dropdown.style.display = 'block';
+
+    let html = '';
     try {
-      const res = await fetch(`${WORKER}/?find=${encodeURIComponent(q)}`);
-      const json = await res.json();
-      if (json.ok && json.items && json.items.length) {
-        dropdown.innerHTML = json.items.map(s =>
-          `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
-            <span>${s.name}</span><span class="stock-code">${s.code}</span>
-          </div>`
-        ).join('');
-        bindItems();
+      if (state.market === 'kr') {
+        // 한국만 검색 (빠름)
+        const r = await fetch(`${WORKER}/?find=${encodeURIComponent(q)}`).then(r=>r.json()).catch(()=>({}));
+        if (r.ok && r.items && r.items.length) {
+          html += r.items.map(s =>
+            `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
+              <span>${s.name}</span><span class="stock-code">${s.code}</span>
+            </div>`
+          ).join('');
+        }
       } else {
-        // 검색 결과 없으면 미국주식으로 시도
-        dropdown.innerHTML = `
-          <div class="stock-item" data-code="${q.toUpperCase()}" data-name="${q.toUpperCase()}" data-yahoo="${q.toUpperCase()}">
-            <span>${q.toUpperCase()}</span>
-            <span class="stock-code">미국주식</span>
-          </div>
-          <div style="padding:6px 10px;color:#8b949e;font-size:10px">한국 종목을 찾지 못했습니다</div>`;
-        bindItems();
+        // 해외만 검색 (빠름)
+        const r = await fetch(`${WORKER}/?ussearch=${encodeURIComponent(q)}`).then(r=>r.json()).catch(()=>({}));
+        if (r.ok && r.items && r.items.length) {
+          html += r.items.map(s =>
+            `<div class="stock-item" data-code="${s.symbol}" data-name="${(s.name||'').replace(/"/g,'')}" data-yahoo="${s.symbol}">
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${s.name||s.symbol}</span>
+              <span class="stock-code">${s.symbol}</span>
+            </div>`
+          ).join('');
+        }
       }
-    } catch(e) {
-      // 오류시 기본 목록 필터링
-      const filtered = STOCKS.filter(s => s.name.includes(q) || s.code.includes(q));
-      if (filtered.length) {
-        dropdown.innerHTML = filtered.map(s =>
-          `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
-            <span>${s.name}</span><span class="stock-code">${s.code}</span>
-          </div>`
-        ).join('');
-        bindItems();
-      } else {
-        dropdown.innerHTML = '<div style="padding:8px 10px;color:#8b949e;font-size:11px">검색 실패</div>';
-      }
+    } catch(e) {}
+
+    if (!html) {
+      const other = state.market === 'kr' ? '🌐 해외' : '🇰🇷 한국';
+      html = `<div style="padding:8px 10px;color:#8b949e;font-size:11px">검색 결과 없음<br><span style="font-size:10px">${other} 버튼도 확인해보세요</span></div>`;
     }
+    dropdown.innerHTML = html;
+    bindItems();
   }
+
+  // 한국/해외 토글 버튼
+  document.querySelectorAll('.mkt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.market = btn.dataset.market;
+      document.querySelectorAll('.mkt-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // placeholder 변경
+      input.placeholder = state.market === 'kr' ? '한국 종목명/코드' : '해외 회사명/티커 (예: apple)';
+      // 검색어 있으면 다시 검색
+      const q = input.value.trim();
+      if (q) searchNaver(q);
+      input.focus();
+    });
+  });
 
   input.addEventListener('input', () => {
     const q = input.value.trim();
@@ -817,12 +869,19 @@ function setupSearch() {
     if (e.key === 'Enter') {
       const q = input.value.trim();
       if (!q) return;
-      // 6자리 숫자면 한국 종목코드
+      // 첫 드롭다운 항목이 있으면 그것 선택 (정확한 종목)
+      const firstItem = dropdown.querySelector('.stock-item');
+      if (firstItem) {
+        firstItem.dispatchEvent(new Event('mousedown'));
+        return;
+      }
+      // 없으면 직접 입력 처리
       if (/^\d{6}$/.test(q)) {
         loadStock({ code: q, name: q, price: 50000 });
-      } else {
-        // 그 외는 미국 주식 티커로 처리
+      } else if (state.market === 'us') {
         loadStock({ code: q.toUpperCase(), name: q.toUpperCase(), price: 100, yahooSym: q.toUpperCase() });
+      } else {
+        loadStock({ code: q, name: q, price: 50000 });
       }
       input.value = '';
       dropdown.style.display = 'none';
@@ -1177,7 +1236,14 @@ function drawCandle() {
   // ── 좌상단: 종목명 + 오버레이 범례 (세로 정렬) ──
   const stockName = state.stock ? state.stock.name : '';
   const stockCode = state.stock ? state.stock.code : '';
-  const nameLabel = stockName === stockCode ? stockName : stockName + ' ' + stockCode;
+  const fullNm = state.stock && state.stock.fullName ? state.stock.fullName : '';
+  // 회사 전체이름이 있으면 우선, 없으면 종목명+코드
+  let nameLabel;
+  if (fullNm && fullNm !== stockName) {
+    nameLabel = stockName + ' · ' + fullNm;
+  } else {
+    nameLabel = stockName === stockCode ? stockName : stockName + ' ' + stockCode;
+  }
 
   let ly = PAD.t + 12;
   const lx = PAD.l + 5;
