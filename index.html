@@ -1709,40 +1709,40 @@ const KRETF_CFG={
    현재가(라이브)·상승여력(계산)은 표시 시 추가됨 */
 const KR_PF={
   rows:[
-    ["005930","삼성전자","30.5","","",""],
-    ["000660","SK하이닉스","16.9","","",""],
-    ["069500","KODEX 200","8","","",""],
-    ["396500","TIGER 반도체TOP10","3.8","","",""],
-    ["009150","삼성전기","3.5","","",""],
-    ["466920","SOL 조선TOP3플러스","3","","",""],
-    ["","현금","2.6","","",""],
-    ["005935","삼성전자우","1.8","","",""],
-    ["091160","KODEX 반도체","1.7","","",""],
-    ["402340","SK스퀘어","1.7","","",""],
-    ["329180","HD현대중공업","1.5","","",""],
-    ["237350","KODEX 코스피100","1.4","","",""],
-    ["278530","KODEX 200TR","0.9","","",""],
-    ["058470","리노공업","0.8","","",""],
-    ["082740","한화엔진","0.7","","",""],
-    ["252990","샘씨엔에스","0.7","","",""],
-    ["031330","에스에이엠티","0.7","","",""],
-    ["271560","오리온","0.7","","",""],
-    ["001800","오리온홀딩스","0.7","","",""],
-    ["166090","하나머티리얼즈","0.7","","",""],
-    ["278470","에이피알","0.7","","",""],
-    ["039490","키움증권","0.6","","",""],
-    ["062040","산일전기","0.6","","",""],
-    ["020000","한섬","0.6","","",""],
-    ["005690","파미셀","0.6","","",""],
-    ["108490","로보티즈","0.6","","",""],
-    ["305540","TIGER 2차전지테마","0.6","","",""],
-    ["267250","HD현대","0.6","","",""],
-    ["023530","롯데쇼핑","0.5","","",""],
-    ["006400","삼성SDI","0.5","","",""],
+    ["005930","삼성전자","28.56","","",""],
+    ["000660","SK하이닉스","16.78","","",""],
+    ["069500","KODEX 200","8.1","","",""],
+    ["009150","삼성전기","3.76","","",""],
+    ["396500","TIGER 반도체TOP10","3.67","","",""],
+    ["466920","SOL 조선TOP3플러스","2.92","","",""],
+    ["329180","HD현대중공업","1.9","","",""],
+    ["091160","KODEX 반도체","1.69","","",""],
+    ["005935","삼성전자우","1.67","","",""],
+    ["","현금","1.51","","",""],
+    ["402340","SK스퀘어","1.49","","",""],
+    ["237350","KODEX 코스피100","1.42","","",""],
+    ["082740","한화엔진","1.04","","",""],
+    ["491460","LIG디펜스앤에어로스페이스","0.96","","",""],
+    ["039030","이오테크닉스","0.92","","",""],
+    ["278530","KODEX 200TR","0.88","","",""],
+    ["039490","키움증권","0.83","","",""],
+    ["058470","리노공업","0.83","","",""],
+    ["006400","삼성SDI","0.8","","",""],
+    ["023530","롯데쇼핑","0.68","","",""],
+    ["166090","하나머티리얼즈","0.64","","",""],
+    ["084370","유진테크","0.63","","",""],
+    ["064760","티씨케이","0.63","","",""],
+    ["347770","파마리서치","0.59","","",""],
+    ["001820","삼화콘덴서","0.57","","",""],
+    ["305540","TIGER 2차전지테마","0.55","","",""],
+    ["229640","LS에코에너지","0.52","","",""],
+    ["108490","로보티즈","0.52","","",""],
+    ["037370","삼지전자","0.5","","",""],
+    ["281820","케이씨텍","0.49","","",""],
   ],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
-const KR_LABEL = "7월 1주 포트폴리오";  // 한국 표 상단 라벨(매달 갱신)
+const KR_LABEL = "7월 1주 포트폴리오 (MP 30위)";  // 한국 표 상단 라벨(매달 갱신)
 const US_LABEL = "기준일 : 6월27일 (전체 반영)";  // 미국(반) 표 상단 라벨
 let valMarket='us', VAL=[];
 function krMerge(saved){
@@ -1836,7 +1836,7 @@ function renderVal(){
   t.className='val-tbl';
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
-  let html='<caption class="kr-cap">'+US_LABEL+'</caption><thead><tr>';
+  let html='<caption class="kr-cap">'+US_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><thead><tr>';
   VAL_VIEW.forEach(col=>{
     if(col.kind==='namelink'){
       html+=`<th class="syhdr-th"><div class="syhdr"><span>${col.h}</span><button type="button" class="usinv-btn${usInvest?' on':''}">투자</button></div></th>`;
@@ -2160,7 +2160,7 @@ function renderKrTable(){
   loadReportCache(); loadFrgnCache();
   const W=[178,52,76,112,82,104,210];
   const H=["종목","비중(%)","현재가<br>(전일대비%)","52주최고가","외국인<br>(5일순매수)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
-  let h='<caption class="kr-cap">'+KR_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+KR_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
     const code=String(r[0]||'').replace(/[^0-9]/g,'');
@@ -2246,7 +2246,7 @@ function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[150,56,84,90,100,80,96];
   const H=["Symbol","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록"];
-  let h='<caption class="kr-cap">'+USC_LABEL+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+USC_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
     const sym=String(r[0]||'').trim().toUpperCase();
@@ -2856,7 +2856,7 @@ function renderInvest(){
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span></caption>`;
+  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   if(!INVEST_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
