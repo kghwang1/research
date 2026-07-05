@@ -54,6 +54,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 #period-group { display: flex; gap: 3px; margin-left: auto; }
 
 /* 3줄: 주가 정보 */
+#selected-stock { font-weight:700; font-size:13px; color:#58a6ff; margin-right:4px; }
 #header-row3 {
   display: flex; align-items: center; gap: 10px;
   padding: 4px 10px;
@@ -181,6 +182,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
   <!-- 3줄: 주가 정보 -->
   <div id="header-row3">
+    <span id="selected-stock"></span>
     <div id="ohlc-info">
       <span class="price" id="info-close">-</span>
       <span><span class="label">시</span><span id="info-open">-</span></span>
@@ -694,7 +696,11 @@ function showLoading(msg) {
 async function loadStock(stock) {
   state.stock = stock;
   const inp = document.getElementById('search-input');
+  // 검색창에 종목명 그대로 유지
   inp.value = stock.name + (stock.code !== stock.name ? '  ' + stock.code : '');
+  // 검색창 아래엔 로딩 후 full name 표시 (일단 비움)
+  const selEl = document.getElementById('selected-stock');
+  if (selEl) selEl.textContent = '';
   showLoading('📡 데이터 로딩중...');
 
   // 실제 데이터 시도
@@ -715,13 +721,11 @@ async function loadStock(stock) {
     }
     state.data = result.ohlcv;
     state.isReal = true;
-    // 검증 성공 → 회사 전체이름 표시
-    if (result.name && result.name !== stock.code) {
-      state.stock = { ...stock, fullName: result.name, currency: result.currency };
-      // 검색창에 [티커 - 회사명] 표시
-      if (!isKorean) {
-        inp.value = stock.code + '  ' + result.name;
-      }
+    // 검증 성공 → 회사 전체이름을 검색창 아래에 표시
+    state.stock = { ...stock, fullName: result.name || stock.name, currency: result.currency };
+    const selEl2 = document.getElementById('selected-stock');
+    if (selEl2) {
+      selEl2.textContent = result.name || (stock.name + (stock.code !== stock.name ? ' ' + stock.code : ''));
     }
   } else {
     // 데이터 자체를 못 받음
@@ -1239,36 +1243,11 @@ function drawCandle() {
     ctx.fillText(lbl, xOf(i), H - 7);
   }});
 
-  // ── 좌상단: 종목명 + 오버레이 범례 (세로 정렬) ──
-  const stockName = state.stock ? state.stock.name : '';
-  const stockCode = state.stock ? state.stock.code : '';
-  const fullNm = state.stock && state.stock.fullName ? state.stock.fullName : '';
-  // 회사 전체이름이 있으면 우선, 없으면 종목명+코드
-  let nameLabel;
-  if (fullNm && fullNm !== stockName) {
-    nameLabel = stockName + ' · ' + fullNm;
-  } else {
-    nameLabel = stockName === stockCode ? stockName : stockName + ' ' + stockCode;
-  }
-
+  // ── 좌상단: 오버레이 범례만 (종목명은 검색창 아래에 표시) ──
   let ly = PAD.t + 12;
   const lx = PAD.l + 5;
 
-  // 종목명 (첫 줄, 크게)
-  if (nameLabel) {
-    ctx.textAlign = 'left';
-    ctx.font = "bold 13px 'Noto Sans KR', monospace";
-    ctx.fillStyle = '#e6edf3';
-    // 반투명 배경
-    const tw = ctx.measureText(nameLabel).width;
-    ctx.fillStyle = '#0d1117bb';
-    ctx.fillRect(lx - 3, ly - 11, tw + 8, 16);
-    ctx.fillStyle = '#e6edf3';
-    ctx.fillText(nameLabel, lx, ly + 1);
-    ly += 17;
-  }
-
-  // 오버레이 범례 (종목명 아래 세로로)
+  // 오버레이 범례 (세로로)
   const legends = [];
   if (overlays.MA) {
     legends.push({t:'MA5', c:'#ef5350'});
