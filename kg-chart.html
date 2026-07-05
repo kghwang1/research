@@ -68,12 +68,15 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
 /* 사이드 패널 */
 #sidebar {
-  width: 156px; background: #161b22;
-  border-right: 1px solid #21262d;
-  overflow-y: auto; flex-shrink: 0;
-  transition: width 0.22s ease, opacity 0.22s ease;
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 156px; background: #161b22ee;
+  border-right: 1px solid #30363d;
+  overflow-y: auto;
+  z-index: 40;
+  transition: transform 0.22s ease, opacity 0.22s ease;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.4);
 }
-#sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; border: none; }
+#sidebar.collapsed { transform: translateX(-100%); opacity: 0; pointer-events: none; }
 .group-title { padding: 6px 8px 2px; font-size: 10px; color: #58a6ff; font-weight: 700; white-space: nowrap; }
 .ind-label { display: flex; align-items: center; gap: 4px; padding: 4px 6px; cursor: pointer; font-size: 11px; white-space: nowrap; }
 .ind-label:hover { background: #21262d; }
@@ -393,7 +396,19 @@ const CALC = {
       for(let j=i-period+1;j<=i;j++){ sumVP+=d[j].close*d[j].volume; sumV+=d[j].volume; }
       return sumV>0 ? sumVP/sumV : null;
     });
-    return{vama,signal:ema(vama,9)};
+    // 비교용 일반 가격 이동평균(같은 기간)
+    const c=d.map(x=>x.close);
+    const priceMA=sma(c,period);
+    // 교차 신호: VAMA가 가격MA를 상향돌파=매수, 하향돌파=매도
+    const signals=d.map((_,i)=>{
+      if(i<period||vama[i]==null||priceMA[i]==null||vama[i-1]==null||priceMA[i-1]==null) return 0;
+      const prevDiff=vama[i-1]-priceMA[i-1];
+      const curDiff=vama[i]-priceMA[i];
+      if(prevDiff<=0 && curDiff>0) return 1;   // 매수(골든크로스)
+      if(prevDiff>=0 && curDiff<0) return -1;  // 매도(데드크로스)
+      return 0;
+    });
+    return{vama,priceMA,signals};
   },
   MACD:(d)=>{
     const c=d.map(x=>x.close),e12=ema(c,12),e26=ema(c,26);
@@ -569,6 +584,16 @@ let sidebarOpen = false; // 기본값: 닫힘
 
 function toggleSidebar() {
   sidebarOpen = !sidebarOpen;
+  applySidebarState();
+}
+
+function closeSidebar() {
+  if (!sidebarOpen) return;
+  sidebarOpen = false;
+  applySidebarState();
+}
+
+function applySidebarState() {
   const sb = document.getElementById('sidebar');
   const tb = document.getElementById('toggle-btn');
   const stb = document.getElementById('sidebar-toggle-btn');
@@ -583,8 +608,7 @@ function toggleSidebar() {
     tb.style.left = '0';
     if (stb) stb.style.color = '#8b949e';
   }
-  // 챠트 다시 그리기 (레이아웃 변경 후)
-  setTimeout(() => renderAll(), 250);
+  // 사이드바가 차트를 덮으므로 차트 크기 변화 없음 → 재렌더 불필요
 }
 
 function init() {
@@ -596,6 +620,19 @@ function init() {
   setupSidebar();
   setupHeader();
   setupSearch();
+
+  // 차트 영역(캔들+보조차트) 터치/클릭 시 사이드바 닫기
+  const chartArea = document.getElementById('chart-area');
+  if (chartArea) {
+    chartArea.addEventListener('mousedown', () => { if (sidebarOpen) closeSidebar(); });
+    chartArea.addEventListener('touchstart', () => { if (sidebarOpen) closeSidebar(); }, { passive: true });
+  }
+  // 사이드바 자체를 터치하면 닫히지 않도록 (이벤트 전파 차단)
+  const sidebarEl = document.getElementById('sidebar');
+  if (sidebarEl) {
+    sidebarEl.addEventListener('mousedown', e => e.stopPropagation());
+    sidebarEl.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+  }
 
   // URL 파라미터로 종목 자동 로드
   const params = new URLSearchParams(location.search);
@@ -1114,15 +1151,34 @@ function drawCandle() {
   // VAMA (거래량조정 이동평균) + 시그널선
   if (overlays.VAMA) {
     const r = CALC.VAMA(data);
+    // 가격 이동평균 (검정/회색 실선) - 비교선
+    const pma = r.priceMA.slice(...range);
+    ctx.strokeStyle = '#888888'; ctx.lineWidth = 1.2; ctx.setLineDash([]); ctx.beginPath(); let sp = false;
+    pma.forEach((v,i) => { if (!v) return; sp ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), sp=true); }); ctx.stroke();
     // VAMA 본선 (주황 실선)
     const sl = r.vama.slice(...range);
-    ctx.strokeStyle = '#ffa657'; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.beginPath(); let s = false;
+    ctx.strokeStyle = '#ffa657'; ctx.lineWidth = 1.8; ctx.beginPath(); let s = false;
     sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
-    // 시그널선 (주황 점선)
-    const sig = r.signal.slice(...range);
-    ctx.strokeStyle = '#ffa65799'; ctx.lineWidth = 1; ctx.setLineDash([4,3]); ctx.beginPath(); let s2 = false;
-    sig.forEach((v,i) => { if (!v) return; s2 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s2=true); }); ctx.stroke();
-    ctx.setLineDash([]);
+    // 매매 신호 (교차점 화살표)
+    const sig = r.signals.slice(...range);
+    ctx.textAlign = 'center'; ctx.font = 'bold 11px monospace';
+    sig.forEach((v,i) => {
+      if (v === 0 || !sl[i]) return;
+      const x = xOf(i), y = yOf(sl[i]);
+      if (v === 1) {
+        // 매수 ▲ (선 아래)
+        ctx.fillStyle = '#ef5350';
+        ctx.beginPath();
+        ctx.moveTo(x, y+16); ctx.lineTo(x-5, y+24); ctx.lineTo(x+5, y+24); ctx.closePath(); ctx.fill();
+        ctx.fillText('매수', x, y+36);
+      } else {
+        // 매도 ▼ (선 위)
+        ctx.fillStyle = '#1976d2';
+        ctx.beginPath();
+        ctx.moveTo(x, y-16); ctx.lineTo(x-5, y-24); ctx.lineTo(x+5, y-24); ctx.closePath(); ctx.fill();
+        ctx.fillText('매도', x, y-28);
+      }
+    });
   }
 
   // PSAR
@@ -1260,7 +1316,7 @@ function drawCandle() {
   if (overlays.PSAR)     legends.push({t:'PSAR', c:'#f78166'});
   if (overlays.DEMA)     legends.push({t:'DEMA(20)', c:'#a8ff78'});
   if (overlays.VIDYA)    legends.push({t:'VIDYA(14)', c:'#4ecdc4'});
-  if (overlays.VAMA)     legends.push({t:'VAMA(20)', c:'#ffa657'});
+  if (overlays.VAMA)   { legends.push({t:'VAMA(20)', c:'#ffa657'}); legends.push({t:'가격MA(20)', c:'#888888'}); }
   if (overlays.VPROFILE) legends.push({t:'매물대(POC)', c:'#d2a8ff'});
 
   if (legends.length) {
