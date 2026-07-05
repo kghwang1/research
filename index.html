@@ -1920,10 +1920,10 @@ function renderVal(){
         if(col.kind==='edit') attr=` contenteditable data-r="${ri}" data-c="${col.c}"`;
       }
       if(col.wt) cls+=' wt';
-      // 현재가 셀: 클릭하면 챠트 열기
+      // 현재가 셀: 클릭하면 챠트 열기 (심볼 = row[1])
       if(col.kind==='live'){
-        const sym2 = String(row[0]||'').trim().toUpperCase();
-        const nm2 = String(row[1]||sym2);
+        const sym2 = String(row[1]||'').trim().toUpperCase();
+        const nm2 = String(row[2]||sym2);
         const liveStyle = valLive[ri] ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
         html+=`<td class="${cls} uslive" data-sym="${sym2}" data-name="${nm2}"${liveStyle}>${cell}</td>`;
       } else {
