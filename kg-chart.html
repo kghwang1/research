@@ -601,9 +601,15 @@ function init() {
   const urlName = params.get('name');
   if (urlCode) {
     const stock = { code: urlCode, name: urlName || urlCode, price: 50000 };
-    if (!/^\d{6}$/.test(urlCode) && urlCode !== 'KOSPI' && urlCode !== 'KOSDAQ') {
+    const isKr = /^\d{6}$/.test(urlCode) || urlCode === 'KOSPI' || urlCode === 'KOSDAQ';
+    if (!isKr) {
       stock.yahooSym = urlCode;
     }
+    // 국가 선택 버튼도 종목에 맞게 자동 전환
+    state.market = isKr ? 'kr' : 'us';
+    document.querySelectorAll('.mkt-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.market === state.market);
+    });
     loadStock(stock);
   } else {
     loadStock(state.stock);
