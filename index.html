@@ -296,7 +296,8 @@
   .ftop-tbl th{background:#0d1117;color:#8b949e;padding:6px 4px;font-weight:600;border-bottom:1px solid #21262d;font-size:10px}
   .ftop-tbl td{padding:6px 4px;border-bottom:1px solid #1a1f28;text-align:center;color:#c9d1d9}
   .ftop-tbl td.nm{text-align:left;color:#58a6ff;cursor:pointer}
-  .ftop-tbl .stars{color:#f0a836;letter-spacing:-1px}
+  .ftop-tbl .stars .fbuy{color:#c00000}
+  .ftop-tbl .stars .fno{color:#bbb}
   .ftop-note{font-size:10px;color:#6e7681;margin-top:6px;text-align:center}
   .val-placeholder{padding:50px 20px;text-align:center;color:var(--mut);font-size:14px}
   /* 주식 전체화면 오버레이 */
@@ -2703,60 +2704,121 @@ let ftopMkt = 'kospi';
 
 async function loadFtop(){
   const note = document.getElementById('ftopNote');
-  if(FTOP_DATA){ renderFtop(); return; }
-
-  // 하루 1회 캐싱
   const today = new Date().toISOString().slice(0,10);
-  try{
-    const cached = JSON.parse(localStorage.getItem('ftop_cache') || 'null');
-    if(cached && cached.date === today && cached.data){
-      FTOP_DATA = cached.data;
-      renderFtop();
-      return;
-    }
-  }catch(e){}
 
-  if(note) note.textContent = '📡 외국인 순매수 종목 불러오는 중…';
-  try{
-    const r = await fetch(SRV_URL + '/?ftop=1&_t=' + Date.now(), { cache:'no-store' });
-    const j = await r.json();
-    if(j.ok){
-      FTOP_DATA = j;
-      try{ localStorage.setItem('ftop_cache', JSON.stringify({ date: today, data: j })); }catch(e){}
-      renderFtop();
-    } else {
-      if(note) note.textContent = '⚠️ 데이터를 불러오지 못했습니다';
+  // 누적 저장소 로드: { "2026-07-06": {kospi:[...], kosdaq:[...]}, ... }
+  let hist = {};
+  try{ hist = JSON.parse(localStorage.getItem('ftop_history') || '{}'); }catch(e){}
+
+  // 오늘 데이터가 이미 있으면 재요청 안 함
+  if(!hist[today]){
+    if(note) note.textContent = '📡 오늘 외국인 순매수 종목 불러오는 중…';
+    try{
+      const r = await fetch(SRV_URL + '/?ftop=1&_t=' + Date.now(), { cache:'no-store' });
+      const j = await r.json();
+      if(j.ok){
+        hist[today] = {
+          kospi: (j.kospi||[]).map(s => ({code:s.code, name:s.name})),
+          kosdaq: (j.kosdaq||[]).map(s => ({code:s.code, name:s.name})),
+        };
+        // 최근 5영업일만 유지 (날짜 최신순 정렬 후 5개)
+        const dates = Object.keys(hist).sort().reverse();
+        const keep = dates.slice(0, 5);
+        const trimmed = {};
+        keep.forEach(d => { trimmed[d] = hist[d]; });
+        hist = trimmed;
+        localStorage.setItem('ftop_history', JSON.stringify(hist));
+      }
+    }catch(e){
+      if(note) note.textContent = '⚠️ 로드 실패: ' + e.message;
     }
-  }catch(e){
-    if(note) note.textContent = '⚠️ 로드 실패: ' + e.message;
   }
+
+  // 누적 집계
+  FTOP_DATA = aggregateFtop(hist);
+  renderFtop();
 }
 
-function renderFtop(){
+// 최근 5일 데이터를 종목별로 집계 (순매수 일수 + 날짜별 시퀀스)
+function aggregateFtop(hist){
+  const dates = Object.keys(hist).sort().slice(-5); // 과거→최근 5일
+  const result = { kospi: {}, kosdaq: {}, dateCount: dates.length };
+
+  ['kospi','kosdaq'].forEach(mkt => {
+    const counter = {};
+    // 종목별 날짜별 순매수 여부 (seq: 과거→최근)
+    dates.forEach(d => {
+      const list = (hist[d] && hist[d][mkt]) || [];
+      const codesToday = new Set(list.map(s => s.code));
+      // 오늘 등장한 종목 등록
+      list.forEach(s => {
+        if(!counter[s.code]) counter[s.code] = { code:s.code, name:s.name, days:0, seq:[] };
+      });
+      // 모든 추적 종목에 대해 오늘 순매수 여부 기록
+      Object.values(counter).forEach(c => {
+        c.seq.push(codesToday.has(c.code));
+      });
+    });
+    // days = 순매수한 날 수
+    Object.values(counter).forEach(c => { c.days = c.seq.filter(Boolean).length; });
+    // 일수 많은 순, 같으면 코드순(시총 근사)
+    result[mkt] = Object.values(counter).sort((a,b) => {
+      if(b.days !== a.days) return b.days - a.days;
+      return a.code.localeCompare(b.code);
+    });
+  });
+  return result;
+}
+
+let ftopQuotes = {}; // code -> {price,rate,high,target}
+
+async function fetchFtopQuotes(list){
+  const codes = list.map(s => s.code).filter(c => !ftopQuotes[c]);
+  if(!codes.length) return;
+  try{
+    const r1 = await fetch(SRV_URL+'/?symbols='+encodeURIComponent(codes.map(c=>'STK:'+c).join(',')));
+    const d1 = await r1.json();
+    (d1.items||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); ftopQuotes[c]=ftopQuotes[c]||{}; if(q.price!=null) ftopQuotes[c].price=q.price; if(q.rate!=null) ftopQuotes[c].rate=q.rate; } });
+  }catch(e){}
+  try{
+    const r2 = await fetch(SRV_URL+'/?targets='+encodeURIComponent(codes.join(',')));
+    const d2 = await r2.json();
+    (d2.items||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); ftopQuotes[c]=ftopQuotes[c]||{}; if(q.target!=null) ftopQuotes[c].target=q.target; if(q.high52!=null) ftopQuotes[c].high=q.high52; } });
+  }catch(e){}
+}
+
+async function renderFtop(){
   const tbl = document.getElementById('ftopTable');
   const note = document.getElementById('ftopNote');
   if(!tbl || !FTOP_DATA) return;
   const list = (FTOP_DATA[ftopMkt] || []).slice(0, 15);
+  const dc = FTOP_DATA.dateCount || 0;
 
-  let h = '<thead><tr><th>순위</th><th>종목</th><th>투자<br>일수</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
+  // 시세 조회
+  await fetchFtopQuotes(list);
+
+  let h = '<thead><tr><th>순위</th><th>종목</th><th>외국인<br>(5일)</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
   if(!list.length){
     h += '<tr><td colspan="6" style="padding:20px;color:#6e7681">데이터 없음</td></tr>';
   } else {
     list.forEach((s, i) => {
-      const stars = '★'.repeat(s.days || 0) + '☆'.repeat(Math.max(0, 5-(s.days||0)));
-      const price = s.price ? s.price.toLocaleString() : '—';
-      const rate = s.rate != null ? `<br><span style="color:${s.rate>=0?'#ef5350':'#1976d2'}">${s.rate>=0?'+':''}${s.rate}%</span>` : '';
-      const hi = s.high ? s.high.toLocaleString() : '—';
-      const hiUp = (s.high && s.price) ? `<br><span style="color:#8b949e">${(((s.high-s.price)/s.price)*100).toFixed(1)}%</span>` : '';
-      const tgt = s.target ? s.target.toLocaleString() : '—';
-      const tgtUp = (s.target && s.price) ? `<br><span style="color:${s.target>=s.price?'#ef5350':'#1976d2'}">${(((s.target-s.price)/s.price)*100).toFixed(1)}%</span>` : '';
-      const priceCell = s.price
+      // 최근 5일 순매수 시퀀스: 순매수=★(빨강), 아니면=ㆍ(회색), 최신이 오른쪽
+      let seq = (s.seq || []).slice(-5); while(seq.length < 5) seq.unshift(null);
+      const stars = seq.map(b => b===null ? '<span class="fno">ㆍ</span>' : (b ? '<span class="fbuy">★</span>' : '<span class="fno">ㆍ</span>')).join('');
+      const q = ftopQuotes[s.code] || {};
+      const price = q.price ? q.price.toLocaleString() : '—';
+      const rate = q.rate != null ? `<br><span style="color:${q.rate>=0?'#ef5350':'#1976d2'}">${q.rate>=0?'+':''}${q.rate}%</span>` : '';
+      const hi = q.high ? q.high.toLocaleString() : '—';
+      const hiUp = (q.high && q.price) ? `<br><span style="color:#8b949e">${(((q.high-q.price)/q.price)*100).toFixed(1)}%</span>` : '';
+      const tgt = q.target ? q.target.toLocaleString() : '—';
+      const tgtUp = (q.target && q.price) ? `<br><span style="color:${q.target>=q.price?'#ef5350':'#1976d2'}">${(((q.target-q.price)/q.price)*100).toFixed(1)}%</span>` : '';
+      const priceCell = q.price
         ? `<span style="cursor:pointer;text-decoration:underline dotted" onclick="openChart('${s.code}','${s.name.replace(/'/g,"")}')">${price}${rate}</span>`
         : `${price}${rate}`;
       h += `<tr>
         <td>${i+1}</td>
         <td class="nm" onclick="openNaverDomestic('${s.code}')">${s.name}<br><span style="color:#6e7681;font-size:9px">${s.code}</span></td>
-        <td class="stars">${stars}</td>
+        <td class="stars" style="text-align:right;white-space:nowrap;letter-spacing:1px">${stars}</td>
         <td>${priceCell}</td>
         <td>${hi}${hiUp}</td>
         <td>${tgt}${tgtUp}</td>
@@ -2765,7 +2827,7 @@ function renderFtop(){
   }
   h += '</tbody>';
   tbl.innerHTML = h;
-  if(note) note.innerHTML = '투자일수=최근5일 순매수일 · <span style="color:#58a6ff">종목명=네이버</span> · <span style="color:#3fb950">현재가=차트</span>';
+  if(note) note.innerHTML = `누적 ${dc}일치 · 투자일수=순매수 등장일 · <span style="color:#58a6ff">종목명=네이버</span> · <span style="color:#3fb950">현재가=차트</span>`;
 }
 function pnlFlowOpen(){ window.open(FLOW_URL,'_blank','noopener'); }
 function pnlApplyApprox(){ if(PNL.cur!=null){ if(PNL.spotV!=null) PNL.spotK=PNL.cur; if(PNL.futN!=null) PNL.futK=PNL.cur; } }
