@@ -640,8 +640,8 @@
     <div class="ftrend-head">
       <span class="ftrend-title">외국인 매매 추이 (1년)</span>
       <div class="ftrend-toggle">
-        <button class="ft-btn" data-mode="both">매도매수량</button>
         <button class="ft-btn active" data-mode="net">순매수</button>
+        <button class="ft-btn" data-mode="cumul">누적</button>
       </div>
     </div>
     <canvas id="ftrendCanvas"></canvas>
@@ -2504,7 +2504,7 @@ async function loadFtrend(){
     if(j.ok && j.rows && j.rows.length){
       FTREND_DATA = j.rows;
       drawFtrend();
-      if(note) note.textContent = '외국인 코스피 순매수 (억원) · 다음금융';
+      if(note) note.textContent = '외국인 코스피 순매수 (억원) · 네이버 · 붉은=순매수, 파랑=순매도';
     } else {
       if(note) note.textContent = '⚠️ 데이터를 불러오지 못했습니다';
     }
@@ -2529,15 +2529,17 @@ function drawFtrend(){
   const n = rows.length;
   const bw = Math.max(1, cw / n * 0.8);
 
+  // 누적 순매수 계산 (cumul 모드용)
+  let cumul = [], run = 0;
+  rows.forEach(r => { run += r.net; cumul.push(run); });
+
   // 값 범위
   let maxAbs = 0;
-  rows.forEach(r => {
-    if(ftrendMode === 'net'){
-      maxAbs = Math.max(maxAbs, Math.abs(r.net));
-    } else {
-      maxAbs = Math.max(maxAbs, Math.abs(r.buy), Math.abs(r.sell));
-    }
-  });
+  if(ftrendMode === 'net'){
+    rows.forEach(r => { maxAbs = Math.max(maxAbs, Math.abs(r.net)); });
+  } else {
+    cumul.forEach(v => { maxAbs = Math.max(maxAbs, Math.abs(v)); });
+  }
   if(maxAbs === 0) maxAbs = 1;
 
   const y0 = PAD.t + ch/2; // 0선(중앙)
@@ -2547,11 +2549,10 @@ function drawFtrend(){
   ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(W - PAD.r, y0); ctx.stroke();
 
-  // 막대
-  rows.forEach((r, i) => {
-    const x = PAD.l + (i + 0.5) * (cw / n);
-    if(ftrendMode === 'net'){
-      // 순매수: 양수=위(빨강), 음수=아래(파랑)
+  if(ftrendMode === 'net'){
+    // 일별 순매수 막대
+    rows.forEach((r, i) => {
+      const x = PAD.l + (i + 0.5) * (cw / n);
       const v = r.net;
       const barH = Math.abs(v) * scale;
       if(v >= 0){
@@ -2561,16 +2562,22 @@ function drawFtrend(){
         ctx.fillStyle = '#1976d2';
         ctx.fillRect(x - bw/2, y0, bw, barH);
       }
-    } else {
-      // 매수량(위 빨강) + 매도량(아래 파랑)
-      const buyH = Math.abs(r.buy) * scale;
-      const sellH = Math.abs(r.sell) * scale;
-      ctx.fillStyle = '#ef5350';
-      ctx.fillRect(x - bw/2, y0 - buyH, bw, buyH);
-      ctx.fillStyle = '#1976d2';
-      ctx.fillRect(x - bw/2, y0, bw, sellH);
-    }
-  });
+    });
+  } else {
+    // 누적 순매수 (면적/선)
+    ctx.beginPath();
+    cumul.forEach((v, i) => {
+      const x = PAD.l + (i + 0.5) * (cw / n);
+      const y = y0 - v * scale;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#f0a836'; ctx.lineWidth = 1.5; ctx.stroke();
+    // 마지막 값 강조
+    const lastV = cumul[cumul.length-1];
+    ctx.fillStyle = lastV >= 0 ? '#ef5350' : '#1976d2';
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'right';
+    ctx.fillText((lastV>=0?'+':'') + lastV.toLocaleString() + '억', W - PAD.r - 2, PAD.t + 12);
+  }
 
   // Y축 라벨 (우측)
   ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
