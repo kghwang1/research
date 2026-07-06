@@ -173,19 +173,16 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
 <!-- 헤더 -->
 <div id="header">
-  <!-- 1줄: 타이틀 + 날짜 -->
+  <!-- 1줄: 타이틀 + 오늘 날짜 -->
   <div id="header-row1">
     <span class="title">
       <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="지표 패널" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:2px 7px;border-radius:4px;cursor:pointer;font-size:12px;">☰</button>
       📈 KG 챠트분석
     </span>
-    <span style="display:flex;align-items:center;gap:8px">
-      <a href="kg-guide.html" style="background:#238636;color:#fff;padding:3px 10px;border-radius:5px;font-size:12px;font-weight:700;text-decoration:none">📊 지표설명</a>
-      <span id="header-date">-</span>
-    </span>
+    <span id="today-date" style="color:#8b949e;font-size:12px">-</span>
   </div>
 
-  <!-- 2줄: 검색창 + 기간버튼 -->
+  <!-- 2줄: KR/US + 검색창 + 종목명 -->
   <div id="header-row2">
     <div id="market-toggle">
       <button class="mkt-btn active" data-market="kr">🇰🇷</button>
@@ -195,26 +192,27 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
       <input id="search-input" placeholder="종목명/코드 검색" autocomplete="off">
       <div id="stock-dropdown"></div>
     </div>
+    <span id="selected-stock"></span>
     <span id="stock-name" style="display:none"></span>
     <span id="stock-code-display" style="display:none"></span>
-    <div id="interval-group" style="display:flex;gap:3px;flex-wrap:wrap">
-      <button class="period-btn" data-interval="5m">5분</button>
-      <button class="period-btn" data-interval="60m">1시간</button>
-      <button class="period-btn active" data-interval="1d">일봉</button>
-      <button class="period-btn" data-interval="1wk">주봉</button>
-      <button class="period-btn" data-interval="1mo">월봉</button>
-    </div>
   </div>
 
-  <!-- 3줄: 주가 정보 -->
+  <!-- 3줄: 주가 정보 + 기간 드롭다운 -->
   <div id="header-row3">
-    <span id="selected-stock"></span>
     <div id="ohlc-info">
       <span class="price" id="info-close">-</span>
       <span><span class="label">시</span><span id="info-open">-</span></span>
       <span><span class="label">고</span><span id="info-high" style="color:#ef5350">-</span></span>
       <span><span class="label">저</span><span id="info-low" style="color:#1976d2">-</span></span>
     </div>
+    <select id="interval-select" style="margin-left:auto;background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
+      <option value="5m">5분</option>
+      <option value="60m">1시간</option>
+      <option value="1d" selected>일봉</option>
+      <option value="1wk">주봉</option>
+      <option value="1mo">월봉</option>
+    </select>
+    <span id="header-date" style="display:none"></span>
   </div>
 </div>
 
@@ -641,6 +639,13 @@ function init() {
   document.getElementById('sidebar').classList.add('collapsed');
   document.getElementById('toggle-btn').style.left = '0';
 
+  // 오늘 날짜 표시 (YYYY-MM-DD)
+  const td = document.getElementById('today-date');
+  if (td) {
+    const now = new Date();
+    td.textContent = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  }
+
   // 사이드바 먼저 설정 (기본 표시 지표 반영)
   setupSidebar();
   setupHeader();
@@ -833,15 +838,14 @@ function showMsg(msg, ms) {
 }
 
 function setupHeader() {
-  // 봉 종류 버튼 (data-interval)
-  document.querySelectorAll('.period-btn[data-interval]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      state.interval = btn.dataset.interval;
-      document.querySelectorAll('.period-btn[data-interval]').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  // 봉 종류 드롭다운
+  const sel = document.getElementById('interval-select');
+  if (sel) {
+    sel.addEventListener('change', async () => {
+      state.interval = sel.value;
       await loadStock(state.stock);
     });
-  });
+  }
 }
 
 function setupSearch() {
@@ -1342,10 +1346,29 @@ function drawCandle() {
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
   ctx.fillText(pTxt, pbx + 3, priceY + 3);
 
-  // 호버 수직선
+  // 호버 수직선 + 날짜 라벨 (26-06-03 형식)
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
-    ctx.strokeStyle = '#ffffff33'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    const hx = xOf(state.hoverIdx);
+    ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(hx, PAD.t); ctx.lineTo(hx, PAD.t + ch); ctx.stroke();
+    // 날짜 라벨 (하단)
+    const hd = slice[state.hoverIdx];
+    if (hd && hd.date) {
+      // YYYY-MM-DD → YY-MM-DD, 분봉이면 시각 포함
+      let lbl;
+      if (state.interval==='5m'||state.interval==='60m') {
+        lbl = hd.date.length>10 ? hd.date.slice(2,16) : hd.date.slice(2);
+      } else {
+        lbl = hd.date.slice(2); // 2026-06-03 → 26-06-03
+      }
+      ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+      const tw = ctx.measureText(lbl).width;
+      // 배경 박스
+      ctx.fillStyle = '#1f6feb';
+      ctx.fillRect(hx - tw/2 - 5, H - 18, tw + 10, 15);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(lbl, hx, H - 7);
+    }
   }
 
   // X축
@@ -1361,14 +1384,8 @@ function drawCandle() {
   let ly = PAD.t + 12;
   const lx = PAD.l + 5;
 
-  // 오버레이 범례 (세로로)
+  // 오버레이 범례 (세로로) — 이동평균(MA) 정보는 제외
   const legends = [];
-  if (overlays.MA) {
-    legends.push({t:'MA5', c:'#ef5350'});
-    legends.push({t:'MA20', c:'#f59e0b'});
-    legends.push({t:'MA60', c:'#3fb950'});
-    legends.push({t:'MA120', c:'#58a6ff'});
-  }
   if (overlays.BB)       legends.push({t:'볼린저(20,2)', c:'#8d939f'});
   if (overlays.ICHIMOKU) legends.push({t:'일목균형표', c:'#ff7eb6'});
   if (overlays.PSAR)     legends.push({t:'PSAR', c:'#f78166'});
@@ -1919,6 +1936,13 @@ function setupMouseEvent() {
       touchStartX = e.touches[0].clientX;
       touchStartRange = [...state.range];
       pinchStartDist = null;
+      // 터치 위치에 호버선(날짜) 표시
+      const idx = getIdx(e.touches[0].clientX);
+      if (idx >= 0 && idx < n()) {
+        state.hoverIdx = idx;
+        updateOHLC(state.data[state.range[0] + idx]);
+        redrawAll();
+      }
     }
   };
 
@@ -1944,6 +1968,18 @@ function setupMouseEvent() {
     const cw = rect.width - PAD_L - PAD_R;
     const pxPerBar = cw / n();
     const deltaPx = e.touches[0].clientX - touchStartX;
+    // 손가락 이동이 작으면(20px 미만) 호버선(날짜 확인), 크면 패닝
+    if (Math.abs(deltaPx) < 20) {
+      const idx = getIdx(e.touches[0].clientX);
+      if (idx >= 0 && idx < n()) {
+        state.hoverIdx = idx;
+        updateOHLC(state.data[state.range[0] + idx]);
+        redrawAll();
+      }
+      return;
+    }
+    // 패닝 시작 → 호버 해제
+    state.hoverIdx = -1;
     const deltaIdx = Math.round(deltaPx / pxPerBar);
     dragStartRange = touchStartRange;
     shiftRange(deltaIdx);
