@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KG 보조차트 설명</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d1117; color: #e6edf3;
+  font-family: 'Noto Sans KR', sans-serif;
+  line-height: 1.6; padding-bottom: 40px;
+}
+#header {
+  position: sticky; top: 0; z-index: 100;
+  background: #161b22; border-bottom: 1px solid #21262d;
+  padding: 12px 16px; display: flex; align-items: center; gap: 10px;
+}
+#header .title { color: #58a6ff; font-weight: 700; font-size: 16px; }
+#header .back { background: #21262d; border: 1px solid #30363d; color: #e6edf3; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; text-decoration: none; }
+#header .back:hover { background: #30363d; }
+
+/* 검색 */
+#search-box {
+  padding: 12px 16px; background: #0d1117;
+  position: sticky; top: 53px; z-index: 99;
+  border-bottom: 1px solid #21262d;
+}
+#search-input {
+  width: 100%; background: #161b22; border: 1px solid #30363d;
+  color: #e6edf3; padding: 10px 14px; border-radius: 8px; font-size: 14px;
+}
+#search-input::placeholder { color: #6e7681; }
+
+/* 카테고리 필터 */
+#cat-filter { display: flex; gap: 6px; padding: 10px 16px; flex-wrap: wrap; overflow-x: auto; }
+.cat-btn {
+  background: #161b22; border: 1px solid #30363d; color: #8b949e;
+  padding: 5px 12px; border-radius: 16px; cursor: pointer; font-size: 12px; white-space: nowrap;
+}
+.cat-btn.active { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+
+/* 카드 */
+#cards { padding: 8px 16px; display: flex; flex-direction: column; gap: 12px; }
+.card {
+  background: #161b22; border: 1px solid #21262d; border-radius: 12px;
+  overflow: hidden;
+}
+.card-head {
+  padding: 12px 16px; cursor: pointer;
+  display: flex; align-items: center; gap: 10px;
+  border-left: 4px solid var(--c, #58a6ff);
+}
+.card-head:hover { background: #1c2128; }
+.card-head .name { font-weight: 700; font-size: 15px; flex: 1; }
+.card-head .cat-tag { font-size: 10px; color: #8b949e; background: #21262d; padding: 2px 8px; border-radius: 10px; }
+.card-head .arrow { color: #8b949e; font-size: 12px; transition: transform 0.2s; }
+.card.open .arrow { transform: rotate(90deg); }
+
+.card-body { display: none; padding: 0 16px 16px; }
+.card.open .card-body { display: block; }
+
+.section { margin-top: 14px; }
+.section-title {
+  font-size: 12px; font-weight: 700; color: var(--c, #58a6ff);
+  margin-bottom: 6px; display: flex; align-items: center; gap: 6px;
+}
+.section-title .ico { font-size: 14px; }
+.section-content { font-size: 13.5px; color: #c9d1d9; }
+
+.opt-box {
+  background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
+  padding: 10px 12px; font-family: monospace; font-size: 12.5px; color: #a8ff78;
+}
+.buy { color: #ef5350; font-weight: 700; }
+.sell { color: #58a6ff; font-weight: 700; }
+.signal-row {
+  display: flex; gap: 8px; margin: 5px 0; padding: 8px 10px;
+  background: #0d1117; border-radius: 6px; align-items: flex-start;
+}
+.signal-row .tag { flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+.signal-row .tag.b { background: #ef535033; color: #ef5350; }
+.signal-row .tag.s { background: #1976d233; color: #58a6ff; }
+.signal-row .tag.n { background: #37415133; color: #8b949e; }
+.signal-row .desc { font-size: 12.5px; color: #c9d1d9; }
+
+.no-result { text-align: center; color: #6e7681; padding: 40px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <a class="back" href="kg-chart.html">‹ 차트로</a>
+  <span class="title">📊 보조차트 설명</span>
+</div>
+
+<div id="search-box">
+  <input id="search-input" placeholder="🔍 지표 이름 검색 (예: RSI, 이격도, 볼린저)" autocomplete="off">
+</div>
+
+<div id="cat-filter">
+  <button class="cat-btn active" data-cat="all">전체</button>
+  <button class="cat-btn" data-cat="overlay">오버레이</button>
+  <button class="cat-btn" data-cat="trend">추세</button>
+  <button class="cat-btn" data-cat="momentum">모멘텀</button>
+  <button class="cat-btn" data-cat="volatility">변동성</button>
+  <button class="cat-btn" data-cat="volume">거래량</button>
+</div>
+
+<div id="cards"></div>
+
+<script>
+// ══════════════════════════════════════
+// 지표 설명 데이터
+// ══════════════════════════════════════
+const CAT = {
+  overlay: { label: '오버레이', color: '#f0a836' },
+  trend: { label: '추세', color: '#58a6ff' },
+  momentum: { label: '모멘텀', color: '#bc8cff' },
+  volatility: { label: '변동성', color: '#f78166' },
+  volume: { label: '거래량', color: '#3fb950' },
+};
+
+const INDICATORS = [
+  // ── 오버레이 ──
+  { key:'MA', name:'이동평균선 (MA)', cat:'overlay', opt:'MA5 / MA20 / MA60 / MA120 (일)',
+    desc:'일정 기간 종가의 평균을 선으로 연결. 추세의 방향과 지지·저항을 파악하는 가장 기본 지표.',
+    signals:[
+      ['b','골든크로스: 단기선(MA5)이 장기선(MA20)을 아래→위 돌파'],
+      ['s','데드크로스: 단기선이 장기선을 위→아래 돌파'],
+      ['n','주가가 이평선 위=상승추세, 아래=하락추세'],
+    ]},
+  { key:'BB', name:'볼린저밴드', cat:'overlay', opt:'기간 20일, 표준편차 2σ',
+    desc:'이동평균(중심선) 위아래로 표준편차 밴드를 그림. 변동성과 과열/침체를 동시에 파악.',
+    signals:[
+      ['b','주가가 하단밴드 터치 후 반등 → 매수'],
+      ['s','주가가 상단밴드 터치 후 하락 → 매도'],
+      ['n','밴드 폭 좁아짐(스퀴즈) → 큰 변동 임박 신호'],
+    ]},
+  { key:'ICHIMOKU', name:'일목균형표', cat:'overlay', opt:'전환9 / 기준26 / 선행52',
+    desc:'전환선·기준선·선행스팬·후행스팬·구름대로 구성. 지지저항·추세·매매시점을 종합 판단.',
+    signals:[
+      ['b','주가가 구름대 위로 돌파 → 강세 전환'],
+      ['s','주가가 구름대 아래로 이탈 → 약세 전환'],
+      ['n','전환선이 기준선 상향돌파 → 매수 신호'],
+    ]},
+  { key:'PSAR', name:'파라볼릭 (PSAR)', cat:'overlay', opt:'가속 0.02, 최대 0.2',
+    desc:'점(dot)으로 추세 방향과 전환점을 표시. 손절선(트레일링 스톱)으로 활용.',
+    signals:[
+      ['b','점이 캔들 아래로 이동 → 상승 전환 매수'],
+      ['s','점이 캔들 위로 이동 → 하락 전환 매도'],
+      ['n','점과 주가가 만나면 추세 전환'],
+    ]},
+  { key:'DEMA', name:'이중지수이동평균 (DEMA)', cat:'overlay', opt:'기간 20일 + 시그널 9일',
+    desc:'EMA의 시차를 줄인 빠른 이동평균. 일반 이평보다 주가에 민감하게 반응.',
+    signals:[
+      ['b','DEMA(실선)가 시그널(점선)을 상향돌파 → 매수'],
+      ['s','DEMA가 시그널을 하향돌파 → 매도'],
+    ]},
+  { key:'VIDYA', name:'가변동적 이동평균 (VIDYA)', cat:'overlay', opt:'기간 14일 + 시그널 9일',
+    desc:'변동성(CMO)에 따라 속도가 변하는 이동평균. 추세가 강할 때 빠르게 따라감.',
+    signals:[
+      ['b','VIDYA가 시그널을 상향돌파 → 매수'],
+      ['s','VIDYA가 시그널을 하향돌파 → 매도'],
+    ]},
+  { key:'VAMA', name:'거래량조정 이동평균 (VAMA)', cat:'overlay', opt:'기간 20일 + 가격MA 20일',
+    desc:'거래량을 가중치로 반영한 이동평균. 거래량 실린 진짜 추세를 잡아냄.',
+    signals:[
+      ['b','VAMA(주황)가 가격MA(회색)를 상향돌파 → 매수'],
+      ['s','VAMA가 가격MA를 하향돌파 → 매도'],
+      ['n','거래량 많은 날의 가격이 크게 반영됨'],
+    ]},
+  { key:'VPROFILE', name:'매물대 (거래량 프로파일)', cat:'overlay', opt:'가격구간 24단계',
+    desc:'가격대별 거래량을 수평막대로 표시. 매물이 많이 쌓인 가격대(지지·저항) 파악.',
+    signals:[
+      ['n','POC(최대매물대) = 가장 강한 지지·저항선'],
+      ['b','매물대 두꺼운 구간 하단에서 지지 → 매수'],
+      ['s','매물대 두꺼운 구간 상단에서 저항 → 매도'],
+    ]},
+
+  // ── 추세 ──
+  { key:'MACD', name:'MACD', cat:'trend', opt:'단기12 / 장기26 / 시그널9',
+    desc:'두 이동평균의 차이로 추세와 모멘텀을 파악. 전 세계에서 가장 널리 쓰이는 추세지표.',
+    signals:[
+      ['b','MACD선이 시그널선을 상향돌파 → 매수'],
+      ['s','MACD선이 시그널선을 하향돌파 → 매도'],
+      ['n','히스토그램 0선 상향돌파 → 상승 모멘텀'],
+    ]},
+  { key:'ADX', name:'ADX / DMI', cat:'trend', opt:'기간 14일, 기준선 25',
+    desc:'추세의 강도를 측정(방향 아님). +DI/-DI로 방향, ADX로 강도 판단.',
+    signals:[
+      ['b','+DI가 -DI 위 + ADX 25 이상 → 강한 상승추세 매수'],
+      ['s','-DI가 +DI 위 + ADX 25 이상 → 강한 하락추세 매도'],
+      ['n','ADX 25 미만 → 추세 약함(횡보), 관망'],
+    ]},
+  { key:'CCI', name:'CCI (추세채널지수)', cat:'trend', opt:'기간 20일, 기준 ±100',
+    desc:'가격이 평균에서 얼마나 벗어났는지 측정. 추세와 과열을 함께 판단.',
+    signals:[
+      ['b','CCI가 -100 아래에서 위로 복귀 → 매수'],
+      ['s','CCI가 +100 위에서 아래로 복귀 → 매도'],
+      ['n','+100 돌파 → 강한 상승추세 시작'],
+    ]},
+  { key:'AROON', name:'Aroon', cat:'trend', opt:'기간 25일',
+    desc:'최고가·최저가가 얼마나 최근에 나왔는지로 추세 시작/끝을 포착.',
+    signals:[
+      ['b','Aroon-Up이 70 위 + Aroon-Down 아래 → 상승추세'],
+      ['s','Aroon-Down이 70 위 + Aroon-Up 아래 → 하락추세'],
+      ['n','두 선 교차 → 추세 전환 가능'],
+    ]},
+  { key:'FORCE', name:'Force Index (포스인덱스)', cat:'trend', opt:'기간 13일',
+    desc:'가격변화 × 거래량으로 매수/매도 압력의 강도를 측정.',
+    signals:[
+      ['b','0선 위 + 상승 → 매수세 강함'],
+      ['s','0선 아래 + 하락 → 매도세 강함'],
+      ['n','가격과 다이버전스 → 추세 전환 신호'],
+    ]},
+  { key:'TRIX', name:'TRIX', cat:'trend', opt:'기간 15일 + 시그널 9일',
+    desc:'삼중 지수평활로 노이즈를 제거한 추세지표. 잔진동에 속지 않음.',
+    signals:[
+      ['b','TRIX가 시그널선을 상향돌파 → 매수'],
+      ['s','TRIX가 시그널선을 하향돌파 → 매도'],
+      ['n','0선 상향돌파 → 상승추세 확인'],
+    ]},
+  { key:'TSI', name:'TSI (진정강도지수)', cat:'trend', opt:'장기25 / 단기13 + 시그널7',
+    desc:'이중 평활한 모멘텀 지표. 신뢰도가 높고 다이버전스 분석에 유용.',
+    signals:[
+      ['b','TSI가 시그널선을 상향돌파 → 매수'],
+      ['s','TSI가 시그널선을 하향돌파 → 매도'],
+      ['n','0선 위=상승 우위, 아래=하락 우위'],
+    ]},
+
+  // ── 모멘텀 ──
+  { key:'RSI', name:'RSI (상대강도지수)', cat:'momentum', opt:'기간 14일, 기준 70/30',
+    desc:'상승·하락 폭의 비율로 과매수/과매도를 판단. 가장 대표적인 모멘텀 지표.',
+    signals:[
+      ['b','RSI 30 아래(과매도)에서 위로 반등 → 매수'],
+      ['s','RSI 70 위(과매수)에서 아래로 → 매도'],
+      ['n','가격과 다이버전스 → 강력한 반전 신호'],
+    ]},
+  { key:'SMI', name:'SMI (스토캐스틱 모멘텀)', cat:'momentum', opt:'기간13 / 평활25 / 시그널2',
+    desc:'스토캐스틱을 개선해 중심(0) 기준으로 표현. RSI보다 정교한 신호.',
+    signals:[
+      ['b','SMI가 -40 아래에서 시그널 상향돌파 → 매수'],
+      ['s','SMI가 +40 위에서 시그널 하향돌파 → 매도'],
+      ['n','0선 돌파 → 모멘텀 전환'],
+    ]},
+  { key:'STOCHRSI', name:'스토캐스틱 RSI', cat:'momentum', opt:'기간 14일, 기준 80/20',
+    desc:'RSI에 스토캐스틱을 적용해 더 민감하게 만든 지표. 단기 매매에 유용.',
+    signals:[
+      ['b','20 아래에서 %K가 %D 상향돌파 → 매수'],
+      ['s','80 위에서 %K가 %D 하향돌파 → 매도'],
+    ]},
+  { key:'STOCH', name:'스토캐스틱 (Fast)', cat:'momentum', opt:'기간 14일, 기준 80/20',
+    desc:'현재가가 최근 고저 범위에서 어디에 있는지 표시. 단기 전환점 포착.',
+    signals:[
+      ['b','20 아래에서 %K가 %D 상향돌파 → 매수'],
+      ['s','80 위에서 %K가 %D 하향돌파 → 매도'],
+    ]},
+  { key:'SLOWSTOCH', name:'완만한 스토캐스틱 (Slow)', cat:'momentum', opt:'기간 14일, 3일 평활',
+    desc:'Fast 스토캐스틱을 평활해 노이즈를 줄인 버전. 속임수 신호가 적음.',
+    signals:[
+      ['b','20 아래에서 상향돌파 → 매수 (Fast보다 신뢰도↑)'],
+      ['s','80 위에서 하향돌파 → 매도'],
+    ]},
+  { key:'CMO', name:'CMO (찬드 모멘텀)', cat:'momentum', opt:'기간 14일, 기준 ±50',
+    desc:'상승·하락 모멘텀의 차이를 -100~+100으로 표현. RSI보다 민감.',
+    signals:[
+      ['b','-50 아래(과매도)에서 반등 → 매수'],
+      ['s','+50 위(과매수)에서 하락 → 매도'],
+    ]},
+  { key:'DMI_DYN', name:'다이나믹 모멘텀 (DMI)', cat:'momentum', opt:'변동성 적응형',
+    desc:'변동성에 따라 기간이 자동 조정되는 RSI. 시장 상황에 맞춰 민감도 변화.',
+    signals:[
+      ['b','30 아래에서 반등 → 매수'],
+      ['s','70 위에서 하락 → 매도'],
+    ]},
+  { key:'MASS', name:'Mass Index (대중심리)', cat:'momentum', opt:'기간 25일',
+    desc:'고저 범위의 확장/수축으로 추세 반전을 예측. 27 돌파 후 26.5 하락이 신호.',
+    signals:[
+      ['n','27 위로 상승 후 26.5 아래로 → 반전 임박(리버설 벌지)'],
+      ['n','방향은 다른 지표와 함께 판단'],
+    ]},
+  { key:'DISPARITY', name:'이격도 (Disparity)', cat:'momentum', opt:'기간 20일, 기준 95/100/105',
+    desc:'현재가가 이동평균에서 얼마나 떨어졌는지 %로 표시. 과열/침체 판단.',
+    signals:[
+      ['b','95 아래(과매도)에서 위로 반등 → 매입'],
+      ['s','105 위(과매수)에서 아래로 → 매도'],
+      ['n','100 = 주가와 이평선 일치'],
+    ]},
+  { key:'CHAIKIN_OSC', name:'차이킨 오실레이터', cat:'momentum', opt:'단기3 / 장기10',
+    desc:'누적분산(A/D)의 오실레이터. 거래량 기반 매집·분산 모멘텀 파악.',
+    signals:[
+      ['b','0선 상향돌파 → 매집(매수)'],
+      ['s','0선 하향돌파 → 분산(매도)'],
+    ]},
+  { key:'MOM', name:'모멘텀 (Momentum)', cat:'momentum', opt:'기간 12일',
+    desc:'현재가와 N일 전 가격의 차이. 가장 단순하고 직관적인 모멘텀 지표.',
+    signals:[
+      ['b','0선 상향돌파 → 상승 모멘텀 매수'],
+      ['s','0선 하향돌파 → 하락 모멘텀 매도'],
+    ]},
+  { key:'WILLR', name:'Williams %R', cat:'momentum', opt:'기간 14일, 기준 -20/-80',
+    desc:'스토캐스틱과 유사하나 반대 척도(0~-100). 과매수/과매도 포착.',
+    signals:[
+      ['b','-80 아래(과매도)에서 위로 → 매수'],
+      ['s','-20 위(과매수)에서 아래로 → 매도'],
+    ]},
+
+  // ── 변동성 ──
+  { key:'ATR', name:'ATR (평균진정가격범위)', cat:'volatility', opt:'기간 14일',
+    desc:'하루 변동폭의 평균. 방향이 아닌 변동성 크기를 측정. 손절폭 계산에 필수.',
+    signals:[
+      ['n','ATR 상승 → 변동성 확대(위험↑)'],
+      ['n','손절폭 = 진입가 ± (ATR × 배수)'],
+      ['n','ATR 낮음 → 변동성 수축, 큰 움직임 대기'],
+    ]},
+  { key:'BBW', name:'볼린저밴드 폭', cat:'volatility', opt:'기간 20일',
+    desc:'볼린저밴드의 상하폭을 %로 표시. 변동성 수축→폭발 패턴 포착.',
+    signals:[
+      ['b','밴드폭 최저(스퀴즈) → 곧 큰 변동 → 돌파 방향 매매'],
+      ['n','밴드폭 확대 → 추세 진행 중'],
+    ]},
+  { key:'RVI', name:'RVI (상대변동성지수)', cat:'volatility', opt:'기간 14일, 기준 50',
+    desc:'표준편차로 방향성 있는 변동성 측정. RSI의 변동성 버전.',
+    signals:[
+      ['b','50 위 → 상승 변동성 우위'],
+      ['s','50 아래 → 하락 변동성 우위'],
+    ]},
+  { key:'INERTIA', name:'관성지수 (Inertia)', cat:'volatility', opt:'기간 20일',
+    desc:'RVI를 선형회귀로 평활한 지표. 추세의 관성(지속성)을 측정.',
+    signals:[
+      ['b','50 위 → 상승 관성 유지 → 보유/매수'],
+      ['s','50 아래 → 하락 관성 → 매도'],
+    ]},
+  { key:'CHAIKIN_VOL', name:'차이킨 변동성', cat:'volatility', opt:'기간 10일',
+    desc:'고저 범위의 변화율로 변동성 측정. 급등락 전조 파악.',
+    signals:[
+      ['n','급상승 → 변동성 급증(천장·바닥 가능)'],
+      ['n','하락 → 변동성 수축(횡보)'],
+    ]},
+
+  // ── 거래량 ──
+  { key:'VOLUME', name:'거래량', cat:'volume', opt:'-',
+    desc:'해당 기간 거래된 주식 수. 모든 분석의 기본. 가격 움직임의 신뢰도를 검증.',
+    signals:[
+      ['b','상승 + 거래량 증가 → 강한 상승(신뢰)'],
+      ['s','상승 + 거래량 감소 → 약한 상승(주의)'],
+      ['n','바닥권 대량거래 → 반등 신호'],
+    ]},
+  { key:'OBV', name:'OBV (누적거래량)', cat:'volume', opt:'-',
+    desc:'상승일 거래량 더하고 하락일 빼서 누적. 거래량으로 추세 확인.',
+    signals:[
+      ['b','OBV 상승 → 매집 진행(주가 상승 예고)'],
+      ['s','OBV 하락 → 분산 진행'],
+      ['n','가격과 다이버전스 → 추세 전환 신호'],
+    ]},
+  { key:'CMF', name:'차이킨 자금흐름 (CMF)', cat:'volume', opt:'기간 20일, 기준 0',
+    desc:'거래량 가중으로 자금 유입/유출 측정. 매집·분산 판단.',
+    signals:[
+      ['b','0 위 → 자금 유입(매수세)'],
+      ['s','0 아래 → 자금 유출(매도세)'],
+    ]},
+  { key:'MFI', name:'MFI (자금흐름지수)', cat:'volume', opt:'기간 14일, 기준 80/20',
+    desc:'거래량을 반영한 RSI. "돈이 실린 RSI"로 신뢰도 높음.',
+    signals:[
+      ['b','20 아래(과매도)에서 반등 → 매수'],
+      ['s','80 위(과매수)에서 하락 → 매도'],
+    ]},
+  { key:'PVT', name:'PVT (거래량추세지수)', cat:'volume', opt:'-',
+    desc:'가격변화율 × 거래량 누적. OBV보다 정교한 자금흐름 추적.',
+    signals:[
+      ['b','PVT 상승 → 매수세 우위'],
+      ['s','PVT 하락 → 매도세 우위'],
+      ['n','가격과 다이버전스 확인'],
+    ]},
+  { key:'WILLIAMS_AD', name:'윌리엄스 누적확산 (A/D)', cat:'volume', opt:'-',
+    desc:'진정 고저 기반 누적확산. 매집·분산의 강도를 측정.',
+    signals:[
+      ['b','A/D 상승 → 매집(축적)'],
+      ['s','A/D 하락 → 분산(배포)'],
+    ]},
+];
+
+// ══════════════════════════════════════
+// 렌더링
+// ══════════════════════════════════════
+let curCat = 'all';
+let curSearch = '';
+
+function render() {
+  const cards = document.getElementById('cards');
+  const filtered = INDICATORS.filter(ind => {
+    const catOk = curCat === 'all' || ind.cat === curCat;
+    const q = curSearch.toLowerCase();
+    const searchOk = !q || ind.name.toLowerCase().includes(q) || ind.key.toLowerCase().includes(q);
+    return catOk && searchOk;
+  });
+
+  if (!filtered.length) {
+    cards.innerHTML = '<div class="no-result">검색 결과가 없습니다</div>';
+    return;
+  }
+
+  cards.innerHTML = filtered.map(ind => {
+    const c = CAT[ind.cat].color;
+    const catLabel = CAT[ind.cat].label;
+    const sigRows = ind.signals.map(s => {
+      const [type, text] = s;
+      const cls = type === 'b' ? 'b' : type === 's' ? 's' : 'n';
+      const tag = type === 'b' ? '매수' : type === 's' ? '매도' : '참고';
+      return `<div class="signal-row"><span class="tag ${cls}">${tag}</span><span class="desc">${text}</span></div>`;
+    }).join('');
+
+    return `
+      <div class="card" style="--c:${c}">
+        <div class="card-head" onclick="toggleCard(this)">
+          <span class="name" style="color:${c}">${ind.name}</span>
+          <span class="cat-tag">${catLabel}</span>
+          <span class="arrow">▶</span>
+        </div>
+        <div class="card-body">
+          <div class="section">
+            <div class="section-title"><span class="ico">⚙️</span>옵션</div>
+            <div class="opt-box">${ind.opt}</div>
+          </div>
+          <div class="section">
+            <div class="section-title"><span class="ico">📖</span>설명</div>
+            <div class="section-content">${ind.desc}</div>
+          </div>
+          <div class="section">
+            <div class="section-title"><span class="ico">💡</span>매매 타이밍</div>
+            ${sigRows}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleCard(head) {
+  head.parentElement.classList.toggle('open');
+}
+
+// 카테고리 필터
+document.querySelectorAll('.cat-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    curCat = btn.dataset.cat;
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+});
+
+// 검색
+document.getElementById('search-input').addEventListener('input', (e) => {
+  curSearch = e.target.value.trim();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

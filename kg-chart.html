@@ -159,7 +159,10 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
       <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="지표 패널" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:2px 7px;border-radius:4px;cursor:pointer;font-size:12px;">☰</button>
       📈 KG 챠트분석
     </span>
-    <span id="header-date">-</span>
+    <span style="display:flex;align-items:center;gap:8px">
+      <a href="kg-guide.html" style="background:#238636;color:#fff;padding:3px 10px;border-radius:5px;font-size:12px;font-weight:700;text-decoration:none">📊 지표설명</a>
+      <span id="header-date">-</span>
+    </span>
   </div>
 
   <!-- 2줄: 검색창 + 기간버튼 -->
@@ -541,7 +544,7 @@ const IND_CFG = {
   CMO:{color:C.orange,lines:[50,0,-50]},
   DMI_DYN:{color:C.lime,range:[0,100],lines:[70,30]},
   MASS:{color:C.teal,lines:[27,26.5]},
-  DISPARITY:{color:C.accent,lines:[105,100,95]},
+  DISPARITY:{color:'#d32f2f',lines:[110,105,100,95,90],range:[85,115]},
   CHAIKIN_OSC:{color:C.pink,lines:[0]},
   MOM:{color:C.green,lines:[0]},
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
@@ -1387,6 +1390,56 @@ function drawSub(canvas, key) {
   });
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+
+  // ── 이격도: 책 스타일 (빨간선 + 95↓매수/105↑매도 영역 채움) ──
+  if (key === 'DISPARITY') {
+    const arr = vals[0];
+    const y100 = yOf(100), y95 = yOf(95), y105 = yOf(105);
+    // 95 아래(과매도=매수영역) 채움
+    ctx.fillStyle = '#3b3b3b';
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] == null || arr[i+1] == null) continue;
+      if (arr[i] < 95 || arr[i+1] < 95) {
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y95);
+        ctx.lineTo(xOf(i), yOf(Math.min(arr[i],95)));
+        ctx.lineTo(xOf(i+1), yOf(Math.min(arr[i+1],95)));
+        ctx.lineTo(xOf(i+1), y95);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    // 빨간 이격도 선
+    ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); let s = false;
+    arr.forEach((v,i) => { if (v==null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
+    ctx.stroke();
+    // 매수/매도 신호 (95 상향돌파=매수, 105 하향돌파=매도)
+    ctx.textAlign = 'center'; ctx.font = 'bold 10px monospace';
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i]==null || arr[i-1]==null) continue;
+      if (arr[i-1] < 95 && arr[i] >= 95) {
+        ctx.fillStyle = '#ef5350';
+        ctx.fillText('매입', xOf(i), yOf(arr[i]) + 16);
+      }
+      if (arr[i-1] > 105 && arr[i] <= 105) {
+        ctx.fillStyle = '#1976d2';
+        ctx.fillText('매도', xOf(i), yOf(arr[i]) - 10);
+      }
+    }
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+    // 레이블
+    const lastV = arr.filter(v => v != null).slice(-1)[0];
+    ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('이격도  ' + (lastV != null ? lastV.toFixed(1) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
 
   vals.forEach((arr, vi) => {
     if (key === 'VOLUME') {
