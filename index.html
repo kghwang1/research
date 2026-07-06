@@ -282,6 +282,8 @@
   .ftrend-toggle{display:flex;gap:4px}
   .ft-btn{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
   .ft-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  .ft-idx{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer}
+  .ft-idx.active{background:#8957e5;border-color:#8957e5;color:#fff}
   #ftrendCanvas{width:100%;height:180px;display:block}
   .ftrend-note{font-size:10px;color:#6e7681;margin-top:6px;text-align:center}
   .val-placeholder{padding:50px 20px;text-align:center;color:var(--mut);font-size:14px}
@@ -642,6 +644,8 @@
       <div class="ftrend-toggle">
         <button class="ft-btn active" data-mode="net">순매수</button>
         <button class="ft-btn" data-mode="cumul">누적</button>
+        <button class="ft-idx active" data-idx="kospi">코스피</button>
+        <button class="ft-idx" data-idx="kosdaq">코스닥</button>
       </div>
     </div>
     <canvas id="ftrendCanvas"></canvas>
@@ -2492,7 +2496,8 @@ function openPnl(){
 
 // ── 외국인 매매 추이 막대그래프 ──
 let FTREND_DATA = null;
-let ftrendMode = 'net'; // 'net' | 'both'
+let ftrendMode = 'net'; // 'net' | 'cumul'
+let ftrendIdx = 'kospi'; // 'kospi' | 'kosdaq'
 
 async function loadFtrend(){
   const note = document.getElementById('ftrendNote');
@@ -2501,7 +2506,7 @@ async function loadFtrend(){
   // 하루 1회 캐싱: localStorage에 날짜와 함께 저장
   const today = new Date().toISOString().slice(0,10);
   try{
-    const cached = JSON.parse(localStorage.getItem('ftrend_cache') || 'null');
+    const cached = JSON.parse(localStorage.getItem('ftrend_cache_v2') || 'null');
     if(cached && cached.date === today && cached.rows && cached.rows.length){
       FTREND_DATA = cached.rows;
       drawFtrend();
@@ -2517,7 +2522,7 @@ async function loadFtrend(){
     if(j.ok && j.rows && j.rows.length){
       FTREND_DATA = j.rows;
       // 하루 캐시 저장
-      try{ localStorage.setItem('ftrend_cache', JSON.stringify({ date: today, rows: j.rows })); }catch(e){}
+      try{ localStorage.setItem('ftrend_cache_v2', JSON.stringify({ date: today, rows: j.rows })); }catch(e){}
       drawFtrend();
       if(note) note.textContent = '외국인 코스피 순매수 (억원) · 네이버 · 붉은=순매수, 파랑=순매도';
     } else {
@@ -2600,6 +2605,31 @@ function drawFtrend(){
   ctx.fillText('0', W - PAD.r + 3, y0 + 3);
   ctx.fillText('-' + Math.round(maxAbs), W - PAD.r + 3, PAD.t + ch);
 
+  // ── 지수 곡선 (코스피/코스닥) 겹쳐 그리기 ──
+  const idxVals = rows.map(r => ftrendIdx === 'kospi' ? r.kospi : r.kosdaq);
+  const validIdx = idxVals.filter(v => v != null);
+  if(validIdx.length > 1){
+    const iMin = Math.min(...validIdx), iMax = Math.max(...validIdx);
+    const iRange = (iMax - iMin) || 1;
+    // 지수 곡선은 차트 상단 70% 영역에 매핑
+    const idxTop = PAD.t + 4, idxBot = PAD.t + ch * 0.9;
+    const idxY = v => idxBot - ((v - iMin) / iRange) * (idxBot - idxTop);
+    ctx.strokeStyle = ftrendIdx === 'kospi' ? '#e3b341' : '#a371f7';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath(); let started = false;
+    idxVals.forEach((v, i) => {
+      if(v == null) return;
+      const x = PAD.l + (i + 0.5) * (cw / n);
+      started ? ctx.lineTo(x, idxY(v)) : (ctx.moveTo(x, idxY(v)), started = true);
+    });
+    ctx.stroke();
+    // 지수 라벨 (좌상단)
+    const lastIdx = validIdx[validIdx.length - 1];
+    ctx.fillStyle = ftrendIdx === 'kospi' ? '#e3b341' : '#a371f7';
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText((ftrendIdx === 'kospi' ? '코스피 ' : '코스닥 ') + lastIdx.toLocaleString(), PAD.l + 2, PAD.t + 10);
+  }
+
   // X축 날짜 (양끝 + 중간)
   ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
   const showDates = [0, Math.floor(n/2), n-1];
@@ -2617,6 +2647,15 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.addEventListener('click', () => {
       ftrendMode = btn.dataset.mode;
       document.querySelectorAll('.ft-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      drawFtrend();
+    });
+  });
+  // 지수 선택 (코스피/코스닥)
+  document.querySelectorAll('.ft-idx').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ftrendIdx = btn.dataset.idx;
+      document.querySelectorAll('.ft-idx').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       drawFtrend();
     });
