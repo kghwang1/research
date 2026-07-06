@@ -2532,24 +2532,67 @@ async function renderFrgnPort(){
 let FRGN_PORT_DATA = null;
 async function loadFtopData(force){
   const today = new Date().toISOString().slice(0,10);
-  let hist = {};
-  try{ hist = JSON.parse(localStorage.getItem('ftop_history') || '{}'); }catch(e){}
-  // 오늘 데이터가 없거나(하루 1회) 강제 새로고침이면 다시 수집 (코스피+코스닥 함께)
-  if(!hist[today] || force){
-    try{
-      const nc = force ? '&nocache=1' : '';
-      const r = await fetch(SRV_URL + '/?ftop=1' + nc + '&_t=' + Date.now(), { cache:'no-store' });
-      const j = await r.json();
-      if(j.ok){
-        hist[today] = { kospi:(j.kospi||[]), kosdaq:(j.kosdaq||[]) };
-        const dates = Object.keys(hist).sort().reverse().slice(0,5);
-        const trimmed = {}; dates.forEach(d=>{ trimmed[d]=hist[d]; });
-        hist = trimmed;
-        localStorage.setItem('ftop_history', JSON.stringify(hist));
-      }
-    }catch(e){}
+  // 하루 1회 캐싱 (실제 순매수 시퀀스 포함)
+  let cache = {};
+  try{ cache = JSON.parse(localStorage.getItem('ftop_seq_v1') || '{}'); }catch(e){}
+  if(cache.date === today && cache.data && !force){
+    FRGN_PORT_DATA = cache.data;
+    return;
   }
-  FRGN_PORT_DATA = aggregateFtop(hist);
+
+  // 1) 오늘 외국인 순매수 상위 종목 리스트 (코스피+코스닥)
+  let kospi = [], kosdaq = [];
+  try{
+    const nc = force ? '&nocache=1' : '';
+    const r = await fetch(SRV_URL + '/?ftop=1' + nc + '&_t=' + Date.now(), { cache:'no-store' });
+    const j = await r.json();
+    if(j.ok){ kospi = j.kospi||[]; kosdaq = j.kosdaq||[]; }
+  }catch(e){}
+
+  // 2) 각 종목의 실제 최근 5일 순매수 시퀀스 조회 (한국(체)와 동일한 ?frgns=)
+  const enrichSeq = async (arr) => {
+    const codes = arr.map(s => s.code).filter(c => /^\d{6}$/.test(c));
+    const seqMap = {};
+    for(let i=0;i<codes.length;i+=20){
+      const part = codes.slice(i, i+20);
+      try{
+        const r = await fetch(SRV_URL + '/?frgns=' + encodeURIComponent(part.join(',')));
+        const d = await r.json();
+        (d.items||[]).forEach(q => { if(q&&q.ok&&Array.isArray(q.seq)) seqMap[q.code] = q.seq; });
+      }catch(e){}
+    }
+    // 시퀀스 붙이고 '최근 연속 순매수일' 계산
+    const streakOf = (seq) => {
+      // seq는 과거→최근 순. 최신(끝)부터 연속 true 개수
+      let s = 0;
+      for(let i = seq.length - 1; i >= 0; i--){
+        if(seq[i] === true) s++;
+        else break;
+      }
+      return s;
+    };
+    const out = arr.map(s => {
+      const seq = (seqMap[s.code] || []).slice(-5);
+      const days = seq.filter(Boolean).length;      // 총 순매수일 (별표 개수)
+      const streak = streakOf(seq);                  // 최근 연속 순매수일 (정렬 기준)
+      return { code:s.code, name:s.name, seq, days, streak };
+    });
+    // 최근 연속 순매수일 많은 순 → 같으면 총 순매수일 → 같으면 코드순
+    out.sort((a,b) => {
+      if(b.streak !== a.streak) return b.streak - a.streak;
+      if(b.days !== a.days) return b.days - a.days;
+      return a.code.localeCompare(b.code);
+    });
+    return out;
+  };
+
+  const kospiSeq = await enrichSeq(kospi);
+  const kosdaqSeq = await enrichSeq(kosdaq);
+
+  FRGN_PORT_DATA = { kospi: kospiSeq, kosdaq: kosdaqSeq, dateCount: 5 };
+
+  // 캐시 저장
+  try{ localStorage.setItem('ftop_seq_v1', JSON.stringify({ date: today, data: FRGN_PORT_DATA })); }catch(e){}
 }
 
 async function drawFrgnTable(){
