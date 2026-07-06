@@ -1531,6 +1531,24 @@ function drawSub(canvas, key) {
   if (key === 'RSI') {
     const arr = vals[0];
     const y70 = yOf(70), y30 = yOf(30), y50 = yOf(50);
+    // ── 기준선 70/50/30 ──
+    // 70 (과매수) - 주황 실선
+    ctx.strokeStyle = '#f0a836aa'; ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y70); ctx.lineTo(W - PAD.r, y70); ctx.stroke();
+    // 30 (과매도) - 청록 실선
+    ctx.strokeStyle = '#3fb950aa'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y30); ctx.lineTo(W - PAD.r, y30); ctx.stroke();
+    // 50 (중심) - 회색 점선
+    ctx.strokeStyle = '#6e7681aa'; ctx.lineWidth = 0.8; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y50); ctx.lineTo(W - PAD.r, y50); ctx.stroke();
+    ctx.setLineDash([]);
+    // 기준선 숫자 라벨 (우측)
+    ctx.fillStyle = '#f0a836'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('70', W - PAD.r + 3, y70 + 3);
+    ctx.fillStyle = '#3fb950';
+    ctx.fillText('30', W - PAD.r + 3, y30 + 3);
+    ctx.fillStyle = '#6e7681';
+    ctx.fillText('50', W - PAD.r + 3, y50 + 3);
     // 70 위(과매수) 영역 채움 - 주황
     ctx.fillStyle = '#f0a83633';
     for (let i = 0; i < arr.length - 1; i++) {
