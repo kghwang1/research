@@ -2750,11 +2750,14 @@ function renderFtop(){
       const hiUp = (s.high && s.price) ? `<br><span style="color:#8b949e">${(((s.high-s.price)/s.price)*100).toFixed(1)}%</span>` : '';
       const tgt = s.target ? s.target.toLocaleString() : '—';
       const tgtUp = (s.target && s.price) ? `<br><span style="color:${s.target>=s.price?'#ef5350':'#1976d2'}">${(((s.target-s.price)/s.price)*100).toFixed(1)}%</span>` : '';
+      const priceCell = s.price
+        ? `<span style="cursor:pointer;text-decoration:underline dotted" onclick="openChart('${s.code}','${s.name.replace(/'/g,"")}')">${price}${rate}</span>`
+        : `${price}${rate}`;
       h += `<tr>
         <td>${i+1}</td>
-        <td class="nm" onclick="openChart('${s.code}','${s.name}')">${s.name}<br><span style="color:#6e7681;font-size:9px">${s.code}</span></td>
+        <td class="nm" onclick="openNaverDomestic('${s.code}')">${s.name}<br><span style="color:#6e7681;font-size:9px">${s.code}</span></td>
         <td class="stars">${stars}</td>
-        <td>${price}${rate}</td>
+        <td>${priceCell}</td>
         <td>${hi}${hiUp}</td>
         <td>${tgt}${tgtUp}</td>
       </tr>`;
@@ -2762,7 +2765,7 @@ function renderFtop(){
   }
   h += '</tbody>';
   tbl.innerHTML = h;
-  if(note) note.textContent = '외국인 순매수 상위 · 투자일수=최근5일 순매수일 · 네이버';
+  if(note) note.innerHTML = '투자일수=최근5일 순매수일 · <span style="color:#58a6ff">종목명=네이버</span> · <span style="color:#3fb950">현재가=차트</span>';
 }
 function pnlFlowOpen(){ window.open(FLOW_URL,'_blank','noopener'); }
 function pnlApplyApprox(){ if(PNL.cur!=null){ if(PNL.spotV!=null) PNL.spotK=PNL.cur; if(PNL.futN!=null) PNL.futK=PNL.cur; } }
