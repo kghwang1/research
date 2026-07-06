@@ -2799,7 +2799,8 @@ async function renderFtop(){
 
   let h = '<thead><tr><th>순위</th><th>종목</th><th>외국인<br>(5일)</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
   if(!list.length){
-    h += '<tr><td colspan="6" style="padding:20px;color:#6e7681">데이터 없음</td></tr>';
+    const msg = ftopMkt === 'kosdaq' ? '코스닥 외국인 순매수 데이터 준비중' : '데이터 없음 (내일부터 누적)';
+    h += `<tr><td colspan="6" style="padding:20px;color:#6e7681">${msg}</td></tr>`;
   } else {
     list.forEach((s, i) => {
       // 최근 5일 순매수 시퀀스: 순매수=★(빨강), 아니면=ㆍ(회색), 최신이 오른쪽
