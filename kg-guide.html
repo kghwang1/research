@@ -68,6 +68,14 @@ body {
 .section-title .ico { font-size: 14px; }
 .section-content { font-size: 13.5px; color: #c9d1d9; }
 
+.param-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.param-item { display: flex; flex-direction: column; gap: 2px; background: #0d1117; padding: 8px 10px; border-radius: 6px; }
+.param-item label { font-size: 11px; color: #8b949e; }
+.param-input { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 5px 8px; border-radius: 4px; font-size: 13px; width: 100%; }
+.param-input:focus { border-color: #58a6ff; outline: none; }
+.param-def { font-size: 9px; color: #6e7681; }
+.param-reset { background: #21262d; border: 1px solid #30363d; color: #f0a836; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.param-reset:hover { background: #30363d; }
 .opt-box {
   background: #0d1117; border: 1px solid #21262d; border-radius: 8px;
   padding: 10px 12px; font-family: monospace; font-size: 12.5px; color: #a8ff78;
@@ -120,6 +128,69 @@ const CAT = {
   volatility: { label: '변동성', color: '#f78166' },
   volume: { label: '거래량', color: '#3fb950' },
 };
+
+
+// 편집 가능한 파라미터 (key: [{name, default}])
+const IND_PARAMS = {
+  MA:[{n:'단기',d:5},{n:'중기',d:20},{n:'장기1',d:60},{n:'장기2',d:120}],
+  BB:[{n:'기간',d:20},{n:'표준편차',d:2}],
+  ICHIMOKU:[{n:'전환',d:9},{n:'기준',d:26},{n:'선행',d:52}],
+  DEMA:[{n:'기간',d:20},{n:'시그널',d:9}],
+  VIDYA:[{n:'기간',d:14},{n:'시그널',d:9}],
+  VAMA:[{n:'기간',d:20},{n:'가격MA',d:20}],
+  VPROFILE:[{n:'구간수',d:24}],
+  MACD:[{n:'단기',d:12},{n:'장기',d:26},{n:'시그널',d:9}],
+  ADX:[{n:'기간',d:14}],
+  CCI:[{n:'기간',d:20}],
+  AROON:[{n:'기간',d:25}],
+  FORCE:[{n:'기간',d:13}],
+  TRIX:[{n:'기간',d:15},{n:'시그널',d:9}],
+  TSI:[{n:'장기',d:25},{n:'단기',d:13},{n:'시그널',d:7}],
+  RSI:[{n:'기간',d:14}],
+  SMI:[{n:'기간',d:13},{n:'평활',d:25},{n:'시그널',d:2}],
+  STOCHRSI:[{n:'기간',d:14}],
+  STOCH:[{n:'기간',d:14},{n:'평활',d:3}],
+  SLOWSTOCH:[{n:'기간',d:14},{n:'평활',d:3}],
+  CMO:[{n:'기간',d:14}],
+  DMI_DYN:[{n:'기간',d:10}],
+  MASS:[{n:'기간',d:25}],
+  DISPARITY:[{n:'기간',d:20}],
+  CHAIKIN_OSC:[{n:'단기',d:3},{n:'장기',d:10}],
+  MOM:[{n:'기간',d:12}],
+  WILLR:[{n:'기간',d:14}],
+  ATR:[{n:'기간',d:14}],
+  BBW:[{n:'기간',d:20}],
+  RVI:[{n:'기간',d:14}],
+  INERTIA:[{n:'기간',d:20}],
+  CHAIKIN_VOL:[{n:'기간',d:10}],
+  CMF:[{n:'기간',d:20}],
+  MFI:[{n:'기간',d:14}],
+};
+
+// 저장된 사용자 옵션값 로드/저장 (차트와 공유)
+function loadUserParams() {
+  try { return JSON.parse(localStorage.getItem('kgchart_params') || '{}'); }
+  catch(e) { return {}; }
+}
+function saveUserParams(p) {
+  try { localStorage.setItem('kgchart_params', JSON.stringify(p)); } catch(e) {}
+}
+function getParam(key, idx, def) {
+  const all = loadUserParams();
+  if (all[key] && all[key][idx] != null) return all[key][idx];
+  return def;
+}
+function setParam(key, idx, val) {
+  const all = loadUserParams();
+  if (!all[key]) all[key] = [];
+  all[key][idx] = val;
+  saveUserParams(all);
+}
+function resetParam(key) {
+  const all = loadUserParams();
+  delete all[key];
+  saveUserParams(all);
+}
 
 const INDICATORS = [
   // ── 오버레이 ──
@@ -420,8 +491,8 @@ function render() {
         </div>
         <div class="card-body">
           <div class="section">
-            <div class="section-title"><span class="ico">⚙️</span>옵션</div>
-            <div class="opt-box">${ind.opt}</div>
+            <div class="section-title"><span class="ico">⚙️</span>옵션값 설정</div>
+            ${renderParamInputs(ind.key, ind.opt)}
           </div>
           <div class="section">
             <div class="section-title"><span class="ico">📖</span>설명</div>
@@ -434,10 +505,58 @@ function render() {
         </div>
       </div>`;
   }).join('');
+  bindParamInputs();
+}
+
+function renderParamInputs(key, optText) {
+  const params = IND_PARAMS[key];
+  if (!params || !params.length) {
+    return `<div class="opt-box">${optText}</div>`;
+  }
+  let html = '<div class="param-grid">';
+  params.forEach((p, i) => {
+    const cur = getParam(key, i, p.d);
+    html += `
+      <div class="param-item">
+        <label>${p.n}</label>
+        <input type="number" class="param-input" data-key="${key}" data-idx="${i}" value="${cur}" min="1" max="999">
+        <span class="param-def">기본 ${p.d}</span>
+      </div>`;
+  });
+  html += '</div>';
+  html += `<button class="param-reset" onclick="resetParams('${key}')">↺ 기본값으로</button>`;
+  return html;
+}
+
+function resetParams(key) {
+  resetParam(key);
+  render();
 }
 
 function toggleCard(head) {
   head.parentElement.classList.toggle('open');
+}
+
+// 파라미터 입력 이벤트 바인딩
+function bindParamInputs() {
+  document.querySelectorAll('.param-input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      const key = inp.dataset.key;
+      const idx = parseInt(inp.dataset.idx);
+      const val = parseInt(inp.value);
+      if (val > 0) {
+        setParam(key, idx, val);
+        // 저장 확인 표시
+        inp.style.borderColor = '#3fb950';
+        setTimeout(() => { inp.style.borderColor = '#30363d'; }, 800);
+      }
+    });
+    // 클릭 시 카드 안 닫히게
+    inp.addEventListener('click', e => e.stopPropagation());
+  });
+  document.querySelectorAll('.param-reset').forEach(btn => {
+    btn.addEventListener('click', e => e.stopPropagation());
+  });
 }
 
 // 카테고리 필터

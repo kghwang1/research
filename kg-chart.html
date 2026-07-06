@@ -81,8 +81,28 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 .ind-label { display: flex; align-items: center; gap: 4px; padding: 4px 6px; cursor: pointer; font-size: 11px; white-space: nowrap; }
 .ind-label:hover { background: #21262d; }
 .ind-label input { cursor: pointer; flex-shrink: 0; }
-.ind-label span { color: #8b949e; }
-.ind-label.active span { color: inherit; }
+.ind-label span.nm { color: #8b949e; flex: 1; }
+.ind-label.active span.nm { color: inherit; }
+.ind-info { color: #6e7681; font-size: 11px; cursor: pointer; padding: 0 3px; flex-shrink: 0; }
+.ind-info:hover { color: #58a6ff; }
+
+/* 하단 설명 팝업 */
+#ind-desc-popup {
+  position: absolute; left: 165px; right: 8px; bottom: 8px;
+  background: #1c2128f5; border: 1px solid #388bfd; border-radius: 10px;
+  padding: 12px 14px; z-index: 60; display: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  max-height: 45%; overflow-y: auto;
+}
+#ind-desc-popup .dp-title { font-weight: 700; font-size: 14px; color: #58a6ff; margin-bottom: 6px; display: flex; justify-content: space-between; }
+#ind-desc-popup .dp-close { cursor: pointer; color: #8b949e; font-size: 16px; }
+#ind-desc-popup .dp-opt { font-family: monospace; font-size: 11.5px; color: #a8ff78; background: #0d1117; padding: 5px 8px; border-radius: 5px; margin-bottom: 6px; }
+#ind-desc-popup .dp-desc { font-size: 12.5px; color: #c9d1d9; margin-bottom: 8px; line-height: 1.5; }
+#ind-desc-popup .dp-sig { font-size: 11.5px; padding: 4px 8px; border-radius: 4px; margin: 3px 0; }
+#ind-desc-popup .dp-sig.b { background: #ef535022; color: #ef5350; }
+#ind-desc-popup .dp-sig.s { background: #1976d222; color: #58a6ff; }
+#ind-desc-popup .dp-sig.n { background: #37415122; color: #8b949e; }
+#ind-desc-popup .dp-more { display: inline-block; margin-top: 8px; color: #58a6ff; font-size: 12px; text-decoration: none; }
 .def-star { flex-shrink: 0; width: 13px; height: 13px; cursor: pointer; accent-color: #f0a836; }
 .sidebar-help { padding: 6px 8px; font-size: 9px; color: #6e7681; line-height: 1.5; border-bottom: 1px solid #21262d; }
 .sidebar-help b { color: #f0a836; }
@@ -212,57 +232,59 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
       <span style="color:#6e7681;font-size:8px">기본=시작시 자동</span>
     </div>
     <div class="group-title">▶ 오버레이</div>
-    <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">이동평균(MA)</span></label>
-    <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">볼린저밴드</span></label>
-    <label class="ind-label" data-key="ICHIMOKU" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">일목균형표</span></label>
-    <label class="ind-label" data-key="PSAR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">파라볼릭(PSAR)</span></label>
-    <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DEMA(이중지수)</span></label>
-    <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VIDYA(가변이동평균)</span></label>
-    <label class="ind-label" data-key="VAMA" style="--col:#ffa657"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">거래량조정이평(VAMA)</span></label>
-    <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">매물대(거래량프로파일)</span></label>
+    <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">이동평균(MA)</span><span class="ind-info" data-info="MA">ⓘ</span></label>
+    <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">볼린저밴드</span><span class="ind-info" data-info="BB">ⓘ</span></label>
+    <label class="ind-label" data-key="ICHIMOKU" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">일목균형표</span><span class="ind-info" data-info="ICHIMOKU">ⓘ</span></label>
+    <label class="ind-label" data-key="PSAR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">파라볼릭(PSAR)</span><span class="ind-info" data-info="PSAR">ⓘ</span></label>
+    <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DEMA(이중지수)</span><span class="ind-info" data-info="DEMA">ⓘ</span></label>
+    <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VIDYA(가변이동평균)</span><span class="ind-info" data-info="VIDYA">ⓘ</span></label>
+    <label class="ind-label" data-key="VAMA" style="--col:#ffa657"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">거래량조정이평(VAMA)</span><span class="ind-info" data-info="VAMA">ⓘ</span></label>
+    <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">매물대(거래량프로파일)</span><span class="ind-info" data-info="VPROFILE">ⓘ</span></label>
 
     <div class="group-title">▶ 추세지표</div>
-    <label class="ind-label" data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MACD(12,26,9)</span></label>
-    <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ADX/DMI(14)</span></label>
-    <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CCI(20)</span></label>
-    <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon(25)</span></label>
-    <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force Index(13)</span></label>
-    <label class="ind-label" data-key="TRIX" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">TRIX(15)</span></label>
-    <label class="ind-label" data-key="TSI" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">TSI(25,13)</span></label>
+    <label class="ind-label" data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MACD(12,26,9)</span><span class="ind-info" data-info="MACD">ⓘ</span></label>
+    <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ADX/DMI(14)</span><span class="ind-info" data-info="ADX">ⓘ</span></label>
+    <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CCI(20)</span><span class="ind-info" data-info="CCI">ⓘ</span></label>
+    <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon(25)</span><span class="ind-info" data-info="AROON">ⓘ</span></label>
+    <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force Index(13)</span><span class="ind-info" data-info="FORCE">ⓘ</span></label>
+    <label class="ind-label" data-key="TRIX" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">TRIX(15)</span><span class="ind-info" data-info="TRIX">ⓘ</span></label>
+    <label class="ind-label" data-key="TSI" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">TSI(25,13)</span><span class="ind-info" data-info="TSI">ⓘ</span></label>
 
     <div class="group-title">▶ 모멘텀지표</div>
-    <label class="ind-label" data-key="RSI" style="--col:#3fb950"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">RSI(14)</span></label>
-    <label class="ind-label" data-key="SMI" style="--col:#f0a836"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">SMI(13,25,2)</span></label>
-    <label class="ind-label" data-key="STOCHRSI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">StochRSI(14)</span></label>
-    <label class="ind-label" data-key="STOCH" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Stochastic Fast</span></label>
-    <label class="ind-label" data-key="SLOWSTOCH" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Stochastic Slow</span></label>
-    <label class="ind-label" data-key="CMO" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CMO(14)</span></label>
-    <label class="ind-label" data-key="DMI_DYN" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Dynamic MI</span></label>
-    <label class="ind-label" data-key="MASS" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Mass Index(25)</span></label>
-    <label class="ind-label" data-key="DISPARITY" style="--col:#58a6ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">이격도(20)</span></label>
-    <label class="ind-label" data-key="CHAIKIN_OSC" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">차이킨 오실레이터</span></label>
-    <label class="ind-label" data-key="MOM" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">모멘텀(12)</span></label>
-    <label class="ind-label" data-key="WILLR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Williams %R(14)</span></label>
+    <label class="ind-label" data-key="RSI" style="--col:#3fb950"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">RSI(14)</span><span class="ind-info" data-info="RSI">ⓘ</span></label>
+    <label class="ind-label" data-key="SMI" style="--col:#f0a836"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">SMI(13,25,2)</span><span class="ind-info" data-info="SMI">ⓘ</span></label>
+    <label class="ind-label" data-key="STOCHRSI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">StochRSI(14)</span><span class="ind-info" data-info="STOCHRSI">ⓘ</span></label>
+    <label class="ind-label" data-key="STOCH" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Stochastic Fast</span><span class="ind-info" data-info="STOCH">ⓘ</span></label>
+    <label class="ind-label" data-key="SLOWSTOCH" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Stochastic Slow</span><span class="ind-info" data-info="SLOWSTOCH">ⓘ</span></label>
+    <label class="ind-label" data-key="CMO" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CMO(14)</span><span class="ind-info" data-info="CMO">ⓘ</span></label>
+    <label class="ind-label" data-key="DMI_DYN" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Dynamic MI</span><span class="ind-info" data-info="DMI_DYN">ⓘ</span></label>
+    <label class="ind-label" data-key="MASS" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Mass Index(25)</span><span class="ind-info" data-info="MASS">ⓘ</span></label>
+    <label class="ind-label" data-key="DISPARITY" style="--col:#58a6ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">이격도(20)</span><span class="ind-info" data-info="DISPARITY">ⓘ</span></label>
+    <label class="ind-label" data-key="CHAIKIN_OSC" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">차이킨 오실레이터</span><span class="ind-info" data-info="CHAIKIN_OSC">ⓘ</span></label>
+    <label class="ind-label" data-key="MOM" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">모멘텀(12)</span><span class="ind-info" data-info="MOM">ⓘ</span></label>
+    <label class="ind-label" data-key="WILLR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Williams %R(14)</span><span class="ind-info" data-info="WILLR">ⓘ</span></label>
 
     <div class="group-title">▶ 변동성지표</div>
-    <label class="ind-label" data-key="ATR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ATR(14)</span></label>
-    <label class="ind-label" data-key="BBW" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">볼린저밴드 폭</span></label>
-    <label class="ind-label" data-key="RVI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">RVI(상대변동성)</span></label>
-    <label class="ind-label" data-key="INERTIA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">관성지수(Inertia)</span></label>
-    <label class="ind-label" data-key="CHAIKIN_VOL" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">차이킨 변동성</span></label>
+    <label class="ind-label" data-key="ATR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ATR(14)</span><span class="ind-info" data-info="ATR">ⓘ</span></label>
+    <label class="ind-label" data-key="BBW" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">볼린저밴드 폭</span><span class="ind-info" data-info="BBW">ⓘ</span></label>
+    <label class="ind-label" data-key="RVI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">RVI(상대변동성)</span><span class="ind-info" data-info="RVI">ⓘ</span></label>
+    <label class="ind-label" data-key="INERTIA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">관성지수(Inertia)</span><span class="ind-info" data-info="INERTIA">ⓘ</span></label>
+    <label class="ind-label" data-key="CHAIKIN_VOL" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">차이킨 변동성</span><span class="ind-info" data-info="CHAIKIN_VOL">ⓘ</span></label>
 
     <div class="group-title">▶ 거래량지표</div>
-    <label class="ind-label" data-key="VOLUME" style="--col:#8b949e"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">거래량</span></label>
-    <label class="ind-label" data-key="OBV" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">OBV</span></label>
-    <label class="ind-label" data-key="CMF" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Chaikin MF(20)</span></label>
-    <label class="ind-label" data-key="MFI" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">MFI(14)</span></label>
-    <label class="ind-label" data-key="PVT" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">PVT</span></label>
-    <label class="ind-label" data-key="WILLIAMS_AD" style="--col:#58a6ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Williams A/D</span></label>
+    <label class="ind-label" data-key="VOLUME" style="--col:#8b949e"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">거래량</span><span class="ind-info" data-info="VOLUME">ⓘ</span></label>
+    <label class="ind-label" data-key="OBV" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">OBV</span><span class="ind-info" data-info="OBV">ⓘ</span></label>
+    <label class="ind-label" data-key="CMF" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Chaikin MF(20)</span><span class="ind-info" data-info="CMF">ⓘ</span></label>
+    <label class="ind-label" data-key="MFI" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">MFI(14)</span><span class="ind-info" data-info="MFI">ⓘ</span></label>
+    <label class="ind-label" data-key="PVT" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">PVT</span><span class="ind-info" data-info="PVT">ⓘ</span></label>
+    <label class="ind-label" data-key="WILLIAMS_AD" style="--col:#58a6ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Williams A/D</span><span class="ind-info" data-info="WILLIAMS_AD">ⓘ</span></label>
   </div>
 
   <div id="toggle-btn" onclick="toggleSidebar()" title="지표 패널 열기/닫기">›</div>
 
 <!-- 챠트 영역 -->
+  <div id="ind-desc-popup"></div>
+
   <div id="chart-area">
     <div id="candle-wrap">
       <canvas id="candle-canvas"></canvas>
@@ -356,8 +378,8 @@ function lowest(arr,len,i){return Math.min(...arr.slice(Math.max(0,i-len+1),i+1)
 // 지표 계산
 // ══════════════════════════════════════
 const CALC = {
-  MA:(d)=>{const c=d.map(x=>x.close);return{ma5:sma(c,5),ma20:sma(c,20),ma60:sma(c,60),ma120:sma(c,120)};},
-  BB:(d)=>{const c=d.map(x=>x.close),mid=sma(c,20),sd=stdev(c,20);return{upper:mid.map((v,i)=>v&&sd[i]?v+2*sd[i]:null),mid,lower:mid.map((v,i)=>v&&sd[i]?v-2*sd[i]:null)};},
+  MA:(d)=>{const c=d.map(x=>x.close);return{ma5:sma(c,P('MA',0,5)),ma20:sma(c,P('MA',1,20)),ma60:sma(c,P('MA',2,60)),ma120:sma(c,P('MA',3,120))};},
+  BB:(d)=>{const bp=P('BB',0,20),bs=P('BB',1,2),c=d.map(x=>x.close),mid=sma(c,bp),sd=stdev(c,bp);return{upper:mid.map((v,i)=>v&&sd[i]?v+bs*sd[i]:null),mid,lower:mid.map((v,i)=>v&&sd[i]?v-bs*sd[i]:null)};},
   ICHIMOKU:(d)=>{
     const h=d.map(x=>x.high),l=d.map(x=>x.low),c=d.map(x=>x.close);
     const tenkan=d.map((_,i)=>i<8?null:(highest(h,9,i)+lowest(l,9,i))/2);
@@ -414,9 +436,10 @@ const CALC = {
     return{vama,priceMA,signals};
   },
   MACD:(d)=>{
-    const c=d.map(x=>x.close),e12=ema(c,12),e26=ema(c,26);
+    const mf=P('MACD',0,12),ms=P('MACD',1,26),msig=P('MACD',2,9);
+    const c=d.map(x=>x.close),e12=ema(c,mf),e26=ema(c,ms);
     const macd=e12.map((v,i)=>v&&e26[i]?v-e26[i]:null);
-    const signal=ema(macd,9);
+    const signal=ema(macd,msig);
     return{macd,signal,hist:macd.map((v,i)=>v&&signal[i]?v-signal[i]:null)};
   },
   ADX:(d)=>{
@@ -432,7 +455,7 @@ const CALC = {
     const dx=pdi.map((v,i)=>v&&ndi[i]?(Math.abs(v-ndi[i])/((v+ndi[i])||1))*100:null);
     return{adx:ema(dx,period),pdi,ndi};
   },
-  CCI:(d)=>{const tp=d.map(x=>(x.high+x.low+x.close)/3);return{cci:tp.map((_,i)=>{if(i<19)return null;const sl=tp.slice(i-19,i+1),m=sl.reduce((a,b)=>a+b)/20,md=sl.reduce((a,b)=>a+Math.abs(b-m),0)/20;return(tp[i]-m)/(0.015*(md||1e-10));})};},
+  CCI:(d)=>{const cp=P('CCI',0,20),tp=d.map(x=>(x.high+x.low+x.close)/3);return{cci:tp.map((_,i)=>{if(i<cp-1)return null;const sl=tp.slice(i-cp+1,i+1),m=sl.reduce((a,b)=>a+b)/cp,md=sl.reduce((a,b)=>a+Math.abs(b-m),0)/cp;return(tp[i]-m)/(0.015*(md||1e-10));})};},
   AROON:(d)=>{
     const period=25;
     const up=d.map((_,i)=>{if(i<period)return null;const sl=d.slice(i-period,i+1),mi=sl.reduce((mi,x,j)=>x.high>sl[mi].high?j:mi,0);return(mi/period)*100;});
@@ -448,11 +471,12 @@ const CALC = {
     return{tsi,signal:ema(tsi,7)};
   },
   RSI:(d)=>{
+    const rp=P('RSI',0,14);
     const c=d.map(x=>x.close),gains=[],losses=[];
     for(let i=1;i<c.length;i++){const diff=c[i]-c[i-1];gains.push(diff>0?diff:0);losses.push(diff<0?-diff:0);}
-    const rsi=[null];let ag=gains.slice(0,14).reduce((a,b)=>a+b,0)/14,al=losses.slice(0,14).reduce((a,b)=>a+b,0)/14;
-    rsi.push(...new Array(13).fill(null));rsi.push(100-100/(1+ag/(al||1e-10)));
-    for(let i=14;i<gains.length;i++){ag=(ag*13+gains[i])/14;al=(al*13+losses[i])/14;rsi.push(100-100/(1+ag/(al||1e-10)));}
+    const rsi=[null];let ag=gains.slice(0,rp).reduce((a,b)=>a+b,0)/rp,al=losses.slice(0,rp).reduce((a,b)=>a+b,0)/rp;
+    rsi.push(...new Array(rp-1).fill(null));rsi.push(100-100/(1+ag/(al||1e-10)));
+    for(let i=rp;i<gains.length;i++){ag=(ag*(rp-1)+gains[i])/rp;al=(al*(rp-1)+losses[i])/rp;rsi.push(100-100/(1+ag/(al||1e-10)));}
     return{rsi};
   },
   SMI:(d)=>{
@@ -491,13 +515,13 @@ const CALC = {
     const ratio=e1.map((v,i)=>v&&e2[i]?v/e2[i]:null);
     return{mass:ratio.map((_,i)=>{if(i<24)return null;return ratio.slice(i-24,i+1).reduce((a,b)=>a+(b||0),0);})};
   },
-  DISPARITY:(d)=>{const c=d.map(x=>x.close),ma=sma(c,20);return{disp:c.map((v,i)=>ma[i]?(v/ma[i])*100:null)};},
+  DISPARITY:(d)=>{const dp=P('DISPARITY',0,20),c=d.map(x=>x.close),ma=sma(c,dp);return{disp:c.map((v,i)=>ma[i]?(v/ma[i])*100:null)};},
   CHAIKIN_OSC:(d)=>{
     let cum=0;const adlCum=d.map(x=>{const mfm=x.high===x.low?0:((x.close-x.low)-(x.high-x.close))/(x.high-x.low);cum+=mfm*x.volume;return cum;});
     const e3=ema(adlCum,3),e10=ema(adlCum,10);
     return{osc:e3.map((v,i)=>v&&e10[i]?v-e10[i]:null)};
   },
-  MOM:(d)=>{const c=d.map(x=>x.close);return{mom:c.map((v,i)=>i>=12?v-c[i-12]:null)};},
+  MOM:(d)=>{const mp=P('MOM',0,12),c=d.map(x=>x.close);return{mom:c.map((v,i)=>i>=mp?v-c[i-mp]:null)};},
   WILLR:(d)=>{return{wr:d.map((_,i)=>{if(i<13)return null;const sl=d.slice(i-13,i+1),hh=Math.max(...sl.map(x=>x.high)),ll=Math.min(...sl.map(x=>x.low));return hh===ll?-50:((hh-d[i].close)/(hh-ll))*-100;})};},
   ATR:(d)=>{const tr=d.map((x,i)=>i===0?x.high-x.low:Math.max(x.high-x.low,Math.abs(x.high-d[i-1].close),Math.abs(x.low-d[i-1].close)));return{atr:sma(tr,14)};},
   BBW:(d)=>{const c=d.map(x=>x.close),mid=sma(c,20),sd=stdev(c,20);return{bbw:mid.map((v,i)=>v&&sd[i]?(sd[i]*4)/v*100:null)};},
@@ -612,6 +636,70 @@ function applySidebarState() {
     if (stb) stb.style.color = '#8b949e';
   }
   // 사이드바가 차트를 덮으므로 차트 크기 변화 없음 → 재렌더 불필요
+}
+
+// ══════════════════════════════════════
+// 지표 설명 데이터 (팝업용 요약)
+// ══════════════════════════════════════
+const IND_DESC = {
+  MA:{opt:'5/20/60/120일',desc:'기간별 종가 평균. 추세·지지저항 파악.',sig:[['b','골든크로스(단기>장기) 매수'],['s','데드크로스 매도']]},
+  BB:{opt:'20일, 2σ',desc:'이평 위아래 표준편차 밴드. 변동성·과열 파악.',sig:[['b','하단 터치 후 반등 매수'],['s','상단 터치 후 하락 매도'],['n','밴드 좁아짐=큰 변동 임박']]},
+  ICHIMOKU:{opt:'전환9/기준26/선행52',desc:'구름대로 추세·지지저항 종합 판단.',sig:[['b','주가가 구름 위 돌파=강세'],['s','구름 아래 이탈=약세']]},
+  PSAR:{opt:'가속0.02, 최대0.2',desc:'점으로 추세전환·손절선 표시.',sig:[['b','점이 캔들 아래로=매수'],['s','점이 캔들 위로=매도']]},
+  DEMA:{opt:'20일+시그널9',desc:'시차 줄인 빠른 이평.',sig:[['b','DEMA가 시그널 상향돌파'],['s','하향돌파 매도']]},
+  VIDYA:{opt:'14일+시그널9',desc:'변동성 적응형 이평.',sig:[['b','VIDYA 시그널 상향돌파'],['s','하향돌파 매도']]},
+  VAMA:{opt:'20일+가격MA20',desc:'거래량 가중 이평. 진짜 추세 포착.',sig:[['b','VAMA가 가격MA 상향돌파 매입'],['s','하향돌파 매도']]},
+  VPROFILE:{opt:'24단계',desc:'가격대별 거래량 막대. 지지저항 파악.',sig:[['n','POC=최강 지지저항선'],['b','매물대 하단 지지 매수']]},
+  MACD:{opt:'12/26/9',desc:'이평 차이로 추세·모멘텀. 세계 표준.',sig:[['b','MACD가 시그널 상향돌파'],['s','하향돌파 매도'],['n','히스토 0선 돌파=모멘텀']]},
+  ADX:{opt:'14일, 기준25',desc:'추세 강도 측정(+DI/-DI 방향).',sig:[['b','+DI>-DI & ADX>25 상승'],['s','-DI>+DI 하락'],['n','ADX<25 횡보 관망']]},
+  CCI:{opt:'20일, ±100',desc:'평균 이탈도. 추세·과열 판단.',sig:[['b','-100 아래서 복귀 매수'],['s','+100 위서 복귀 매도']]},
+  AROON:{opt:'25일',desc:'최고저 시점으로 추세 포착.',sig:[['b','Up>70 상승추세'],['s','Down>70 하락추세']]},
+  FORCE:{opt:'13일',desc:'가격변화×거래량 압력.',sig:[['b','0선 위 매수세'],['s','0선 아래 매도세']]},
+  TRIX:{opt:'15일+시그널9',desc:'삼중평활 추세. 노이즈 제거.',sig:[['b','시그널 상향돌파'],['s','하향돌파']]},
+  TSI:{opt:'25/13+시그널7',desc:'이중평활 모멘텀. 신뢰도 높음.',sig:[['b','시그널 상향돌파'],['s','하향돌파']]},
+  RSI:{opt:'14일, 70/30',desc:'상승·하락 비율. 과매수/과매도.',sig:[['b','30 아래서 반등 매수'],['s','70 위서 하락 매도'],['n','다이버전스=반전']]},
+  SMI:{opt:'13/25/2',desc:'개선된 스토캐스틱. 0 기준.',sig:[['b','-40서 시그널 상향돌파'],['s','+40서 하향돌파']]},
+  STOCHRSI:{opt:'14일, 80/20',desc:'RSI에 스토캐스틱 적용. 민감.',sig:[['b','20 아래 상향돌파'],['s','80 위 하향돌파']]},
+  STOCH:{opt:'14일, 80/20',desc:'고저범위 내 위치. 전환점 포착.',sig:[['b','20 아래 %K>%D 매수'],['s','80 위 하향 매도']]},
+  SLOWSTOCH:{opt:'14일, 3평활',desc:'평활한 스토캐스틱. 속임수 적음.',sig:[['b','20 아래 상향돌파'],['s','80 위 하향돌파']]},
+  CMO:{opt:'14일, ±50',desc:'모멘텀 차이 -100~100. 민감.',sig:[['b','-50서 반등'],['s','+50서 하락']]},
+  DMI_DYN:{opt:'변동성 적응',desc:'기간 자동조정 RSI.',sig:[['b','30 아래 반등'],['s','70 위 하락']]},
+  MASS:{opt:'25일',desc:'고저 확장/수축으로 반전 예측.',sig:[['n','27 위 후 26.5 아래=반전']]},
+  DISPARITY:{opt:'20일, 95/100/105',desc:'이평 이탈도 %. 과열/침체.',sig:[['b','95 아래서 반등 매입'],['s','105 위서 하락 매도']]},
+  CHAIKIN_OSC:{opt:'3/10',desc:'A/D 오실레이터. 매집분산.',sig:[['b','0선 상향=매집'],['s','0선 하향=분산']]},
+  MOM:{opt:'12일',desc:'N일전 대비 가격차. 단순 모멘텀.',sig:[['b','0선 상향돌파'],['s','0선 하향돌파']]},
+  WILLR:{opt:'14일, -20/-80',desc:'스토캐스틱 반대 척도.',sig:[['b','-80 아래서 상승'],['s','-20 위서 하락']]},
+  ATR:{opt:'14일',desc:'변동폭 평균. 손절폭 계산 필수.',sig:[['n','ATR 상승=위험↑'],['n','손절=진입가±ATR×배수']]},
+  BBW:{opt:'20일',desc:'밴드 폭%. 수축→폭발 포착.',sig:[['b','폭 최저(스퀴즈)=변동 임박']]},
+  RVI:{opt:'14일, 기준50',desc:'방향성 변동성. RSI 변동성판.',sig:[['b','50 위 상승'],['s','50 아래 하락']]},
+  INERTIA:{opt:'20일',desc:'추세 관성(지속성) 측정.',sig:[['b','50 위 상승관성'],['s','50 아래 하락']]},
+  CHAIKIN_VOL:{opt:'10일',desc:'고저범위 변화율. 급등락 전조.',sig:[['n','급상승=천장·바닥 가능']]},
+  VOLUME:{opt:'-',desc:'거래량. 가격 신뢰도 검증.',sig:[['b','상승+거래량증가=강세'],['n','바닥 대량=반등']]},
+  OBV:{opt:'-',desc:'상승일+ 하락일- 누적. 추세확인.',sig:[['b','OBV 상승=매집'],['n','다이버전스=전환']]},
+  CMF:{opt:'20일, 기준0',desc:'거래량 가중 자금흐름.',sig:[['b','0 위 유입'],['s','0 아래 유출']]},
+  MFI:{opt:'14일, 80/20',desc:'거래량 반영 RSI. 신뢰도 높음.',sig:[['b','20 아래 반등'],['s','80 위 하락']]},
+  PVT:{opt:'-',desc:'가격변화율×거래량 누적.',sig:[['b','상승=매수세'],['s','하락=매도세']]},
+  WILLIAMS_AD:{opt:'-',desc:'진정고저 누적확산.',sig:[['b','상승=매집'],['s','하락=분산']]},
+};
+
+function showIndDesc(key) {
+  const d = IND_DESC[key];
+  if (!d) return;
+  const label = document.querySelector(`.ind-label[data-key="${key}"] .nm`);
+  const name = label ? label.textContent : key;
+  const popup = document.getElementById('ind-desc-popup');
+  const sigHtml = d.sig.map(s => {
+    const cls = s[0], tag = s[0]==='b'?'매수':s[0]==='s'?'매도':'참고';
+    return `<div class="dp-sig ${cls}"><b>${tag}</b> · ${s[1]}</div>`;
+  }).join('');
+  popup.innerHTML = `
+    <div class="dp-title">${name}<span class="dp-close" onclick="document.getElementById('ind-desc-popup').style.display='none'">✕</span></div>
+    <div class="dp-opt">⚙️ ${d.opt}</div>
+    <div class="dp-desc">${d.desc}</div>
+    ${sigHtml}
+    <a class="dp-more" href="kg-guide.html">📖 전체 설명 보기 ›</a>
+  `;
+  popup.style.display = 'block';
 }
 
 function init() {
@@ -942,6 +1030,17 @@ function setupSearch() {
 const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','PSAR','DEMA','VIDYA','VAMA','VPROFILE'];
 
 // 기본 표시 지표 불러오기 (localStorage)
+// 사용자 지정 지표 파라미터 (설명 페이지에서 편집)
+function loadUserParams() {
+  try { return JSON.parse(localStorage.getItem('kgchart_params') || '{}'); }
+  catch(e) { return {}; }
+}
+function P(key, idx, def) {
+  const all = loadUserParams();
+  if (all[key] && all[key][idx] != null && all[key][idx] > 0) return all[key][idx];
+  return def;
+}
+
 function loadDefaults() {
   try {
     const saved = localStorage.getItem('kgchart_defaults');
@@ -965,6 +1064,16 @@ function setupSidebar() {
     const span = label.querySelector('span.nm');
     const col = getComputedStyle(label).getPropertyValue('--col').trim();
     if (!cbDef || !cbShow) return;
+
+    // ⓘ 아이콘 클릭 → 설명 팝업
+    const infoIcon = label.querySelector('.ind-info');
+    if (infoIcon) {
+      infoIcon.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        showIndDesc(key);
+      });
+    }
 
     // 저장된 기본값이 있으면 그것을 우선 적용
     if (hasSaved) {
@@ -1743,6 +1852,8 @@ function setupMouseEvent() {
 window.addEventListener('resize', () => renderAll());
 
 // 시작!
+window.addEventListener('pageshow', () => { if (state.data && state.data.length) renderAll(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && state.data && state.data.length) renderAll(); });
 init();
 </script>
 </body>
