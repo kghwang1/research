@@ -2522,13 +2522,15 @@ async function renderFrgnPort(){
 }
 
 let FRGN_PORT_DATA = null;
-async function loadFtopData(){
+async function loadFtopData(force){
   const today = new Date().toISOString().slice(0,10);
   let hist = {};
   try{ hist = JSON.parse(localStorage.getItem('ftop_history') || '{}'); }catch(e){}
-  if(!hist[today]){
+  // 오늘 데이터가 없거나(하루 1회) 강제 새로고침이면 다시 수집 (코스피+코스닥 함께)
+  if(!hist[today] || force){
     try{
-      const r = await fetch(SRV_URL + '/?ftop=1&_t=' + Date.now(), { cache:'no-store' });
+      const nc = force ? '&nocache=1' : '';
+      const r = await fetch(SRV_URL + '/?ftop=1' + nc + '&_t=' + Date.now(), { cache:'no-store' });
       const j = await r.json();
       if(j.ok){
         hist[today] = { kospi:(j.kospi||[]), kosdaq:(j.kosdaq||[]) };
@@ -2554,7 +2556,7 @@ async function drawFrgnTable(){
 
   let h = '<caption class="kr-cap">외국인 순매수 종목 (최근 5일)';
   h += '<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span>';
-  h += `<div style="margin-top:6px"><button class="fp-btn ${mkt==='kospi'?'active':''}" onclick="switchFrgnMkt('kospi')">코스피</button> <button class="fp-btn ${mkt==='kosdaq'?'active':''}" onclick="switchFrgnMkt('kosdaq')">코스닥</button></div>`;
+  h += `<div style="margin-top:6px;display:flex;align-items:center;gap:4px"><button class="fp-btn ${mkt==='kospi'?'active':''}" onclick="switchFrgnMkt('kospi')">코스피</button> <button class="fp-btn ${mkt==='kosdaq'?'active':''}" onclick="switchFrgnMkt('kosdaq')">코스닥</button> <button class="fp-btn" id="frgnRefresh" onclick="refreshFrgn()" style="margin-left:auto">↻ 새로고침</button></div>`;
   h += '</caption>';
   h += '<thead><tr><th>순위</th><th>종목</th><th>외국인<br>(5일)</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
 
@@ -2591,6 +2593,14 @@ async function drawFrgnTable(){
 function switchFrgnMkt(mkt){
   window._frgnMkt = mkt;
   drawFrgnTable();
+}
+
+async function refreshFrgn(){
+  const btn = document.getElementById('frgnRefresh');
+  if(btn){ btn.textContent='수집중…'; btn.style.pointerEvents='none'; btn.style.opacity='0.5'; }
+  ftopQuotes = {}; // 시세 캐시도 초기화
+  await loadFtopData(true); // 강제 재수집 (코스피+코스닥)
+  await drawFrgnTable();
 }
 
 function openValFull(){
