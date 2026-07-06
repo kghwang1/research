@@ -638,7 +638,7 @@
   <!-- 외국인 매매 추이 막대그래프 -->
   <div class="ftrend-box">
     <div class="ftrend-head">
-      <span class="ftrend-title">외국인 매매 추이 (1년)</span>
+      <span class="ftrend-title">외국인 매매 추이 (3개월)</span>
       <div class="ftrend-toggle">
         <button class="ft-btn active" data-mode="net">순매수</button>
         <button class="ft-btn" data-mode="cumul">누적</button>
@@ -2496,13 +2496,28 @@ let ftrendMode = 'net'; // 'net' | 'both'
 
 async function loadFtrend(){
   const note = document.getElementById('ftrendNote');
-  if(FTREND_DATA){ drawFtrend(); return; } // 이미 로드됨
-  if(note) note.textContent = '📡 1년 매매 데이터 불러오는 중…';
+  if(FTREND_DATA){ drawFtrend(); return; } // 이미 로드됨(세션)
+
+  // 하루 1회 캐싱: localStorage에 날짜와 함께 저장
+  const today = new Date().toISOString().slice(0,10);
   try{
-    const r = await fetch(SRV_URL + '/?ftrend=1&days=250&_t=' + Date.now(), { cache:'no-store' });
+    const cached = JSON.parse(localStorage.getItem('ftrend_cache') || 'null');
+    if(cached && cached.date === today && cached.rows && cached.rows.length){
+      FTREND_DATA = cached.rows;
+      drawFtrend();
+      if(note) note.textContent = '외국인 코스피 순매수 (억원) · 네이버 · 붉은=순매수, 파랑=순매도';
+      return; // 오늘 이미 받음 → 재요청 안 함
+    }
+  }catch(e){}
+
+  if(note) note.textContent = '📡 3개월 매매 데이터 불러오는 중…';
+  try{
+    const r = await fetch(SRV_URL + '/?ftrend=1&days=70&_t=' + Date.now(), { cache:'no-store' });
     const j = await r.json();
     if(j.ok && j.rows && j.rows.length){
       FTREND_DATA = j.rows;
+      // 하루 캐시 저장
+      try{ localStorage.setItem('ftrend_cache', JSON.stringify({ date: today, rows: j.rows })); }catch(e){}
       drawFtrend();
       if(note) note.textContent = '외국인 코스피 순매수 (억원) · 네이버 · 붉은=순매수, 파랑=순매도';
     } else {
