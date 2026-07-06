@@ -758,11 +758,19 @@ function showLoading(msg) {
 async function loadStock(stock) {
   state.stock = stock;
   const inp = document.getElementById('search-input');
-  // 검색창에 종목명 그대로 유지
-  inp.value = stock.name + (stock.code !== stock.name ? '  ' + stock.code : '');
-  // 검색창 아래엔 로딩 후 full name 표시 (일단 비움)
+  const isKorean = /^\d{6}$/.test(stock.code) || stock.code === 'KOSPI' || stock.code === 'KOSDAQ';
+
+  // 검색창 표시:
+  //  한국 = 기업명 / 외국 = 티커
+  if (isKorean) {
+    inp.value = stock.name; // 한국: 기업명만
+  } else {
+    inp.value = stock.code; // 외국: 티커
+  }
+  // 검색창 아래:
+  //  한국 = 번호 / 외국 = 기업명 전체 (로딩 후 채움)
   const selEl = document.getElementById('selected-stock');
-  if (selEl) selEl.textContent = '';
+  if (selEl) selEl.textContent = isKorean ? (stock.code !== stock.name ? stock.code : '') : '';
   showLoading('📡 데이터 로딩중...');
 
   // 실제 데이터 시도
@@ -770,8 +778,6 @@ async function loadStock(stock) {
   try {
     result = await fetchReal(stock);
   } catch(e) {}
-
-  const isKorean = /^\d{6}$/.test(stock.code) || stock.code === 'KOSPI' || stock.code === 'KOSDAQ';
 
   if (result && result.ohlcv && result.ohlcv.length >= 5) {
     // 미국 티커 검증: 야후가 인식 못하면(validSymbol=false) 오류
@@ -783,11 +789,16 @@ async function loadStock(stock) {
     }
     state.data = result.ohlcv;
     state.isReal = true;
-    // 검증 성공 → 회사 전체이름을 검색창 아래에 표시
     state.stock = { ...stock, fullName: result.name || stock.name, currency: result.currency };
     const selEl2 = document.getElementById('selected-stock');
     if (selEl2) {
-      selEl2.textContent = result.name || (stock.name + (stock.code !== stock.name ? ' ' + stock.code : ''));
+      if (isKorean) {
+        // 한국: 검색창 아래 = 번호 (영어명 제거)
+        selEl2.textContent = stock.code !== stock.name ? stock.code : '';
+      } else {
+        // 외국: 검색창 아래 = 기업명 전체
+        selEl2.textContent = result.name || stock.name;
+      }
     }
   } else {
     // 데이터 자체를 못 받음
