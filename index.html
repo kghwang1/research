@@ -276,6 +276,14 @@
 
   /* 적정주가 표 */
   #valuation{padding:0}
+  .ftrend-box{background:#12151c;border:1px solid #1e2430;border-radius:12px;padding:12px;margin:10px 12px}
+  .ftrend-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .ftrend-title{font-size:13px;font-weight:700;color:#e6edf3}
+  .ftrend-toggle{display:flex;gap:4px}
+  .ft-btn{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+  .ft-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  #ftrendCanvas{width:100%;height:180px;display:block}
+  .ftrend-note{font-size:10px;color:#6e7681;margin-top:6px;text-align:center}
   .val-placeholder{padding:50px 20px;text-align:center;color:var(--mut);font-size:14px}
   /* 주식 전체화면 오버레이 */
   .valfull{position:fixed;inset:0;z-index:1000;background:var(--bg);display:none;
@@ -626,6 +634,20 @@
  <section id="valuation">
   <div class="pnl-wrap">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
+
+  <!-- 외국인 매매 추이 막대그래프 -->
+  <div class="ftrend-box">
+    <div class="ftrend-head">
+      <span class="ftrend-title">외국인 매매 추이 (1년)</span>
+      <div class="ftrend-toggle">
+        <button class="ft-btn" data-mode="both">매도매수량</button>
+        <button class="ft-btn active" data-mode="net">순매수</button>
+      </div>
+    </div>
+    <canvas id="ftrendCanvas"></canvas>
+    <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
+  </div>
+
   <div class="pnl-chart-title">외국인 손익 곡선</div>
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
@@ -2465,7 +2487,119 @@ function openPnl(){
   renderPnl();
   pnlAutoFetch(true); // 현재 K200·외국인 선물/코스피 순매수 자동
   const ff=$('#pnlFlowFrame'); if(ff && (!ff.src || ff.src==='about:blank')) ff.src=FLOW_URL;
+  loadFtrend(); // 외국인 매매 추이 막대그래프
 }
+
+// ── 외국인 매매 추이 막대그래프 ──
+let FTREND_DATA = null;
+let ftrendMode = 'net'; // 'net' | 'both'
+
+async function loadFtrend(){
+  const note = document.getElementById('ftrendNote');
+  if(FTREND_DATA){ drawFtrend(); return; } // 이미 로드됨
+  if(note) note.textContent = '📡 1년 매매 데이터 불러오는 중…';
+  try{
+    const r = await fetch(SRV_URL + '/?ftrend=1&days=250&_t=' + Date.now(), { cache:'no-store' });
+    const j = await r.json();
+    if(j.ok && j.rows && j.rows.length){
+      FTREND_DATA = j.rows;
+      drawFtrend();
+      if(note) note.textContent = '외국인 코스피 순매수 (억원) · 다음금융';
+    } else {
+      if(note) note.textContent = '⚠️ 데이터를 불러오지 못했습니다';
+    }
+  }catch(e){
+    if(note) note.textContent = '⚠️ 로드 실패: ' + e.message;
+  }
+}
+
+function drawFtrend(){
+  const canvas = document.getElementById('ftrendCanvas');
+  if(!canvas || !FTREND_DATA) return;
+  const rows = FTREND_DATA;
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.clientWidth, H = 180;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0,0,W,H);
+
+  const PAD = {l:8, r:52, t:10, b:20};
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const n = rows.length;
+  const bw = Math.max(1, cw / n * 0.8);
+
+  // 값 범위
+  let maxAbs = 0;
+  rows.forEach(r => {
+    if(ftrendMode === 'net'){
+      maxAbs = Math.max(maxAbs, Math.abs(r.net));
+    } else {
+      maxAbs = Math.max(maxAbs, Math.abs(r.buy), Math.abs(r.sell));
+    }
+  });
+  if(maxAbs === 0) maxAbs = 1;
+
+  const y0 = PAD.t + ch/2; // 0선(중앙)
+  const scale = (ch/2) / maxAbs;
+
+  // 0선
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(W - PAD.r, y0); ctx.stroke();
+
+  // 막대
+  rows.forEach((r, i) => {
+    const x = PAD.l + (i + 0.5) * (cw / n);
+    if(ftrendMode === 'net'){
+      // 순매수: 양수=위(빨강), 음수=아래(파랑)
+      const v = r.net;
+      const barH = Math.abs(v) * scale;
+      if(v >= 0){
+        ctx.fillStyle = '#ef5350';
+        ctx.fillRect(x - bw/2, y0 - barH, bw, barH);
+      } else {
+        ctx.fillStyle = '#1976d2';
+        ctx.fillRect(x - bw/2, y0, bw, barH);
+      }
+    } else {
+      // 매수량(위 빨강) + 매도량(아래 파랑)
+      const buyH = Math.abs(r.buy) * scale;
+      const sellH = Math.abs(r.sell) * scale;
+      ctx.fillStyle = '#ef5350';
+      ctx.fillRect(x - bw/2, y0 - buyH, bw, buyH);
+      ctx.fillStyle = '#1976d2';
+      ctx.fillRect(x - bw/2, y0, bw, sellH);
+    }
+  });
+
+  // Y축 라벨 (우측)
+  ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+  ctx.fillText('+' + Math.round(maxAbs), W - PAD.r + 3, PAD.t + 8);
+  ctx.fillText('0', W - PAD.r + 3, y0 + 3);
+  ctx.fillText('-' + Math.round(maxAbs), W - PAD.r + 3, PAD.t + ch);
+
+  // X축 날짜 (양끝 + 중간)
+  ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+  const showDates = [0, Math.floor(n/2), n-1];
+  showDates.forEach(i => {
+    if(rows[i]){
+      const x = PAD.l + (i + 0.5) * (cw / n);
+      ctx.fillText(rows[i].date.slice(5), x, H - 6);
+    }
+  });
+}
+
+// 토글 버튼
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.ft-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ftrendMode = btn.dataset.mode;
+      document.querySelectorAll('.ft-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      drawFtrend();
+    });
+  });
+});
 function pnlFlowOpen(){ window.open(FLOW_URL,'_blank','noopener'); }
 function pnlApplyApprox(){ if(PNL.cur!=null){ if(PNL.spotV!=null) PNL.spotK=PNL.cur; if(PNL.futN!=null) PNL.futK=PNL.cur; } }
 function onNightFut(){
