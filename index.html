@@ -1352,15 +1352,15 @@ const NAVER_PAGE={
   'UST2Y':'https://m.stock.naver.com/marketindex/bond/US2YT=RR',
   'DX-Y.NYB':'https://m.stock.naver.com/marketindex/exchange/.DXY',
   /* ---- 네이버에 없는 항목: 구글금융 ---- */
-  'ES=F':'https://search.naver.com/search.naver?query=S%26P500%20%EC%84%A0%EB%AC%BC',
-  'NQ=F':'https://search.naver.com/search.naver?query=%EB%82%98%EC%8A%A4%EB%8B%A5%20%EC%84%A0%EB%AC%BC',
-  '^VIX':'https://search.naver.com/search.naver?query=VIX%20%EC%A7%80%EC%88%98',
-  '^SOX':'https://search.naver.com/search.naver?query=%ED%95%84%EB%9D%BC%EB%8D%B8%ED%94%BC%EC%95%84%20%EB%B0%98%EB%8F%84%EC%B2%B4%20%EC%A7%80%EC%88%98',
+  'ES=F':'https://m.stock.naver.com/worldstock/futures/EScv1/total',
+  'NQ=F':'https://m.stock.naver.com/worldstock/futures/NQcv1/total',
+  '^VIX':'https://m.stock.naver.com/worldstock/index/.VIX/total',
+  '^SOX':'https://m.stock.naver.com/worldstock/index/.SOX/total',
   'JPY=X':'https://www.google.com/finance/quote/USD-JPY?hl=ko',
-  'GC=F':'https://www.google.com/finance/beta/quote/GCW00:COMEX?hl=ko',
-  'SI=F':'https://www.google.com/finance/beta/quote/SIW00:COMEX?hl=ko',
-  'BTC-USD':'https://www.google.com/finance/quote/BTC-USD?hl=ko',
-  'EWY':'https://search.naver.com/search.naver?query=EWY'
+  'GC=F':'https://m.stock.naver.com/marketindex/metals/GCcv1',
+  'SI=F':'https://m.stock.naver.com/marketindex/metals/SIcv1',
+  'BTC-USD':'https://m.stock.naver.com/crypto/UPBIT/BTC/total',
+  'EWY':'https://m.stock.naver.com/worldstock/etf/EWY/total'
 };
 function chartUrl(sym){
   if(sym==='FNG') return 'https://edition.cnn.com/markets/fear-and-greed';
