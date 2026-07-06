@@ -2559,7 +2559,7 @@ async function drawFrgnTable(){
   h += '<thead><tr><th>순위</th><th>종목</th><th>외국인<br>(5일)</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
 
   if(!list.length){
-    const msg = mkt==='kosdaq' ? '코스닥은 외국인 순매수 리스트 미제공' : '데이터 없음 (오늘 수집 후 표시)';
+    const msg = '데이터 없음 (오늘 수집 후 표시)';
     h += `<tr><td colspan="6" style="padding:20px;color:#6e7681">${msg}</td></tr>`;
   } else {
     list.forEach((s, i) => {
@@ -2897,7 +2897,7 @@ async function renderFtop(){
 
   let h = '<thead><tr><th>순위</th><th>종목</th><th>외국인<br>(5일)</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
   if(!list.length){
-    const msg = ftopMkt === 'kosdaq' ? '코스닥은 네이버 외국인 순매수 리스트 미제공' : '데이터 없음 (오늘 수집 후 표시)';
+    const msg = '데이터 없음 (오늘 수집 후 표시)';
     h += `<tr><td colspan="6" style="padding:20px;color:#6e7681">${msg}</td></tr>`;
   } else {
     list.forEach((s, i) => {
