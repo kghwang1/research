@@ -109,15 +109,6 @@ body {
   <input id="search-input" placeholder="🔍 지표 이름 검색 (예: RSI, 이격도, 볼린저)" autocomplete="off">
 </div>
 
-<div id="cat-filter">
-  <button class="cat-btn active" data-cat="all">전체</button>
-  <button class="cat-btn" data-cat="overlay">오버레이</button>
-  <button class="cat-btn" data-cat="trend">추세</button>
-  <button class="cat-btn" data-cat="momentum">모멘텀</button>
-  <button class="cat-btn" data-cat="volatility">변동성</button>
-  <button class="cat-btn" data-cat="volume">거래량</button>
-</div>
-
 <div id="cards"></div>
 
 <script>
@@ -464,10 +455,9 @@ let curSearch = '';
 function render() {
   const cards = document.getElementById('cards');
   const filtered = INDICATORS.filter(ind => {
-    const catOk = curCat === 'all' || ind.cat === curCat;
     const q = curSearch.toLowerCase();
     const searchOk = !q || ind.name.toLowerCase().includes(q) || ind.key.toLowerCase().includes(q);
-    return catOk && searchOk;
+    return searchOk;
   });
 
   if (!filtered.length) {
@@ -571,16 +561,6 @@ function bindParamInputs() {
     btn.addEventListener('click', e => e.stopPropagation());
   });
 }
-
-// 카테고리 필터
-document.querySelectorAll('.cat-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    curCat = btn.dataset.cat;
-    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    render();
-  });
-});
 
 // 검색
 document.getElementById('search-input').addEventListener('input', (e) => {

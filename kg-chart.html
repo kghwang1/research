@@ -1396,6 +1396,98 @@ function drawCandle() {
 // ══════════════════════════════════════
 // 보조지표 렌더러
 // ══════════════════════════════════════
+// ══════════════════════════════════════
+// 보조지표 매매 신호 화살표
+// ══════════════════════════════════════
+function drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch) {
+  const main = vals[0];   // 주 지표선
+  const sig = vals[1];    // 시그널선(있으면)
+  if (!main) return;
+
+  const signals = []; // {i, type:'b'|'s'}
+
+  // 지표별 매수/매도 조건
+  const crossUp = (a, b, i) => a[i-1]!=null && b[i-1]!=null && a[i]!=null && b[i]!=null && a[i-1]<=b[i-1] && a[i]>b[i];
+  const crossDn = (a, b, i) => a[i-1]!=null && b[i-1]!=null && a[i]!=null && b[i]!=null && a[i-1]>=b[i-1] && a[i]<b[i];
+  const upThru = (a, lv, i) => a[i-1]!=null && a[i]!=null && a[i-1]<lv && a[i]>=lv;
+  const dnThru = (a, lv, i) => a[i-1]!=null && a[i]!=null && a[i-1]>lv && a[i]<=lv;
+
+  for (let i = 1; i < n; i++) {
+    switch(key) {
+      case 'MACD':
+        if (crossUp(main, sig, i)) signals.push({i, type:'b'});
+        if (crossDn(main, sig, i)) signals.push({i, type:'s'});
+        break;
+      case 'RSI': case 'MFI': case 'STOCHRSI':
+        if (upThru(main, 30, i)) signals.push({i, type:'b'});
+        if (dnThru(main, 70, i)) signals.push({i, type:'s'});
+        break;
+      case 'STOCH': case 'SLOWSTOCH':
+        if (main[i]<20 && crossUp(main, sig, i)) signals.push({i, type:'b'});
+        if (main[i]>80 && crossDn(main, sig, i)) signals.push({i, type:'s'});
+        break;
+      case 'SMI':
+        if (main[i]<-40 && crossUp(main, sig, i)) signals.push({i, type:'b'});
+        if (main[i]>40 && crossDn(main, sig, i)) signals.push({i, type:'s'});
+        break;
+      case 'CCI':
+        if (upThru(main, -100, i)) signals.push({i, type:'b'});
+        if (dnThru(main, 100, i)) signals.push({i, type:'s'});
+        break;
+      case 'CMO':
+        if (upThru(main, -50, i)) signals.push({i, type:'b'});
+        if (dnThru(main, 50, i)) signals.push({i, type:'s'});
+        break;
+      case 'WILLR':
+        if (upThru(main, -80, i)) signals.push({i, type:'b'});
+        if (dnThru(main, -20, i)) signals.push({i, type:'s'});
+        break;
+      case 'DISPARITY':
+        if (upThru(main, 95, i)) signals.push({i, type:'b'});
+        if (dnThru(main, 105, i)) signals.push({i, type:'s'});
+        break;
+      case 'TRIX': case 'TSI':
+        if (sig && crossUp(main, sig, i)) signals.push({i, type:'b'});
+        if (sig && crossDn(main, sig, i)) signals.push({i, type:'s'});
+        break;
+      case 'MOM': case 'FORCE': case 'CHAIKIN_OSC': case 'CMF':
+        if (upThru(main, 0, i)) signals.push({i, type:'b'});
+        if (dnThru(main, 0, i)) signals.push({i, type:'s'});
+        break;
+      case 'DMI_DYN':
+        if (upThru(main, 30, i)) signals.push({i, type:'b'});
+        if (dnThru(main, 70, i)) signals.push({i, type:'s'});
+        break;
+      case 'AROON':
+        // up>70 && down<30
+        if (sig && main[i]>=70 && main[i-1]<70) signals.push({i, type:'b'});
+        if (sig && main[i]<=30 && main[i-1]>30) signals.push({i, type:'s'});
+        break;
+    }
+  }
+
+  // 화살표 그리기 (최대 개수 제한)
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 9px monospace';
+  signals.forEach(s => {
+    const x = xOf(s.i);
+    const v = main[s.i];
+    if (v == null) return;
+    const y = yOf(v);
+    if (s.type === 'b') {
+      // 매수 ▲ (아래쪽, 빨강)
+      ctx.fillStyle = '#ef5350';
+      ctx.beginPath();
+      ctx.moveTo(x, y+14); ctx.lineTo(x-4, y+21); ctx.lineTo(x+4, y+21); ctx.closePath(); ctx.fill();
+    } else {
+      // 매도 ▼ (위쪽, 파랑)
+      ctx.fillStyle = '#1976d2';
+      ctx.beginPath();
+      ctx.moveTo(x, y-14); ctx.lineTo(x-4, y-21); ctx.lineTo(x+4, y-21); ctx.closePath(); ctx.fill();
+    }
+  });
+}
+
 function drawSub(canvas, key) {
   if (!canvas || !state.data.length) return;
   const cfg = IND_CFG[key];
@@ -1511,6 +1603,9 @@ function drawSub(canvas, key) {
     arr.forEach((v, i) => { if (v == null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
     ctx.stroke();
   });
+
+  // ── 매매 시점 화살표 (오버레이 제외 보조지표) ──
+  drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch);
 
   // 호버 수직선
   if (state.hoverIdx >= 0 && state.hoverIdx < n) {
