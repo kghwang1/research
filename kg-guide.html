@@ -92,6 +92,9 @@ body {
 .signal-row .tag.n { background: #37415133; color: #8b949e; }
 .signal-row .desc { font-size: 12.5px; color: #c9d1d9; }
 
+.detail-box { background: #0d1117; padding: 10px 12px; border-radius: 8px; line-height: 1.6; }
+.detail-box b { color: #58a6ff; }
+.tip-box { background: #1a2f1a; border-left: 3px solid #3fb950; padding: 10px 12px; border-radius: 6px; line-height: 1.6; }
 .no-result { text-align: center; color: #6e7681; padding: 40px; }
 </style>
 </head>
@@ -200,21 +203,21 @@ const INDICATORS = [
       ['b','골든크로스: 단기선(MA5)이 장기선(MA20)을 아래→위 돌파'],
       ['s','데드크로스: 단기선이 장기선을 위→아래 돌파'],
       ['n','주가가 이평선 위=상승추세, 아래=하락추세'],
-    ]},
+    ], detail:'<b>계산법:</b> 최근 N일 종가를 모두 더해 N으로 나눔.<br><b>해석:</b> 단기선(5·20일)은 최근 흐름, 장기선(60·120일)은 큰 추세를 나타냅니다. 여러 선이 위에서부터 단기>중기>장기 순으로 배열되면(정배열) 강한 상승, 반대면(역배열) 강한 하락입니다.', tip:'정배열 상태에서 주가가 20일선까지 눌릴 때가 매수 자리입니다. 이동평균선이 우상향하며 간격이 벌어지면 추세가 강한 것이고, 좁아지면 추세가 약해지는 신호입니다.'},
   { key:'BB', name:'볼린저밴드', cat:'overlay', opt:'기간 20일, 표준편차 2σ',
     desc:'이동평균(중심선) 위아래로 표준편차 밴드를 그림. 변동성과 과열/침체를 동시에 파악.',
     signals:[
       ['b','주가가 하단밴드 터치 후 반등 → 매수'],
       ['s','주가가 상단밴드 터치 후 하락 → 매도'],
       ['n','밴드 폭 좁아짐(스퀴즈) → 큰 변동 임박 신호'],
-    ]},
+    ], detail:'<b>계산법:</b> 20일 이동평균(중심선) ± (표준편차 × 2).<br><b>해석:</b> 주가는 통계적으로 밴드 안(95%)에서 움직입니다. 밴드 폭이 넓으면 변동성이 크고, 좁으면(스퀴즈) 곧 큰 움직임이 나올 신호입니다.', tip:'밴드가 극도로 좁아진 뒤 상단/하단을 강하게 돌파하는 방향으로 매매하면 큰 수익을 노릴 수 있습니다. 상단밴드를 타고 오르는 강세장에서는 섣부른 매도를 자제하세요.'},
   { key:'ICHIMOKU', name:'일목균형표', cat:'overlay', opt:'전환9 / 기준26 / 선행52',
     desc:'전환선·기준선·선행스팬·후행스팬·구름대로 구성. 지지저항·추세·매매시점을 종합 판단.',
     signals:[
       ['b','주가가 구름대 위로 돌파 → 강세 전환'],
       ['s','주가가 구름대 아래로 이탈 → 약세 전환'],
       ['n','전환선이 기준선 상향돌파 → 매수 신호'],
-    ]},
+    ], detail:'<b>구성:</b> 전환선(9일), 기준선(26일), 선행스팬A·B(구름대), 후행스팬(26일 전 표시).<br><b>해석:</b> 구름대(선행스팬 사이)가 두꺼울수록 지지·저항이 강합니다. 주가가 구름 위면 강세, 아래면 약세, 구름 안이면 방향성 없음(관망)입니다.', tip:'주가가 구름을 상향 돌파하는 순간이 강력한 매수 신호입니다. 구름대의 색이 바뀌는 지점(선행스팬A·B 교차)은 추세 전환 예고입니다.'},
   { key:'PSAR', name:'파라볼릭 (PSAR)', cat:'overlay', opt:'가속 0.02, 최대 0.2',
     desc:'점(dot)으로 추세 방향과 전환점을 표시. 손절선(트레일링 스톱)으로 활용.',
     signals:[
@@ -240,7 +243,7 @@ const INDICATORS = [
       ['b','VAMA(주황)가 가격MA(회색)를 상향돌파 → 매수'],
       ['s','VAMA가 가격MA를 하향돌파 → 매도'],
       ['n','거래량 많은 날의 가격이 크게 반영됨'],
-    ]},
+    ], detail:'<b>계산법:</b> Σ(가격 × 거래량) ÷ Σ(거래량). 거래량이 많은 날의 가격에 더 큰 비중.<br><b>해석:</b> 일반 이동평균은 모든 날을 똑같이 취급하지만, VAMA는 거래량이 실린 \'진짜 의미 있는\' 가격을 중시합니다. 세력이 대량 매집·매도한 날의 가격이 강하게 반영됩니다.', tip:'VAMA(주황)가 일반 가격이평(회색)보다 위에 있으면 거래량이 상승 쪽에 실린 것으로 매수세 우위입니다. 두 선의 교차는 거래량 기반 추세 전환 신호입니다.'},
   { key:'VPROFILE', name:'매물대 (거래량 프로파일)', cat:'overlay', opt:'가격구간 24단계',
     desc:'가격대별 거래량을 수평막대로 표시. 매물이 많이 쌓인 가격대(지지·저항) 파악.',
     signals:[
@@ -256,7 +259,7 @@ const INDICATORS = [
       ['b','MACD선이 시그널선을 상향돌파 → 매수'],
       ['s','MACD선이 시그널선을 하향돌파 → 매도'],
       ['n','히스토그램 0선 상향돌파 → 상승 모멘텀'],
-    ]},
+    ], detail:'<b>계산법:</b> 12일 EMA − 26일 EMA = MACD선, 이것의 9일 EMA = 시그널선.<br><b>해석:</b> 두 이동평균의 차이로 추세의 방향과 힘을 봅니다. MACD가 0선 위면 상승추세, 아래면 하락추세이며, 시그널선과의 교차로 매매 시점을 잡습니다.', tip:'MACD가 0선 아래 깊은 곳에서 골든크로스가 나면 바닥 반등 신호로 신뢰도가 높습니다. 주가는 신고가인데 MACD는 낮아지는 다이버전스는 강력한 하락 경고입니다.'},
   { key:'ADX', name:'ADX / DMI', cat:'trend', opt:'기간 14일, 기준선 25',
     desc:'추세의 강도를 측정(방향 아님). +DI/-DI로 방향, ADX로 강도 판단.',
     signals:[
@@ -307,7 +310,7 @@ const INDICATORS = [
       ['b','RSI 30 아래(과매도)에서 위로 반등 → 매수'],
       ['s','RSI 70 위(과매수)에서 아래로 → 매도'],
       ['n','가격과 다이버전스 → 강력한 반전 신호'],
-    ]},
+    ], detail:'<b>계산법:</b> 14일간 상승폭 평균 ÷ (상승폭+하락폭 평균) × 100.<br><b>해석:</b> 0~100 사이 값으로 70 이상은 과매수(너무 올랐다), 30 이하는 과매도(너무 내렸다)를 뜻합니다. 50이 중심선입니다.', tip:'강세장에서는 RSI가 40~80, 약세장에서는 20~60 사이에서 움직입니다. 단순히 70 넘었다고 파는 것보다, 다이버전스(주가 신고가 + RSI 하락)를 확인하면 더 정확합니다.'},
   { key:'SMI', name:'SMI (스토캐스틱 모멘텀)', cat:'momentum', opt:'기간13 / 평활25 / 시그널2',
     desc:'스토캐스틱을 개선해 중심(0) 기준으로 표현. RSI보다 정교한 신호.',
     signals:[
@@ -357,7 +360,7 @@ const INDICATORS = [
       ['b','95 아래(과매도)에서 위로 반등 → 매입'],
       ['s','105 위(과매수)에서 아래로 → 매도'],
       ['n','100 = 주가와 이평선 일치'],
-    ]},
+    ], detail:'<b>계산법:</b> (현재가 ÷ 20일 이동평균) × 100.<br><b>해석:</b> 100이면 주가와 이평선이 일치, 105면 이평선보다 5% 위(과열), 95면 5% 아래(침체)입니다. 주가는 고무줄처럼 이평선에서 멀어지면 다시 돌아오려는 성질이 있습니다.', tip:'95 이하로 떨어졌다가 반등할 때가 좋은 매수 자리입니다. 종목마다 이격도 범위가 다르므로, 과거 차트에서 해당 종목의 이격도 고점·저점을 미리 파악해두면 좋습니다.'},
   { key:'CHAIKIN_OSC', name:'차이킨 오실레이터', cat:'momentum', opt:'단기3 / 장기10',
     desc:'누적분산(A/D)의 오실레이터. 거래량 기반 매집·분산 모멘텀 파악.',
     signals:[
@@ -384,7 +387,7 @@ const INDICATORS = [
       ['n','ATR 상승 → 변동성 확대(위험↑)'],
       ['n','손절폭 = 진입가 ± (ATR × 배수)'],
       ['n','ATR 낮음 → 변동성 수축, 큰 움직임 대기'],
-    ]},
+    ], detail:'<b>계산법:</b> 당일 고저폭, 전일종가와의 갭 중 최대값(True Range)의 14일 평균.<br><b>해석:</b> 방향과 무관하게 \'하루에 얼마나 움직이는가\'를 나타냅니다. ATR이 크면 변동성이 크고, 작으면 잔잔합니다.', tip:'손절선을 ATR로 정하면 종목 특성에 맞는 손절이 가능합니다. 예: 진입가 − (ATR × 2). 변동성이 큰 종목은 넓게, 작은 종목은 좁게 자동 조정됩니다.'},
   { key:'BBW', name:'볼린저밴드 폭', cat:'volatility', opt:'기간 20일',
     desc:'볼린저밴드의 상하폭을 %로 표시. 변동성 수축→폭발 패턴 포착.',
     signals:[
@@ -424,7 +427,7 @@ const INDICATORS = [
       ['b','OBV 상승 → 매집 진행(주가 상승 예고)'],
       ['s','OBV 하락 → 분산 진행'],
       ['n','가격과 다이버전스 → 추세 전환 신호'],
-    ]},
+    ], detail:'<b>계산법:</b> 상승한 날은 거래량을 더하고, 하락한 날은 빼서 누적.<br><b>해석:</b> 가격보다 거래량(자금 흐름)이 먼저 움직인다는 원리. OBV가 오르면 매집(돈이 들어옴), 내리면 분산(돈이 빠짐)입니다.', tip:'주가는 횡보하는데 OBV가 계속 오르면 세력이 조용히 매집 중일 수 있어 상승 전조입니다. 반대로 주가 신고가인데 OBV가 못 따라오면 상승 동력이 약해진 것입니다.'},
   { key:'CMF', name:'차이킨 자금흐름 (CMF)', cat:'volume', opt:'기간 20일, 기준 0',
     desc:'거래량 가중으로 자금 유입/유출 측정. 매집·분산 판단.',
     signals:[
@@ -436,7 +439,7 @@ const INDICATORS = [
     signals:[
       ['b','20 아래(과매도)에서 반등 → 매수'],
       ['s','80 위(과매수)에서 하락 → 매도'],
-    ]},
+    ], detail:'<b>계산법:</b> 거래량을 반영한 RSI. 대표가격(고저종 평균) × 거래량으로 자금 유입·유출 비율 계산.<br><b>해석:</b> RSI가 가격만 본다면, MFI는 \'돈의 양\'까지 봅니다. 80 이상 과매수, 20 이하 과매도입니다.', tip:'MFI는 거래량이 실려 있어 RSI보다 속임수가 적습니다. MFI 다이버전스(주가 신고가 + MFI 하락)는 자금이 빠지는 신호로 특히 신뢰도가 높습니다.'},
   { key:'PVT', name:'PVT (거래량추세지수)', cat:'volume', opt:'-',
     desc:'가격변화율 × 거래량 누적. OBV보다 정교한 자금흐름 추적.',
     signals:[
@@ -502,6 +505,16 @@ function render() {
             <div class="section-title"><span class="ico">💡</span>매매 타이밍</div>
             ${sigRows}
           </div>
+          ${ind.detail ? `
+          <div class="section">
+            <div class="section-title"><span class="ico">🔍</span>상세 설명</div>
+            <div class="section-content detail-box">${ind.detail}</div>
+          </div>` : ''}
+          ${ind.tip ? `
+          <div class="section">
+            <div class="section-title"><span class="ico">⭐</span>활용 팁</div>
+            <div class="section-content tip-box">${ind.tip}</div>
+          </div>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -574,6 +587,21 @@ document.getElementById('search-input').addEventListener('input', (e) => {
   curSearch = e.target.value.trim();
   render();
 });
+
+// URL 파라미터로 검색어 자동 입력 (차트에서 명칭 클릭 시)
+const urlParams = new URLSearchParams(location.search);
+const autoQ = urlParams.get('q');
+if (autoQ) {
+  // 괄호 앞 부분만 추출 (예: "이동평균(MA)" → "이동평균")
+  const cleanQ = autoQ.replace(/\(.*/, '').trim();
+  document.getElementById('search-input').value = cleanQ;
+  curSearch = cleanQ;
+  // 해당 카드 자동 펼침
+  setTimeout(() => {
+    const firstCard = document.querySelector('.card');
+    if (firstCard) firstCard.classList.add('open');
+  }, 100);
+}
 
 render();
 </script>
