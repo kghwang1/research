@@ -233,10 +233,8 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">이동평균(MA)</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">볼린저밴드</span></label>
     <label class="ind-label" data-key="ICHIMOKU" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">일목균형표</span></label>
-    <label class="ind-label" data-key="PSAR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">파라볼릭(PSAR)</span></label>
     <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DEMA(이중지수)</span></label>
     <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VIDYA(가변이동평균)</span></label>
-    <label class="ind-label" data-key="VAMA" style="--col:#ffa657"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">거래량조정이평(VAMA)</span></label>
     <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">매물대(거래량프로파일)</span></label>
 
     <div class="group-title">▶ 추세지표</div>
@@ -264,7 +262,6 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
     <div class="group-title">▶ 변동성지표</div>
     <label class="ind-label" data-key="ATR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ATR(14)</span></label>
-    <label class="ind-label" data-key="BBW" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">볼린저밴드 폭</span></label>
     <label class="ind-label" data-key="RVI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">RVI(상대변동성)</span></label>
     <label class="ind-label" data-key="INERTIA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">관성지수(Inertia)</span></label>
     <label class="ind-label" data-key="CHAIKIN_VOL" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">차이킨 변동성</span></label>
@@ -384,20 +381,10 @@ const CALC = {
     const senkouB=d.map((_,i)=>i<51?null:(highest(h,52,i)+lowest(l,52,i))/2);
     return{tenkan,kijun,senkouA,senkouB,chikou:c};
   },
-  PSAR:(d)=>{
-    const psar=new Array(d.length).fill(null);
-    let bull=true,af=0.02,ep=d[0].low,sar=d[0].high;
-    for(let i=1;i<d.length;i++){
-      sar=sar+af*(ep-sar);
-      if(bull){if(d[i].low<sar){bull=false;sar=ep;af=0.02;ep=d[i].low;}else{if(d[i].high>ep){ep=d[i].high;af=Math.min(af+0.02,0.2);}}}
-      else{if(d[i].high>sar){bull=true;sar=ep;af=0.02;ep=d[i].high;}else{if(d[i].low<ep){ep=d[i].low;af=Math.min(af+0.02,0.2);}}}
-      psar[i]=sar;
-    }
-    return{psar};
-  },
   DEMA:(d)=>{const c=d.map(x=>x.close),e1=ema(c,20),e2=ema(e1,20);const dema=e1.map((v,i)=>v&&e2[i]?2*v-e2[i]:null);return{dema,signal:ema(dema,9)};},
   VIDYA:(d)=>{
-    const c=d.map(x=>x.close),period=14;
+    const c=d.map(x=>x.close),period=P('VIDYA',0,14);
+    // CMO(변동성) 계산
     const cmo=c.map((_,i)=>{
       if(i<period)return null;
       let up=0,dn=0;
@@ -405,31 +392,16 @@ const CALC = {
       return Math.abs((up-dn)/((up+dn)||1));
     });
     const k=2/(period+1),vidya=new Array(c.length).fill(null);
-    for(let i=period;i<c.length;i++){if(cmo[i]==null)continue;const prev=vidya[i-1]??c[i];vidya[i]=c[i]*k*cmo[i]+prev*(1-k*cmo[i]);}
-    return{vidya,signal:ema(vidya,9)};
-  },
-  VAMA:(d)=>{
-    // 거래량조정 이동평균: Σ(거래량×가격)/Σ(거래량), 기간 20일
-    const period=20;
-    const vama=d.map((_,i)=>{
-      if(i<period-1)return null;
-      let sumVP=0,sumV=0;
-      for(let j=i-period+1;j<=i;j++){ sumVP+=d[j].close*d[j].volume; sumV+=d[j].volume; }
-      return sumV>0 ? sumVP/sumV : null;
-    });
-    // 비교용 일반 가격 이동평균(같은 기간)
-    const c=d.map(x=>x.close);
-    const priceMA=sma(c,period);
-    // 교차 신호: VAMA가 가격MA를 상향돌파=매수, 하향돌파=매도
-    const signals=d.map((_,i)=>{
-      if(i<period||vama[i]==null||priceMA[i]==null||vama[i-1]==null||priceMA[i-1]==null) return 0;
-      const prevDiff=vama[i-1]-priceMA[i-1];
-      const curDiff=vama[i]-priceMA[i];
-      if(prevDiff<=0 && curDiff>0) return 1;   // 매수(골든크로스)
-      if(prevDiff>=0 && curDiff<0) return -1;  // 매도(데드크로스)
-      return 0;
-    });
-    return{vama,priceMA,signals};
+    // 초기값을 SMA(period)로 시드 → 주가와 붙어서 시작
+    let seed=0; for(let j=0;j<period;j++) seed+=c[j]; seed/=period;
+    vidya[period-1]=seed;
+    for(let i=period;i<c.length;i++){
+      if(cmo[i]==null){vidya[i]=vidya[i-1];continue;}
+      const prev=(vidya[i-1]!=null)?vidya[i-1]:c[i];
+      const alpha=k*cmo[i];
+      vidya[i]=alpha*c[i]+(1-alpha)*prev;
+    }
+    return{vidya,signal:ema(vidya,P('VIDYA',1,9))};
   },
   MACD:(d)=>{
     const mf=P('MACD',0,12),ms=P('MACD',1,26),msig=P('MACD',2,9);
@@ -520,7 +492,6 @@ const CALC = {
   MOM:(d)=>{const mp=P('MOM',0,12),c=d.map(x=>x.close);return{mom:c.map((v,i)=>i>=mp?v-c[i-mp]:null)};},
   WILLR:(d)=>{return{wr:d.map((_,i)=>{if(i<13)return null;const sl=d.slice(i-13,i+1),hh=Math.max(...sl.map(x=>x.high)),ll=Math.min(...sl.map(x=>x.low));return hh===ll?-50:((hh-d[i].close)/(hh-ll))*-100;})};},
   ATR:(d)=>{const tr=d.map((x,i)=>i===0?x.high-x.low:Math.max(x.high-x.low,Math.abs(x.high-d[i-1].close),Math.abs(x.low-d[i-1].close)));return{atr:sma(tr,14)};},
-  BBW:(d)=>{const c=d.map(x=>x.close),mid=sma(c,20),sd=stdev(c,20);return{bbw:mid.map((v,i)=>v&&sd[i]?(sd[i]*4)/v*100:null)};},
   RVI:(d)=>{
     const c=d.map(x=>x.close),sd=stdev(c,10);
     const upSd=sd.map((v,i)=>c[i]>c[i-1]?v||0:0),dnSd=sd.map((v,i)=>c[i]<=c[i-1]?v||0:0);
@@ -569,7 +540,6 @@ const IND_CFG = {
   MOM:{color:C.green,lines:[0]},
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
   ATR:{color:C.orange},
-  BBW:{color:C.cyan},
   RVI:{color:C.purple,range:[0,100],lines:[50]},
   INERTIA:{color:C.lime,lines:[50]},
   CHAIKIN_VOL:{color:C.teal,lines:[0]},
@@ -974,7 +944,7 @@ function setupSearch() {
   });
 }
 
-const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','PSAR','DEMA','VIDYA','VAMA','VPROFILE'];
+const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VIDYA','VPROFILE'];
 
 // 기본 표시 지표 불러오기 (localStorage)
 // 사용자 지정 지표 파라미터 (설명 페이지에서 편집)
@@ -1208,49 +1178,6 @@ function drawCandle() {
     ctx.setLineDash([]);
   }
 
-  // VAMA (거래량조정 이동평균) + 시그널선
-  if (overlays.VAMA) {
-    const r = CALC.VAMA(data);
-    // 가격 이동평균 (검정/회색 실선) - 비교선
-    const pma = r.priceMA.slice(...range);
-    ctx.strokeStyle = '#888888'; ctx.lineWidth = 1.2; ctx.setLineDash([]); ctx.beginPath(); let sp = false;
-    pma.forEach((v,i) => { if (!v) return; sp ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), sp=true); }); ctx.stroke();
-    // VAMA 본선 (주황 실선)
-    const sl = r.vama.slice(...range);
-    ctx.strokeStyle = '#ffa657'; ctx.lineWidth = 1.8; ctx.beginPath(); let s = false;
-    sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
-    // 매매 신호 (교차점 화살표)
-    const sig = r.signals.slice(...range);
-    ctx.textAlign = 'center'; ctx.font = 'bold 11px monospace';
-    sig.forEach((v,i) => {
-      if (v === 0 || !sl[i]) return;
-      const x = xOf(i), y = yOf(sl[i]);
-      if (v === 1) {
-        // 매수 ▲ (선 아래)
-        ctx.fillStyle = '#ef5350';
-        ctx.beginPath();
-        ctx.moveTo(x, y+16); ctx.lineTo(x-5, y+24); ctx.lineTo(x+5, y+24); ctx.closePath(); ctx.fill();
-        ctx.fillText('매수', x, y+36);
-      } else {
-        // 매도 ▼ (선 위)
-        ctx.fillStyle = '#1976d2';
-        ctx.beginPath();
-        ctx.moveTo(x, y-16); ctx.lineTo(x-5, y-24); ctx.lineTo(x+5, y-24); ctx.closePath(); ctx.fill();
-        ctx.fillText('매도', x, y-28);
-      }
-    });
-  }
-
-  // PSAR
-  if (overlays.PSAR) {
-    const r = CALC.PSAR(data); const sl = r.psar.slice(...range);
-    sl.forEach((v, i) => {
-      if (!v) return;
-      ctx.fillStyle = v > slice[i].close ? C.down : C.up;
-      ctx.beginPath(); ctx.arc(xOf(i), yOf(v), 2, 0, Math.PI*2); ctx.fill();
-    });
-  }
-
   // ── 매물대 (Volume Profile) ──
   if (overlays.VPROFILE) {
     const BINS = 24; // 가격 구간 수
@@ -1386,10 +1313,8 @@ function drawCandle() {
   const legends = [];
   if (overlays.BB)       legends.push({t:'볼린저(20,2)', c:'#8d939f'});
   if (overlays.ICHIMOKU) legends.push({t:'일목균형표', c:'#ff7eb6'});
-  if (overlays.PSAR)     legends.push({t:'PSAR', c:'#f78166'});
   if (overlays.DEMA)     legends.push({t:'DEMA(20)', c:'#a8ff78'});
   if (overlays.VIDYA)    legends.push({t:'VIDYA(14)', c:'#4ecdc4'});
-  if (overlays.VAMA)   { legends.push({t:'VAMA(20)', c:'#ffa657'}); legends.push({t:'가격MA(20)', c:'#888888'}); }
   if (overlays.VPROFILE) legends.push({t:'매물대(POC)', c:'#d2a8ff'});
 
   if (legends.length) {
@@ -1725,7 +1650,7 @@ function drawSub(canvas, key) {
   const lastName = {MACD:'MACD', ADX:'ADX', CCI:'CCI', AROON:'Aroon', FORCE:'Force', TRIX:'TRIX', TSI:'TSI',
     RSI:'RSI', SMI:'SMI', STOCHRSI:'StochRSI', STOCH:'Stoch Fast', SLOWSTOCH:'Stoch Slow',
     CMO:'CMO', DMI_DYN:'Dyn MI', MASS:'Mass Index', DISPARITY:'이격도', CHAIKIN_OSC:'차이킨Osc',
-    MOM:'모멘텀', WILLR:'Will%R', ATR:'ATR', BBW:'BB폭', RVI:'RVI', INERTIA:'Inertia',
+    MOM:'모멘텀', WILLR:'Will%R', ATR:'ATR', RVI:'RVI', INERTIA:'Inertia',
     CHAIKIN_VOL:'차이킨Vol', VOLUME:'거래량', OBV:'OBV', CMF:'CMF', MFI:'MFI', PVT:'PVT', WILLIAMS_AD:'Williams AD'};
   const lastVal = vals[0].filter(v => v != null).slice(-1)[0];
   ctx.fillStyle = cfg.color; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
