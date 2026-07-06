@@ -862,7 +862,6 @@ function setupSearch() {
         const yahoo = item.dataset.yahoo;
         if (code && name) {
           loadStock({ code, name, price: 50000, yahooSym: yahoo || null });
-          input.value = '';
           dropdown.style.display = 'none';
         }
       });
@@ -970,7 +969,6 @@ function setupSearch() {
       } else {
         loadStock({ code: q, name: q, price: 50000 });
       }
-      input.value = '';
       dropdown.style.display = 'none';
     }
   });
@@ -1616,13 +1614,11 @@ function drawSub(canvas, key) {
         ctx.fillStyle = '#ef5350';
         ctx.beginPath();
         ctx.moveTo(xOf(i), yOf(arr[i])+13); ctx.lineTo(xOf(i)-4, yOf(arr[i])+20); ctx.lineTo(xOf(i)+4, yOf(arr[i])+20); ctx.closePath(); ctx.fill();
-        ctx.fillText('매수', xOf(i), yOf(arr[i])+31);
       }
       if (arr[i-1] > 70 && arr[i] <= 70) {
         ctx.fillStyle = '#1976d2';
         ctx.beginPath();
         ctx.moveTo(xOf(i), yOf(arr[i])-13); ctx.lineTo(xOf(i)-4, yOf(arr[i])-20); ctx.lineTo(xOf(i)+4, yOf(arr[i])-20); ctx.closePath(); ctx.fill();
-        ctx.fillText('매도', xOf(i), yOf(arr[i])-23);
       }
     }
     // 호버선
