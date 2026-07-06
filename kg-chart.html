@@ -239,7 +239,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
     <div class="group-title">▶ 추세지표</div>
     <label class="ind-label" data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MACD(12,26,9)</span></label>
-    <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ADX/DMI(14)</span></label>
+    <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">방향성지수(DMI)</span></label>
     <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CCI(20)</span></label>
     <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon(25)</span></label>
     <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force Index(13)</span></label>
@@ -521,7 +521,7 @@ const CALC = {
 // 지표 설정
 const IND_CFG = {
   MACD:{color:C.accent,lines:[0]},
-  ADX:{color:C.green,range:[0,100],lines:[25]},
+  ADX:{color:C.green,lines:[20,40]},
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink,lines:[0]},
@@ -1477,6 +1477,55 @@ function drawSub(canvas, key) {
   });
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+
+  // ── ADX/DMI: 책 스타일 (+DI 빨강 / -DI 파랑 + 교차 매수매도) ──
+  if (key === 'ADX') {
+    // vals: [adx, pdi, ndi]
+    const pdi = vals[1], ndi = vals[2];
+    const drawLine = (arr, color, width) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash([]);
+      ctx.beginPath(); let s = false;
+      arr.forEach((v,i) => { if (v==null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
+      ctx.stroke();
+    };
+    // +DI 빨강, -DI 파랑
+    drawLine(pdi, '#d32f2f', 1.6);
+    drawLine(ndi, '#1976d2', 1.6);
+    // 교차 신호: +DI가 -DI 상향돌파=매수(▲), 하향돌파=매도(▼)
+    for (let i = 1; i < n; i++) {
+      if (pdi[i]==null||ndi[i]==null||pdi[i-1]==null||ndi[i-1]==null) continue;
+      const prevDiff = pdi[i-1]-ndi[i-1], curDiff = pdi[i]-ndi[i];
+      if (prevDiff<=0 && curDiff>0) {
+        // 매수 ▲ (빨강, 교차점 아래)
+        const y = yOf(pdi[i]);
+        ctx.fillStyle = '#d32f2f';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y+13); ctx.lineTo(xOf(i)-4, y+20); ctx.lineTo(xOf(i)+4, y+20); ctx.closePath(); ctx.fill();
+      }
+      if (prevDiff>=0 && curDiff<0) {
+        // 매도 ▼ (파랑, 교차점 위)
+        const y = yOf(pdi[i]);
+        ctx.fillStyle = '#1976d2';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y-13); ctx.lineTo(xOf(i)-4, y-20); ctx.lineTo(xOf(i)+4, y-20); ctx.closePath(); ctx.fill();
+      }
+    }
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+    // 레이블
+    const lastP = pdi.filter(v=>v!=null).slice(-1)[0];
+    const lastN = ndi.filter(v=>v!=null).slice(-1)[0];
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#d32f2f'; ctx.fillText('+DI ' + (lastP!=null?lastP.toFixed(0):''), PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = '#1976d2'; ctx.fillText('-DI ' + (lastN!=null?lastN.toFixed(0):''), PAD.l + 78, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
 
   // ── 이격도: 책 스타일 (빨간선 + 95↓매수/105↑매도 영역 채움) ──
   if (key === 'RSI') {
