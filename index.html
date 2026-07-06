@@ -86,6 +86,14 @@
   /* 리서치 결과 리스트 */
   .rv-head{display:flex;align-items:center;margin:18px 0 10px}
   .rv-head .h{font-size:13px;font-weight:700;color:var(--dim);letter-spacing:.5px}
+  .port-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 2px}
+  .port-col{display:flex;flex-direction:column;gap:8px}
+  .port-col-title{font-size:12px;font-weight:700;color:var(--accent);padding:4px 2px;text-align:center;border-bottom:1px solid var(--line);margin-bottom:2px}
+  #port .rv-card{padding:12px 10px !important}
+  #port .rv-card .tt{font-size:14px}
+  #port .rv-card .sb{font-size:11px !important;line-height:1.3 !important}
+  #port .rv-card .go{display:none}
+  #port .rv-card .ic{width:32px;height:32px;font-size:16px}
   .rv-card{display:flex;align-items:center;gap:12px;padding:15px 16px;background:var(--panel);
     border:1px solid var(--line);border-radius:var(--r);text-decoration:none;color:var(--ink);
     margin-bottom:10px;transition:.15s}
@@ -585,12 +593,21 @@
 
  <!-- ===== PORT (포트폴리오 허브) ===== -->
  <section id="port">
-  <div class="val-submenu">
-   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('kr');return false;"><span class="ic">🇰🇷</span><span class="tx"><span class="tt">한국</span><span class="sb">국내 포트폴리오 · 비중/적정가/상승여력<br>현재가·목표가 실시간</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">투자종목</span><span class="sb">코스피100 낙폭·ROE·외국인 스크리너<br>보고서 자동 수집</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('us');return false;"><span class="ic">🇺🇸</span><span class="tx"><span class="tt">미국(반)</span><span class="sb">미국 반도체 포트폴리오 · 적정주가/PEG<br>현재가·52주최고 실시간</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('usc');return false;"><span class="ic">🏦</span><span class="tx"><span class="tt">미국(체)</span><span class="sb">MP 분석 포트폴리오 · 비중/변동<br>목표가 컨센서스</span></span><span class="go">열기 ›</span></a>
-   <a class="rv-card" href="#" onclick="event.preventDefault();openPort('etf');return false;"><span class="ic">🧺</span><span class="tx"><span class="tt">한·미 ETF</span><span class="sb">한국·미국 ETF 비중 한 화면<br>등락률 실시간</span></span><span class="go">열기 ›</span></a>
+  <div class="port-grid">
+   <!-- 국내 줄 -->
+   <div class="port-col">
+    <div class="port-col-title">🇰🇷 국내</div>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('kr');return false;"><span class="ic">🇰🇷</span><span class="tx"><span class="tt">한국(체)</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">투자종목</span><span class="sb">코스피100 최대낙폭·ROE·외국인 투자</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('frgn');return false;"><span class="ic">🌏</span><span class="tx"><span class="tt">외국인</span><span class="sb">외국인 투자일수 누적</span></span></a>
+   </div>
+   <!-- 국외 줄 -->
+   <div class="port-col">
+    <div class="port-col-title">🌐 국외</div>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('usc');return false;"><span class="ic">🏦</span><span class="tx"><span class="tt">미국(체)</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('us');return false;"><span class="ic">🇺🇸</span><span class="tx"><span class="tt">미국(반)</span><span class="sb">적정주가</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('etf');return false;"><span class="ic">🧺</span><span class="tx"><span class="tt">한·미 ETF</span></span></a>
+   </div>
   </div>
  </section>
 
@@ -665,19 +682,6 @@
     <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
   </div>
 
-  <!-- 외국인 투자 종목 표 -->
-  <div class="ftop-box">
-    <div class="ftop-head">
-      <span class="ftop-title">외국인 투자 종목 (최근 5일)</span>
-      <div class="ftop-toggle">
-        <button class="fp-btn active" data-mkt="kospi">코스피</button>
-        <button class="fp-btn" data-mkt="kosdaq">코스닥</button>
-      </div>
-    </div>
-    <div id="ftopTableWrap"><table class="ftop-tbl" id="ftopTable"></table></div>
-    <div class="ftop-note" id="ftopNote">불러오는 중…</div>
-  </div>
-
   <div class="pnl-chart-title">외국인 손익 곡선</div>
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
@@ -696,10 +700,11 @@
 <div id="valFull" class="valfull">
  <div class="valfull-top" id="valSub">
   <div class="subtab vback" data-m="back">‹ 이전</div>
-  <div class="subtab on" data-m="kr">한국</div>
+  <div class="subtab on" data-m="kr">한국(체)</div>
   <div class="subtab" data-m="invest">투자종목</div>
-  <div class="subtab" data-m="us">미국(반)</div>
+  <div class="subtab" data-m="frgn">외국인</div>
   <div class="subtab" data-m="usc">미국(체)</div>
+  <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table><div id="valNote" class="val-note" style="display:none"></div></div>
@@ -2467,7 +2472,9 @@ function renderInfo(box){
       return;
     }
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
-    valMarket=s.dataset.m; renderVal();
+    valMarket=s.dataset.m;
+    if(valMarket==='frgn'){ renderFrgnPort(); return; }
+    renderVal();
     if(valMarket==='us'){ fetchValLive().then(renderVal); }
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); }
@@ -2494,6 +2501,98 @@ function renderInfo(box){
     });
   };
 })();
+// 외국인 포트폴리오 (valFull 영역에 표시)
+async function renderFrgnPort(){
+  const scroll = document.getElementById('valScroll');
+  const tbl = document.getElementById('valTbl');
+  const note = document.getElementById('valNote');
+  if(!tbl) return;
+  // 다른 표 요소 숨김
+  const empty = document.getElementById('valEmpty'); if(empty) empty.style.display='none';
+  const multi = document.getElementById('valMulti'); if(multi) multi.style.display='none';
+  if(note) note.style.display='none';
+
+  tbl.innerHTML = '<caption class="kr-cap">외국인 순매수 종목 (최근 5일)<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><tbody><tr><td style="padding:20px;color:#8b949e">📡 불러오는 중…</td></tr></tbody>';
+
+  // 시장 토글 (코스피/코스닥) 상태
+  if(!window._frgnMkt) window._frgnMkt = 'kospi';
+
+  await loadFtopData();
+  drawFrgnTable();
+}
+
+let FRGN_PORT_DATA = null;
+async function loadFtopData(){
+  const today = new Date().toISOString().slice(0,10);
+  let hist = {};
+  try{ hist = JSON.parse(localStorage.getItem('ftop_history') || '{}'); }catch(e){}
+  if(!hist[today]){
+    try{
+      const r = await fetch(SRV_URL + '/?ftop=1&_t=' + Date.now(), { cache:'no-store' });
+      const j = await r.json();
+      if(j.ok){
+        hist[today] = { kospi:(j.kospi||[]), kosdaq:(j.kosdaq||[]) };
+        const dates = Object.keys(hist).sort().reverse().slice(0,5);
+        const trimmed = {}; dates.forEach(d=>{ trimmed[d]=hist[d]; });
+        hist = trimmed;
+        localStorage.setItem('ftop_history', JSON.stringify(hist));
+      }
+    }catch(e){}
+  }
+  FRGN_PORT_DATA = aggregateFtop(hist);
+}
+
+async function drawFrgnTable(){
+  const tbl = document.getElementById('valTbl');
+  if(!tbl || !FRGN_PORT_DATA) return;
+  const mkt = window._frgnMkt || 'kospi';
+  const list = (FRGN_PORT_DATA[mkt] || []).slice(0, 15);
+  const dc = FRGN_PORT_DATA.dateCount || 0;
+
+  // 시세 조회
+  await fetchFtopQuotes(list);
+
+  let h = '<caption class="kr-cap">외국인 순매수 종목 (최근 5일)';
+  h += '<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span>';
+  h += `<div style="margin-top:6px"><button class="fp-btn ${mkt==='kospi'?'active':''}" onclick="switchFrgnMkt('kospi')">코스피</button> <button class="fp-btn ${mkt==='kosdaq'?'active':''}" onclick="switchFrgnMkt('kosdaq')">코스닥</button></div>`;
+  h += '</caption>';
+  h += '<thead><tr><th>순위</th><th>종목</th><th>외국인<br>(5일)</th><th>현재가<br>(등락%)</th><th>52주최고<br>(여력%)</th><th>목표가<br>(여력%)</th></tr></thead><tbody>';
+
+  if(!list.length){
+    const msg = mkt==='kosdaq' ? '코스닥은 외국인 순매수 리스트 미제공' : '데이터 없음 (오늘 수집 후 표시)';
+    h += `<tr><td colspan="6" style="padding:20px;color:#6e7681">${msg}</td></tr>`;
+  } else {
+    list.forEach((s, i) => {
+      let seq = (s.seq || []).slice(-5); while(seq.length<5) seq.unshift(null);
+      const stars = seq.map(b => b===null?'<span class="fno">ㆍ</span>':(b?'<span class="fbuy">★</span>':'<span class="fno">ㆍ</span>')).join('');
+      const q = ftopQuotes[s.code] || {};
+      const price = q.price ? q.price.toLocaleString() : '—';
+      const rate = q.rate != null ? `<br><span style="color:${q.rate>=0?'#c00000':'#1976d2'}">${q.rate>=0?'+':''}${q.rate}%</span>` : '';
+      const hi = q.high ? q.high.toLocaleString() : '—';
+      const hiUp = (q.high&&q.price) ? `<br><span style="color:#888">${(((q.high-q.price)/q.price)*100).toFixed(1)}%</span>` : '';
+      const tgt = q.target ? q.target.toLocaleString() : '—';
+      const tgtUp = (q.target&&q.price) ? `<br><span style="color:${q.target>=q.price?'#c00000':'#1976d2'}">${(((q.target-q.price)/q.price)*100).toFixed(1)}%</span>` : '';
+      const priceCell = q.price ? `<span style="cursor:pointer;text-decoration:underline dotted" onclick="openChart('${s.code}','${s.name.replace(/'/g,'')}')">${price}${rate}</span>` : `${price}${rate}`;
+      h += `<tr>
+        <td>${i+1}</td>
+        <td style="text-align:left;color:#0066cc;cursor:pointer" onclick="openNaverDomestic('${s.code}')">${s.name}<br><span style="color:#999;font-size:9px">${s.code}</span></td>
+        <td style="text-align:right;white-space:nowrap;letter-spacing:1px;font-size:13px">${stars}</td>
+        <td>${priceCell}</td>
+        <td>${hi}${hiUp}</td>
+        <td>${tgt}${tgtUp}</td>
+      </tr>`;
+    });
+  }
+  h += '</tbody>';
+  tbl.innerHTML = h;
+  tbl.className = 'val-tbl mp';
+}
+
+function switchFrgnMkt(mkt){
+  window._frgnMkt = mkt;
+  drawFrgnTable();
+}
+
 function openValFull(){
   valMarket='kr';
   $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x.dataset.m==='kr'));
@@ -2518,7 +2617,6 @@ function openPnl(){
   pnlAutoFetch(true); // 현재 K200·외국인 선물/코스피 순매수 자동
   const ff=$('#pnlFlowFrame'); if(ff && (!ff.src || ff.src==='about:blank')) ff.src=FLOW_URL;
   loadFtrend(); // 외국인 매매 추이 막대그래프
-  loadFtop(); // 외국인 투자 종목 표
 }
 
 // ── 외국인 매매 추이 막대그래프 ──
