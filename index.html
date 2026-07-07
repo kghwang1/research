@@ -3485,18 +3485,33 @@ async function loadInvestKq(){
     const h=parseFloat(String(hi[c]||'').replace(/[^0-9.\-]/g,''));
     const drop=(isFinite(p)&&isFinite(h)&&h>0)?((p-h)/h*100):null;
     return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],drop};
-  }).filter(x=>x.drop!=null);
-  all.sort((a,b)=>a.drop-b.drop);
+  }).filter(x=>x.price); // 시세가 있는 종목만 (52주최고가 없어도 포함)
+  // 낙폭 있는 종목 우선(낙폭 큰 순), 낙폭 없는 종목은 뒤로
+  all.sort((a,b)=>{
+    if(a.drop!=null && b.drop!=null) return a.drop-b.drop;
+    if(a.drop!=null) return -1;
+    if(b.drop!=null) return 1;
+    return 0;
+  });
   const pool=all.slice(0,30); // 낙폭 큰 순 30개
   const rm={};
   for(let i=0;i<pool.length;i+=25){
     const part=pool.slice(i,i+25);
     if(msg) msg.textContent='ROE 불러오는 중… '+Math.min(i+25,pool.length)+'/'+pool.length;
-    try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); }catch(e){}
+    try{
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),15000);
+      const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(',')),{signal:ctrl.signal});
+      clearTimeout(to);
+      const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
+    }catch(e){ /* 타임아웃/실패 시 ROE 없이 진행 */ }
   }
   pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
-  INVEST_KQ_POOL=pool; investKqLoaded=true; saveInvestKqCache();
-  if(valMarket==='investkq') renderInvestKq();
+  INVEST_KQ_POOL=pool; investKqLoaded=true;
+  if(pool.length) saveInvestKqCache(); // 빈 데이터는 캐시하지 않음
+  // 로딩 메시지 확실히 숨김 + 강제 렌더
+  if(msg){ msg.style.display='none'; msg.textContent=''; }
+  const scEl=$('#valScroll'); if(scEl) scEl.style.display='';
+  renderInvestKq();
 }
 
 function setRoeMinKq(v){ roeMinKq=v; renderInvestKq(); }
