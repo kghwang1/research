@@ -3419,7 +3419,8 @@ async function loadInvest(){
    투자종목 (코스닥100) — 간단 버전
    낙폭 큰 30종목만 표시, ROE/보고서/외국인은 있으면 표시
    ===================================================== */
-let INVEST_KQ_ROWS=[], INVEST_KQ_POOL=[], investKqLoaded=false, roeMinKq=0, investKqSortFrgn=false;
+let INVEST_KQ_ROWS=[], INVEST_KQ_POOL=[], investKqLoaded=false, roeMinKq=10, investKqSortFrgn=false;
+function setRoeMinKq(v){ roeMinKq=v; renderInvestKq(); }
 
 function refreshInvestKqPricesLive(){
   if(!INVEST_KQ_ROWS.length) return;
@@ -3511,14 +3512,26 @@ function renderInvestKq(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
   loadReportCache(); loadFrgnCache();
   if(em) em.style.display='none'; if(sc) sc.style.display='';
-  INVEST_KQ_ROWS = INVEST_KQ_POOL.slice(0,30);
+  // ROE 필터
+  let rows = (roeMinKq==='up')
+    ? INVEST_KQ_POOL.filter(r=> r.roe!=null && r.prevRoe!=null && (r.roe - r.prevRoe) > 0)
+    : INVEST_KQ_POOL.filter(r=> roeMinKq<=0 ? true : (r.roe!=null && r.roe>=roeMinKq));
+  // 정렬: 외국인 별표순 or 낙폭순
+  if(investKqSortFrgn){
+    rows.sort((a,b)=>{ const fa=frgnStarCount(a.code), fb=frgnStarCount(b.code); if(fb!==fa) return fb-fa; return a.drop-b.drop; });
+  } else {
+    rows.sort((a,b)=>a.drop-b.drop);
+  }
+  INVEST_KQ_ROWS = rows.slice(0,30);
   const W=[30,90,92,82,82,100,100,210];
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
-  const bar='<caption class="inv-bar"><button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">'+INVEST_KQ_ROWS.length+'종목 (코스닥100 · 낙폭 큰 순)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>';
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)"+(investKqSortFrgn?'▼':'▲'),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
+  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMinKq===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">${INVEST_KQ_ROWS.length}종목 (코스닥100)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
-  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  h+='<thead><tr>'+H.map((x,i)=> i===4 ? `<th style="cursor:pointer" title="클릭하면 외국인 별표 많은 순 정렬">${x}</th>` : `<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다. ↻ 새로고침 해주세요.</td></tr>`; }
+  else if(!INVEST_KQ_ROWS.length){ const lbl=(roeMinKq==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMinKq+'% 이상인'); h+=`<tr><td colspan="8" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
   INVEST_KQ_ROWS.forEach((r,i)=>{
     const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
     const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
@@ -3545,8 +3558,11 @@ function renderInvestKq(){
   h+='</tbody>';
   t.className='val-tbl inv-tbl'; t.innerHTML=h;
   t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
+  t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMinKq(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshInvestKq;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
+  const frgnTh=t.querySelector('thead th:nth-child(5)');
+  if(frgnTh){ frgnTh.onclick=()=>{ investKqSortFrgn=!investKqSortFrgn; renderInvestKq(); }; }
   if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); }
 }
 function setRoeMin(v){ roeMin=v; renderInvest(); }
