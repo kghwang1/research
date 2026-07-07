@@ -1900,7 +1900,7 @@ function renderVal(){
   applyValNote(valMarket);
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
-    if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
+    if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
@@ -2489,7 +2489,6 @@ function renderInfo(box){
     }
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
     valMarket=s.dataset.m;
-    if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
     renderVal();
     if(valMarket==='us'){ fetchValLive().then(renderVal); }
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
@@ -3417,9 +3416,10 @@ async function loadInvest(){
 }
 
 /* =====================================================
-   투자종목 (코스닥100) — loadInvestKq / renderInvestKq
+   투자종목 (코스닥100) — 간단 버전
+   낙폭 큰 30종목만 표시, ROE/보고서/외국인은 있으면 표시
    ===================================================== */
-let INVEST_KQ_ROWS=[], INVEST_KQ_POOL=[], investKqLoaded=false, roeMinKq=10, investKqSortFrgn=false;
+let INVEST_KQ_ROWS=[], INVEST_KQ_POOL=[], investKqLoaded=false, roeMinKq=0, investKqSortFrgn=false;
 
 function refreshInvestKqPricesLive(){
   if(!INVEST_KQ_ROWS.length) return;
@@ -3431,16 +3431,7 @@ function refreshInvestKqPricesLive(){
       try{
         const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
         const d=await r.json();
-        (d.items||[]).forEach(q=>{
-          if(q&&q.ok&&q.price!=null){
-            const c=String(q.symbol).replace('STK:','');
-            const row=INVEST_KQ_POOL.find(x=>x.code===c);
-            if(row){
-              row.price=q.priceStr||String(q.price);
-              if(q.rate!=null) row.rate=q.rate;
-            }
-          }
-        });
+        (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); const row=INVEST_KQ_POOL.find(x=>x.code===c); if(row){ row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate; } } });
       }catch(e){}
     }
     if(valMarket==='investkq') renderInvestKq();
@@ -3448,46 +3439,41 @@ function refreshInvestKqPricesLive(){
 }
 
 function loadInvestKqCache(){
-  try{
-    const raw=localStorage.getItem('inv_kq_pool');
-    if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_KQ_POOL=o.rows; return true; } }
-  }catch(e){}
+  try{ const raw=localStorage.getItem('inv_kq_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_KQ_POOL=o.rows; return true; } } }catch(e){}
   return false;
 }
-
 function saveInvestKqCache(){ try{ localStorage.setItem('inv_kq_pool', JSON.stringify({date:invToday(),rows:INVEST_KQ_POOL})); }catch(e){} }
-
 function refreshInvestKq(){
-  try{ localStorage.removeItem('inv_kq_pool'); localStorage.removeItem('inv_reports'); localStorage.removeItem('inv_frgn'); }catch(e){}
-  REPORT={}; reportCacheInit=true; FRGN={}; frgnCacheInit=true;
+  try{ localStorage.removeItem('inv_kq_pool'); }catch(e){}
   INVEST_KQ_POOL=[]; investKqLoaded=false; loadInvestKq();
 }
 
 async function loadInvestKq(){
   const msg=$('#valEmpty'), tb=$('#valTbl'), sc=$('#valScroll');
+  // 캐시 있으면 즉시 표시
   if(loadInvestKqCache()){ investKqLoaded=true; if(msg) msg.style.display='none'; if(sc) sc.style.display=''; renderInvestKq(); refreshInvestKqPricesLive(); return; }
-  // 로딩 화면: 표 영역 숨기고 메시지 즉시 표시
-  if(tb) tb.innerHTML=''; if(sc) sc.style.display='none';
-  if(msg){ msg.style.display='block'; msg.textContent='📡 코스닥100 종목 목록 불러오는 중…'; }
+  // 로딩 시작: 이전 표 비우고 메시지 표시
+  if(tb) tb.innerHTML=''; if(tb) tb.className='val-tbl';
+  if(sc) sc.style.display='none';
+  if(msg){ msg.style.display='block'; msg.textContent='📡 코스닥100 불러오는 중… 잠시만요.'; }
   if(!SRV_URL){ if(msg) msg.textContent='서버(worker) 설정이 필요합니다.'; return; }
-  // 다음 프레임에서 실제 로딩 시작(메시지가 먼저 그려지도록)
-  await new Promise(r=>setTimeout(r,30));
+  await new Promise(r=>setTimeout(r,20));
+  // 1) 종목 목록
   let uni=[];
   try{
-    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),15000);
+    const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),12000);
     const r=await fetch(SRV_URL+'/?kosdaq=100',{signal:ctrl.signal}); clearTimeout(to);
     const d=await r.json(); if(d&&d.items&&d.items.length) uni=d.items.map(x=>({code:String(x.code),name:x.name||''}));
   }catch(e){}
-  // 종목 목록 실패 시 하드코딩 대체 리스트 사용 (빈 화면 방지)
   if(!uni.length) uni=KOSDAQ_FALLBACK.map(c=>({code:c,name:''}));
   const codes=[...new Set(uni.map(u=>u.code))];
-  const price={},rate={},tgt={},hi={},nm={};
-  uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
+  const nm={}; uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
+  // 2) 시세 + 목표가/52주최고가 (병렬)
+  const price={},rate={},tgt={},hi={};
   const CH=40;
   for(let i=0;i<codes.length;i+=CH){
     const part=codes.slice(i,i+CH);
-    if(msg) msg.textContent='코스닥 시세 조회 중… '+Math.min(i+CH,codes.length)+'/'+codes.length;
-    // 시세·목표가 병렬 조회 (속도 개선)
+    if(msg) msg.textContent='코스닥 시세 조회… '+Math.min(i+CH,codes.length)+'/'+codes.length;
     const [pRes,tRes]=await Promise.all([
       fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))).then(r=>r.json()).catch(()=>null),
       fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))).then(r=>r.json()).catch(()=>null),
@@ -3495,30 +3481,25 @@ async function loadInvestKq(){
     if(pRes&&pRes.items) pRes.items.forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } });
     if(tRes&&tRes.items) tRes.items.forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); } });
   }
+  // 3) 낙폭 계산 → 큰 순 30개
   const all=codes.map(c=>{
     const p=parseFloat(String(price[c]||'').replace(/[^0-9.\-]/g,''));
     const h=parseFloat(String(hi[c]||'').replace(/[^0-9.\-]/g,''));
     const drop=(isFinite(p)&&isFinite(h)&&h>0)?((p-h)/h*100):null;
     return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],drop};
-  }).filter(x=>x.price); // 시세가 있는 종목만 (52주최고가 없어도 포함)
-  // 낙폭 있는 종목 우선(낙폭 큰 순), 낙폭 없는 종목은 뒤로
-  all.sort((a,b)=>{
-    if(a.drop!=null && b.drop!=null) return a.drop-b.drop;
-    if(a.drop!=null) return -1;
-    if(b.drop!=null) return 1;
-    return 0;
-  });
-  const pool=all.slice(0,30); // 낙폭 큰 순 30개
+  }).filter(x=>x.price && x.drop!=null);
+  all.sort((a,b)=>a.drop-b.drop);
+  const pool=all.slice(0,30);
+  // 4) ROE는 있으면 채우고, 실패해도 그냥 진행 (빈칸)
+  if(msg) msg.textContent='ROE 조회 중…';
   const rm={};
   for(let i=0;i<pool.length;i+=25){
     const part=pool.slice(i,i+25);
-    if(msg) msg.textContent='ROE 불러오는 중… '+Math.min(i+25,pool.length)+'/'+pool.length;
     try{
-      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),15000);
-      const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(',')),{signal:ctrl.signal});
-      clearTimeout(to);
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),10000);
+      const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(',')),{signal:ctrl.signal}); clearTimeout(to);
       const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
-    }catch(e){ /* 타임아웃/실패 시 ROE 없이 진행 */ }
+    }catch(e){}
   }
   pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
   INVEST_KQ_POOL=pool; investKqLoaded=true;
@@ -3526,33 +3507,18 @@ async function loadInvestKq(){
   if(valMarket==='investkq') renderInvestKq();
 }
 
-function setRoeMinKq(v){ roeMinKq=v; renderInvestKq(); }
-
 function renderInvestKq(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  // 로딩 메시지 완전히 숨기고 표 영역 표시 (헤더 깨짐 방지)
-  if(em){ em.style.display='none'; em.textContent=''; }
-  if(sc) sc.style.display='';
-  const multiEl=$('#valMulti'); if(multiEl) multiEl.style.display='none';
-  let rows = (roeMinKq==='up')
-    ? INVEST_KQ_POOL.filter(r=> r.roe!=null && r.prevRoe!=null && (r.roe - r.prevRoe) > 0)
-    : INVEST_KQ_POOL.filter(r=> roeMinKq<=0 ? true : (r.roe!=null && r.roe>=roeMinKq));
-  if(investKqSortFrgn){
-    rows.sort((a,b)=>{ const fa=frgnStarCount(a.code), fb=frgnStarCount(b.code); if(fb!==fa) return fb-fa; return a.drop-b.drop; });
-  } else {
-    rows.sort((a,b)=>a.drop-b.drop);
-  }
-  INVEST_KQ_ROWS=rows.slice(0,30);
+  if(em) em.style.display='none'; if(sc) sc.style.display='';
+  INVEST_KQ_ROWS = INVEST_KQ_POOL.slice(0,30);
   const W=[30,90,92,82,82,100,100,210];
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)"+(investKqSortFrgn?'▼':'▲'),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
-  const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMinKq===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">${INVEST_KQ_ROWS.length}종목 (코스닥100)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>`;
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const bar='<caption class="inv-bar"><button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">'+INVEST_KQ_ROWS.length+'종목 (코스닥100 · 낙폭 큰 순)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>';
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
-  h+='<thead><tr>'+H.map((x,i)=> i===4 ? `<th style="cursor:pointer" title="클릭하면 외국인 별표 많은 순 정렬">${x}</th>` : `<th>${x}</th>`).join('')+'</tr></thead><tbody>';
-  if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다.</td></tr>`; }
-  else if(!INVEST_KQ_ROWS.length){ const lbl=(roeMinKq==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMinKq+'% 이상인'); h+=`<tr><td colspan="8" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다. ↻ 새로고침 해주세요.</td></tr>`; }
   INVEST_KQ_ROWS.forEach((r,i)=>{
     const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
     const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
@@ -3578,16 +3544,9 @@ function renderInvestKq(){
   });
   h+='</tbody>';
   t.className='val-tbl inv-tbl'; t.innerHTML=h;
-  // 현재가 클릭 → 차트
-  t.querySelectorAll('td.invlive').forEach(td=>{
-    td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); };
-  });
-  t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMinKq(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
+  t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
   const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshInvestKq;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
-  // 외국인 헤더 클릭 정렬 토글
-  const frgnTh=t.querySelector('thead th:nth-child(5)');
-  if(frgnTh){ frgnTh.onclick=()=>{ investKqSortFrgn=!investKqSortFrgn; renderInvestKq(); }; }
   if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); }
 }
 function setRoeMin(v){ roeMin=v; renderInvest(); }
