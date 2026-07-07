@@ -3582,7 +3582,7 @@ function renderInvest(){
   INVEST_ROWS=rows.slice(0,30);
   const W=[30,90,92,82,82,100,100,210];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)▲","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)"+(investSortFrgn?'▼':'▲'),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMin===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
