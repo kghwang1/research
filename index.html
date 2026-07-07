@@ -295,8 +295,9 @@
   .ft-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
   .ft-idx{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:4px 8px;border-radius:6px;font-size:11px;cursor:pointer}
   .ft-idx.active{background:#8957e5;border-color:#8957e5;color:#fff}
-  #ftrendCanvas{width:100%;height:180px;display:block}
+  #ftrendCanvas,#ftrendCanvas0,#ftrendCanvas1,#ftrendCanvas2{width:100%;height:160px;display:block}
   .ftrend-note{font-size:10px;color:#6e7681;margin-top:6px;text-align:center}
+  .ftrend-label{font-size:11px;font-weight:700;color:#8b949e;margin:8px 0 2px 2px}
   .ftop-box{background:#12151c;border:1px solid #1e2430;border-radius:12px;padding:12px;margin:10px 12px}
   .ftop-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
   .ftop-title{font-size:13px;font-weight:700;color:#e6edf3}
@@ -674,10 +675,11 @@
   <div class="ftrend-box">
     <div class="ftrend-head">
       <span class="ftrend-title">매매추이</span>
-      <select id="ftrendInvestor" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-        <option value="foreign" selected>외국인</option>
-        <option value="institution">기관</option>
-        <option value="individual">개인</option>
+      <select id="ftrendPeriod" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+        <option value="30">1개월</option>
+        <option value="90" selected>3개월</option>
+        <option value="180">6개월</option>
+        <option value="365">12개월</option>
       </select>
       <div class="ftrend-toggle">
         <button class="ft-btn active" data-mode="net">순매수</button>
@@ -686,7 +688,12 @@
         <button class="ft-idx" data-idx="kosdaq">코스닥</button>
       </div>
     </div>
-    <canvas id="ftrendCanvas"></canvas>
+    <div class="ftrend-label">외국인</div>
+    <canvas id="ftrendCanvas0"></canvas>
+    <div class="ftrend-label">기관</div>
+    <canvas id="ftrendCanvas1"></canvas>
+    <div class="ftrend-label">개인</div>
+    <canvas id="ftrendCanvas2"></canvas>
     <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
   </div>
 
@@ -2680,38 +2687,39 @@ function openPnl(){
   loadFtrend(); // 외국인 매매 추이 막대그래프
 }
 
-// ── 외국인 매매 추이 막대그래프 ──
+// ── 투자자별 매매 추이 막대그래프 ──
 let FTREND_DATA = null;
 let ftrendMode = 'net'; // 'net' | 'cumul'
 let ftrendIdx = 'kospi'; // 'kospi' | 'kosdaq'
-let ftrendInvestor = 'foreign'; // 'foreign' | 'institution' | 'individual'
+let ftrendPeriod = 90; // 기간(일): 30 | 90 | 180 | 365
+const INVESTOR_KEYS = ['foreign','institution','individual'];
 const INVESTOR_LABEL = { foreign:'외국인', institution:'기관', individual:'개인' };
 
 async function loadFtrend(){
   const note = document.getElementById('ftrendNote');
-  if(FTREND_DATA){ drawFtrend(); return; } // 이미 로드됨(세션)
+  if(FTREND_DATA){ drawFtrendAll(); return; }
 
-  // 하루 1회 캐싱: localStorage에 날짜와 함께 저장
+  // 하루 1회 캐싱
   const today = new Date().toISOString().slice(0,10);
   try{
     const cached = JSON.parse(localStorage.getItem('ftrend_cache_v3') || 'null');
     if(cached && cached.date === today && cached.rows && cached.rows.length){
       FTREND_DATA = cached.rows;
-      drawFtrend();
+      drawFtrendAll();
       updateFtrendNote();
-      return; // 오늘 이미 받음 → 재요청 안 함
+      return;
     }
   }catch(e){}
 
-  if(note) note.textContent = '📡 3개월 매매 데이터 불러오는 중…';
+  if(note) note.textContent = '📡 매매 데이터 불러오는 중…';
   try{
-    const r = await fetch(SRV_URL + '/?ftrend=1&days=70&_t=' + Date.now(), { cache:'no-store' });
+    // 최대 기간(365일) 으로 한 번에 받아 두고 기간은 클라이언트에서 slice
+    const r = await fetch(SRV_URL + '/?ftrend=1&days=370&_t=' + Date.now(), { cache:'no-store' });
     const j = await r.json();
     if(j.ok && j.rows && j.rows.length){
       FTREND_DATA = j.rows;
-      // 하루 캐시 저장
       try{ localStorage.setItem('ftrend_cache_v3', JSON.stringify({ date: today, rows: j.rows })); }catch(e){}
-      drawFtrend();
+      drawFtrendAll();
       updateFtrendNote();
     } else {
       if(note) note.textContent = '⚠️ 데이터를 불러오지 못했습니다';
@@ -2724,15 +2732,22 @@ async function loadFtrend(){
 function updateFtrendNote(){
   const note = document.getElementById('ftrendNote');
   if(!note) return;
-  const lbl = INVESTOR_LABEL[ftrendInvestor] || '외국인';
   const idxL = ftrendIdx === 'kospi' ? '코스피' : '코스닥';
-  note.textContent = lbl + ' ' + idxL + ' 순매수 (억원) · 네이버 · 붉은=순매수, 파랑=순매도';
+  note.textContent = '외국인·기관·개인 ' + idxL + ' 순매수 (억원) · 네이버 · 빨강=순매수, 파랑=순매도';
 }
 
-function drawFtrend(){
-  const canvas = document.getElementById('ftrendCanvas');
+// 3개 캔버스 모두 그리기
+function drawFtrendAll(){
+  INVESTOR_KEYS.forEach((inv, i) => drawFtrend('ftrendCanvas' + i, inv));
+  updateFtrendNote();
+}
+
+function drawFtrend(canvasId, investor){
+  const canvas = document.getElementById(canvasId || 'ftrendCanvas0');
   if(!canvas || !FTREND_DATA) return;
-  const rows = FTREND_DATA;
+  // 기간 slice
+  const allRows = FTREND_DATA;
+  const rows = allRows.slice(-ftrendPeriod);
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth, H = 180;
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -2745,12 +2760,12 @@ function drawFtrend(){
   const n = rows.length;
   const bw = Math.max(1, cw / n * 0.8);
 
-  // 선택 투자자의 순매수값 추출 (Worker 필드: net=외국인, person=개인, inst=기관)
+  // 투자자별 순매수값 추출 (Worker 필드: net=외국인, person=개인, inst=기관)
   const netOf = (r) => {
     let v;
-    if(ftrendInvestor === 'foreign')       v = (r.foreign != null ? r.foreign : r.net);
-    else if(ftrendInvestor === 'institution') v = (r.institution != null ? r.institution : r.inst);
-    else if(ftrendInvestor === 'individual')  v = (r.individual != null ? r.individual : r.person);
+    if(investor === 'foreign')       v = (r.foreign != null ? r.foreign : r.net);
+    else if(investor === 'institution') v = (r.institution != null ? r.institution : r.inst);
+    else if(investor === 'individual')  v = (r.individual != null ? r.individual : r.person);
     return (v != null) ? v : 0;
   };
 
@@ -2853,7 +2868,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ftrendMode = btn.dataset.mode;
       document.querySelectorAll('.ft-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      drawFtrend();
+      drawFtrendAll();
     });
   });
   // 지수 선택 (코스피/코스닥)
@@ -2862,17 +2877,15 @@ document.addEventListener('DOMContentLoaded', () => {
       ftrendIdx = btn.dataset.idx;
       document.querySelectorAll('.ft-idx').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      drawFtrend();
-      updateFtrendNote();
+      drawFtrendAll();
     });
   });
-  // 투자자 선택 드롭다운 (외국인/기관/개인)
-  const invSel = document.getElementById('ftrendInvestor');
-  if(invSel){
-    invSel.addEventListener('change', () => {
-      ftrendInvestor = invSel.value;
-      drawFtrend();
-      updateFtrendNote();
+  // 기간 선택 드롭다운
+  const periodSel = document.getElementById('ftrendPeriod');
+  if(periodSel){
+    periodSel.addEventListener('change', () => {
+      ftrendPeriod = Number(periodSel.value);
+      drawFtrendAll();
     });
   }
   // 외국인 투자종목 시장 토글
