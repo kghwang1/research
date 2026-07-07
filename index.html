@@ -3552,7 +3552,7 @@ function renderInvestKq(){
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar='<caption class="inv-bar">ROE 최소 '+mins.map(m=>`<button data-min="${m[0]}" class="${roeMinKq===m[0]?'on':''}">${m[1]}</button>`).join('')+`<button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">${INVEST_KQ_ROWS.length}종목 (코스닥100)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
-  h+='<thead><tr>'+H.map((x,i)=>`<th${i===4?' style="cursor:pointer" title="클릭하면 외국인 별표 많은 순 정렬"':''}">${x}</th>`).join('')+'</tr></thead><tbody>';
+  h+='<thead><tr>'+H.map((x,i)=> i===4 ? `<th style="cursor:pointer" title="클릭하면 외국인 별표 많은 순 정렬">${x}</th>` : `<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다.</td></tr>`; }
   else if(!INVEST_KQ_ROWS.length){ const lbl=(roeMinKq==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMinKq+'% 이상인'); h+=`<tr><td colspan="8" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
   INVEST_KQ_ROWS.forEach((r,i)=>{
