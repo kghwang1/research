@@ -604,8 +604,9 @@
    <div class="port-col">
     <div class="port-col-title">🇰🇷 국내</div>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('kr');return false;"><span class="ic">🇰🇷</span><span class="tx"><span class="tt">한국(체)</span></span></a>
-    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">투자종목(코스피200)</span><span class="sb">코스피200 최대낙폭·ROE·외국인 투자</span></span></a>
-    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('investkq');return false;"><span class="ic">📈</span><span class="tx"><span class="tt">투자종목(코스닥100)</span><span class="sb">코스닥100 최대낙폭·ROE·외국인 투자</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">코스피200</span><span class="sb">코스피200 최대낙폭·ROE·외국인 투자</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('investkq');return false;"><span class="ic">📈</span><span class="tx"><span class="tt">코스닥100</span><span class="sb">코스닥100 최대낙폭·ROE·외국인 투자</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('watch');return false;"><span class="ic">⭐</span><span class="tx"><span class="tt">관심</span><span class="sb">직접 입력하는 관심 종목</span></span></a>
    </div>
    <!-- 국외 줄 -->
    <div class="port-col">
@@ -718,8 +719,9 @@
  <div class="valfull-top" id="valSub">
   <div class="subtab vback" data-m="back">‹ 이전</div>
   <div class="subtab on" data-m="kr">한국(체)</div>
-  <div class="subtab" data-m="invest">투자종목(코스피200)</div>
-  <div class="subtab" data-m="investkq">투자종목(코스닥100)</div>
+  <div class="subtab" data-m="invest">코스피200</div>
+  <div class="subtab" data-m="investkq">코스닥100</div>
+  <div class="subtab" data-m="watch">관심</div>
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
@@ -1892,6 +1894,7 @@ const VAL_NOTES={
  us:'• 비중·적정주가·목표주가·PEG·P/E(F): 직접 관리값(상단 기준일, 수동 갱신).  • 현재가·전일대비%: 야후/네이버 실시간 시세.  • 52주최고가: 야후/네이버.  • 상승여력(목표·적정 대비): 실시간 현재가 기준 자동 계산.',
  usc:'• 비중·변동: MP 분석 자료(수동 갱신).  • 현재가·목표가·52주최고가: 실시간 시세/컨센서스.  • 상승여력: 현재가 기준 자동 계산.  • 기록: 직접 입력(보존).',
  etf:'• 비중: 직접 관리값(수동 갱신).  • 현재가·등락률: 네이버/야후 실시간 시세.  한국·미국 ETF를 한 화면에 모아 봅니다.',
+ watch:'• 관심 종목을 직접 입력합니다.  • 종목코드 6자리를 입력하면 종목명·현재가·52주최고가·외국인·목표가·보고서가 한국 포트폴리오와 동일하게 자동으로 채워집니다.  • 마지막 줄에 입력하면 새 입력 줄이 자동 추가됩니다.  • ✕ 를 눌러 종목을 삭제할 수 있습니다.',
  invest:'수집·계산 과정\n• 모집단: 네이버 코스피 시가총액 상위 200종목.\n• 낙폭: (현재가−52주최고가)/52주최고가 — 큰 순으로 상위 50을 추려 ROE 조회.\n• ROE: 네이버 재무(분기) 최근값 + 전분기 대비 증감. 기준은 ROE 필터(전체/5/10/상승).\n• 외국인: 네이버 외국인 순매매 최근 5거래일(★=순매수, 과거→최근). 장 마감(18:30) 기준 1일 저장.\n• 목표가: 네이버 증권사 컨센서스 → 상승여력 자동 계산.\n• 보고서: 네이버 종목분석 최근 1건(제목·발표일·분야 자동분류, 원문 링크). 1일 저장.\n• 시세·ROE·외국인·보고서는 하루 1회 수집, ↻ 새로고침 시 다시 수집합니다.'
 };
 function applyValNote(m){ const el=$('#valNote'); if(!el) return; const txt=VAL_NOTES[m]; if(!txt){ el.style.display='none'; el.textContent=''; return; } el.style.display=''; el.innerHTML=escHtml(txt).replace(/\n/g,'<br>'); }
@@ -1904,6 +1907,7 @@ function renderVal(){
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
+  if(valMarket==='watch'){ multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
   if(valMarket==='kr'){ renderKrTable(); return; }  // 한국: 국내 포트폴리오(적정가 입력·상승여력 자동계산)
@@ -2287,6 +2291,134 @@ function renderKrTable(){
   const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
   ensureReports(krCodes); ensureForeign(krCodes);
 }
+
+/* =====================================================
+   관심 포트폴리오 (watch) — 직접 입력, 한국 표와 동일 형식
+   행 형식: [code, name, 비중(사용안함), '', 기록]  (kr과 유사하게 code,name 중심)
+   저장: localStorage 'kg_watch_rows'
+   ===================================================== */
+let WATCH_ROWS = null;   // [[code, name], ...]
+let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={};
+
+function loadWatchRows(){
+  if(WATCH_ROWS) return WATCH_ROWS;
+  try{ const raw=localStorage.getItem('kg_watch_rows'); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)) WATCH_ROWS=a; } }catch(e){}
+  if(!WATCH_ROWS || !WATCH_ROWS.length) WATCH_ROWS=[['',''],['','']]; // 초기 2줄
+  return WATCH_ROWS;
+}
+function saveWatchRows(){ try{ localStorage.setItem('kg_watch_rows', JSON.stringify(WATCH_ROWS)); }catch(e){} }
+
+// 관심 종목 시세/목표가 조회 (한국과 동일 소스)
+async function fetchWatchLive(){
+  watchLive={}; watchRate={}; watchTarget={}; watchHigh52={};
+  const codes=[...new Set((WATCH_ROWS||[]).map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean))];
+  if(!codes.length||!SRV_URL) return;
+  const CH=40;
+  for(let i=0;i<codes.length;i+=CH){
+    const part=codes.slice(i,i+CH);
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol||'').replace('STK:',''); watchLive[c]=q.priceStr||String(q.price); if(q.rate!=null) watchRate[c]=q.rate;
+        // 종목명 자동 채우기
+        if(q.name){ const row=WATCH_ROWS.find(x=>String(x[0]||'').replace(/[^0-9]/g,'')===c); if(row && !row[1]){ row[1]=q.name; } }
+      } });
+    }catch(e){}
+    try{
+      const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(',')));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol||'').replace('STK:',''); if(q.target!=null) watchTarget[c]=q.targetStr||String(q.target); if(q.high52!=null) watchHigh52[c]=q.high52Str||String(q.high52); } });
+    }catch(e){}
+  }
+  saveWatchRows();
+  if(valMarket==='watch') renderWatchTable();
+}
+
+function watchCommit(idx, code){
+  const clean=String(code||'').replace(/[^0-9]/g,'');
+  if(!WATCH_ROWS[idx]) WATCH_ROWS[idx]=['',''];
+  WATCH_ROWS[idx][0]=clean;
+  WATCH_ROWS[idx][1]=''; // 이름은 시세 조회 시 자동
+  // 마지막 줄에 입력했으면 빈 줄 하나 추가
+  const last=WATCH_ROWS.length-1;
+  if(idx===last && clean) WATCH_ROWS.push(['','']);
+  saveWatchRows();
+  renderWatchTable();
+  fetchWatchLive();
+}
+function watchDelete(idx){
+  WATCH_ROWS.splice(idx,1);
+  if(!WATCH_ROWS.length) WATCH_ROWS=[['',''],['','']];
+  // 빈 줄이 마지막에 없으면 추가
+  const last=WATCH_ROWS[WATCH_ROWS.length-1];
+  if(last && String(last[0]||'')) WATCH_ROWS.push(['','']);
+  saveWatchRows();
+  renderWatchTable();
+}
+
+function renderWatchTable(){
+  const t=$('#valTbl'); if(!t) return;
+  loadWatchRows(); loadReportCache(); loadFrgnCache();
+  const W=[178,90,112,82,104,210];
+  const H=["종목(코드입력)","현재가<br>(전일대비%)","52주최고가","외국인<br>(5일순매수)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  let h='<caption class="kr-cap">관심 종목<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목코드(6자리)를 입력하면 자동으로 정보가 채워집니다 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+  WATCH_ROWS.forEach((r,ri)=>{
+    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+    const nm=r[1]||'';
+    const live=watchLive[code];
+    const liveStr= live? addComma(live) : (code?(SRV_URL?'…':'—'):'');
+    const tgt=watchTarget[code];
+    const tgtStr= tgt? addComma(tgt) : (code?(SRV_URL?'…':'—'):'');
+    const up=krUpside(tgt, live);
+    const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const hi=watchHigh52[code];
+    const hiStr= hi? addComma(hi) : (code?(SRV_URL?'…':'—'):'');
+    const hd=krUpside(hi, live);
+    const hdHtml = hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '';
+    // 종목 셀: 코드가 있으면 종목명+코드 링크, 없으면 입력창
+    let stkCell;
+    if(code){
+      const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc">${code}</span>`;
+      stkCell=`<a href="#" class="wlink" data-code="${code}">${stkInner}</a> <span class="wdel" data-idx="${ri}" title="삭제">✕</span>`;
+    } else {
+      stkCell=`<input type="text" class="winput" data-idx="${ri}" placeholder="종목코드 6자리" inputmode="numeric" maxlength="6" style="width:130px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px 6px;border-radius:5px;font-size:12px">`;
+    }
+    let repCell;
+    if(!code) repCell='';
+    else { const rep=REPORT[code];
+      if(rep===undefined) repCell='<span class="rsub">…</span>';
+      else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
+      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" target="_blank" rel="noopener">${inner}</a>` : inner; }
+    }
+    h+='<tr>';
+    h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
+    const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
+    h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
+    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
+    h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
+    h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
+    h+=`<td class="mp-l rpt">${repCell}</td>`;
+    h+='</tr>';
+  });
+  h+='</tbody>';
+  t.className='val-tbl mp mpfix'; t.innerHTML=h;
+  // 입력창: Enter 또는 blur 시 커밋
+  t.querySelectorAll('input.winput').forEach(inp=>{
+    inp.onkeydown=ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); watchCommit(parseInt(inp.dataset.idx), inp.value); } };
+    inp.onblur=()=>{ const v=String(inp.value||'').replace(/[^0-9]/g,''); if(v.length===6) watchCommit(parseInt(inp.dataset.idx), v); };
+  });
+  // 종목 링크 → 네이버
+  t.querySelectorAll('a.wlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) openNaverDomestic(c); }; });
+  // 삭제
+  t.querySelectorAll('.wdel').forEach(x=>{ x.onclick=ev=>{ ev.stopPropagation(); watchDelete(parseInt(x.dataset.idx)); }; });
+  // 현재가 클릭 → 차트
+  t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
+  const codes=WATCH_ROWS.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
+  if(codes.length){ ensureReports(codes); ensureForeign(codes); }
+  // 시세가 아직 없으면 조회
+  if(codes.length && !Object.keys(watchLive).length) fetchWatchLive();
+}
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
 let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
 async function fetchUscLive(rows){
@@ -2496,6 +2628,7 @@ function renderInfo(box){
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
+    if(valMarket==='watch'){ fetchWatchLive(); }
   });
   // 서버 저장 / 초기화(서버와 일치)
   const sb=$('#valSave');
@@ -3336,6 +3469,7 @@ async function ensureForeign(codes){
   if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
+  else if(valMarket==='watch') renderWatchTable();
 }
 // 외국인 정렬값: 최근일부터 연속된 순매수(★) 일수 (연속이 끊기면 중단)
 // 동점이면 5일 전체 별 개수로 2차 비교하도록 소수점 가중치 부여
@@ -3372,7 +3506,9 @@ async function ensureReports(codes){
   }
   reportLoading=false; saveReportCache();
   if(valMarket==='invest') renderInvest();
+  else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
+  else if(valMarket==='watch') renderWatchTable();
 }
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
 const KOSDAQ_FALLBACK=["247540","196170","086520","028300","091990","066970","035760","058470","240810","357780","293490","145020","328130","277810","141080","112040","067310","039030","036930","263750","214150","348370","253450","178320","950140","403870","166090","084990","000250","048410","085660","022100","036540","121600","265520","214450","035900","056190","287410","102710","092040","900140","240810","065350","195940","054620","376300","131970","137400","240600"];
