@@ -3368,6 +3368,7 @@ async function ensureReports(codes){
   else if(valMarket==='kr') renderKrTable();
 }
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
+const KOSDAQ_FALLBACK=["247540","196170","086520","028300","091990","066970","035760","058470","240810","357780","293490","145020","328130","277810","141080","112040","067310","039030","036930","263750","214150","348370","253450","178320","950140","403870","166090","084990","000250","048410","085660","022100","036540","121600","265520","214450","035900","056190","287410","102710","092040","900140","240810","065350","195940","054620","376300","131970","137400","240600"];
 function qLabel(p){ if(!p) return ''; let m=String(p).match(/(\d{4})[.\-\/](\d{1,2})/); if(!m) m=String(p).match(/^(\d{4})(\d{2})$/); if(!m) return String(p); const y=m[1].slice(2); const mo=+m[2]; const q=mo<=3?1:mo<=6?2:mo<=9?3:4; return q+'Q'+y; }
 function openInvest(force){
   valMarket='invest';
@@ -3477,7 +3478,8 @@ async function loadInvestKq(){
     const r=await fetch(SRV_URL+'/?kosdaq=100',{signal:ctrl.signal}); clearTimeout(to);
     const d=await r.json(); if(d&&d.items&&d.items.length) uni=d.items.map(x=>({code:String(x.code),name:x.name||''}));
   }catch(e){}
-  if(!uni.length){ if(msg) msg.textContent='⚠️ 코스닥 종목 목록을 불러오지 못했습니다. ↻ 새로고침 해주세요.'; return; }
+  // 종목 목록 실패 시 하드코딩 대체 리스트 사용 (빈 화면 방지)
+  if(!uni.length) uni=KOSDAQ_FALLBACK.map(c=>({code:c,name:''}));
   const codes=[...new Set(uni.map(u=>u.code))];
   const price={},rate={},tgt={},hi={},nm={};
   uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
@@ -3520,12 +3522,8 @@ async function loadInvestKq(){
   }
   pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
   INVEST_KQ_POOL=pool; investKqLoaded=true;
-  if(pool.length) saveInvestKqCache(); // 빈 데이터는 캐시하지 않음
-  // 로딩 메시지 숨기고 표 영역을 먼저 '보이는 상태'로 만든 뒤 렌더
-  if(msg){ msg.style.display='none'; msg.textContent=''; }
-  const scEl=$('#valScroll'); if(scEl){ scEl.style.display=''; void scEl.offsetHeight; } // reflow 강제
-  // 다음 프레임에 렌더 → 표가 보이는 상태에서 컬럼 너비 계산되어 헤더 안 깨짐
-  requestAnimationFrame(()=> renderInvestKq());
+  if(pool.length) saveInvestKqCache();
+  if(valMarket==='investkq') renderInvestKq();
 }
 
 function setRoeMinKq(v){ roeMinKq=v; renderInvestKq(); }
