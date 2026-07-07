@@ -243,7 +243,6 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CCI(20)</span></label>
     <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon(25)</span></label>
     <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force Index(13)</span></label>
-    <label class="ind-label" data-key="TSI" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">TSI(25,13)</span></label>
 
     <div class="group-title">▶ 모멘텀지표</div>
     <label class="ind-label" data-key="RSI" style="--col:#3fb950"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">RSI(14)</span></label>
@@ -430,12 +429,6 @@ const CALC = {
     return{up,dn,osc:up.map((v,i)=>v!=null&&dn[i]!=null?v-dn[i]:null)};
   },
   FORCE:(d)=>{const fi=d.map((x,i)=>i===0?null:(x.close-d[i-1].close)*x.volume);return{force:ema(fi,13)};},
-  TSI:(d)=>{
-    const c=d.map(x=>x.close),pc=c.map((v,i)=>i===0?null:v-c[i-1]),apc=pc.map(v=>v==null?null:Math.abs(v));
-    const e25_13=ema(ema(pc,25),13),ae25_13=ema(ema(apc,25),13);
-    const tsi=e25_13.map((v,i)=>v&&ae25_13[i]?(v/ae25_13[i])*100:null);
-    return{tsi,signal:ema(tsi,7)};
-  },
   RSI:(d)=>{
     const rp=P('RSI',0,14);
     const c=d.map(x=>x.close),gains=[],losses=[];
@@ -523,7 +516,6 @@ const IND_CFG = {
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink,lines:[0]},
-  TSI:{color:C.teal,lines:[25,0,-25]},
   RSI:{color:'#d32f2f',range:[0,100],lines:[70,50,30]},
   SMI:{color:C.yellow,range:[-100,100],lines:[40,0,-40]},
   STOCHRSI:{color:C.purple,range:[0,100],lines:[80,50,20]},
@@ -1394,10 +1386,6 @@ function drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch) {
         if (upThru(main, 95, i)) signals.push({i, type:'b'});
         if (dnThru(main, 105, i)) signals.push({i, type:'s'});
         break;
-      case 'TSI':
-        if (sig && crossUp(main, sig, i)) signals.push({i, type:'b'});
-        if (sig && crossDn(main, sig, i)) signals.push({i, type:'s'});
-        break;
       case 'MOM': case 'FORCE': case 'CHAIKIN_OSC': case 'CMF':
         if (upThru(main, 0, i)) signals.push({i, type:'b'});
         if (dnThru(main, 0, i)) signals.push({i, type:'s'});
@@ -1755,7 +1743,7 @@ function drawSub(canvas, key) {
   }
 
   // 레이블
-  const lastName = {MACD:'MACD', ADX:'ADX', CCI:'CCI', AROON:'Aroon', FORCE:'Force', TSI:'TSI',
+  const lastName = {MACD:'MACD', ADX:'ADX', CCI:'CCI', AROON:'Aroon', FORCE:'Force',
     RSI:'RSI', SMI:'SMI', STOCHRSI:'StochRSI', STOCH:'Stoch Fast', SLOWSTOCH:'Stoch Slow',
     CMO:'CMO', DMI_DYN:'Dyn MI', MASS:'Mass Index', DISPARITY:'이격도', CHAIKIN_OSC:'차이킨Osc',
     MOM:'모멘텀', WILLR:'Will%R', ATR:'ATR', RVI:'RVI', INERTIA:'Inertia',
