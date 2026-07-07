@@ -3521,10 +3521,11 @@ async function loadInvestKq(){
   pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
   INVEST_KQ_POOL=pool; investKqLoaded=true;
   if(pool.length) saveInvestKqCache(); // 빈 데이터는 캐시하지 않음
-  // 로딩 메시지 확실히 숨김 + 강제 렌더
+  // 로딩 메시지 숨기고 표 영역을 먼저 '보이는 상태'로 만든 뒤 렌더
   if(msg){ msg.style.display='none'; msg.textContent=''; }
-  const scEl=$('#valScroll'); if(scEl) scEl.style.display='';
-  renderInvestKq();
+  const scEl=$('#valScroll'); if(scEl){ scEl.style.display=''; void scEl.offsetHeight; } // reflow 강제
+  // 다음 프레임에 렌더 → 표가 보이는 상태에서 컬럼 너비 계산되어 헤더 안 깨짐
+  requestAnimationFrame(()=> renderInvestKq());
 }
 
 function setRoeMinKq(v){ roeMinKq=v; renderInvestKq(); }
@@ -3589,8 +3590,6 @@ function renderInvestKq(){
   // 외국인 헤더 클릭 정렬 토글
   const frgnTh=t.querySelector('thead th:nth-child(5)');
   if(frgnTh){ frgnTh.onclick=()=>{ investKqSortFrgn=!investKqSortFrgn; renderInvestKq(); }; }
-  // 레이아웃 재계산 트리거 (헤더/컬럼 너비 깨짐 방지)
-  requestAnimationFrame(()=>{ t.style.display='none'; t.offsetHeight; t.style.display=''; });
   if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); }
 }
 function setRoeMin(v){ roeMin=v; renderInvest(); }
