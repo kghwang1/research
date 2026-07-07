@@ -3334,13 +3334,14 @@ async function ensureForeign(codes){
   }
   frgnLoading=false; saveFrgnCache();
   if(valMarket==='invest') renderInvest();
+  else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
 }
-// 외국인 별표 개수 반환 (정렬용)
+// 외국인 별표(★=순매수) 개수 반환 (정렬용) — 최근 5일 기준
 function frgnStarCount(code){
-  if(!code || !FRGN[code]) return -1;
-  const seq = FRGN[code];
-  return Array.isArray(seq) ? seq.filter(Boolean).length : 0;
+  const f=FRGN[code];
+  if(!f || !Array.isArray(f.seq) || !f.seq.length) return -1;
+  return f.seq.slice(-5).filter(Boolean).length;
 }
 
 function frgnCell(code){
