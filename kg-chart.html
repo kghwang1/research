@@ -681,9 +681,36 @@ function calcShowCount(period, interval) {
 }
 
 // Worker에서 OHLCV 데이터 + 종목정보 가져오기
+// 한국 6자리 코드 → KIS API, 미국/지수 → 야후
 async function fetchReal(stock) {
-  const sym = toYahooSymbol(stock);
+  const code = stock.code;
+  const isKrStock = /^\d{6}$/.test(code); // 순수 한국 주식 (지수 제외)
   const range = toYahooRange(state.period, state.interval);
+
+  // ── 한국 주식: KIS API ──────────────────────────────────
+  if (isKrStock && state.interval === '1d') {
+    try {
+      const url = `${WORKER}/?kisChart=${encodeURIComponent(code)}&range=2y&_t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      const json = await res.json();
+      if (json.ok && json.ohlcv && json.ohlcv.length >= 5) {
+        return {
+          ohlcv: json.ohlcv,
+          name: stock.name || code,
+          validSymbol: true,
+          realSymbol: code,
+          currency: 'KRW',
+          exchange: 'KRX',
+        };
+      }
+    } catch(e) {
+      console.warn('KIS fetch fail, fallback to yahoo:', e);
+    }
+    // KIS 실패 시 야후로 fallback
+  }
+
+  // ── 미국주식/지수/분봉/주봉/월봉: 야후 ────────────────────
+  const sym = toYahooSymbol(stock);
   const url = `${WORKER}/?yahooChart=${encodeURIComponent(sym)}&range=${range}&interval=${state.interval}&_t=${Date.now()}`;
   try {
     const res = await fetch(url, { cache: 'no-store' });
