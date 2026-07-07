@@ -3337,11 +3337,16 @@ async function ensureForeign(codes){
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
 }
-// 외국인 별표(★=순매수) 개수 반환 (정렬용) — 최근 5일 기준
+// 외국인 정렬값: 최근일부터 연속된 순매수(★) 일수 (연속이 끊기면 중단)
+// 동점이면 5일 전체 별 개수로 2차 비교하도록 소수점 가중치 부여
 function frgnStarCount(code){
   const f=FRGN[code];
   if(!f || !Array.isArray(f.seq) || !f.seq.length) return -1;
-  return f.seq.slice(-5).filter(Boolean).length;
+  const s=f.seq.slice(-5);
+  let streak=0;
+  for(let i=s.length-1;i>=0;i--){ if(s[i]) streak++; else break; }
+  const total=s.filter(Boolean).length;
+  return streak + total*0.01; // 1차: 최근 연속, 2차: 전체 별 개수
 }
 
 function frgnCell(code){
