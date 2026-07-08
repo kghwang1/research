@@ -1426,6 +1426,22 @@ function drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch) {
         if (sig && main[i]>=70 && main[i-1]<70) signals.push({i, type:'b'});
         if (sig && main[i]<=30 && main[i-1]>30) signals.push({i, type:'s'});
         break;
+      case 'OBV': {
+        // 최근 20봉 이전 고점/저점을 OBV가 돌파하는 시점을 매수/매도로 표기
+        const LB = 20;
+        if (i >= LB) {
+          const win = main.slice(Math.max(0, i-LB), i).filter(v => v != null);
+          if (win.length) {
+            const prevHigh = Math.max(...win);
+            const prevLow = Math.min(...win);
+            if (main[i-1] != null && main[i] != null) {
+              if (main[i-1] <= prevHigh && main[i] > prevHigh) signals.push({i, type:'b'});
+              if (main[i-1] >= prevLow && main[i] < prevLow) signals.push({i, type:'s'});
+            }
+          }
+        }
+        break;
+      }
     }
   }
 
@@ -1681,6 +1697,84 @@ function drawSub(canvas, key) {
     const lastVF = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = C.pink; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillText('Force  ' + (lastVF != null ? fmt(lastVF) : ''), PAD.l + 22, PAD.t + 11);
+    return;
+  }
+
+  // ── OBV: y축 값 + 0선 + 전고점/전저점 참고선 + 매수매도 신호 ──
+  if (key === 'OBV') {
+    const arr = vals[0];
+    const y0 = yOf(0);
+    // 0선 위(양수) 영역 - 연한 초록
+    ctx.fillStyle = '#3fb95015';
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] == null || arr[i+1] == null) continue;
+      if (arr[i] > 0 || arr[i+1] > 0) {
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y0);
+        ctx.lineTo(xOf(i), yOf(Math.max(arr[i], 0)));
+        ctx.lineTo(xOf(i+1), yOf(Math.max(arr[i+1], 0)));
+        ctx.lineTo(xOf(i+1), y0);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    // 0선 아래(음수) 영역 - 연한 빨강
+    ctx.fillStyle = '#ef535015';
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] == null || arr[i+1] == null) continue;
+      if (arr[i] < 0 || arr[i+1] < 0) {
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y0);
+        ctx.lineTo(xOf(i), yOf(Math.min(arr[i], 0)));
+        ctx.lineTo(xOf(i+1), yOf(Math.min(arr[i+1], 0)));
+        ctx.lineTo(xOf(i+1), y0);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    // 0선 (흰색 실선)
+    if (minV < 0 && maxV > 0) {
+      ctx.strokeStyle = '#ffffff44'; ctx.lineWidth = 1; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(W - PAD.r, y0); ctx.stroke();
+    }
+    // 최근 20봉 전고점 참고선 (점선, 노랑)
+    const LB = 20;
+    if (n >= 5) {
+      const s = Math.max(0, n - LB);
+      const win = arr.slice(s, n).filter(v => v != null);
+      if (win.length) {
+        const hi = Math.max(...win);
+        ctx.strokeStyle = '#ffd54f88'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(PAD.l, yOf(hi)); ctx.lineTo(W - PAD.r, yOf(hi)); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+    // OBV 선 (청록)
+    ctx.strokeStyle = C.cyan; ctx.lineWidth = 1.4;
+    ctx.beginPath(); let so = false;
+    arr.forEach((v, i) => { if (v == null) return; so ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), so = true); });
+    ctx.stroke();
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+    // y축 레이블: max / 0(있으면) / min
+    const fmt = v => {
+      const a = Math.abs(v);
+      if (a >= 1e9) return (v/1e9).toFixed(1)+'B';
+      if (a >= 1e6) return (v/1e6).toFixed(1)+'M';
+      if (a >= 1e3) return (v/1e3).toFixed(1)+'K';
+      return v.toFixed(0);
+    };
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(fmt(maxV), W - PAD.r + 3, PAD.t + 10);
+    if (minV < 0 && maxV > 0) ctx.fillText('0', W - PAD.r + 3, y0 + 3);
+    ctx.fillText(fmt(minV), W - PAD.r + 3, PAD.t + ch);
+    // 레이블
+    const lastVO = arr.filter(v => v != null).slice(-1)[0];
+    ctx.fillStyle = C.cyan; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('OBV  ' + (lastVO != null ? fmt(lastVO) : ''), PAD.l + 22, PAD.t + 11);
+    // 매수/매도 화살표 (전고점/전저점 돌파)
+    drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch);
     return;
   }
 
