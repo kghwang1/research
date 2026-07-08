@@ -453,6 +453,13 @@
   .inv-tbl td.frgnc{white-space:nowrap;font-size:13px;letter-spacing:1px}
   .inv-tbl td.frgnc .fbuy{color:#c00000}
   .inv-tbl td.frgnc .fno{color:#bbb}
+  /* 외국인 순매매 막대그래프 (5거래일) */
+  td.frgnc .frgn-bars{display:inline-flex;align-items:flex-end;gap:2px;height:22px;vertical-align:bottom}
+  .fbar-wrap{display:inline-flex;align-items:flex-end;width:6px;height:22px}
+  .fbar{display:block;width:6px;border-radius:1px 1px 0 0}
+  .fbar-buy{background:#ef5350}
+  .fbar-sell{background:#4a90d9}
+  .fbar-empty{display:block;width:6px;height:2px;background:#333;align-self:flex-end;border-radius:1px}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
   .val-tbl .diffp.neg{color:#e01010}
@@ -2397,7 +2404,7 @@ async function autoCollectWatch(btn){
       try{
         const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(',')));
         const d=await r.json();
-        (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq}:null; });
+        (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null}:null; });
       }catch(e){}
       part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
       btn.textContent='외국인 매매 조회 중… '+Math.min(i+CH,need.length)+'/'+need.length;
@@ -3633,7 +3640,7 @@ async function ensureForeign(codes){
   frgnLoading=true;
   for(let i=0;i<need.length;i+=20){
     const part=need.slice(i,i+20);
-    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq}:null; }); }catch(e){}
+    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null}:null; }); }catch(e){}
     part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
   }
   frgnLoading=false; saveFrgnCache();
@@ -3659,6 +3666,22 @@ function frgnCell(code){
   if(f===undefined) return '<span class="rsub">…</span>';
   if(!f||!Array.isArray(f.seq)||!f.seq.length) return '<span class="rsub">—</span>';
   let s=f.seq.slice(-5); while(s.length<5) s.unshift(null);
+  // 실제 순매매 수량(net)이 있으면 막대그래프, 없으면 기존 별표(★)로 대체 표시
+  const net = Array.isArray(f.net) ? f.net.slice(-5) : null;
+  if(net){
+    let n=net.slice(); while(n.length<5) n.unshift(null);
+    const maxAbs = Math.max(1, ...n.filter(v=>v!=null).map(v=>Math.abs(v)));
+    const H=22; // 막대 최대 높이(px)
+    const bars = n.map((v,i)=>{
+      if(v==null) return '<span class="fbar-wrap" title="데이터 없음"><span class="fbar-empty"></span></span>';
+      const h = Math.max(2, Math.round(Math.abs(v)/maxAbs*H));
+      const cls = v>=0 ? 'fbar-buy' : 'fbar-sell';
+      const label = (v>=0?'+':'')+v.toLocaleString();
+      return `<span class="fbar-wrap" title="${label}주"><span class="fbar ${cls}" style="height:${h}px"></span></span>`;
+    }).join('');
+    return `<span class="frgn-bars">${bars}</span>`;
+  }
+  // net 데이터 없을 때(구버전 캐시 등) 기존 별표 표시로 폴백
   return '<span class="frgn">'+s.map(b=> b===null?'<span class="fno">·</span>':(b?'<span class="fbuy">★</span>':'<span class="fno">ㆍ</span>')).join('')+'</span>';
 }
 const SECTOR_BY_CODE={'005930':'반도체','000660':'반도체','005935':'반도체','402340':'반도체','009150':'전자부품','011070':'전자부품','034220':'디스플레이','035420':'인터넷','035720':'인터넷','018260':'IT서비스','307950':'IT서비스','064400':'IT서비스','454910':'로봇','108490':'로봇','005380':'자동차','000270':'자동차','012330':'자동차','161390':'자동차','373220':'2차전지','006400':'2차전지','003670':'2차전지','207940':'바이오','068270':'바이오','000100':'제약','128940':'제약','012450':'방산','064350':'방산','047810':'방산','272210':'우주항공','329180':'조선','042660':'조선','010140':'조선','011200':'해운','005490':'철강','004020':'철강','010130':'비철금속','051910':'화학','011780':'화학','009830':'화학','011170':'화학','096770':'정유','010950':'정유','036460':'에너지','015760':'에너지','034020':'원자력','267260':'전력기기','010120':'전력기기','000720':'건설','006360':'건설','028050':'건설','375500':'건설','047040':'건설','042670':'건설기계','000150':'지주','003550':'지주','034730':'지주','267250':'지주','001040':'지주','004990':'지주','006260':'지주','078930':'지주','105560':'금융','055550':'금융','086790':'금융','316140':'금융','138040':'금융','024110':'금융','029780':'금융','032830':'보험','000810':'보험','088350':'보험','005830':'보험','006800':'증권','016360':'증권','017670':'통신','030200':'통신','259960':'게임','036570':'게임','251270':'게임','352820':'엔터','139480':'유통','023530':'유통','069960':'유통','008770':'유통','282330':'유통','020000':'유통','097950':'식품','271560':'식품','280360':'식품','005300':'식품','033780':'식품','003490':'항공','395400':'리츠','090430':'화장품','066570':'가전','028260':'건설','001120':'상사','047050':'상사','161890':'화장품','192820':'화장품'};
