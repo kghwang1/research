@@ -434,6 +434,8 @@
   .inv-bar button.rfr{margin-left:8px;border-radius:50%;width:28px;height:28px;padding:0;font-size:14px}
   .inv-bar button.frgn-sort{margin-left:8px;border-color:#e05252;color:#e08585}
   .inv-bar button.frgn-sort.on{background:#e05252;border-color:#e05252;color:#fff}
+  .wac-item:hover{background:#1f2733}
+  .wac-item:last-child{border-bottom:none!important}
   .inv-bar .cnt{margin-left:8px;color:var(--dim)}
   .inv-tbl td.rpt{white-space:normal;text-align:left;min-width:160px;max-width:260px;font-size:11px;line-height:1.25;word-break:break-all}
   .inv-tbl td.rpt .rpt-tag{color:#7c83ff;font-weight:700;margin-right:2px}
@@ -2334,14 +2336,15 @@ async function fetchWatchLive(){
   if(valMarket==='watch') renderWatchTable();
 }
 
-function watchCommit(idx, code){
+function watchCommit(idx, code, name){
   const clean=String(code||'').replace(/[^0-9]/g,'');
+  if(!clean || clean.length!==6) return;
   if(!WATCH_ROWS[idx]) WATCH_ROWS[idx]=['',''];
   WATCH_ROWS[idx][0]=clean;
-  WATCH_ROWS[idx][1]=''; // 이름은 시세 조회 시 자동
+  WATCH_ROWS[idx][1]=name||''; // 검색으로 선택했으면 이름 바로 반영, 아니면 시세 조회 시 자동 채움
   // 마지막 줄에 입력했으면 빈 줄 하나 추가
   const last=WATCH_ROWS.length-1;
-  if(idx===last && clean) WATCH_ROWS.push(['','']);
+  if(idx===last) WATCH_ROWS.push(['','']);
   saveWatchRows();
   renderWatchTable();
   fetchWatchLive();
@@ -2356,12 +2359,87 @@ function watchDelete(idx){
   renderWatchTable();
 }
 
+// 한국(체)·코스피200·코스닥100 전체에서 최근 3일 연속 외국인 순매수 종목 자동 수집
+async function autoCollectWatch(btn){
+  if(!SRV_URL){ toast('서버(worker) 설정이 필요합니다'); return; }
+  const orig=btn.textContent;
+  btn.disabled=true; btn.textContent='수집 중…';
+  try{
+    // 1) 세 포트폴리오 코드/이름 모으기 (필요하면 로드)
+    const pool=new Map(); // code -> name
+    // 한국(체)
+    (VAL_DEFAULT.kr||[]).forEach(r=>{ const c=String(r[0]||'').replace(/[^0-9]/g,''); if(c) pool.set(c, r[1]||''); });
+    // 코스피200 (미로드 시 로드)
+    if(!investLoaded){ btn.textContent='코스피200 불러오는 중…'; await loadInvest(); }
+    (INVEST_POOL||[]).forEach(r=>{ if(r.code) pool.set(r.code, r.name||pool.get(r.code)||''); });
+    // 코스닥100 (미로드 시 로드)
+    if(!investKqLoaded){ btn.textContent='코스닥100 불러오는 중…'; await loadInvestKq(); }
+    (INVEST_KQ_POOL||[]).forEach(r=>{ if(r.code) pool.set(r.code, r.name||pool.get(r.code)||''); });
+
+    const codes=[...pool.keys()];
+    if(!codes.length){ toast('대상 종목이 없습니다'); return; }
+
+    // 2) 외국인 데이터 전체 조회 (캐시에 없는 것만)
+    loadFrgnCache();
+    const need=codes.filter(c=>!(c in FRGN));
+    btn.textContent='외국인 매매 조회 중… 0/'+need.length;
+    const CH=15;
+    for(let i=0;i<need.length;i+=CH){
+      const part=need.slice(i,i+CH);
+      try{
+        const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(',')));
+        const d=await r.json();
+        (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq}:null; });
+      }catch(e){}
+      part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
+      btn.textContent='외국인 매매 조회 중… '+Math.min(i+CH,need.length)+'/'+need.length;
+    }
+    saveFrgnCache();
+
+    // 3) 최근 3일 연속 순매수(★) 종목 필터링
+    const matched=[];
+    codes.forEach(c=>{
+      const f=FRGN[c];
+      if(!f || !Array.isArray(f.seq) || f.seq.length<3) return;
+      const last3=f.seq.slice(-3);
+      if(last3.every(Boolean)) matched.push(c);
+    });
+
+    if(!matched.length){ toast('최근 3일 연속 외국인 순매수 종목이 없습니다'); return; }
+
+    // 4) 관심 목록에 중복 없이 추가
+    const existing=new Set(WATCH_ROWS.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
+    let added=0;
+    matched.forEach(c=>{
+      if(existing.has(c)) return;
+      const nm=pool.get(c)||'';
+      // 빈 줄이 있으면 그 자리에, 없으면 새로 추가
+      const emptyIdx=WATCH_ROWS.findIndex(r=>!String(r[0]||''));
+      if(emptyIdx>=0) WATCH_ROWS[emptyIdx]=[c, nm];
+      else WATCH_ROWS.push([c, nm]);
+      existing.add(c); added++;
+    });
+    // 마지막 줄이 채워져 있으면 빈 줄 하나 보장
+    const lastRow=WATCH_ROWS[WATCH_ROWS.length-1];
+    if(lastRow && String(lastRow[0]||'')) WATCH_ROWS.push(['','']);
+
+    saveWatchRows();
+    renderWatchTable();
+    fetchWatchLive();
+    toast(added>0 ? `${added}개 종목을 추가했습니다 (3일 연속 외국인 순매수)` : '이미 모두 관심 목록에 있습니다');
+  }catch(e){
+    toast('수집 실패: '+e.message);
+  }finally{
+    btn.disabled=false; if($('#watchAutoBtn')) $('#watchAutoBtn').textContent=orig;
+  }
+}
+
 function renderWatchTable(){
   const t=$('#valTbl'); if(!t) return;
   loadWatchRows(); loadReportCache(); loadFrgnCache();
   const W=[178,90,112,82,104,210];
   const H=["종목(코드입력)","현재가<br>(전일대비%)","52주최고가","외국인<br>(5일순매수)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
-  let h='<caption class="kr-cap">관심 종목<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목코드(6자리)를 입력하면 자동으로 정보가 채워집니다 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="한국(체)·코스피200·코스닥100 전체에서 최근 3일 연속 외국인 순매수 종목 자동 수집">⭐ 외국인 3일연속 자동수집</button><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목명/코드를 입력하면 자동으로 정보가 채워집니다 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   WATCH_ROWS.forEach((r,ri)=>{
     const code=String(r[0]||'').replace(/[^0-9]/g,'');
@@ -2382,7 +2460,7 @@ function renderWatchTable(){
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc">${code}</span>`;
       stkCell=`<a href="#" class="wlink" data-code="${code}">${stkInner}</a> <span class="wdel" data-idx="${ri}" title="삭제">✕</span>`;
     } else {
-      stkCell=`<input type="text" class="winput" data-idx="${ri}" placeholder="종목코드 6자리" inputmode="numeric" maxlength="6" style="width:130px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px 6px;border-radius:5px;font-size:12px">`;
+      stkCell=`<div class="wsearch" style="position:relative"><input type="text" class="winput" data-idx="${ri}" placeholder="종목명 또는 코드" autocomplete="off" style="width:150px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px 6px;border-radius:5px;font-size:12px"><div class="wac" data-idx="${ri}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:180px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.5)"></div></div>`;
     }
     let repCell;
     if(!code) repCell='';
@@ -2403,10 +2481,42 @@ function renderWatchTable(){
   });
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
-  // 입력창: Enter 또는 blur 시 커밋
+  // 입력창: 입력 시 자동완성 검색, 코드 6자리 직접입력도 지원, 후보 클릭 시 확정
+  let wacTimer=null;
   t.querySelectorAll('input.winput').forEach(inp=>{
-    inp.onkeydown=ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); watchCommit(parseInt(inp.dataset.idx), inp.value); } };
-    inp.onblur=()=>{ const v=String(inp.value||'').replace(/[^0-9]/g,''); if(v.length===6) watchCommit(parseInt(inp.dataset.idx), v); };
+    const idx=parseInt(inp.dataset.idx);
+    const wrap=inp.closest('.wsearch');
+    const acBox=wrap ? wrap.querySelector('.wac') : null;
+    inp.oninput=()=>{
+      const v=inp.value.trim();
+      if(wacTimer) clearTimeout(wacTimer);
+      // 6자리 숫자면 바로 확정 후보로도 취급하되, 검색도 같이 시도
+      if(!v){ if(acBox){acBox.style.display='none'; acBox.innerHTML='';} return; }
+      wacTimer=setTimeout(async ()=>{
+        if(!SRV_URL || !acBox) return;
+        try{
+          const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(v));
+          const d=await r.json();
+          const items=(d&&d.items)||[];
+          if(!items.length){ acBox.style.display='none'; acBox.innerHTML=''; return; }
+          acBox.innerHTML=items.map(it=>`<div class="wac-item" data-code="${it.code}" data-name="${escHtml(it.name)}" style="padding:7px 10px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21262d"><b>${escHtml(it.name)}</b> <span style="color:#8b949e">${it.code}</span></div>`).join('');
+          acBox.querySelectorAll('.wac-item').forEach(el=>{
+            el.onmousedown=ev=>{ ev.preventDefault(); watchCommit(idx, el.dataset.code, el.dataset.name); };
+          });
+          acBox.style.display='block';
+        }catch(e){}
+      }, 250);
+    };
+    inp.onkeydown=ev=>{
+      if(ev.key==='Enter'){
+        ev.preventDefault();
+        const v=String(inp.value||'').trim();
+        const clean=v.replace(/[^0-9]/g,'');
+        if(clean.length===6 && clean===v) watchCommit(idx, clean, '');
+        else if(acBox && acBox.querySelector('.wac-item')) acBox.querySelector('.wac-item').dispatchEvent(new Event('mousedown'));
+      }
+    };
+    inp.onblur=()=>{ setTimeout(()=>{ if(acBox) acBox.style.display='none'; }, 200); };
   });
   // 종목 링크 → 네이버
   t.querySelectorAll('a.wlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) openNaverDomestic(c); }; });
@@ -2418,6 +2528,8 @@ function renderWatchTable(){
   if(codes.length){ ensureReports(codes); ensureForeign(codes); }
   // 시세가 아직 없으면 조회
   if(codes.length && !Object.keys(watchLive).length) fetchWatchLive();
+  const autoBtn=$('#watchAutoBtn');
+  if(autoBtn) autoBtn.onclick=()=>autoCollectWatch(autoBtn);
 }
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
 let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
