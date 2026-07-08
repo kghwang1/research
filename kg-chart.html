@@ -1556,6 +1556,106 @@ function drawSub(canvas, key) {
   }
 
   // ── 이격도: 책 스타일 (빨간선 + 95↓매수/105↑매도 영역 채움) ──
+  if (key === 'MFI') {
+    const arr = vals[0];
+    const y80 = yOf(80), y60 = yOf(60), y50 = yOf(50), y40 = yOf(40), y20 = yOf(20);
+    // ── 기준선 20/40/60/80 (책 스타일: 균등 4단 점선) ──
+    // 80 (과매수) - 주황 실선
+    ctx.strokeStyle = '#f0a836aa'; ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y80); ctx.lineTo(W - PAD.r, y80); ctx.stroke();
+    // 60 - 회색 점선
+    ctx.strokeStyle = '#6e768188'; ctx.lineWidth = 0.8; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y60); ctx.lineTo(W - PAD.r, y60); ctx.stroke();
+    // 50 (중심) - 회색 점선
+    ctx.strokeStyle = '#6e7681aa'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y50); ctx.lineTo(W - PAD.r, y50); ctx.stroke();
+    // 40 - 회색 점선
+    ctx.strokeStyle = '#6e768188';
+    ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
+    ctx.setLineDash([]);
+    // 20 (과매도) - 청록 실선
+    ctx.strokeStyle = '#3fb950aa'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD.l, y20); ctx.lineTo(W - PAD.r, y20); ctx.stroke();
+    // 기준선 숫자 라벨 (우측)
+    ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#f0a836'; ctx.fillText('80', W - PAD.r + 3, y80 + 3);
+    ctx.fillStyle = '#8b949e'; ctx.fillText('60', W - PAD.r + 3, y60 + 3);
+    ctx.fillStyle = '#6e7681'; ctx.fillText('50', W - PAD.r + 3, y50 + 3);
+    ctx.fillStyle = '#8b949e'; ctx.fillText('40', W - PAD.r + 3, y40 + 3);
+    ctx.fillStyle = '#3fb950'; ctx.fillText('20', W - PAD.r + 3, y20 + 3);
+    // 80 위(과매수) 영역 채움 - 주황
+    ctx.fillStyle = '#f0a83633';
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] == null || arr[i+1] == null) continue;
+      if (arr[i] > 80 || arr[i+1] > 80) {
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y80);
+        ctx.lineTo(xOf(i), yOf(Math.max(arr[i],80)));
+        ctx.lineTo(xOf(i+1), yOf(Math.max(arr[i+1],80)));
+        ctx.lineTo(xOf(i+1), y80);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    // 20 아래(과매도) 영역 채움 - 청록
+    ctx.fillStyle = '#3fb95033';
+    for (let i = 0; i < arr.length - 1; i++) {
+      if (arr[i] == null || arr[i+1] == null) continue;
+      if (arr[i] < 20 || arr[i+1] < 20) {
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), y20);
+        ctx.lineTo(xOf(i), yOf(Math.min(arr[i],20)));
+        ctx.lineTo(xOf(i+1), yOf(Math.min(arr[i+1],20)));
+        ctx.lineTo(xOf(i+1), y20);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    // MFI 연두색 선
+    ctx.strokeStyle = C.lime; ctx.lineWidth = 1.4;
+    ctx.beginPath(); let sm = false;
+    arr.forEach((v,i) => { if (v==null) return; sm ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), sm=true); });
+    ctx.stroke();
+    // 고점 삼각형 마커 (다이버전스 확인용, 책 스타일) — 좌우 5봉보다 높은 국소 고점
+    const LBpk = 5;
+    ctx.fillStyle = '#9098a4';
+    for (let i = LBpk; i < arr.length - LBpk; i++) {
+      if (arr[i] == null || arr[i] < 55) continue;
+      let isPeak = true;
+      for (let k = i-LBpk; k <= i+LBpk; k++) { if (k===i) continue; if (arr[k] != null && arr[k] > arr[i]) { isPeak = false; break; } }
+      if (isPeak) {
+        const x = xOf(i), y = yOf(arr[i]);
+        ctx.beginPath(); ctx.moveTo(x, y-6); ctx.lineTo(x-5, y-1); ctx.lineTo(x+5, y-1); ctx.closePath(); ctx.fill();
+      }
+    }
+    // 매수/매도 신호 (20 상향돌파=매수, 80 하향돌파=매도)
+    ctx.textAlign = 'center'; ctx.font = 'bold 10px monospace';
+    for (let i = 1; i < arr.length; i++) {
+      if (arr[i]==null || arr[i-1]==null) continue;
+      if (arr[i-1] < 20 && arr[i] >= 20) {
+        ctx.fillStyle = '#ef5350';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), yOf(arr[i])+13); ctx.lineTo(xOf(i)-4, yOf(arr[i])+20); ctx.lineTo(xOf(i)+4, yOf(arr[i])+20); ctx.closePath(); ctx.fill();
+      }
+      if (arr[i-1] > 80 && arr[i] <= 80) {
+        ctx.fillStyle = '#1976d2';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), yOf(arr[i])-13); ctx.lineTo(xOf(i)-4, yOf(arr[i])-20); ctx.lineTo(xOf(i)+4, yOf(arr[i])-20); ctx.closePath(); ctx.fill();
+      }
+    }
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+    // 레이블
+    const lastVM = arr.filter(v => v != null).slice(-1)[0];
+    ctx.fillStyle = C.lime; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('MFI(14)  ' + (lastVM != null ? lastVM.toFixed(1) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
+
   if (key === 'RSI') {
     const arr = vals[0];
     const y70 = yOf(70), y30 = yOf(30), y50 = yOf(50);
