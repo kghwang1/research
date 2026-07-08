@@ -2300,7 +2300,7 @@ function renderKrTable(){
    저장: localStorage 'kg_watch_rows'
    ===================================================== */
 let WATCH_ROWS = null;   // [[code, name], ...]
-let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={};
+let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
 
 function loadWatchRows(){
   if(WATCH_ROWS) return WATCH_ROWS;
@@ -2310,9 +2310,9 @@ function loadWatchRows(){
 }
 function saveWatchRows(){ try{ localStorage.setItem('kg_watch_rows', JSON.stringify(WATCH_ROWS)); }catch(e){} }
 
-// 관심 종목 시세/목표가 조회 (한국과 동일 소스)
+// 관심 종목 시세/목표가/ROE 조회 (한국 포트와 동일 소스)
 async function fetchWatchLive(){
-  watchLive={}; watchRate={}; watchTarget={}; watchHigh52={};
+  watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={};
   const codes=[...new Set((WATCH_ROWS||[]).map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean))];
   if(!codes.length||!SRV_URL) return;
   const CH=40;
@@ -2330,6 +2330,15 @@ async function fetchWatchLive(){
       const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(',')));
       const d=await r.json();
       ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol||'').replace('STK:',''); if(q.target!=null) watchTarget[c]=q.targetStr||String(q.target); if(q.high52!=null) watchHigh52[c]=q.high52Str||String(q.high52); } });
+    }catch(e){}
+  }
+  // ROE 조회 (코스피200 포트와 동일 소스: ?roes=)
+  for(let i=0;i<codes.length;i+=25){
+    const part=codes.slice(i,i+25);
+    try{
+      const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.join(',')));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) watchRoe[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
     }catch(e){}
   }
   saveWatchRows();
@@ -2437,8 +2446,9 @@ async function autoCollectWatch(btn){
 function renderWatchTable(){
   const t=$('#valTbl'); if(!t) return;
   loadWatchRows(); loadReportCache(); loadFrgnCache();
-  const W=[178,90,112,82,104,210];
-  const H=["종목(코드입력)","현재가<br>(전일대비%)","52주최고가","외국인<br>(5일순매수)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const W=[168,90,92,82,104,100,200];
+  const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
+  const H=["종목(코드입력)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="한국(체)·코스피200·코스닥100 전체에서 최근 3일 연속 외국인 순매수 종목 자동 수집">⭐ 외국인 3일연속 자동수집</button><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목명/코드를 입력하면 자동으로 정보가 채워집니다 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   WATCH_ROWS.forEach((r,ri)=>{
@@ -2454,6 +2464,15 @@ function renderWatchTable(){
     const hiStr= hi? addComma(hi) : (code?(SRV_URL?'…':'—'):'');
     const hd=krUpside(hi, live);
     const hdHtml = hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '';
+    // ROE (코스피200과 동일 형식: 값 + 분기라벨(다르면) + 증감)
+    let roeTxt = code ? '—' : '';
+    const rz = watchRoe[code];
+    if(rz && rz.roe!=null){
+      const perTag=(rz.period&&hp&&String(rz.period)!==String(hp))?` <span class="rsub">/ ${qLabel(rz.period)}</span>`:'';
+      let dh='';
+      if(rz.prevRoe!=null){ const df=Math.round((rz.roe-rz.prevRoe)*100)/100; dh=`<span class="diffp${df>=0?'':' neg'}">(${df>=0?'+':''}${df})</span>`; }
+      roeTxt=`${rz.roe}${perTag}${dh}`;
+    }
     // 종목 셀: 코드가 있으면 종목명+코드 링크, 없으면 입력창
     let stkCell;
     if(code){
@@ -2473,8 +2492,9 @@ function renderWatchTable(){
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
-    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
+    h+=`<td>${roeTxt}</td>`;
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
+    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
