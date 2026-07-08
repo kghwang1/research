@@ -1034,14 +1034,19 @@ function setupSidebar() {
     const col = getComputedStyle(label).getPropertyValue('--col').trim();
     if (!cbDef || !cbShow) return;
 
-    // 명칭(span) 클릭 → 설명 페이지로 이동 (명칭 자동 검색)
+    // 명칭(span) 클릭 → 설명 페이지로 이동 (명칭 자동 검색 + 현재 종목 유지)
     if (span) {
       span.style.cursor = 'pointer';
       span.addEventListener('click', (e) => {
         e.stopPropagation();
         e.preventDefault();
         const nm = span.textContent.trim();
-        location.href = 'kg-guide.html?q=' + encodeURIComponent(nm);
+        const st = state.stock || {};
+        const qp = new URLSearchParams();
+        qp.set('q', nm);
+        if (st.code) qp.set('code', st.code);
+        if (st.name) qp.set('name', st.name);
+        location.href = 'kg-guide.html?' + qp.toString();
       });
     }
 

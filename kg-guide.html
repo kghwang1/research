@@ -539,6 +539,20 @@ if (autoQ) {
   }, 100);
 }
 
+// "차트로" 링크: 차트에서 넘어온 종목(code/name)이 있으면 유지해서 되돌아감
+(function fixBackLink(){
+  const backLink = document.querySelector('#header .back');
+  if (!backLink) return;
+  const code = urlParams.get('code');
+  const name = urlParams.get('name');
+  if (code) {
+    const qp = new URLSearchParams();
+    qp.set('code', code);
+    if (name) qp.set('name', name);
+    backLink.href = 'kg-chart.html?' + qp.toString();
+  }
+})();
+
 render();
 </script>
 </body>

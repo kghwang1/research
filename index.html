@@ -141,6 +141,7 @@
 
   /* 시황 - 자체 카드 (야후 데이터, 회전 없음, 2열) */
   .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:6px}
+  .card-grid.mk-pinned{position:sticky;top:var(--hdr-h,132px);z-index:20;background:var(--bg);padding:8px 0 6px;margin-bottom:4px;border-bottom:1px solid var(--line)}
   .qc{display:flex;flex-direction:column;gap:5px;background:var(--panel);border:1px solid var(--line);
     border-radius:11px;padding:10px 12px;cursor:pointer;transition:background .12s}
   .qc:active{background:var(--panel2)}
@@ -636,11 +637,10 @@
 
  <!-- ===== MARKET (시황) ===== -->
  <section class="on" id="market">
+  <div class="card-grid mk-pinned" id="gridPin"></div>
+
   <div class="sec-title">미리보기</div>
   <div class="card-grid" id="gridPV"></div>
-
-  <div class="sec-title">한국</div>
-  <div class="card-grid" id="gridKR"></div>
 
   <div class="sec-title">미국</div>
   <div class="card-grid" id="gridUS"></div>
@@ -681,8 +681,9 @@
     <div class="ftrend-head">
       <span class="ftrend-title">매매추이</span>
       <select id="ftrendPeriod" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-        <option value="30">1개월</option>
-        <option value="90" selected>3개월</option>
+        <option value="7">1주일</option>
+        <option value="30" selected>1개월</option>
+        <option value="90">3개월</option>
         <option value="180">6개월</option>
         <option value="365">12개월</option>
       </select>
@@ -1313,6 +1314,10 @@ $$('.ov').forEach(o=>o.onclick=e=>{if(e.target===o)closeAll();});
 let SRV_URL='https://quote.kghwang1.workers.dev';
 // 분야별 종목 정의 (야후 심볼)
 const MK = {
+  gridPin:[
+    {sym:'^KS11', nm:'코스피'},
+    {sym:'^KQ11', nm:'코스닥'}
+  ],
   gridPV:[
     {sym:'^TNX', nm:'미국 10년물'},
     {sym:'UST2Y', nm:'미국 2년물'},
@@ -1322,12 +1327,6 @@ const MK = {
     {sym:'FNG', nm:'Fear & Greed'},
     {sym:'EWY', nm:'EWY 한국ETF'},
     {sym:'KRW=X', nm:'원/달러 환율'}
-  ],
-  gridKR:[
-    {sym:'^KS11', nm:'코스피'},
-    {sym:'^KQ11', nm:'코스닥'},
-    {sym:'^KS200', nm:'코스피200'},
-    {sym:'KFUT', nm:'코스피200 선물'}
   ],
   gridUS:[
     {sym:'^GSPC', nm:'S&P500'},
@@ -2958,13 +2957,13 @@ function openPnl(){
 let FTREND_DATA = null;
 let ftrendMode = 'net'; // 'net' | 'cumul'
 let ftrendIdx = 'kospi'; // 'kospi' | 'kosdaq'
-let ftrendPeriod = 90; // 기간(일): 30 | 90 | 180 | 365
+let ftrendPeriod = 30; // 기간(일): 7 | 30 | 90 | 180 | 365
 const INVESTOR_KEYS = ['foreign','institution','individual'];
 const INVESTOR_LABEL = { foreign:'외국인', institution:'기관', individual:'개인' };
 
 async function loadFtrend(){
   const note = document.getElementById('ftrendNote');
-  if(FTREND_DATA){ drawFtrendAll(); return; }
+  if(FTREND_DATA){ drawFtrendAll(); updateValuationTabColor(); return; }
 
   // 하루 1회 캐싱
   const today = new Date().toISOString().slice(0,10);
@@ -2974,6 +2973,7 @@ async function loadFtrend(){
       FTREND_DATA = cached.rows;
       drawFtrendAll();
       updateFtrendNote();
+      updateValuationTabColor();
       return;
     }
   }catch(e){}
@@ -2988,11 +2988,28 @@ async function loadFtrend(){
       try{ localStorage.setItem('ftrend_cache_v3', JSON.stringify({ date: today, rows: j.rows })); }catch(e){}
       drawFtrendAll();
       updateFtrendNote();
+      updateValuationTabColor();
     } else {
       if(note) note.textContent = '⚠️ 데이터를 불러오지 못했습니다';
     }
   }catch(e){
     if(note) note.textContent = '⚠️ 로드 실패: ' + e.message;
+  }
+}
+
+// 최신일 외국인 순매수(코스피 또는 코스닥) 여부에 따라 '추세' 메뉴 글자색 변경
+function updateValuationTabColor(){
+  const tab = document.querySelector('.tab[data-t="valuation"]');
+  if(!tab || !FTREND_DATA || !FTREND_DATA.length) return;
+  const last = FTREND_DATA[FTREND_DATA.length - 1];
+  const kospiBuy = (last.foreignKospi != null ? last.foreignKospi : last.net) > 0;
+  const kosdaqBuy = (last.foreignKosdaq != null ? last.foreignKosdaq : 0) > 0;
+  if(kospiBuy || kosdaqBuy){
+    tab.style.color = '#ef5350';
+    tab.title = '외국인 순매수: ' + [kospiBuy?'코스피':null, kosdaqBuy?'코스닥':null].filter(Boolean).join(' · ');
+  } else {
+    tab.style.color = '';
+    tab.title = '';
   }
 }
 
@@ -3027,10 +3044,15 @@ function drawFtrend(canvasId, investor){
   const n = rows.length;
   const bw = Math.max(1, cw / n * 0.8);
 
-  // 투자자별 순매수값 추출 (Worker 필드: net=외국인, person=개인, inst=기관)
+  // 투자자별 순매수값 추출
+  // 외국인은 선택된 시장(코스피/코스닥)에 맞는 값 사용, 개인·기관은 기존 전체 필드 사용
   const netOf = (r) => {
     let v;
-    if(investor === 'foreign')       v = (r.foreign != null ? r.foreign : r.net);
+    if(investor === 'foreign'){
+      v = ftrendIdx === 'kosdaq'
+        ? (r.foreignKosdaq != null ? r.foreignKosdaq : null)
+        : (r.foreignKospi != null ? r.foreignKospi : (r.foreign != null ? r.foreign : r.net));
+    }
     else if(investor === 'institution') v = (r.institution != null ? r.institution : r.inst);
     else if(investor === 'individual')  v = (r.individual != null ? r.individual : r.person);
     return (v != null) ? v : 0;
@@ -3130,6 +3152,23 @@ function drawFtrend(canvasId, investor){
 
 // 토글 버튼
 document.addEventListener('DOMContentLoaded', () => {
+  // 앱 시작 시 캐시된 매매추이 데이터가 있으면 '추세' 탭 색상 즉시 반영
+  try{
+    const today = new Date().toISOString().slice(0,10);
+    const cached = JSON.parse(localStorage.getItem('ftrend_cache_v3') || 'null');
+    if(cached && cached.date === today && cached.rows && cached.rows.length){
+      FTREND_DATA = cached.rows;
+      updateValuationTabColor();
+    }
+  }catch(e){}
+  // 고정카드(코스피/코스닥)가 헤더 바로 아래에 붙도록 헤더 실제 높이 반영
+  function syncHdrHeight(){
+    const hd = document.querySelector('header');
+    if(hd) document.documentElement.style.setProperty('--hdr-h', hd.offsetHeight + 'px');
+  }
+  syncHdrHeight();
+  window.addEventListener('resize', syncHdrHeight);
+  setTimeout(syncHdrHeight, 300); // 폰트 로딩 등으로 높이 변할 수 있어 재보정
   document.querySelectorAll('.ft-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       ftrendMode = btn.dataset.mode;
