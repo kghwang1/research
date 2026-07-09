@@ -30,9 +30,8 @@
   .tagline{font-size:12px;color:var(--sub);margin-top:3px}
 
   /* tabs */
-  .tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:14px}
-  .tabs .tab-row2{grid-column:1/6;display:grid;grid-template-columns:repeat(2,1fr);gap:5px}
-  .tab{flex:1;text-align:center;padding:8px 0;font-size:13px;font-weight:600;color:var(--sub);
+  .tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:14px}
+  .tab{flex:1;text-align:center;padding:7px 0;font-size:12px;font-weight:600;color:var(--sub);
     background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:.15s}
   .tab.on{color:#0c0e14;background:var(--accent);border-color:var(--accent)}
 
@@ -141,7 +140,13 @@
 
   /* 시황 - 자체 카드 (야후 데이터, 회전 없음, 2열) */
   .card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:6px}
-  .card-grid.mk-pinned{position:sticky;top:var(--hdr-h,132px);z-index:20;background:var(--bg);padding:8px 0 6px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+  .card-grid.mk-pinned{position:sticky;top:var(--hdr-h,132px);z-index:20;background:var(--bg);padding:6px 0 4px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+  .mk-pinned .qc{padding:6px 10px;gap:2px}
+  .mk-pinned .qc .qcl{gap:0;justify-content:space-between}
+  .mk-pinned .qc .qcname{font-size:13px}
+  .mk-pinned .qc .qcprice-inline{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .mk-pinned .qc .qcr{flex-direction:row;align-items:center;gap:4px;justify-content:flex-end}
+  .mk-pinned .qc .qcchg{font-size:13px}
   .qc{display:flex;flex-direction:column;gap:5px;background:var(--panel);border:1px solid var(--line);
     border-radius:11px;padding:10px 12px;cursor:pointer;transition:background .12s}
   .qc:active{background:var(--panel2)}
@@ -585,12 +590,9 @@
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
-   <div class="tab" data-chart="1">📈챠트</div>
    <div class="tab" data-t="watch">방송</div>
-   <div class="tab-row2">
-    <div class="tab" data-t="hub">리포트</div>
-    <div class="tab" data-t="info">정보</div>
-   </div>
+   <div class="tab" data-t="hub">리포트</div>
+   <div class="tab" data-t="info">정보</div>
   </div>
  </div>
 </header>
@@ -1485,11 +1487,20 @@ function drawMiniChart(points){
 function mkSkeleton(){
   for(const gid in MK){
     const g=document.getElementById(gid); if(!g) continue;
-    g.innerHTML=MK[gid].map(it=>
-      `<div class="qc" id="qc-${cssId(it.sym+'-'+it.nm)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
-         <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcsym">${it.sym}</span></div>
-         <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
-       </div>`).join('');
+    if(gid==='gridPin'){
+      // 고정 카드: 컴팩트 2줄 (코스피명+가격 / 기호+변동)
+      g.innerHTML=MK[gid].map(it=>
+        `<div class="qc" id="qc-${cssId(it.sym+'-'+it.nm)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
+           <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcprice-inline">${SRV_URL?'…':'—'}</span></div>
+           <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
+         </div>`).join('');
+    } else {
+      g.innerHTML=MK[gid].map(it=>
+        `<div class="qc" id="qc-${cssId(it.sym+'-'+it.nm)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
+           <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcsym">${it.sym}</span></div>
+           <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
+         </div>`).join('');
+    }
   }
 }
 function cssId(s){return s.replace(/[^a-zA-Z0-9]/g,'_');}
@@ -1537,11 +1548,17 @@ async function renderMarket(){
         const cls=q.change>0?'up':(q.change<0?'dn':'fl');
         const sign=q.change>0?'▲':(q.change<0?'▼':'·');
         const f=DEC2.has(it.sym)?fmtDec:fmtInt;
-        // 원본 문자열이 있으면 그 자릿수 그대로(콤마 정리), 없으면 기존 포맷
         const pStr=q.priceStr?addComma(q.priceStr):f(q.price);
         const cStr=q.changeStr?addComma(q.changeStr):f(Math.abs(q.change));
-        box.innerHTML=`<span class="qcprice">${pStr}</span>
-          <span class="qcchg ${cls}">${sign} ${cStr} (${q.rate>0?'+':''}${q.rate}%)</span>`;
+        if(gid==='gridPin'){
+          // 고정 카드: 1줄=이름+가격, 2줄=기호+변동+비율
+          const prInline=cell.querySelector('.qcprice-inline');
+          if(prInline) prInline.textContent=pStr;
+          box.innerHTML=`<span class="qcchg ${cls}">${sign} ${cStr} (${q.rate>0?'+':''}${q.rate}%)</span>`;
+        } else {
+          box.innerHTML=`<span class="qcprice">${pStr}</span>
+            <span class="qcchg ${cls}">${sign} ${cStr} (${q.rate>0?'+':''}${q.rate}%)</span>`;
+        }
       }
     }catch(e){
       for(const it of MK[gid]){
