@@ -3682,28 +3682,11 @@ function frgnCell(code){
       const col = v>=0 ? '#ef5350' : '#4a90d9';
       bars+=`<rect x="${cx-2.5}" y="${y}" width="5" height="${bh}" fill="${col}" rx="0.5"/>`;
     });
-    // 선(금액): 유효한 점들만 이어서 그림, 별도 스케일
-    let line='';
-    if(a && a.some(v=>v!=null)){
-      const maxAAbs = Math.max(1, ...a.filter(v=>v!=null).map(v=>Math.abs(v)));
-      const pts=[];
-      a.forEach((v,i)=>{
-        if(v==null) return;
-        const cx=i*CW+CW/2;
-        const cy = zero - (v/maxAAbs)*(H/2-3);
-        pts.push([cx,cy,v]);
-      });
-      if(pts.length>=2){
-        const path=pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-        line+=`<path d="${path}" fill="none" stroke="#ffd54f" stroke-width="1.2"/>`;
-      }
-      pts.forEach(p=>{ line+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6" fill="#ffd54f"/>`; });
-    }
-    // 접근성/툴팁용 텍스트(수량+금액)
+    // 툴팁 (수량+금액)
     const fmtAmt = v => { if(v==null) return ''; const a2=Math.abs(v); const s2=a2>=1e8?(v/1e8).toFixed(1)+'억':a2>=1e4?(v/1e4).toFixed(0)+'만':String(v); return (v>=0?'+':'')+s2; };
     const tipParts=[]; n.forEach((v,i)=>{ if(v==null) return; const qtyTxt=(v>=0?'+':'')+v.toLocaleString()+'주'; const amtTxt=a&&a[i]!=null?(' / '+fmtAmt(a[i])+'원'):''; tipParts.push(qtyTxt+amtTxt); });
     const title = tipParts.join(' | ');
-    return `<svg class="frgn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" title="${escHtml(title)}">${bars}${line}</svg>`;
+    return `<svg class="frgn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" title="${escHtml(title)}">${bars}</svg>`;
   }
   // net 데이터 없을 때(구버전 캐시 등) 기존 별표 표시로 폴백
   return '<span class="frgn">'+s.map(b=> b===null?'<span class="fno">·</span>':(b?'<span class="fbuy">★</span>':'<span class="fno">ㆍ</span>')).join('')+'</span>';
