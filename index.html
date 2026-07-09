@@ -2194,6 +2194,7 @@ async function fetchValLive(){
 }
 /* 한국 포트폴리오 현재주가 조회 (종목코드 → STK:코드 배치) */
 let krLive={}, krRate={}; // code -> priceStr / 등락률
+let krRoe={}; // code -> {roe, period, prevRoe}
 async function fetchKrLive(rows){
   krLive={}; krRate={};
   if(!SRV_URL||!rows||!rows.length) return;
@@ -2229,6 +2230,17 @@ async function fetchKrTargets(rows){
     }catch(e){}
   }
 }
+// 한국(체) ROE 조회
+async function fetchKrRoe(rows){
+  krRoe={};
+  if(!SRV_URL||!rows||!rows.length) return;
+  const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
+  for(let i=0;i<codes.length;i+=25){
+    const part=codes.slice(i,i+25);
+    try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.join(','))); const d=await r.json(); ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) krRoe[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); }catch(e){}
+  }
+  if(valMarket==='kr') renderKrTable();
+}
 /* 상승여력(%) = (목표가-현재가)/현재가 ×100 */
 function krUpside(target, cur){
   const a=parseFloat(String(target).replace(/[^0-9.\-]/g,''));
@@ -2240,8 +2252,9 @@ function krUpside(target, cur){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[178,52,76,112,82,90,104,210];
-  const H=["종목","비중(%)","현재가<br>(전일대비%)","52주최고가","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const W=[168,46,76,92,82,82,90,100,200];
+  const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
+  const H=["종목","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","52주최고가","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -2271,6 +2284,16 @@ function renderKrTable(){
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r krlive" data-code="${code}" data-name="${r[1]||''}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
+    // ROE (코스피200과 동일 형식)
+    let krRoeTxt = code ? '—' : '';
+    const rz = krRoe[code];
+    if(rz && rz.roe!=null){
+      const perTag=(rz.period&&hp&&String(rz.period)!==String(hp))?` <span class="rsub">/ ${qLabel(rz.period)}</span>`:'';
+      let dh='';
+      if(rz.prevRoe!=null){ const df=Math.round((rz.roe-rz.prevRoe)*100)/100; dh=`<span class="diffp${df>=0?'':' neg'}">(${df>=0?'+':''}${df})</span>`; }
+      krRoeTxt=`${rz.roe}${perTag}${dh}`;
+    }
+    h+=`<td>${krRoeTxt}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
     h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
@@ -2303,6 +2326,7 @@ function renderKrTable(){
    ===================================================== */
 let WATCH_ROWS = null;   // [[code, name], ...]
 let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
+let watchSortFrgn=false, watchRoeMin=0;
 
 function loadWatchRows(){
   if(WATCH_ROWS) return WATCH_ROWS;
@@ -2370,7 +2394,7 @@ function watchDelete(idx){
   renderWatchTable();
 }
 
-// 한국(체)·코스피200·코스닥100 전체에서 최근 3일 연속 외국인 순매수 종목 자동 수집
+// 한국(체)·코스피200·코스닥100 전체에서 최근 2일 이상 연속 외국인 순매수 종목 자동 수집
 async function autoCollectWatch(btn){
   if(!SRV_URL){ toast('서버(worker) 설정이 필요합니다'); return; }
   const orig=btn.textContent;
@@ -2407,16 +2431,17 @@ async function autoCollectWatch(btn){
     }
     saveFrgnCache();
 
-    // 3) 최근 3일 연속 순매수(★) 종목 필터링
+    // 3) 최근일부터 연속 2일 이상 순매수(★) 종목 필터링
+    // frgnStarCount: 최근일부터 거꾸로 세서 연속 순매수 일수 반환
+    // → 오늘이 매도면 streak=0이므로 자동 제외됨
     const matched=[];
     codes.forEach(c=>{
-      const f=FRGN[c];
-      if(!f || !Array.isArray(f.seq) || f.seq.length<3) return;
-      const last3=f.seq.slice(-3);
-      if(last3.every(Boolean)) matched.push(c);
+      const score = frgnStarCount(c); // streak + total*0.01
+      const streak = Math.floor(score);
+      if(streak >= 2) matched.push(c);
     });
 
-    if(!matched.length){ toast('최근 3일 연속 외국인 순매수 종목이 없습니다'); return; }
+    if(!matched.length){ toast('최근 2일 이상 연속 외국인 순매수 종목이 없습니다'); return; }
 
     // 4) 관심 목록에 중복 없이 추가
     const existing=new Set(WATCH_ROWS.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
@@ -2437,7 +2462,7 @@ async function autoCollectWatch(btn){
     saveWatchRows();
     renderWatchTable();
     fetchWatchLive();
-    toast(added>0 ? `${added}개 종목을 추가했습니다 (3일 연속 외국인 순매수)` : '이미 모두 관심 목록에 있습니다');
+    toast(added>0 ? `${added}개 종목을 추가했습니다 (2일 이상 연속 외국인 순매수)` : '이미 모두 관심 목록에 있습니다');
   }catch(e){
     toast('수집 실패: '+e.message);
   }finally{
@@ -2448,12 +2473,30 @@ async function autoCollectWatch(btn){
 function renderWatchTable(){
   const t=$('#valTbl'); if(!t) return;
   loadWatchRows(); loadReportCache(); loadFrgnCache();
+  // 정렬/필터 적용 (입력된 종목만 대상, 빈 줄은 마지막에 유지)
+  const filled = WATCH_ROWS.filter(r=>String(r[0]||'').replace(/[^0-9]/g,''));
+  const empties = WATCH_ROWS.filter(r=>!String(r[0]||'').replace(/[^0-9]/g,''));
+  let sorted = filled.slice();
+  // ROE 필터
+  if(watchRoeMin==='up'){
+    sorted = sorted.filter(r=>{ const z=watchRoe[String(r[0]||'').replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.prevRoe!=null && (z.roe-z.prevRoe)>0; });
+  } else if(watchRoeMin>0){
+    sorted = sorted.filter(r=>{ const z=watchRoe[String(r[0]||'').replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.roe>=watchRoeMin; });
+  }
+  // 외국인 정렬
+  if(watchSortFrgn){
+    sorted.sort((a,b)=>{ const fa=frgnStarCount(String(a[0]||'').replace(/[^0-9]/g,'')), fb=frgnStarCount(String(b[0]||'').replace(/[^0-9]/g,'')); return fb-fa; });
+  }
+  const displayRows = [...sorted, ...empties];
   const W=[168,90,92,82,90,100,100,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목(코드입력)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
-  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="한국(체)·코스피200·코스닥100 전체에서 최근 3일 연속 외국인 순매수 종목 자동 수집">⭐ 외국인 3일연속 자동수집</button><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목명/코드를 입력하면 자동으로 정보가 채워집니다 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
+  const frgnBtn='<button class="frgn-sort watch-frgn-sort'+(watchSortFrgn?' on':'')+'" title="외국인 순매수 일수 많은 순 정렬">외국인★'+(watchSortFrgn?'▼':'')+'</button>';
+  const roeBar='<span class="inv-bar" style="display:inline;border:none;padding:0;margin-left:6px">ROE '+mins.map(m=>'<button data-wmin="'+m[0]+'" class="'+(watchRoeMin===m[0]?'on':'')+'">'+m[1]+'</button>').join('')+'</span>';
+  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="최근 2일 이상 연속 외국인 순매수 종목 자동 수집">⭐ 외국인 2일연속 자동수집</button> '+frgnBtn+roeBar+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목명/코드를 입력 · 현재가 클릭 시 차트 · '+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
-  WATCH_ROWS.forEach((r,ri)=>{
+  displayRows.forEach((r,ri)=>{
     const code=String(r[0]||'').replace(/[^0-9]/g,'');
     const nm=r[1]||'';
     const live=watchLive[code];
@@ -2553,6 +2596,10 @@ function renderWatchTable(){
   if(codes.length && !Object.keys(watchLive).length) fetchWatchLive();
   const autoBtn=$('#watchAutoBtn');
   if(autoBtn) autoBtn.onclick=()=>autoCollectWatch(autoBtn);
+  // ROE 필터 버튼
+  t.querySelectorAll('button[data-wmin]').forEach(b=>{ b.onclick=()=>{ watchRoeMin=b.dataset.wmin==='up'?'up':parseInt(b.dataset.wmin); renderWatchTable(); }; });
+  // 외국인★ 정렬 버튼
+  const wfs=t.querySelector('.watch-frgn-sort'); if(wfs) wfs.onclick=()=>{ watchSortFrgn=!watchSortFrgn; renderWatchTable(); };
 }
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
 let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
@@ -2761,7 +2808,7 @@ function renderInfo(box){
     renderVal();
     if(valMarket==='us'){ fetchValLive().then(renderVal); }
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
-    if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); }
+    if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); fetchKrRoe(VAL); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
     if(valMarket==='watch'){ fetchWatchLive(); }
   });
@@ -2934,7 +2981,7 @@ async function refreshFrgn(){
 function openValFull(){
   valMarket='kr';
   $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x.dataset.m==='kr'));
-  $('#valFull').classList.add('on'); renderVal(); fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); ensureServer('kr');
+  $('#valFull').classList.add('on'); renderVal(); fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); fetchKrRoe(VAL); ensureServer('kr');
 }
 function openPort(m){
   $('#valFull').classList.add('on');
