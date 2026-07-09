@@ -2273,9 +2273,9 @@ function krUpside(target, cur){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[168,46,76,92,82,82,90,100,200];
+  const W=[168,46,76,92,82,90,82,100,200];
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["종목","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","52주최고가","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["종목","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","52주최고가","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -2315,9 +2315,9 @@ function renderKrTable(){
       krRoeTxt=`${rz.roe}${perTag}${dh}`;
     }
     h+=`<td>${krRoeTxt}</td>`;
-    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
     h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
+    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
