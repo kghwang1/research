@@ -453,13 +453,8 @@
   .inv-tbl td.frgnc{white-space:nowrap;font-size:13px;letter-spacing:1px}
   .inv-tbl td.frgnc .fbuy{color:#c00000}
   .inv-tbl td.frgnc .fno{color:#bbb}
-  /* 외국인 순매매 막대그래프 (5거래일) */
-  td.frgnc .frgn-bars{display:inline-flex;align-items:flex-end;gap:2px;height:22px;vertical-align:bottom}
-  .fbar-wrap{display:inline-flex;align-items:flex-end;width:6px;height:22px}
-  .fbar{display:block;width:6px;border-radius:1px 1px 0 0}
-  .fbar-buy{background:#ef5350}
-  .fbar-sell{background:#4a90d9}
-  .fbar-empty{display:block;width:6px;height:2px;background:#333;align-self:flex-end;border-radius:1px}
+  /* 외국인 순매매 막대(수량)+선(금액) combo 차트 */
+  td.frgnc .frgn-svg{display:inline-block;vertical-align:middle}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
   .val-tbl .diffp.neg{color:#e01010}
@@ -2404,7 +2399,7 @@ async function autoCollectWatch(btn){
       try{
         const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(',')));
         const d=await r.json();
-        (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null}:null; });
+        (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null}:null; });
       }catch(e){}
       part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
       btn.textContent='외국인 매매 조회 중… '+Math.min(i+CH,need.length)+'/'+need.length;
@@ -3640,7 +3635,7 @@ async function ensureForeign(codes){
   frgnLoading=true;
   for(let i=0;i<need.length;i+=20){
     const part=need.slice(i,i+20);
-    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null}:null; }); }catch(e){}
+    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null}:null; }); }catch(e){}
     part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
   }
   frgnLoading=false; saveFrgnCache();
@@ -3666,20 +3661,46 @@ function frgnCell(code){
   if(f===undefined) return '<span class="rsub">…</span>';
   if(!f||!Array.isArray(f.seq)||!f.seq.length) return '<span class="rsub">—</span>';
   let s=f.seq.slice(-5); while(s.length<5) s.unshift(null);
-  // 실제 순매매 수량(net)이 있으면 막대그래프, 없으면 기존 별표(★)로 대체 표시
   const net = Array.isArray(f.net) ? f.net.slice(-5) : null;
+  const amt = Array.isArray(f.amt) ? f.amt.slice(-5) : null;
   if(net){
     let n=net.slice(); while(n.length<5) n.unshift(null);
+    let a = amt ? amt.slice() : null; if(a){ while(a.length<5) a.unshift(null); }
+    const W=40, H=24, CW=W/5; // 셀 크기, 칸당 너비
     const maxAbs = Math.max(1, ...n.filter(v=>v!=null).map(v=>Math.abs(v)));
-    const H=22; // 막대 최대 높이(px)
-    const bars = n.map((v,i)=>{
-      if(v==null) return '<span class="fbar-wrap" title="데이터 없음"><span class="fbar-empty"></span></span>';
-      const h = Math.max(2, Math.round(Math.abs(v)/maxAbs*H));
-      const cls = v>=0 ? 'fbar-buy' : 'fbar-sell';
-      const label = (v>=0?'+':'')+v.toLocaleString();
-      return `<span class="fbar-wrap" title="${label}주"><span class="fbar ${cls}" style="height:${h}px"></span></span>`;
-    }).join('');
-    return `<span class="frgn-bars">${bars}</span>`;
+    // 막대(수량): 0선을 중앙(H/2)으로 두고 위/아래로 그림
+    const zero=H/2;
+    let bars='';
+    n.forEach((v,i)=>{
+      const cx=i*CW+CW/2;
+      if(v==null){ bars+=`<rect x="${cx-2}" y="${zero-1}" width="4" height="2" fill="#333"/>`; return; }
+      const bh=Math.max(1.5, Math.abs(v)/maxAbs*(H/2-2));
+      const y = v>=0 ? zero-bh : zero;
+      const col = v>=0 ? '#ef5350' : '#4a90d9';
+      bars+=`<rect x="${cx-2.5}" y="${y}" width="5" height="${bh}" fill="${col}" rx="0.5"/>`;
+    });
+    // 선(금액): 유효한 점들만 이어서 그림, 별도 스케일
+    let line='';
+    if(a && a.some(v=>v!=null)){
+      const maxAAbs = Math.max(1, ...a.filter(v=>v!=null).map(v=>Math.abs(v)));
+      const pts=[];
+      a.forEach((v,i)=>{
+        if(v==null) return;
+        const cx=i*CW+CW/2;
+        const cy = zero - (v/maxAAbs)*(H/2-3);
+        pts.push([cx,cy,v]);
+      });
+      if(pts.length>=2){
+        const path=pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+        line+=`<path d="${path}" fill="none" stroke="#ffd54f" stroke-width="1.2"/>`;
+      }
+      pts.forEach(p=>{ line+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="1.6" fill="#ffd54f"/>`; });
+    }
+    // 접근성/툴팁용 텍스트(수량+금액)
+    const fmtAmt = v => { if(v==null) return ''; const a2=Math.abs(v); const s2=a2>=1e8?(v/1e8).toFixed(1)+'억':a2>=1e4?(v/1e4).toFixed(0)+'만':String(v); return (v>=0?'+':'')+s2; };
+    const tipParts=[]; n.forEach((v,i)=>{ if(v==null) return; const qtyTxt=(v>=0?'+':'')+v.toLocaleString()+'주'; const amtTxt=a&&a[i]!=null?(' / '+fmtAmt(a[i])+'원'):''; tipParts.push(qtyTxt+amtTxt); });
+    const title = tipParts.join(' | ');
+    return `<svg class="frgn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" title="${escHtml(title)}">${bars}${line}</svg>`;
   }
   // net 데이터 없을 때(구버전 캐시 등) 기존 별표 표시로 폴백
   return '<span class="frgn">'+s.map(b=> b===null?'<span class="fno">·</span>':(b?'<span class="fbuy">★</span>':'<span class="fno">ㆍ</span>')).join('')+'</span>';

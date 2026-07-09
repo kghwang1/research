@@ -431,10 +431,11 @@ const CALC = {
   },
   FORCE:(d)=>{const fi=d.map((x,i)=>i===0?null:(x.close-d[i-1].close)*x.volume);return{force:ema(fi,13)};},
   FRGN_NET:(d)=>{
-    // 종목의 일별 외국인 순매수 수량 (한국 종목 전용, state.frgnData에서 날짜 매칭)
+    // 종목의 일별 외국인 순매수 수량+금액 (한국 종목 전용, state.frgnData에서 날짜 매칭)
     const fd = state.frgnData;
-    const net = d.map(x => (fd && fd[x.date] != null) ? fd[x.date] : null);
-    return { net };
+    const net = d.map(x => (fd && fd[x.date] && fd[x.date].net != null) ? fd[x.date].net : null);
+    const amt = d.map(x => (fd && fd[x.date] && fd[x.date].amt != null) ? fd[x.date].amt : null);
+    return { net, amt };
   },
   RSI:(d)=>{
     const rp=P('RSI',0,14);
@@ -838,7 +839,7 @@ async function fetchForeignDaily(code) {
     if (!state.stock || state.stock.code !== myStock) return;
     if (json.ok && json.data && json.data.length) {
       const map = {};
-      json.data.forEach(d => { map[d.date] = d.net; });
+      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null }; });
       state.frgnData = map;
       renderAll();
     }
@@ -1523,7 +1524,10 @@ function drawSub(canvas, key) {
 
   const PAD = {l:8, r:62, t:6, b:4};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
-  const allVals = vals.flat().filter(v => v != null);
+  // FRGN_NET은 수량(vals[0])과 금액(vals[1])의 단위가 완전히 달라서
+  // 막대(수량) 스케일 계산 시 금액을 섞으면 막대가 안 보이게 됨 → 수량만으로 스케일 계산
+  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : vals.flat().filter(v => v != null);
+  const allVals = scaleVals;
   if (!allVals.length) return;
 
   let minV = cfg.range ? cfg.range[0] : Math.min(...allVals);
@@ -1780,14 +1784,22 @@ function drawSub(canvas, key) {
     return;
   }
 
-  // ── Force Index: 0선 강조 + y축 중간값 표시 ──
+  // ── 외국인 순매수: 막대(수량) + 선(금액, 노랑) ──
   if (key === 'FRGN_NET') {
-    const arr = vals[0];
+    const arr = vals[0];      // 수량(주)
+    const amtArr = vals[1] || [];  // 금액(원, 근사치=수량×종가)
     const y0 = yOf(0);
     const fmt = v => {
       const a = Math.abs(v);
       if (a >= 1e8) return (v/1e8).toFixed(1)+'억';
       if (a >= 1e4) return (v/1e4).toFixed(1)+'만';
+      return v.toFixed(0);
+    };
+    const fmtWon = v => {
+      const a = Math.abs(v);
+      if (a >= 1e12) return (v/1e8).toFixed(0)+'억';
+      if (a >= 1e8) return (v/1e8).toFixed(1)+'억';
+      if (a >= 1e4) return (v/1e4).toFixed(0)+'만';
       return v.toFixed(0);
     };
     if (!state.frgnData) {
@@ -1796,7 +1808,7 @@ function drawSub(canvas, key) {
       ctx.fillText('외국인 순매수 데이터 로딩중…', (PAD.l + W - PAD.r) / 2, PAD.t + ch / 2);
       return;
     }
-    // 막대그래프: 순매수(+)=빨강, 순매도(-)=파랑 (한국 시장 관례)
+    // 막대그래프: 순매수(+)=빨강, 순매도(-)=파랑 (한국 시장 관례) — 수량(주) 기준
     const bw = Math.max(1, (xOf(1) - xOf(0)) * 0.6);
     for (let i = 0; i < arr.length; i++) {
       if (arr[i] == null) continue;
@@ -1807,20 +1819,48 @@ function drawSub(canvas, key) {
     // 0선
     ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(W - PAD.r, y0); ctx.stroke();
+    // 선그래프: 순매매 금액(원, 근사치=수량×종가) — 막대와 별도 스케일, 같은 0선 기준으로 겹쳐 그림
+    const amtValid = amtArr.filter(v => v != null);
+    if (amtValid.length >= 2) {
+      const maxAAbs = Math.max(1, ...amtValid.map(v => Math.abs(v)));
+      const plotH = (ch / 2) - 4; // 0선 위/아래 여유 공간
+      const ayOf = v => PAD.t + ch/2 - (v / maxAAbs) * plotH;
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.3; ctx.setLineDash([]);
+      ctx.beginPath();
+      let started = false;
+      amtArr.forEach((v, i) => {
+        if (v == null) return;
+        const x = xOf(i), y = ayOf(v);
+        started ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), started = true);
+      });
+      ctx.stroke();
+      // 점 표시
+      ctx.fillStyle = '#ffd54f';
+      amtArr.forEach((v, i) => {
+        if (v == null) return;
+        ctx.beginPath(); ctx.arc(xOf(i), ayOf(v), 1.6, 0, Math.PI*2); ctx.fill();
+      });
+    }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
       ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
-    // y축 레이블
+    // y축 레이블 (막대=수량 기준)
     ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText(fmt(maxV), W - PAD.r + 3, PAD.t + 10);
     ctx.fillText('0', W - PAD.r + 3, y0 + 3);
     ctx.fillText(fmt(minV), W - PAD.r + 3, PAD.t + ch);
-    // 레이블
+    // 레이블 (수량 + 금액 근사치 함께 표시)
     const lastVN = arr.filter(v => v != null).slice(-1)[0];
-    ctx.fillStyle = C.cyan; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('외국인 순매수  ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) : ''), PAD.l + 22, PAD.t + 11);
+    const lastAmt = amtArr.filter(v => v != null).slice(-1)[0];
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = C.cyan;
+    ctx.fillText('외국인 순매수  ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) + '주' : ''), PAD.l + 22, PAD.t + 11);
+    if (lastAmt != null) {
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillText('(' + (lastAmt>=0?'+':'') + fmtWon(lastAmt) + '원)', PAD.l + 22, PAD.t + 24);
+    }
     return;
   }
 
