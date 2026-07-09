@@ -1288,24 +1288,55 @@ function drawCandle() {
     isUp ? ctx.fillRect(x - bw/2, y1, bw, bodyH) : ctx.strokeRect(x - bw/2, y1, bw, bodyH);
   });
 
-  // ── 최고가 / 최저가 마커 ──
+  // ── 최고가 / 최저가 마커 (현재가 대비 비율 표시) ──
   let hiIdx = 0, loIdx = 0;
   slice.forEach((d, i) => {
     if (d.high > slice[hiIdx].high) hiIdx = i;
     if (d.low < slice[loIdx].low) loIdx = i;
   });
   const hiVal = slice[hiIdx].high, loVal = slice[loIdx].low;
-  // 최고가 (▼ 위쪽)
+  const curPrice = slice[slice.length - 1].close;
+  const hiDate = (slice[hiIdx].date || '').slice(2).replace(/-/g, '.');
+  const loDate = (slice[loIdx].date || '').slice(2).replace(/-/g, '.');
+  const hiPct = ((curPrice - hiVal) / hiVal * 100).toFixed(2);
+  const loPct = ((curPrice - loVal) / loVal * 100).toFixed(2);
+  // 최고가 (빨간색, 좌측 표시 + 화살표로 캔들 위치 가리킴)
   {
-    const x = xOf(hiIdx), y = yOf(hiVal);
-    ctx.fillStyle = C.up; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('▲ ' + Math.round(hiVal).toLocaleString(), x, y - 6);
+    const hx = xOf(hiIdx), hy = yOf(hiVal);
+    const hiTxt = Math.round(hiVal).toLocaleString() + ' ' + hiPct + '%';
+    ctx.font = 'bold 11.5px monospace';
+    const tw = ctx.measureText(hiTxt).width;
+    // 좌측에 충분한 공간이 있으면 좌측, 없으면 우측에 표시
+    if (hx - tw - 20 > PAD.l) {
+      ctx.fillStyle = '#ef5350'; ctx.textAlign = 'right';
+      ctx.fillText(hiTxt, hx - 8, hy - 2);
+      ctx.fillText('←', hx - 2, hy - 2);
+    } else {
+      ctx.fillStyle = '#ef5350'; ctx.textAlign = 'left';
+      ctx.fillText('→ ' + hiTxt, hx + 6, hy - 2);
+    }
+    // 가는 점선으로 캔들 가리킴
+    ctx.strokeStyle = '#ef535055'; ctx.lineWidth = 0.5; ctx.setLineDash([2,2]);
+    ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx, hy - 10); ctx.stroke();
+    ctx.setLineDash([]);
   }
-  // 최저가 (▲ 아래쪽)
+  // 최저가 (녹색, 좌측 표시 + 화살표)
   {
-    const x = xOf(loIdx), y = yOf(loVal);
-    ctx.fillStyle = C.down; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('▼ ' + Math.round(loVal).toLocaleString(), x, y + 14);
+    const lx = xOf(loIdx), ly = yOf(loVal);
+    const loTxt = Math.round(loVal).toLocaleString() + ' ' + (loPct >= 0 ? '+' : '') + loPct + '%';
+    ctx.font = 'bold 11.5px monospace';
+    const tw = ctx.measureText(loTxt).width;
+    if (lx - tw - 20 > PAD.l) {
+      ctx.fillStyle = '#3fb950'; ctx.textAlign = 'right';
+      ctx.fillText(loTxt, lx - 8, ly + 14);
+      ctx.fillText('←', lx - 2, ly + 14);
+    } else {
+      ctx.fillStyle = '#3fb950'; ctx.textAlign = 'left';
+      ctx.fillText('→ ' + loTxt, lx + 6, ly + 14);
+    }
+    ctx.strokeStyle = '#3fb95055'; ctx.lineWidth = 0.5; ctx.setLineDash([2,2]);
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 6); ctx.stroke();
+    ctx.setLineDash([]);
   }
 
   // ── 현재가 우측 라인 + 라벨 ──
