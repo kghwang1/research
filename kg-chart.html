@@ -15,7 +15,7 @@ body.iframe-mode #header-row3 { padding: 4px 8px; gap: 6px; }
 body.iframe-mode #header { padding: 0; }
 body.iframe-mode .main-wrapper { flex: 0 0 224px !important; height: 224px !important; }
 body.iframe-mode .sub-wrapper { flex: 0 0 98px !important; height: 98px !important; }
-body.iframe-mode #sidebar { display: none; } /* toggleSidebar()로 열기 */
+body.iframe-mode #sidebar { display: none; } /* JS toggleSidebar()가 제어 */
 body.iframe-mode #sidebar-toggle { display: none; }
 body.iframe-mode #iframe-sidebar-btn { display: inline-block; }
 #iframe-sidebar-btn { display: none; }
@@ -160,7 +160,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
 /* 보조지표 패널 - 각각 고정 높이 */
 .sub-wrap {
-  flex: 0 0 140px; height: 140px;
+  flex: 0 0 98px; height: 98px;
   border: 1px solid #30363d;
   border-top: 2px solid #388bfd44;
   border-radius: 4px;
@@ -603,8 +603,11 @@ let state = {
 let sidebarOpen = false; // 기본값: 닫힘
 
 function toggleSidebar() {
-  sidebarOpen = !sidebarOpen;
-  applySidebarState();
+  const sb = document.getElementById('sidebar');
+  if (!sb) return;
+  const isHidden = sb.style.display === 'none' || getComputedStyle(sb).display === 'none';
+  sb.style.display = isHidden ? 'flex' : 'none';
+  sb.style.setProperty('display', isHidden ? 'flex' : 'none', 'important');
 }
 
 function closeSidebar() {
@@ -1692,6 +1695,16 @@ function drawSub(canvas, key) {
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
       ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+      // 호버 위치의 값을 y축에 표시
+      const hv = vals[0] ? vals[0][state.hoverIdx] : null;
+      if (hv != null) {
+        const hy = yOf(hv);
+        const hvFmt = Math.abs(hv) >= 1e8 ? (hv/1e8).toFixed(1)+'억' : Math.abs(hv) >= 1e4 ? (hv/1e4).toFixed(1)+'만' : hv >= 100 ? Math.round(hv).toLocaleString() : hv.toFixed(2);
+        ctx.fillStyle = '#332800'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hvFmt, W-PAD.r+3, hy+3);
+      }
     }
     // 레이블
     const lastP = pdi.filter(v=>v!=null).slice(-1)[0];
