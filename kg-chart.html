@@ -6,6 +6,17 @@
 <title>KG 챠트분석</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* iframe 모드 (메인 앱에서 호출 시) */
+body.iframe-mode #header-row1 { display: none !important; }
+body.iframe-mode #header-row2 { display: none !important; }
+body.iframe-mode #header-row3 #ohlc-info { display: none !important; }
+body.iframe-mode #header-row3 { padding: 4px 8px; gap: 6px; }
+body.iframe-mode #header { padding: 0; }
+body.iframe-mode .main-wrapper { flex: 0 0 224px !important; height: 224px !important; }
+body.iframe-mode .sub-wrapper { flex: 0 0 98px !important; height: 98px !important; }
+body.iframe-mode #sidebar { display: none; }
+body.iframe-mode #sidebar-toggle { display: none; }
 body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 12px; }
 
 /* 헤더 - 3줄 구조 */
@@ -205,6 +216,10 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
       <span><span class="label">고</span><span id="info-high" style="color:#ef5350">-</span></span>
       <span><span class="label">저</span><span id="info-low" style="color:#1976d2">-</span></span>
     </div>
+    <select id="chart-type-select" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
+      <option value="candle" selected>캔들</option>
+      <option value="line">라인</option>
+    </select>
     <select id="interval-select" style="margin-left:auto;background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
       <option value="5m">5분</option>
       <option value="60m">1시간</option>
@@ -571,6 +586,7 @@ let state = {
   selectedOrder: [],  // 보조차트 선택 순서 (나중 선택이 아래)
   market: 'kr',  // 검색 시장: kr(한국) / us(해외)
   hoverIdx: -1,
+  clickPrice: null,  // 캔들 클릭 시 y축 표시할 가격
   frgnData: null,   // 외국인 일별 순매수 { date: net } 맵 (한국 종목만)
   shortData: null,  // 공매도 일별 { date: {vol, bal} } 맵 (한국 종목만)
 };
@@ -666,6 +682,9 @@ function init() {
 // ══════════════════════════════════════
 // 실제 데이터 로드 (Worker → 야후 파이낸스)
 // ══════════════════════════════════════
+// iframe 모드 감지
+if (window.self !== window.top) document.body.classList.add('iframe-mode');
+
 const WORKER = 'https://quote.kghwang1.workers.dev';
 
 // 종목코드 → 야후 심볼 변환
@@ -1394,6 +1413,23 @@ function drawCandle() {
   ctx.fill();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
   ctx.fillText(pTxt, pbx + 3, priceY + 3);
+
+  // 클릭 가격 수평선 + y축 라벨 (노랑)
+  if (state.clickPrice != null && state.clickPrice >= minP && state.clickPrice <= maxP) {
+    const cpY = yOf(state.clickPrice);
+    ctx.strokeStyle = '#ffd54f88'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, cpY); ctx.lineTo(W - PAD.r, cpY); ctx.stroke();
+    ctx.setLineDash([]);
+    // y축 라벨
+    const cpTxt = state.clickPrice >= 1000 ? Math.round(state.clickPrice).toLocaleString() : state.clickPrice.toFixed(2);
+    ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 10px monospace';
+    const cpbx = W - PAD.r + 1;
+    ctx.fillStyle = '#332800'; ctx.fillRect(cpbx, cpY - 8, PAD.r - 2, 16);
+    ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1;
+    ctx.strokeRect(cpbx, cpY - 8, PAD.r - 2, 16);
+    ctx.fillStyle = '#ffd54f'; ctx.textAlign = 'left';
+    ctx.fillText(cpTxt, cpbx + 3, cpY + 3);
+  }
 
   // 호버 수직선 + 날짜 라벨 (26-06-03 형식)
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
