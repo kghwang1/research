@@ -625,7 +625,6 @@
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">코스피200</span><span class="sb">코스피200 최대낙폭·ROE·외국인 투자</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('investkq');return false;"><span class="ic">📈</span><span class="tx"><span class="tt">코스닥100</span><span class="sb">코스닥100 최대낙폭·ROE·외국인 투자</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('watch');return false;"><span class="ic">⭐</span><span class="tx"><span class="tt">관심</span><span class="sb">직접 입력하는 관심 종목</span></span></a>
-    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('caution');return false;"><span class="ic">⚠️</span><span class="tx"><span class="tt">주의</span><span class="sb">외국인 연속 순매도 종목</span></span></a>
    </div>
    <!-- 국외 줄 -->
    <div class="port-col">
@@ -741,7 +740,6 @@
   <div class="subtab" data-m="invest">코스피200</div>
   <div class="subtab" data-m="investkq">코스닥100</div>
   <div class="subtab" data-m="watch">관심</div>
-  <div class="subtab" data-m="caution">주의</div>
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
@@ -1941,7 +1939,6 @@ function renderVal(){
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
   if(valMarket==='watch'){ multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
-  if(valMarket==='caution'){ multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderCautionTable(); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
   if(valMarket==='kr'){ renderKrTable(); return; }  // 한국: 국내 포트폴리오(적정가 입력·상승여력 자동계산)
@@ -2241,7 +2238,7 @@ function togglePin(code, renderFn){
 function pinVal(code){ const m=PIN_MARKS.get(code); return m==='pink'?2:m==='green'?0:1; } // 정렬값: pink=2(위), 없음=1, green=0(아래)
 // 핑크 토글 + 정렬 이벤트 바인딩 (각 렌더 함수 끝에서 호출)
 // 포트폴리오별 독립 정렬 상태
-const PSORT={kr:{roe:false,frgn:false,pin:false},watch:{roe:false,frgn:false,pin:false},caution:{roe:false,frgn:false,pin:false},invest:{roe:false,frgn:false,pin:false},investkq:{roe:false,frgn:false,pin:false}};
+const PSORT={kr:{roe:false,frgn:false,pin:false},watch:{roe:false,frgn:false,pin:false},invest:{roe:false,frgn:false,pin:false},investkq:{roe:false,frgn:false,pin:false}};
 let curPort='kr'; // 현재 렌더 중인 포트폴리오 ID
 // th 생성 헬퍼: 순서/ROE/외국인에 정렬 기능 부여
 function thGen(x){
@@ -3028,7 +3025,6 @@ function renderInfo(box){
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); fetchKrRoe(VAL); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
     if(valMarket==='watch'){ fetchWatchLive(); }
-    if(valMarket==='caution'){ loadCaution(); }
   });
   // 서버 저장 / 초기화(서버와 일치)
   const sb=$('#valSave');
@@ -3910,7 +3906,6 @@ async function ensureForeign(codes){
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
   else if(valMarket==='watch') renderWatchTable();
-  else if(valMarket==='caution') renderCautionTable();
 }
 // 외국인 정렬값: 최근일부터 연속된 순매수(★) 일수 (연속이 끊기면 중단)
 // 동점이면 5일 전체 별 개수로 2차 비교하도록 소수점 가중치 부여
@@ -3996,7 +3991,6 @@ async function ensureShort(codes){
   // 현재 활성 포트 재렌더
   if(valMarket==='kr') renderKrTable();
   else if(valMarket==='watch') renderWatchTable();
-  else if(valMarket==='caution') renderCautionTable();
   else if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
 }
@@ -4060,7 +4054,6 @@ async function ensureReports(codes){
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
   else if(valMarket==='watch') renderWatchTable();
-  else if(valMarket==='caution') renderCautionTable();
 }
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
 const KOSDAQ_FALLBACK=["247540","196170","086520","028300","091990","066970","035760","058470","240810","357780","293490","145020","328130","277810","141080","112040","067310","039030","036930","263750","214150","348370","253450","178320","950140","403870","166090","084990","000250","048410","085660","022100","036540","121600","265520","214450","035900","056190","287410","102710","092040","900140","240810","065350","195940","054620","376300","131970","137400","240600"];
