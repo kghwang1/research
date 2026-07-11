@@ -15,8 +15,13 @@ body.iframe-mode #header-row3 { padding: 4px 8px; gap: 6px; }
 body.iframe-mode #header { padding: 0; }
 body.iframe-mode .main-wrapper { flex: 0 0 224px !important; height: 224px !important; }
 body.iframe-mode .sub-wrapper { flex: 0 0 98px !important; height: 98px !important; }
-body.iframe-mode #sidebar { display: none; }
+body.iframe-mode #sidebar { display: none; } /* toggleSidebar()로 열기 */
 body.iframe-mode #sidebar-toggle { display: none; }
+body.iframe-mode #iframe-sidebar-btn { display: inline-block; }
+#iframe-sidebar-btn { display: none; }
+#iframe-stock-name { display: none; }
+body.iframe-mode #iframe-sidebar-btn { display: inline-block !important; }
+body.iframe-mode #iframe-stock-name { display: inline !important; }
 body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 12px; }
 
 /* 헤더 - 3줄 구조 */
@@ -216,10 +221,8 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
       <span><span class="label">고</span><span id="info-high" style="color:#ef5350">-</span></span>
       <span><span class="label">저</span><span id="info-low" style="color:#1976d2">-</span></span>
     </div>
-    <select id="chart-type-select" style="background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
-      <option value="candle" selected>캔들</option>
-      <option value="line">라인</option>
-    </select>
+    <button id="iframe-sidebar-btn" onclick="toggleSidebar()" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">☰ 지표</button>
+    <span id="iframe-stock-name" style="font-weight:700;font-size:13px;color:#e6edf3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <select id="interval-select" style="margin-left:auto;background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
       <option value="5m">5분</option>
       <option value="60m">1시간</option>
@@ -2243,7 +2246,14 @@ function getActiveKeys() {
   return ordered;
 }
 
+function updateIframeStockName() {
+  const el = document.getElementById('iframe-stock-name');
+  if (!el || !state.stock) return;
+  const s = state.stock;
+  el.textContent = (s.name || s.code || '') + (s.name ? '' : '');
+}
 function renderAll() {
+  updateIframeStockName();
   const activeKeys = getActiveKeys();
   const chartArea = document.getElementById('chart-area');
 

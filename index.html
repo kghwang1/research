@@ -737,6 +737,24 @@
  </div>
  </section>
 
+<!-- 챠트 전체화면 오버레이 -->
+<div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
+  <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
+    <button id="chartHomeBtn" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:#0c0e14;font-weight:700;font-size:12px;cursor:pointer">홈</button>
+    <button id="chartSideToggle" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer">종목</button>
+  </div>
+  <div style="display:flex;flex:1;overflow:hidden">
+    <div id="chartSidebar" style="width:130px;min-width:110px;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden">
+      <input id="chartStockSearch" type="text" placeholder="종목 검색" style="margin:5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:11px">
+      <div id="chartStockItems" style="flex:1;overflow-y:auto;font-size:11px"></div>
+    </div>
+    <div style="flex:1;overflow:hidden">
+      <iframe id="chartIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
+    </div>
+  </div>
+</div>
+
+
 </div>
 
 <!-- ===== 주식 전체화면 ===== -->
@@ -4391,6 +4409,42 @@ function openChart(code, name) {
 }
 
 // ═══ 챠트 전체화면 ═══
+
+// 챠트 종목 검색 자동완성 (worker ?find= API)
+let chartSearchTimer=null;
+function chartAutoSearch(q){
+  // 먼저 관심 종목에서 필터
+  buildChartStockList(q);
+  // worker에서 추가 검색 (250ms 디바운스)
+  clearTimeout(chartSearchTimer);
+  chartSearchTimer=setTimeout(async()=>{
+    if(!SRV_URL||!q||q.length<1) return;
+    try{
+      const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q));
+      const d=await r.json();
+      if(!d||!d.items||!d.items.length) return;
+      const box=$('#chartStockItems'); if(!box) return;
+      // 기존 목록 뒤에 검색 결과 추가 (중복 제거)
+      const existing=new Set([...box.querySelectorAll('.cs-item')].map(el=>el.dataset.code));
+      let h='';
+      d.items.forEach(it=>{
+        if(existing.has(it.code)) return;
+        h+=`<div class="cs-item cs-search" data-code="${it.code}" data-name="${escHtml(it.name)}"><span class="cs-name">${escHtml(it.name)}</span><span class="cs-code">${it.code}</span></div>`;
+      });
+      if(h){
+        box.insertAdjacentHTML('beforeend', h);
+        box.querySelectorAll('.cs-item.cs-search').forEach(el=>{
+          el.onclick=()=>{
+            box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
+            el.classList.add('on');
+            const ifr=$('#chartIframe');
+            if(ifr) ifr.src='kg-chart.html?code='+el.dataset.code+'&name='+encodeURIComponent(el.dataset.name);
+          };
+        });
+      }
+    }catch(e){}
+  }, 250);
+}
 function openChartView(){
   const ov=$('#chartFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -4428,34 +4482,24 @@ function buildChartStockList(filter){
     };
   });
 }
-(function(){
+document.addEventListener('DOMContentLoaded',()=>{
   const hb=$('#chartHomeBtn'); if(hb) hb.onclick=()=>closeChartView();
-  const si=$('#chartStockSearch'); if(si) si.oninput=()=>buildChartStockList(si.value);
+  const si=$('#chartStockSearch'); if(si){
+    si.oninput=()=>{
+      const v=si.value.trim();
+      if(v.length>=1) chartAutoSearch(v);
+      else buildChartStockList();
+    };
+  }
   const st=$('#chartSideToggle'); if(st) st.onclick=()=>{
     const sb=$('#chartSidebar'); if(!sb) return;
     sb.style.display=sb.style.display==='none'?'flex':'none';
     st.style.background=sb.style.display==='none'?'var(--panel)':'var(--accent)';
     st.style.color=sb.style.display==='none'?'var(--ink)':'#0c0e14';
   };
-})();
+});
 
 </script>
 
-<!-- 챠트 전체화면 오버레이 -->
-<div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
-  <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
-    <button id="chartHomeBtn" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:#0c0e14;font-weight:700;font-size:12px;cursor:pointer">홈</button>
-    <button id="chartSideToggle" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer">종목</button>
-  </div>
-  <div style="display:flex;flex:1;overflow:hidden">
-    <div id="chartSidebar" style="width:130px;min-width:110px;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden">
-      <input id="chartStockSearch" type="text" placeholder="종목 검색" style="margin:5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:11px">
-      <div id="chartStockItems" style="flex:1;overflow-y:auto;font-size:11px"></div>
-    </div>
-    <div style="flex:1;overflow:hidden">
-      <iframe id="chartIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
-    </div>
-  </div>
-</div>
 </body>
 </html>
