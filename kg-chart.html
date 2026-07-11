@@ -431,11 +431,17 @@ const CALC = {
   },
   FORCE:(d)=>{const fi=d.map((x,i)=>i===0?null:(x.close-d[i-1].close)*x.volume);return{force:ema(fi,13)};},
   FRGN_NET:(d)=>{
-    // 종목의 일별 외국인 순매수 수량+금액 (한국 종목 전용, state.frgnData에서 날짜 매칭)
     const fd = state.frgnData;
     const net = d.map(x => (fd && fd[x.date] && fd[x.date].net != null) ? fd[x.date].net : null);
     const amt = d.map(x => (fd && fd[x.date] && fd[x.date].amt != null) ? fd[x.date].amt : null);
     return { net, amt };
+  },
+  SHORT_SELL:(d)=>{
+    // 공매도 거래량 + 순보유잔고 (한국 종목 전용, state.shortData에서 날짜 매칭)
+    const sd = state.shortData;
+    const vol = d.map(x => (sd && sd[x.date]) ? sd[x.date].vol : null);
+    const bal = d.map(x => (sd && sd[x.date]) ? sd[x.date].bal : null);
+    return { vol, bal };
   },
   RSI:(d)=>{
     const rp=P('RSI',0,14);
@@ -525,6 +531,7 @@ const IND_CFG = {
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink,lines:[0]},
   FRGN_NET:{color:C.cyan,lines:[0]},
+  SHORT_SELL:{color:'#ef5350',lines:[0]},
   RSI:{color:'#d32f2f',range:[0,100],lines:[70,50,30]},
   SMI:{color:C.yellow,range:[-100,100],lines:[40,0,-40]},
   STOCHRSI:{color:C.purple,range:[0,100],lines:[80,50,20]},
@@ -564,6 +571,7 @@ let state = {
   market: 'kr',  // 검색 시장: kr(한국) / us(해외)
   hoverIdx: -1,
   frgnData: null,   // 외국인 일별 순매수 { date: net } 맵 (한국 종목만)
+  shortData: null,  // 공매도 일별 { date: {vol, bal} } 맵 (한국 종목만)
 };
 
 // ══════════════════════════════════════
@@ -819,10 +827,12 @@ async function loadStock(stock) {
   const showLen = Math.min(showCount, state.data.length);
   state.range = [Math.max(0, state.data.length - showLen), state.data.length];
 
-  // 한국 종목 + 일봉이면 외국인 순매수 데이터도 로드 (비동기, 완료 후 재렌더)
+  // 한국 종목 + 일봉이면 외국인 순매수 + 공매도 데이터도 로드
   state.frgnData = null;
+  state.shortData = null;
   if (isKorean && state.interval === '1d') {
     fetchForeignDaily(stock.code);
+    fetchShortDaily(stock.code);
   }
 
   renderAll();
@@ -845,6 +855,30 @@ async function fetchForeignDaily(code) {
     }
   } catch(e) {
     console.warn('foreign daily fetch fail:', e);
+  }
+}
+
+// 공매도 일별 데이터 로드 (worker: ?short=코드&days=60)
+async function fetchShortDaily(code) {
+  const myStock = state.stock && state.stock.code;
+  try {
+    const url = `${WORKER}/?short=${encodeURIComponent(code)}&days=60&_t=${Date.now()}`;
+    const res = await fetch(url, { cache: 'no-store' });
+    const json = await res.json();
+    if (!state.stock || state.stock.code !== myStock) return;
+    if (json.ok && json.data && json.data.length) {
+      const map = {};
+      json.data.forEach(d => {
+        const date = (d.TRD_DD || d.date || '').replace(/\//g, '-');
+        const vol = parseInt(String(d.CVSRTSELL_TRDVOL || d.vol || 0).replace(/,/g, ''), 10) || 0;
+        const bal = parseInt(String(d.STR_CONST_VAL1 || d.bal || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        if (date) map[date] = { vol, bal };
+      });
+      state.shortData = map;
+      renderAll();
+    }
+  } catch(e) {
+    console.warn('short selling fetch fail:', e);
   }
 }
 
@@ -1557,7 +1591,7 @@ function drawSub(canvas, key) {
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
   // FRGN_NET은 수량(vals[0])과 금액(vals[1])의 단위가 완전히 달라서
   // 막대(수량) 스케일 계산 시 금액을 섞으면 막대가 안 보이게 됨 → 수량만으로 스케일 계산
-  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : vals.flat().filter(v => v != null);
+  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'SHORT_SELL') ? (vals[0] || []).filter(v => v != null && v > 0) : vals.flat().filter(v => v != null);
   const allVals = scaleVals;
   if (!allVals.length) return;
 
@@ -1859,6 +1893,68 @@ function drawSub(canvas, key) {
     return;
   }
 
+  // ── 공매도: 거래량 막대(빨강) + 잔고 선(노랑) ──
+  if (key === 'SHORT_SELL') {
+    const volArr = vals[0] || [];  // 거래량
+    const balArr = vals[1] || [];  // 잔고
+    const fmt = v => { const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(1)+'억':a>=1e4?(v/1e4).toFixed(1)+'만':v.toFixed(0); };
+
+    if (!state.shortData) {
+      ctx.fillStyle = C.muted; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('공매도 데이터 로딩중…', (PAD.l + W - PAD.r) / 2, PAD.t + ch / 2);
+      return;
+    }
+    // 거래량 막대 (빨강, 바닥에서 위로)
+    const maxVol = Math.max(1, ...volArr.filter(v=>v!=null&&v>0));
+    const bw = Math.max(1, (xOf(1) - xOf(0)) * 0.6);
+    for (let i = 0; i < volArr.length; i++) {
+      if (!volArr[i]) continue;
+      const bh = Math.max(1, volArr[i] / maxVol * (ch - 4));
+      ctx.fillStyle = '#ef535088';
+      ctx.fillRect(xOf(i) - bw/2, PAD.t + ch - bh, bw, bh);
+    }
+    // 잔고 선 (노랑, 별도 스케일)
+    const validBal = [];
+    balArr.forEach((v, i) => { if (v > 0) validBal.push({ x: xOf(i), v, i }); });
+    if (validBal.length >= 2) {
+      const maxB = Math.max(...validBal.map(p=>p.v));
+      const minB = Math.min(...validBal.map(p=>p.v));
+      const rangeB = Math.max(1, maxB - minB);
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.beginPath();
+      validBal.forEach((p, i) => {
+        const y = PAD.t + ch - 4 - ((p.v - minB) / rangeB) * (ch - 8);
+        i === 0 ? ctx.moveTo(p.x, y) : ctx.lineTo(p.x, y);
+      });
+      ctx.stroke();
+      // 점 + 꼭지점 마커
+      const peakIdx = validBal.reduce((mi, p, i) => p.v > validBal[mi].v ? i : mi, 0);
+      validBal.forEach((p, i) => {
+        const y = PAD.t + ch - 4 - ((p.v - minB) / rangeB) * (ch - 8);
+        ctx.fillStyle = i === peakIdx ? '#ff6b6b' : '#ffd54f';
+        ctx.beginPath(); ctx.arc(p.x, y, i === peakIdx ? 3 : 1.5, 0, Math.PI * 2); ctx.fill();
+        if (i === peakIdx) {
+          ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+          ctx.fillText('★ ' + fmt(p.v), p.x, y - 6);
+        }
+      });
+    }
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+    // 레이블
+    ctx.fillStyle = '#ef5350'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    const lastVol = volArr.filter(v=>v!=null&&v>0).slice(-1)[0];
+    ctx.fillText('공매도  ' + (lastVol ? fmt(lastVol) + '주' : ''), PAD.l + 22, PAD.t + 11);
+    if (validBal.length) {
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillText('잔고 ' + fmt(validBal[validBal.length-1].v), PAD.l + 22, PAD.t + 23);
+    }
+    return;
+  }
+
   if (key === 'FORCE') {
     const arr = vals[0];
     const y0 = yOf(0);
@@ -2084,7 +2180,7 @@ function drawSub(canvas, key) {
   }
 
   // 레이블
-  const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수',
+  const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수', SHORT_SELL:'공매도 거래량/잔고',
     RSI:'RSI 상대강도지수', SMI:'SMI 스토캐스틱모멘텀지수', STOCHRSI:'StochRSI 상대강도스토캐스틱', STOCH:'Stoch 스토캐스틱', SLOWSTOCH:'SlowStoch 완만한스토캐스틱',
     CMO:'CMO 샨드모멘텀오실레이터', DMI_DYN:'Dyn.MI 다이나믹모멘텀지수', MASS:'Mass 대중심리지수', DISPARITY:'Disparity 이격도', CHAIKIN_OSC:'Chaikin Osc 차이킨오실레이터',
     MOM:'MOM 모멘텀', WILLR:'%R 윌리엄스퍼센트R', ATR:'ATR 평균진정가격범위', RVI:'RVI 상대변동성지수', INERTIA:'Inertia 관성지수',
