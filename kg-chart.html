@@ -1894,7 +1894,7 @@ function drawSub(canvas, key) {
     return;
   }
 
-  // ── 공매도: 거래량 막대(빨강) + 잔고 선(노랑) ──
+  // ── 공매도: 거래량 막대(빨강) + 잔고 선(녹색) ──
   if (key === 'SHORT_SELL') {
     const volArr = vals[0] || [];  // 거래량
     const balArr = vals[1] || [];  // 잔고
@@ -1921,7 +1921,7 @@ function drawSub(canvas, key) {
       const maxB = Math.max(...validBal.map(p=>p.v));
       const minB = Math.min(...validBal.map(p=>p.v));
       const rangeB = Math.max(1, maxB - minB);
-      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
       ctx.beginPath();
       validBal.forEach((p, i) => {
         const y = PAD.t + ch - 4 - ((p.v - minB) / rangeB) * (ch - 8);
@@ -1932,7 +1932,7 @@ function drawSub(canvas, key) {
       const peakIdx = validBal.reduce((mi, p, i) => p.v > validBal[mi].v ? i : mi, 0);
       validBal.forEach((p, i) => {
         const y = PAD.t + ch - 4 - ((p.v - minB) / rangeB) * (ch - 8);
-        ctx.fillStyle = i === peakIdx ? '#ff6b6b' : '#ffd54f';
+        ctx.fillStyle = i === peakIdx ? '#ff6b6b' : '#3fb950';
         ctx.beginPath(); ctx.arc(p.x, y, i === peakIdx ? 3 : 1.5, 0, Math.PI * 2); ctx.fill();
         if (i === peakIdx) {
           ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
@@ -1950,7 +1950,7 @@ function drawSub(canvas, key) {
     const lastVol = volArr.filter(v=>v!=null&&v>0).slice(-1)[0];
     ctx.fillText('공매도  ' + (lastVol ? fmt(lastVol) + '주' : ''), PAD.l + 22, PAD.t + 11);
     if (validBal.length) {
-      ctx.fillStyle = '#ffd54f';
+      ctx.fillStyle = '#3fb950';
       ctx.fillText('잔고 ' + fmt(validBal[validBal.length-1].v), PAD.l + 22, PAD.t + 23);
     }
     return;
@@ -2059,7 +2059,7 @@ function drawSub(canvas, key) {
       const win = arr.slice(s, n).filter(v => v != null);
       if (win.length) {
         const hi = Math.max(...win);
-        ctx.strokeStyle = '#ffd54f88'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+        ctx.strokeStyle = '#3fb95088'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
         ctx.beginPath(); ctx.moveTo(PAD.l, yOf(hi)); ctx.lineTo(W - PAD.r, yOf(hi)); ctx.stroke();
         ctx.setLineDash([]);
       }
