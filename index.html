@@ -885,8 +885,11 @@ async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));
 
 /* ---------- tabs ---------- */
 $$('.tab').forEach(t=>t.onclick=()=>{
-  // 챠트 탭: 새 탭으로 열기
+  // 챠트 전체화면
+  if(t.id==='chartTabBtn'){ openChartView(); return; }
+  // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
+  closeChartView(); // 다른 탭 클릭 시 챠트 닫기
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
@@ -4386,6 +4389,49 @@ function openChart(code, name) {
   }
   window.open(url, '_blank', 'noopener');
 }
+
+// ═══ 챠트 전체화면 ═══
+function openChartView(){
+  const ov=$('#chartFullScreen'); if(!ov) return;
+  ov.style.display='flex';
+  document.body.style.overflow='hidden';
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
+  buildChartStockList();
+}
+function closeChartView(){
+  const ov=$('#chartFullScreen'); if(ov) ov.style.display='none';
+  document.body.style.overflow='';
+  const ifr=$('#chartIframe'); if(ifr) ifr.src='about:blank';
+}
+function buildChartStockList(filter){
+  loadWatchRows();
+  const box=$('#chartStockItems'); if(!box) return;
+  const f=(filter||'').toLowerCase();
+  let h='';
+  (WATCH_ROWS||[]).forEach(r=>{
+    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+    const name=r[1]||'';
+    if(!code) return;
+    if(f && !name.toLowerCase().includes(f) && !code.includes(f)) return;
+    h+=`<div class="cs-item" data-code="${code}" data-name="${escHtml(name)}"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${code}</span></div>`;
+  });
+  if(!h) h='<div style="padding:12px;color:var(--dim);font-size:11px">관심 종목을 먼저 추가해주세요</div>';
+  box.innerHTML=h;
+  box.querySelectorAll('.cs-item').forEach(el=>{
+    el.onclick=()=>{
+      box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
+      el.classList.add('on');
+      const ifr=$('#chartIframe');
+      if(ifr) ifr.src='kg-chart.html?code='+el.dataset.code+'&name='+encodeURIComponent(el.dataset.name);
+    };
+  });
+}
+(function(){
+  const hb=$('#chartHomeBtn'); if(hb) hb.onclick=()=>closeChartView();
+  const si=$('#chartStockSearch'); if(si) si.oninput=()=>buildChartStockList(si.value);
+})();
 
 </script>
 
