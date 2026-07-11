@@ -863,7 +863,7 @@ async function fetchForeignDaily(code) {
 async function fetchShortDaily(code) {
   const myStock = state.stock && state.stock.code;
   try {
-    const url = `${WORKER}/?short=${encodeURIComponent(code)}&days=60&_t=${Date.now()}`;
+    const url = `${WORKER}/?short=${encodeURIComponent(code)}&days=300&_t=${Date.now()}`;
     const res = await fetch(url, { cache: 'no-store' });
     const json = await res.json();
     if (!state.stock || state.stock.code !== myStock) return;
