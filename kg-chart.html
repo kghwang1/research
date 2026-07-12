@@ -15,8 +15,9 @@ body.iframe-mode #header-row3 { padding: 4px 8px; gap: 6px; }
 body.iframe-mode #header { padding: 0; }
 body.iframe-mode .main-wrapper { flex: 0 0 224px !important; height: 224px !important; }
 body.iframe-mode .sub-wrapper { flex: 0 0 98px !important; height: 98px !important; }
-body.iframe-mode #sidebar { display: none; } /* JS toggleSidebar()가 제어 */
+/* iframe 모드: 사이드바는 collapsed 클래스로 제어 */
 body.iframe-mode #sidebar-toggle { display: none; }
+body.iframe-mode #toggle-btn { display: none; }
 body.iframe-mode #iframe-sidebar-btn { display: inline-block; }
 #iframe-sidebar-btn { display: none; }
 #iframe-stock-name { display: none; }
@@ -603,11 +604,8 @@ let state = {
 let sidebarOpen = false; // 기본값: 닫힘
 
 function toggleSidebar() {
-  const sb = document.getElementById('sidebar');
-  if (!sb) return;
-  const isHidden = sb.style.display === 'none' || getComputedStyle(sb).display === 'none';
-  sb.style.display = isHidden ? 'flex' : 'none';
-  sb.style.setProperty('display', isHidden ? 'flex' : 'none', 'important');
+  sidebarOpen = !sidebarOpen;
+  applySidebarState();
 }
 
 function closeSidebar() {
@@ -2409,6 +2407,14 @@ function setupMouseEvent() {
   };
 
   canvas.onmouseup = () => {
+    // 드래그가 아닌 클릭이면 → 해당 캔들 종가를 y축에 표시
+    if (!isDragging && state.hoverIdx >= 0) {
+      const slice = state.data.slice(...state.range);
+      if (slice[state.hoverIdx]) {
+        state.clickPrice = slice[state.hoverIdx].close;
+        drawCandle();
+      }
+    }
     dragStartX = null; dragStartRange = null;
     isDragging = false;
     canvas.style.cursor = 'crosshair';
