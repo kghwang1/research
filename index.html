@@ -4453,11 +4453,21 @@ function openChartView(){
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
   buildChartStockList();
+  // 첫 종목 자동 선택
+  setTimeout(()=>{
+    const first=$('#chartStockItems .cs-item');
+    if(first) first.click();
+  }, 100);
 }
 function closeChartView(){
   const ov=$('#chartFullScreen'); if(ov) ov.style.display='none';
   document.body.style.overflow='';
   const ifr=$('#chartIframe'); if(ifr) ifr.src='about:blank';
+  // 포트 탭 선택
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
+  const ps=$('#port'); if(ps) ps.classList.add('on');
 }
 function buildChartStockList(filter){
   loadWatchRows();
