@@ -462,9 +462,9 @@ const CALC = {
   INST_NET:(d)=>{
     const fd = state.frgnData;
     const inst = d.map(x => (fd && fd[x.date] && fd[x.date].inst != null) ? fd[x.date].inst : null);
-    // 외국인 보유비율 (기관 차트에도 표시)
-    const ratio = d.map(x => (fd && fd[x.date] && fd[x.date].ratio > 0) ? fd[x.date].ratio : null);
-    return { inst, ratio };
+    let cumSum = 0;
+    const cum = inst.map(v => { if (v != null) cumSum += v; return v != null ? cumSum : null; });
+    return { inst, cum };
   },
   SHORT_SELL:(d)=>{
     // 공매도 거래량 + 순보유잔고 (한국 종목 전용, state.shortData에서 날짜 매칭)
@@ -1996,11 +1996,7 @@ function drawSub(canvas, key) {
     ctx.fillText('외국인 순매수  ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) + '주' : ''), PAD.l + 22, PAD.t + 11);
 
     // 보유율 레이블 (녹색)
-    const lastR = validRatio.length ? validRatio[validRatio.length-1].v : null;
-    if (lastR != null) {
-      ctx.fillStyle = '#3fb950';
-      ctx.fillText('보유율 ' + lastR.toFixed(2) + '%', PAD.l + 200, PAD.t + 11);
-    }
+
     return;
   }
 
@@ -2008,7 +2004,6 @@ function drawSub(canvas, key) {
   // ── 기관 순매수: 막대 + 누적곡선 ──
   if (key === 'INST_NET') {
     const instArr = vals[0] || [];
-    const ratioArr = vals[1] || []; // 외국인 보유비율
     const fmt = v => { const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(1)+'억':a>=1e4?(v/1e4).toFixed(1)+'만':v.toFixed(0); };
 
     // 순매수 막대
@@ -2026,20 +2021,20 @@ function drawSub(canvas, key) {
     ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
 
-    // 보유비율 곡선 (녹색 점선)
-    const validRatio = ratioArr.map((v,i) => v != null && v > 0 ? {x:xOf(i), v} : null).filter(Boolean);
-    if (validRatio.length >= 2) {
-      const maxR = Math.max(...validRatio.map(p=>p.v));
-      const minR = Math.min(...validRatio.map(p=>p.v));
-      const rangeR = Math.max(0.1, maxR - minR);
-      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
+    // 누적 곡선 (주황)
+    const cumArr = vals[1] || [];
+    const validCum = cumArr.map((v,i) => v != null ? {x:xOf(i), v} : null).filter(Boolean);
+    if (validCum.length >= 2) {
+      const maxC = Math.max(...validCum.map(p=>p.v));
+      const minC = Math.min(...validCum.map(p=>p.v));
+      const rangeC = Math.max(1, maxC - minC);
+      ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
       ctx.beginPath();
-      validRatio.forEach((p, i) => {
-        const y = PAD.t + ch - 4 - ((p.v - minR) / rangeR) * (ch - 8);
+      validCum.forEach((p, i) => {
+        const y = PAD.t + ch - 4 - ((p.v - minC) / rangeC) * (ch - 8);
         i === 0 ? ctx.moveTo(p.x, y) : ctx.lineTo(p.x, y);
       });
       ctx.stroke();
-      ctx.setLineDash([]);
     }
 
     // 호버
@@ -2061,11 +2056,7 @@ function drawSub(canvas, key) {
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = '#ff9800';
     ctx.fillText('기관 순매수  ' + (lastI != null ? (lastI>=0?'+':'') + fmt(lastI) + '주' : ''), PAD.l + 22, PAD.t + 11);
-    const lastR = validRatio.length ? validRatio[validRatio.length-1].v : null;
-    if (lastR != null) {
-      ctx.fillStyle = '#3fb950';
-      ctx.fillText('보유율 ' + lastR.toFixed(2) + '%', PAD.l + 200, PAD.t + 11);
-    }
+
     return;
   }
 
