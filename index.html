@@ -2384,15 +2384,8 @@ function renderKrTable(){
       else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
     }
     h+='<tr>';
+    h+=`<td class="pin-cell ${PIN_MARKS.get(code)||''}" data-code="${code}">${ri+1}</td>`;
     h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
-    // 등급 드롭다운
-    if(code){
-      const gv=WATCH_GRADES.get(code)||'';
-      h+='<td class="grade-cell"><select class="grade-sel" data-code="'+code+'">';
-      h+='<option value=""'+(gv===''?' selected':'')+'>-</option>';
-      [1,2,3,4,5,-1,-2].forEach(g=>{ h+='<option value="'+g+'"'+(String(gv)===String(g)?' selected':'')+'>'+g+'</option>'; });
-      h+='</select></td>';
-    } else { h+='<td></td>'; }
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r krlive" data-code="${code}" data-name="${r[1]||''}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
@@ -2572,7 +2565,7 @@ function renderWatchTable(){
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목(코드입력)","등급","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="다른 포트폴리오에서 분홍/녹색 마킹된 종목 수집">⭐ 분홍/녹색 종목 모으기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 종목명/코드를 입력 · 현재가 클릭 시 차트 · '+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="분홍/녹색 마킹 종목 수집">⭐ 모으기</button> <button id="watchGradeSortBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="등급 순 정렬">📊 등급순</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="1등급 제외 삭제">🗑 초기화</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
