@@ -263,6 +263,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon 아룬</span></label>
     <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force 포스인덱스</span></label>
     <label class="ind-label" data-key="FRGN_NET" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">외국인 순매수</span></label>
+    <label class="ind-label" data-key="INST_NET" style="--col:#ff9800"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">기관 순매수</span></label>
     <label class="ind-label" data-key="SHORT_SELL" style="--col:#ef5350"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">SHORT 공매도</span></label>
 
     <div class="group-title">▶ 모멘텀지표</div>
@@ -454,7 +455,19 @@ const CALC = {
     const fd = state.frgnData;
     const net = d.map(x => (fd && fd[x.date] && fd[x.date].net != null) ? fd[x.date].net : null);
     const amt = d.map(x => (fd && fd[x.date] && fd[x.date].amt != null) ? fd[x.date].amt : null);
-    return { net, amt };
+    // 누적 순매수 곡선
+    let cumSum = 0;
+    const cum = net.map(v => { if (v != null) cumSum += v; return v != null ? cumSum : null; });
+    // 외국인 보유비율
+    const ratio = d.map(x => (fd && fd[x.date] && fd[x.date].ratio > 0) ? fd[x.date].ratio : null);
+    return { net, amt, cum, ratio };
+  },
+  INST_NET:(d)=>{
+    const fd = state.frgnData;
+    const inst = d.map(x => (fd && fd[x.date] && fd[x.date].inst != null) ? fd[x.date].inst : null);
+    let cumSum = 0;
+    const cum = inst.map(v => { if (v != null) cumSum += v; return v != null ? cumSum : null; });
+    return { inst, cum };
   },
   SHORT_SELL:(d)=>{
     // 공매도 거래량 + 순보유잔고 (한국 종목 전용, state.shortData에서 날짜 매칭)
@@ -551,6 +564,7 @@ const IND_CFG = {
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink,lines:[0]},
   FRGN_NET:{color:C.cyan,lines:[0]},
+  INST_NET:{color:'#ff9800',lines:[0]},
   SHORT_SELL:{color:'#ef5350',lines:[0]},
   RSI:{color:'#d32f2f',range:[0,100],lines:[70,50,30]},
   SMI:{color:C.yellow,range:[-100,100],lines:[40,0,-40]},
@@ -873,7 +887,7 @@ async function fetchForeignDaily(code) {
     if (!state.stock || state.stock.code !== myStock) return;
     if (json.ok && json.data && json.data.length) {
       const map = {};
-      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null }; });
+      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null, inst: d.inst || 0, hold: d.hold || 0, ratio: d.ratio || 0 }; });
       state.frgnData = map;
       renderAll();
     }
@@ -1343,7 +1357,7 @@ function drawCandle() {
     ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x, yOf(d.high)); ctx.lineTo(x, yOf(d.low)); ctx.stroke();
     const y1 = yOf(Math.max(d.open, d.close)), bodyH = Math.max(1, yOf(Math.min(d.open, d.close)) - y1);
-    isUp ? ctx.fillRect(x - bw/2, y1, bw, bodyH) : ctx.strokeRect(x - bw/2, y1, bw, bodyH);
+    ctx.fillRect(x - bw/2, y1, bw, bodyH);
   });
 
   // ── 최고가 / 최저가 마커 (현재가 대비 비율 표시) ──
@@ -1633,7 +1647,7 @@ function drawSub(canvas, key) {
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
   // FRGN_NET은 수량(vals[0])과 금액(vals[1])의 단위가 완전히 달라서
   // 막대(수량) 스케일 계산 시 금액을 섞으면 막대가 안 보이게 됨 → 수량만으로 스케일 계산
-  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'SHORT_SELL') ? (vals[0] || []).filter(v => v != null && v > 0) : vals.flat().filter(v => v != null);
+  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'INST_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'SHORT_SELL') ? (vals[0] || []).filter(v => v != null && v > 0) : vals.flat().filter(v => v != null);
   const allVals = scaleVals;
   if (!allVals.length) return;
 
@@ -1903,45 +1917,154 @@ function drawSub(canvas, key) {
 
   // ── 외국인 순매수: 막대(수량) + 선(금액, 노랑) ──
   if (key === 'FRGN_NET') {
-    const arr = vals[0];      // 수량(주)
-    const y0 = yOf(0);
-    const fmt = v => {
-      const a = Math.abs(v);
-      if (a >= 1e8) return (v/1e8).toFixed(1)+'억';
-      if (a >= 1e4) return (v/1e4).toFixed(1)+'만';
-      return v.toFixed(0);
-    };
-    if (!state.frgnData) {
-      ctx.fillStyle = C.muted; ctx.font = '11px monospace'; ctx.textAlign = 'center';
-      ctx.fillText('외국인 순매수 데이터 로딩중…', (PAD.l + W - PAD.r) / 2, PAD.t + ch / 2);
-      return;
-    }
-    // 막대그래프: 순매수(+)=빨강, 순매도(-)=파랑
-    const bw = Math.max(1, (xOf(1) - xOf(0)) * 0.6);
-    for (let i = 0; i < arr.length; i++) {
-      if (arr[i] == null) continue;
-      ctx.fillStyle = arr[i] >= 0 ? '#ef5350' : '#1976d2';
-      const y1 = yOf(Math.max(arr[i], 0)), y2 = yOf(Math.min(arr[i], 0));
-      ctx.fillRect(xOf(i) - bw/2, y1, bw, Math.max(1, y2 - y1));
+    const netArr = vals[0] || [];
+    const cumArr = vals[2] || []; // 누적 순매수
+    const ratioArr = vals[3] || []; // 보유비율
+    const fmt = v => { const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(1)+'억':a>=1e4?(v/1e4).toFixed(1)+'만':v.toFixed(0); };
+
+    // 순매수 막대 (빨강=매수, 파랑=매도)
+    const maxN = Math.max(1, ...netArr.filter(v=>v!=null).map(v=>Math.abs(v)));
+    const bw = Math.max(1, (xOf(1) - xOf(0)) * 0.5);
+    for (let i = 0; i < netArr.length; i++) {
+      if (netArr[i] == null || netArr[i] === 0) continue;
+      const v = netArr[i];
+      const bh = Math.max(1, Math.abs(v) / maxN * (ch/2 - 2));
+      ctx.fillStyle = v > 0 ? '#ef535088' : '#4dabf788';
+      if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
+      else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
     }
     // 0선
-    ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(W - PAD.r, y0); ctx.stroke();
+    ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
+
+    // 누적 순매수 곡선 (노랑)
+    const validCum = cumArr.map((v,i) => v != null ? {x:xOf(i), v, i} : null).filter(Boolean);
+    if (validCum.length >= 2) {
+      const maxC = Math.max(...validCum.map(p=>p.v));
+      const minC = Math.min(...validCum.map(p=>p.v));
+      const rangeC = Math.max(1, maxC - minC);
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.beginPath();
+      validCum.forEach((p, i) => {
+        const y = PAD.t + ch - 4 - ((p.v - minC) / rangeC) * (ch - 8);
+        i === 0 ? ctx.moveTo(p.x, y) : ctx.lineTo(p.x, y);
+      });
+      ctx.stroke();
+    }
+
+    // 보유비율 곡선 (녹색)
+    const validRatio = ratioArr.map((v,i) => v != null && v > 0 ? {x:xOf(i), v, i} : null).filter(Boolean);
+    if (validRatio.length >= 2) {
+      const maxR = Math.max(...validRatio.map(p=>p.v));
+      const minR = Math.min(...validRatio.map(p=>p.v));
+      const rangeR = Math.max(0.1, maxR - minR);
+      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
+      ctx.beginPath();
+      validRatio.forEach((p, i) => {
+        const y = PAD.t + ch - 4 - ((p.v - minR) / rangeR) * (ch - 8);
+        i === 0 ? ctx.moveTo(p.x, y) : ctx.lineTo(p.x, y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
       ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t+ch); ctx.stroke();
+      // 호버 위치 순매수값 y축 표시
+      const hv = netArr[state.hoverIdx];
+      if (hv != null) {
+        const hy = hv > 0 ? ch/2+PAD.t - Math.abs(hv)/maxN*(ch/2-2) : ch/2+PAD.t + Math.abs(hv)/maxN*(ch/2-2);
+        const hvFmt = fmt(hv);
+        ctx.fillStyle = '#332800'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hvFmt, W-PAD.r+3, hy+3);
+      }
     }
-    // y축 레이블
-    ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText(fmt(maxV), W - PAD.r + 3, PAD.t + 10);
-    ctx.fillText('0', W - PAD.r + 3, y0 + 3);
-    ctx.fillText(fmt(minV), W - PAD.r + 3, PAD.t + ch);
+
     // 레이블
-    const lastVN = arr.filter(v => v != null).slice(-1)[0];
+    const lastVN = netArr.filter(v=>v!=null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = C.cyan;
     ctx.fillText('외국인 순매수  ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) + '주' : ''), PAD.l + 22, PAD.t + 11);
+    // 누적 레이블 (노랑)
+    const lastCum = validCum.length ? validCum[validCum.length-1].v : null;
+    if (lastCum != null) {
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillText('누적 ' + (lastCum>=0?'+':'') + fmt(lastCum), PAD.l + 22, PAD.t + 23);
+    }
+    // 보유율 레이블 (녹색)
+    const lastR = validRatio.length ? validRatio[validRatio.length-1].v : null;
+    if (lastR != null) {
+      ctx.fillStyle = '#3fb950';
+      ctx.fillText('보유율 ' + lastR.toFixed(2) + '%', PAD.l + 200, PAD.t + 11);
+    }
+    return;
+  }
+
+
+  // ── 기관 순매수: 막대 + 누적곡선 ──
+  if (key === 'INST_NET') {
+    const instArr = vals[0] || [];
+    const cumArr = vals[1] || [];
+    const fmt = v => { const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(1)+'억':a>=1e4?(v/1e4).toFixed(1)+'만':v.toFixed(0); };
+
+    // 순매수 막대
+    const maxN = Math.max(1, ...instArr.filter(v=>v!=null).map(v=>Math.abs(v)));
+    const bw = Math.max(1, (xOf(1) - xOf(0)) * 0.5);
+    for (let i = 0; i < instArr.length; i++) {
+      if (instArr[i] == null || instArr[i] === 0) continue;
+      const v = instArr[i];
+      const bh = Math.max(1, Math.abs(v) / maxN * (ch/2 - 2));
+      ctx.fillStyle = v > 0 ? '#ef535088' : '#4dabf788';
+      if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
+      else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
+    }
+    // 0선
+    ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
+
+    // 누적 곡선 (주황)
+    const validCum = cumArr.map((v,i) => v != null ? {x:xOf(i), v} : null).filter(Boolean);
+    if (validCum.length >= 2) {
+      const maxC = Math.max(...validCum.map(p=>p.v));
+      const minC = Math.min(...validCum.map(p=>p.v));
+      const rangeC = Math.max(1, maxC - minC);
+      ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+      ctx.beginPath();
+      validCum.forEach((p, i) => {
+        const y = PAD.t + ch - 4 - ((p.v - minC) / rangeC) * (ch - 8);
+        i === 0 ? ctx.moveTo(p.x, y) : ctx.lineTo(p.x, y);
+      });
+      ctx.stroke();
+    }
+
+    // 호버
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t+ch); ctx.stroke();
+      const hv = instArr[state.hoverIdx];
+      if (hv != null) {
+        const hy = hv > 0 ? ch/2+PAD.t - Math.abs(hv)/maxN*(ch/2-2) : ch/2+PAD.t + Math.abs(hv)/maxN*(ch/2-2);
+        ctx.fillStyle = '#332200'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.fillStyle = '#ff9800'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(fmt(hv), W-PAD.r+3, hy+3);
+      }
+    }
+
+    // 레이블
+    const lastI = instArr.filter(v=>v!=null).slice(-1)[0];
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#ff9800';
+    ctx.fillText('기관 순매수  ' + (lastI != null ? (lastI>=0?'+':'') + fmt(lastI) + '주' : ''), PAD.l + 22, PAD.t + 11);
+    const lastCum = validCum.length ? validCum[validCum.length-1].v : null;
+    if (lastCum != null) {
+      ctx.fillStyle = '#ff980088';
+      ctx.fillText('누적 ' + (lastCum>=0?'+':'') + fmt(lastCum), PAD.l + 22, PAD.t + 23);
+    }
     return;
   }
 
@@ -2232,7 +2355,7 @@ function drawSub(canvas, key) {
   }
 
   // 레이블
-  const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수', SHORT_SELL:'공매도 거래량/잔고',
+  const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수', INST_NET:'기관순매수', SHORT_SELL:'공매도 거래량/잔고',
     RSI:'RSI 상대강도지수', SMI:'SMI 스토캐스틱모멘텀지수', STOCHRSI:'StochRSI 상대강도스토캐스틱', STOCH:'Stoch 스토캐스틱', SLOWSTOCH:'SlowStoch 완만한스토캐스틱',
     CMO:'CMO 샨드모멘텀오실레이터', DMI_DYN:'Dyn.MI 다이나믹모멘텀지수', MASS:'Mass 대중심리지수', DISPARITY:'Disparity 이격도', CHAIKIN_OSC:'Chaikin Osc 차이킨오실레이터',
     MOM:'MOM 모멘텀', WILLR:'%R 윌리엄스퍼센트R', ATR:'ATR 평균진정가격범위', RVI:'RVI 상대변동성지수', INERTIA:'Inertia 관성지수',
