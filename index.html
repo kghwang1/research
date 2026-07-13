@@ -2353,9 +2353,9 @@ function krUpside(target, cur){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[30,90,46,76,92,82,90,90,82,100,200];
+  const W=[30,90,46,76,92,90,90,90,82,100,200];
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["순서","종목","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["순서","종목","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(10일)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
@@ -2566,9 +2566,9 @@ function renderWatchTable(){
     sorted.sort((a,b)=>{ const fa=frgnStarCount(String(a[0]||'').replace(/[^0-9]/g,'')), fb=frgnStarCount(String(b[0]||'').replace(/[^0-9]/g,'')); return fb-fa; });
   }
   const displayRows = [...sorted, ...empties];
-  const W=[60,44,90,92,82,90,90,100,100,200];
+  const W=[60,44,90,92,90,90,90,100,100,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["종목(코드입력)","등급","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["종목(코드입력)","등급","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(10일)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="분홍/녹색 마킹 종목 수집">⭐ 모으기</button> <button id="watchGradeSortBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="등급 순 정렬">📊 등급순</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="1등급 제외 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
@@ -2767,7 +2767,7 @@ async function loadCaution(){
     try{
       const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(',')));
       const d=await r.json();
-      (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null}:null; });
+      (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null,ratio:Array.isArray(q.ratio)?q.ratio:null}:null; });
     }catch(e){}
     part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
     if(msg) msg.textContent='외국인 매매 조회 중… '+Math.min(i+CH,need.length)+'/'+need.length;
@@ -2830,7 +2830,7 @@ function renderCautionTable(){
 
   const W=[30,90,90,92,82,90,90,100,100,200];
   const hp=Object.values(cautionRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(10일)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
 
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   let h='<caption class="kr-cap" style="border-left:3px solid #ef5350">⚠️ 주의 — 외국인 연속 순매도 종목 <span style="display:block;font-size:10.5px;color:#ef5350;font-weight:600;margin-top:2px">'+rows.length+'종목 · 최근 2일 이상 연속 외국인 순매도 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
@@ -3977,7 +3977,7 @@ async function ensureForeign(codes){
   frgnLoading=true;
   for(let i=0;i<need.length;i+=20){
     const part=need.slice(i,i+20);
-    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null}:null; }); }catch(e){}
+    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null,ratio:Array.isArray(q.ratio)?q.ratio:null}:null; }); }catch(e){}
     part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
   }
   frgnLoading=false; saveFrgnCache();
@@ -4002,33 +4002,42 @@ function frgnCell(code){
   const f=FRGN[code];
   if(f===undefined) return '<span class="rsub">…</span>';
   if(!f||!Array.isArray(f.seq)||!f.seq.length) return '<span class="rsub">—</span>';
-  let s=f.seq.slice(-5); while(s.length<5) s.unshift(null);
-  const net = Array.isArray(f.net) ? f.net.slice(-5) : null;
-  const amt = Array.isArray(f.amt) ? f.amt.slice(-5) : null;
+  const net = Array.isArray(f.net) ? f.net : null;
+  const ratio = Array.isArray(f.ratio) ? f.ratio : null;
   if(net){
-    let n=net.slice(); while(n.length<5) n.unshift(null);
-    let a = amt ? amt.slice() : null; if(a){ while(a.length<5) a.unshift(null); }
-    const W=40, H=24, CW=W/5; // 셀 크기, 칸당 너비
+    let n=net.slice(-10); while(n.length<10) n.unshift(null);
+    let r=ratio?ratio.slice(-10):null; if(r){ while(r.length<10) r.unshift(null); }
+    const W=80, H=28, CW=W/10;
     const maxAbs = Math.max(1, ...n.filter(v=>v!=null).map(v=>Math.abs(v)));
-    // 막대(수량): 0선을 중앙(H/2)으로 두고 위/아래로 그림
     const zero=H/2;
+    // 막대 (10일 순매수)
     let bars='';
     n.forEach((v,i)=>{
       const cx=i*CW+CW/2;
-      if(v==null){ bars+=`<rect x="${cx-2}" y="${zero-1}" width="4" height="2" fill="#333"/>`; return; }
-      const bh=Math.max(1.5, Math.abs(v)/maxAbs*(H/2-2));
+      if(v==null) return;
+      const bh=Math.max(1, Math.abs(v)/maxAbs*(H/2-2));
       const y = v>=0 ? zero-bh : zero;
       const col = v>=0 ? '#ef5350' : '#4a90d9';
       bars+=`<rect x="${cx-2.5}" y="${y}" width="5" height="${bh}" fill="${col}" rx="0.5"/>`;
     });
-    // 툴팁 (수량+금액)
-    const fmtAmt = v => { if(v==null) return ''; const a2=Math.abs(v); const s2=a2>=1e8?(v/1e8).toFixed(1)+'억':a2>=1e4?(v/1e4).toFixed(0)+'만':String(v); return (v>=0?'+':'')+s2; };
-    const tipParts=[]; n.forEach((v,i)=>{ if(v==null) return; const qtyTxt=(v>=0?'+':'')+v.toLocaleString()+'주'; const amtTxt=a&&a[i]!=null?(' / '+fmtAmt(a[i])+'원'):''; tipParts.push(qtyTxt+amtTxt); });
-    const title = tipParts.join(' | ');
-    return `<svg class="frgn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" title="${escHtml(title)}">${bars}</svg>`;
+    // 보유비율 선그래프 (녹색)
+    let ratioLine='';
+    if(r){
+      const vr=r.map((v,i)=>v>0?{x:i*CW+CW/2,v}:null).filter(Boolean);
+      if(vr.length>=2){
+        const maxR=Math.max(...vr.map(p=>p.v)), minR=Math.min(...vr.map(p=>p.v));
+        const rng=Math.max(0.01, maxR-minR);
+        const pts=vr.map(p=>({x:p.x, y:H-2-((p.v-minR)/rng)*(H-4)}));
+        ratioLine=`<polyline points="${pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="none" stroke="#3fb950" stroke-width="1.2" stroke-dasharray="2,1.5"/>`;
+      }
+    }
+    // 툴팁
+    const fmtAmt = v => { if(v==null) return ''; const a2=Math.abs(v); return (v>=0?'+':'')+(a2>=1e8?(v/1e8).toFixed(1)+'억':a2>=1e4?(v/1e4).toFixed(0)+'만':String(v)); };
+    const lastR = r ? r.filter(v=>v>0).slice(-1)[0] : null;
+    const title = (lastR ? '보유율 '+lastR.toFixed(2)+'%' : '');
+    return `<svg class="frgn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" title="${escHtml(title)}">${bars}${ratioLine}</svg>`;
   }
-  // net 데이터 없을 때(구버전 캐시 등) 기존 별표 표시로 폴백
-  return '<span class="frgn">'+s.map(b=> b===null?'<span class="fno">·</span>':(b?'<span class="fbuy">★</span>':'<span class="fno">ㆍ</span>')).join('')+'</span>';
+  return '<span class="rsub">—</span>';
 }
 
 // 5일간 투자금액: 매수한 날의 금액만 합산(메인) + 5일 순매수 금액(괄호 안)
@@ -4291,9 +4300,9 @@ function renderInvestKq(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_KQ_ROWS = rows.slice(0,30);
-  const W=[30,90,92,82,90,82,90,100,100,210];
+  const W=[30,90,92,90,90,82,90,100,100,210];
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(10일)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar"><button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">${INVEST_KQ_ROWS.length}종목 (코스닥100)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다 · ROE/외국인 헤더 클릭 시 정렬</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -4361,9 +4370,9 @@ function renderInvest(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_ROWS=rows.slice(0,30);
-  const W=[30,90,92,82,90,82,90,100,100,210];
+  const W=[30,90,92,90,90,82,90,100,100,210];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(10일)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar"><button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목 (코스피200)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다 · ROE/외국인 헤더 클릭 시 정렬</span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
