@@ -1347,17 +1347,18 @@ function drawCandle() {
   });
 
   // ── 최고가 / 최저가 마커 (현재가 대비 비율 표시) ──
-  let hiIdx = 0, loIdx = 0;
+  let hiIdx = 0, loIdx = -1;
   slice.forEach((d, i) => {
     if (d.high > slice[hiIdx].high) hiIdx = i;
-    if (d.low < slice[loIdx].low) loIdx = i;
+    if (d.low > 0 && (loIdx < 0 || d.low < slice[loIdx].low)) loIdx = i;
   });
+  if (loIdx < 0) loIdx = 0;
   const hiVal = slice[hiIdx].high, loVal = slice[loIdx].low;
   const curPrice = slice[slice.length - 1].close;
   const hiDate = (slice[hiIdx].date || '').slice(2).replace(/-/g, '.');
   const loDate = (slice[loIdx].date || '').slice(2).replace(/-/g, '.');
-  const hiPct = ((curPrice - hiVal) / hiVal * 100).toFixed(2);
-  const loPct = ((curPrice - loVal) / loVal * 100).toFixed(2);
+  const hiPct = hiVal > 0 ? ((curPrice - hiVal) / hiVal * 100).toFixed(2) : '0';
+  const loPct = loVal > 0 ? ((curPrice - loVal) / loVal * 100).toFixed(2) : '0';
   // 최고가 (빨간색, 좌측 표시 + 화살표로 캔들 위치 가리킴)
   {
     const hx = xOf(hiIdx), hy = yOf(hiVal);
