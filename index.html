@@ -469,6 +469,10 @@
   td.frgnc .frgn-svg{display:inline-block;vertical-align:middle}
   td.famtc{font-size:12px;white-space:nowrap;text-align:right}
   td.grade-cell{text-align:center}
+  /* 관심 포트 종목 셀: 좁은 폭 + 2줄 허용 */
+  .watch-stk{white-space:normal!important;word-break:keep-all;overflow-wrap:break-word;line-height:1.25;font-size:12px}
+  .watch-stk .kn{white-space:normal!important;word-break:keep-all}
+
   .grade-sel{background:var(--accent);border:1px solid #30363d;color:#1257c2;padding:2px 4px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer}
   .grade-sel.neg{color:#ef5350}
   td.shortc{text-align:center;vertical-align:middle}
@@ -2614,7 +2618,7 @@ function renderWatchTable(){
       else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" target="_blank" rel="noopener">${inner}</a>` : inner; }
     }
     h+='<tr>';
-    h+=`<td class="mp-l kr-stk">${stkCell}</td>`;
+    h+=`<td class="mp-l kr-stk watch-stk">${stkCell}</td>`;
     // 등급 드롭다운
     if(code){
       const gv=WATCH_GRADES.get(code)||'';
