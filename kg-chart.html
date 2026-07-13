@@ -765,6 +765,30 @@ async function fetchReal(stock) {
     // KIS 실패 시 야후로 fallback
   }
 
+
+  // ── 한국 종목 일/주/월봉: 네이버 차트 API 우선 (KRX 공식 데이터) ──
+  const isKR = /^\d{6}$/.test(stock.code);
+  const naverTF = {'1d':'day','1wk':'week','1mo':'month'}[state.interval];
+  if (isKR && naverTF) {
+    try {
+      const nUrl = `${WORKER}/?naverChart=${stock.code}&timeframe=${naverTF}&days=300&_t=${Date.now()}`;
+      const nRes = await fetch(nUrl, { cache: 'no-store' });
+      const nJson = await nRes.json();
+      if (nJson.ok && nJson.data && nJson.data.length >= 5) {
+        return {
+          ohlcv: nJson.data,
+          name: stock.name || stock.code,
+          validSymbol: true,
+          realSymbol: stock.code,
+          currency: 'KRW',
+          exchange: 'KRX',
+        };
+      }
+    } catch(e) {
+      console.warn('Naver chart fail, fallback to yahoo:', e);
+    }
+  }
+
   // ── 미국주식/지수/분봉/주봉/월봉: 야후 ────────────────────
   const sym = toYahooSymbol(stock);
   const url = `${WORKER}/?yahooChart=${encodeURIComponent(sym)}&range=${range}&interval=${state.interval}&_t=${Date.now()}`;
