@@ -470,7 +470,7 @@
   td.famtc{font-size:12px;white-space:nowrap;text-align:right}
   td.grade-cell{text-align:center}
   /* 관심 포트 종목 셀: 좁은 폭 + 2줄 허용 */
-  .watch-stk{white-space:normal!important;word-break:keep-all;overflow-wrap:break-word;line-height:1.25;font-size:12px}
+  .watch-stk{white-space:normal!important;word-break:keep-all;overflow-wrap:break-word;line-height:1.2;font-size:11px;width:60px!important;max-width:60px!important}
   .watch-stk .kn{white-space:normal!important;word-break:keep-all}
 
   .grade-sel{background:var(--accent);border:1px solid #30363d;color:#1257c2;padding:2px 4px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer}
@@ -2566,7 +2566,7 @@ function renderWatchTable(){
     sorted.sort((a,b)=>{ const fa=frgnStarCount(String(a[0]||'').replace(/[^0-9]/g,'')), fb=frgnStarCount(String(b[0]||'').replace(/[^0-9]/g,'')); return fb-fa; });
   }
   const displayRows = [...sorted, ...empties];
-  const W=[45,44,90,92,82,90,90,100,100,200];
+  const W=[60,44,90,92,82,90,90,100,100,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목(코드입력)","등급","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","외국인<br>(5일순매수)","투자금액<br>(5일순매수액)","공매도<br>(10일)","52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
@@ -2618,7 +2618,7 @@ function renderWatchTable(){
       else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" target="_blank" rel="noopener">${inner}</a>` : inner; }
     }
     h+='<tr>';
-    h+=`<td class="mp-l kr-stk watch-stk">${stkCell}</td>`;
+    h+=`<td class="mp-l kr-stk watch-stk" style="width:60px;max-width:60px">${stkCell}</td>`;
     // 등급 드롭다운
     if(code){
       const gv=WATCH_GRADES.get(code)||'';
