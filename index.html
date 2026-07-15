@@ -470,8 +470,9 @@
   td.famtc{font-size:12px;white-space:nowrap;text-align:right}
   td.grade-cell{text-align:center}
   /* 관심 포트 종목 셀: 좁은 폭 + 2줄 허용 */
-  .kr-stk-wrap{white-space:normal!important;word-break:keep-all;overflow-wrap:break-word;line-height:1.2;font-size:11px}
-  .watch-stk .kn{white-space:normal!important;word-break:keep-all}
+  .kr-stk-wrap{white-space:normal!important;word-break:break-all;overflow-wrap:break-word;line-height:1.15;font-size:11px}
+  .kr-stk-wrap .kn{white-space:normal!important;word-break:break-all;overflow-wrap:break-word;display:block}
+  .kr-stk-wrap .kc{display:block;margin-top:1px}
 
   .grade-sel{background:var(--accent);border:1px solid #30363d;color:#1257c2;padding:2px 4px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer}
   .grade-sel.neg{color:#ef5350}
@@ -2868,7 +2869,7 @@ function renderCautionTable(){
 
     h+='<tr>';
     h+='<td class="pin-cell '+(PIN_MARKS.get(code)||'')+'" data-code="'+code+'">'+(ri+1)+'</td>';
-    h+='<td class="mp-l kr-stk"><a href="#" class="wlink" data-code="'+code+'"><span class="kn">'+escHtml(nm)+'</span><span class="kc">'+code+'</span></a></td>';
+    h+='<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="wlink" data-code="'+code+'"><span class="kn">'+escHtml(nm)+'</span><span class="kc">'+code+'</span></a></td>';
     const liveCellStyle = liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+='<td class="mp-r cautlive" data-code="'+code+'" data-name="'+escHtml(nm)+'"'+liveCellStyle+'>'+liveStr+(liveStr&&!/[—…]/.test(liveStr)?rateHtml(cautionRate[code]):'')+'</td>';
     h+='<td>'+roeTxt+'</td>';
