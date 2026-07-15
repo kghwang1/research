@@ -2615,7 +2615,7 @@ function renderWatchTable(){
     else { const rep=REPORT[code];
       if(rep===undefined) repCell='<span class="rsub">…</span>';
       else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" target="_blank" rel="noopener">${inner}</a>` : inner; }
+      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
     }
     h+='<tr>';
     h+=`<td class="mp-l kr-stk watch-stk" style="width:60px;max-width:60px">${stkCell}</td>`;
