@@ -3971,53 +3971,8 @@ function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.re
 function saveInvestCache(){ try{ localStorage.setItem('inv_pool', JSON.stringify({date:invToday(), rows:INVEST_POOL})); }catch(e){} }
 function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_POOL=o.rows; return true; } } }catch(e){} return false; }
 function refreshInvest(){ try{ localStorage.removeItem('inv_pool'); localStorage.removeItem('inv_reports'); localStorage.removeItem('inv_frgn'); }catch(e){} REPORT={}; reportCacheInit=true; FRGN={}; frgnCacheInit=true; INVEST_POOL=[]; investLoaded=false; loadInvest(); }
-let FRGN={}, frgnLoading=false, frgnCacheInit=false;
-/* 장 마감 기준 기간키: 평일 18:30(KST) 이후엔 그날 마감본, 그 전이면 직전 거래일 마감본 */
-function frgnPeriod(){
-  const now=new Date();
-  const kst=new Date(now.getTime()+now.getTimezoneOffset()*60000+9*3600000);
-  const mins=kst.getHours()*60+kst.getMinutes();
-  const CUT=18*60+30;
-  let base=new Date(Date.UTC(kst.getFullYear(),kst.getMonth(),kst.getDate()));
-  if(mins<CUT) base=new Date(base.getTime()-86400000);
-  let dow=base.getUTCDay();
-  while(dow===0||dow===6){ base=new Date(base.getTime()-86400000); dow=base.getUTCDay(); }
-  return base.getUTCFullYear()+'-'+String(base.getUTCMonth()+1).padStart(2,'0')+'-'+String(base.getUTCDate()).padStart(2,'0');
-}
-function loadFrgnCache(){ if(frgnCacheInit) return; frgnCacheInit=true; try{ const raw=localStorage.getItem('inv_frgn'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===frgnPeriod()&&o.map) Object.assign(FRGN,o.map); } }catch(e){} }
-function saveFrgnCache(){ try{ localStorage.setItem('inv_frgn', JSON.stringify({date:frgnPeriod(), map:FRGN})); }catch(e){} }
-async function ensureForeign(codes){
-  loadFrgnCache();
-  const need=codes.filter(c=>!(c in FRGN));
-  if(!need.length||frgnLoading||!SRV_URL) return;
-  frgnLoading=true;
-  for(let i=0;i<need.length;i+=20){
-    const part=need.slice(i,i+20);
-    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null,ratio:Array.isArray(q.ratio)?q.ratio:null}:null; }); }catch(e){}
-    part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
-  }
-  frgnLoading=false; saveFrgnCache();
-  if(valMarket==='invest') renderInvest();
-  else if(valMarket==='investkq') renderInvestKq();
-  else if(valMarket==='kr') renderKrTable();
-  else if(valMarket==='watch') renderWatchTable();
-}
-// 외국인 정렬값: 최근일부터 연속된 순매수(★) 일수 (연속이 끊기면 중단)
-// 동점이면 5일 전체 별 개수로 2차 비교하도록 소수점 가중치 부여
-function frgnStarCount(code){
-  const f=FRGN[code];
-  if(!f || !Array.isArray(f.seq) || !f.seq.length) return -1;
-  const s=f.seq.slice(-5);
-  let streak=0;
-  for(let i=s.length-1;i>=0;i--){ if(s[i]) streak++; else break; }
-  const total=s.filter(Boolean).length;
-  return streak + total*0.01; // 1차: 최근 연속, 2차: 전체 별 개수
-}
-
-
-
 // ═══ 점수 규칙 (수정 가능, 서버 저장/불러오기) ═══
-let SCORE_RULES = {
+var SCORE_RULES = {
   roe:  { n2:-10, n1:0, p1:10, p2:15 },
   amt:  { n2:-100, n1:0, p1:100, p2:500 },  // 억 단위
   frgn: { n2:3, n1:2, p1:2, p2:3 },         // 연속일수
@@ -4028,6 +3983,7 @@ function saveScoreRules(){ try{ localStorage.setItem('kg_score_rules', JSON.stri
 
 // ═══ 종목 점수 계산 (ROE + 투자금액 + 외국인 + 공매도) ═══
 function calcScore(code){
+  if(!SCORE_RULES) return 0;
   let score=0;
   const R=SCORE_RULES;
   // ROE 점수 (한국체=krRoe, 관심=watchRoe, 코스피/코스닥=cautionRoe)
@@ -4075,6 +4031,7 @@ function calcScore(code){
   return score;
 }
 function calcScoreDetail(code){
+  if(!SCORE_RULES) return {r:0,a:0,f:0,s:0,total:0};
   let r=0,a=0,f=0,s=0;
   const R=SCORE_RULES;
   const rz2 = (typeof krRoe!=='undefined'&&krRoe[code]) || (typeof watchRoe!=='undefined'&&watchRoe[code]) || (typeof cautionRoe!=='undefined'&&cautionRoe[code]);
@@ -4116,6 +4073,52 @@ function scoreCell(code){
   const col = s>0 ? '#3fb950' : s<0 ? '#ef5350' : '#888';
   return '<span style="font-weight:700;font-size:12px;color:'+col+'">'+s+'</span>';
 }
+
+
+let FRGN={}, frgnLoading=false, frgnCacheInit=false;
+/* 장 마감 기준 기간키: 평일 18:30(KST) 이후엔 그날 마감본, 그 전이면 직전 거래일 마감본 */
+function frgnPeriod(){
+  const now=new Date();
+  const kst=new Date(now.getTime()+now.getTimezoneOffset()*60000+9*3600000);
+  const mins=kst.getHours()*60+kst.getMinutes();
+  const CUT=18*60+30;
+  let base=new Date(Date.UTC(kst.getFullYear(),kst.getMonth(),kst.getDate()));
+  if(mins<CUT) base=new Date(base.getTime()-86400000);
+  let dow=base.getUTCDay();
+  while(dow===0||dow===6){ base=new Date(base.getTime()-86400000); dow=base.getUTCDay(); }
+  return base.getUTCFullYear()+'-'+String(base.getUTCMonth()+1).padStart(2,'0')+'-'+String(base.getUTCDate()).padStart(2,'0');
+}
+function loadFrgnCache(){ if(frgnCacheInit) return; frgnCacheInit=true; try{ const raw=localStorage.getItem('inv_frgn'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===frgnPeriod()&&o.map) Object.assign(FRGN,o.map); } }catch(e){} }
+function saveFrgnCache(){ try{ localStorage.setItem('inv_frgn', JSON.stringify({date:frgnPeriod(), map:FRGN})); }catch(e){} }
+async function ensureForeign(codes){
+  loadFrgnCache();
+  const need=codes.filter(c=>!(c in FRGN));
+  if(!need.length||frgnLoading||!SRV_URL) return;
+  frgnLoading=true;
+  for(let i=0;i<need.length;i+=20){
+    const part=need.slice(i,i+20);
+    try{ const r=await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ FRGN[q.code]=(q&&q.ok&&Array.isArray(q.seq))?{seq:q.seq,net:Array.isArray(q.net)?q.net:null,amt:Array.isArray(q.amt)?q.amt:null,ratio:Array.isArray(q.ratio)?q.ratio:null}:null; }); }catch(e){}
+    part.forEach(c=>{ if(!(c in FRGN)) FRGN[c]=null; });
+  }
+  frgnLoading=false; saveFrgnCache();
+  if(valMarket==='invest') renderInvest();
+  else if(valMarket==='investkq') renderInvestKq();
+  else if(valMarket==='kr') renderKrTable();
+  else if(valMarket==='watch') renderWatchTable();
+}
+// 외국인 정렬값: 최근일부터 연속된 순매수(★) 일수 (연속이 끊기면 중단)
+// 동점이면 5일 전체 별 개수로 2차 비교하도록 소수점 가중치 부여
+function frgnStarCount(code){
+  const f=FRGN[code];
+  if(!f || !Array.isArray(f.seq) || !f.seq.length) return -1;
+  const s=f.seq.slice(-5);
+  let streak=0;
+  for(let i=s.length-1;i>=0;i--){ if(s[i]) streak++; else break; }
+  const total=s.filter(Boolean).length;
+  return streak + total*0.01; // 1차: 최근 연속, 2차: 전체 별 개수
+}
+
+
 
 function frgnCell(code){
   const f=FRGN[code];
