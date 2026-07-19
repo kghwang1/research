@@ -259,6 +259,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     <div class="group-title">▶ 추세지표</div>
     <label class="ind-label" data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MACD 이동평균수렴발산</span></label>
     <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DMI 방향성지수</span></label>
+    <label class="ind-label" data-key="ADXR" style="--col:#e0b341"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ADXR 평균방향성지표순위</span></label>
     <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CCI 추세채널지수</span></label>
     <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon 아룬</span></label>
     <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force 포스인덱스</span></label>
@@ -443,6 +444,16 @@ const CALC = {
     const dx=pdi.map((v,i)=>v&&ndi[i]?(Math.abs(v-ndi[i])/((v+ndi[i])||1))*100:null);
     return{adx:ema(dx,period),pdi,ndi};
   },
+  ADXR:(d)=>{
+    // ADXR = (오늘의 ADX + n일 전의 ADX) / 2  (n=14, 웰리스 와일더)
+    const period=14;
+    const adx=CALC.ADX(d).adx;
+    const adxr=adx.map((v,i)=>{
+      const prev=i-period>=0?adx[i-period]:null;
+      return (v!=null&&prev!=null)?(v+prev)/2:null;
+    });
+    return{adxr,adx};
+  },
   CCI:(d)=>{const cp=P('CCI',0,20),tp=d.map(x=>(x.high+x.low+x.close)/3);return{cci:tp.map((_,i)=>{if(i<cp-1)return null;const sl=tp.slice(i-cp+1,i+1),m=sl.reduce((a,b)=>a+b)/cp,md=sl.reduce((a,b)=>a+Math.abs(b-m),0)/cp;return(tp[i]-m)/(0.015*(md||1e-10));})};},
   AROON:(d)=>{
     const period=25;
@@ -557,6 +568,7 @@ const CALC = {
 const IND_CFG = {
   MACD:{color:C.accent,lines:[0]},
   ADX:{color:C.green,lines:[20,40]},
+  ADXR:{color:'#e0b341',lines:[20]},
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink,lines:[0]},
@@ -1766,6 +1778,77 @@ function drawSub(canvas, key) {
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
 
+  // ── ADXR: 20 기준으로 추세장/횡보장 구분 (책 스타일) ──
+  if (key === 'ADXR') {
+    const adxr = vals[0], adxLine = vals[1];
+    // 20선 위=추세장(주황 배경), 아래=횡보장(회색 배경)
+    const y20 = yOf(20);
+    for (let i = 0; i < n - 1; i++) {
+      if (adxr[i] == null) continue;
+      const x1 = xOf(i), x2 = xOf(i + 1);
+      ctx.fillStyle = adxr[i] >= 20 ? 'rgba(224,179,65,0.10)' : 'rgba(139,148,158,0.08)';
+      ctx.fillRect(x1, PAD.t, Math.max(1, x2 - x1), ch - PAD.t - PAD.b);
+    }
+    // 참고선: ADX(옅은 초록)
+    if (adxLine) {
+      ctx.strokeStyle = 'rgba(63,185,80,0.45)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); let s0 = false;
+      adxLine.forEach((v, i) => { if (v == null) return; s0 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s0 = true); });
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    // ADXR 본선 (굵게)
+    ctx.strokeStyle = '#e0b341'; ctx.lineWidth = 2; ctx.setLineDash([]);
+    ctx.beginPath(); let s1 = false;
+    adxr.forEach((v, i) => { if (v == null) return; s1 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s1 = true); });
+    ctx.stroke();
+    // 20선 돌파/이탈 표시
+    for (let i = 1; i < n; i++) {
+      if (adxr[i] == null || adxr[i - 1] == null) continue;
+      if (adxr[i - 1] < 20 && adxr[i] >= 20) {        // 추세장 진입
+        ctx.fillStyle = '#e0b341';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), yOf(adxr[i]) - 12); ctx.lineTo(xOf(i) - 4, yOf(adxr[i]) - 19); ctx.lineTo(xOf(i) + 4, yOf(adxr[i]) - 19);
+        ctx.closePath(); ctx.fill();
+      }
+      if (adxr[i - 1] >= 20 && adxr[i] < 20) {        // 횡보장 진입
+        ctx.fillStyle = '#8b949e';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), yOf(adxr[i]) + 12); ctx.lineTo(xOf(i) - 4, yOf(adxr[i]) + 19); ctx.lineTo(xOf(i) + 4, yOf(adxr[i]) + 19);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+    // 현재 상태 라벨
+    const lastV = adxr.filter(v => v != null).slice(-1)[0];
+    if (lastV != null) {
+      ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = lastV >= 20 ? '#e0b341' : '#8b949e';
+      ctx.fillText(lastV >= 20 ? '추세장' : '횡보장', PAD.l + 5, PAD.t + 22);
+    }
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+      const hv = adxr[state.hoverIdx];
+      if (hv != null) {
+        const hy = yOf(hv);
+        ctx.fillStyle = '#332800'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
+        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hv.toFixed(1), W-PAD.r+3, hy+3);
+      }
+    }
+    // 레이블
+    const lastA = adxLine ? adxLine.filter(v=>v!=null).slice(-1)[0] : null;
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = C.muted; ctx.fillText('ADXR 평균방향성지표순위', PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = '#e0b341'; ctx.fillText('ADXR ' + (lastV!=null?lastV.toFixed(1):''), PAD.l + 178, PAD.t + 11);
+    if (lastA != null) { ctx.fillStyle = '#3fb950'; ctx.fillText('ADX ' + lastA.toFixed(1), PAD.l + 248, PAD.t + 11); }
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
+
   // ── ADX/DMI: 책 스타일 (+DI 빨강 / -DI 파랑 + 교차 매수매도) ──
   if (key === 'ADX') {
     // vals: [adx, pdi, ndi]
@@ -2420,7 +2503,7 @@ function drawSub(canvas, key) {
   }
 
   // 레이블
-  const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수', INST_NET:'기관순매수', SHORT_SELL:'공매도 거래량/잔고',
+  const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', ADXR:'ADXR 평균방향성지표순위', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수', INST_NET:'기관순매수', SHORT_SELL:'공매도 거래량/잔고',
     RSI:'RSI 상대강도지수', SMI:'SMI 스토캐스틱모멘텀지수', STOCHRSI:'StochRSI 상대강도스토캐스틱', STOCH:'Stoch 스토캐스틱', SLOWSTOCH:'SlowStoch 완만한스토캐스틱',
     CMO:'CMO 샨드모멘텀오실레이터', DMI_DYN:'Dyn.MI 다이나믹모멘텀지수', MASS:'Mass 대중심리지수', DISPARITY:'Disparity 이격도', CHAIKIN_OSC:'Chaikin Osc 차이킨오실레이터',
     MOM:'MOM 모멘텀', WILLR:'%R 윌리엄스퍼센트R', ATR:'ATR 평균진정가격범위', RVI:'RVI 상대변동성지수', INERTIA:'Inertia 관성지수',
