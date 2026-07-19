@@ -827,6 +827,35 @@ function showLoading(msg) {
   ctx.fillText(msg, W/2, H/2);
 }
 
+// ── 보기 상태(배율·기간) 저장/복원: 차트는 종목마다 새로 로드되므로 localStorage 사용 ──
+const VIEW_KEY = 'kg_chart_view';
+function saveView() {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify({
+      zoom: state.keepZoom, from: state.keepFrom, to: state.keepTo,
+      atEnd: state.keepAtEnd, interval: state.interval
+    }));
+  } catch (e) {}
+}
+function loadView() {
+  try {
+    const raw = localStorage.getItem(VIEW_KEY);
+    if (!raw) return;
+    const v = JSON.parse(raw);
+    if (!v) return;
+    // 봉 단위가 다르면 구간 의미가 달라지므로 무시
+    if (v.interval && v.interval !== state.interval) return;
+    state.keepZoom = v.zoom || null;
+    state.keepFrom = v.from || null;
+    state.keepTo = v.to || null;
+    state.keepAtEnd = v.atEnd !== false;
+  } catch (e) {}
+}
+function clearView() {
+  state.keepZoom = null; state.keepFrom = null; state.keepTo = null; state.keepAtEnd = true;
+  try { localStorage.removeItem(VIEW_KEY); } catch (e) {}
+}
+
 async function loadStock(stock) {
   state.stock = stock;
   const inp = document.getElementById('search-input');
@@ -887,6 +916,7 @@ async function loadStock(stock) {
 
   // 표시는 선택 기간만큼, 데이터는 넉넉히 받아 지표 계산
   // 사용자가 보던 구간(날짜)이 있으면 같은 기간을 복원
+  loadView();  // 저장된 배율·기간 불러오기 (새 탭/새로고침에도 유지)
   const showCount = calcShowCount(state.period, state.interval);
   let showLen = Math.min(showCount, state.data.length);
   let restored = false;
@@ -988,7 +1018,7 @@ function setupHeader() {
   if (sel) {
     sel.addEventListener('change', async () => {
       state.interval = sel.value;
-      state.keepZoom = null; state.keepFrom = null; state.keepTo = null; state.keepAtEnd = true;  // 봉 단위가 바뀌면 해제
+      clearView();  // 봉 단위가 바뀌면 저장된 구간 해제
       await loadStock(state.stock);
     });
   }
@@ -2533,6 +2563,7 @@ function setupMouseEvent() {
     state.keepTo   = last  && last.date  ? last.date  : null;
     // 오른쪽 끝(최신)에 붙어 있으면 '최신 추종' 모드로 표시
     state.keepAtEnd = (e >= d.length);
+    saveView();  // 차트는 종목마다 새로 로드되므로 저장해 둬야 유지됨
   }
 
   function redrawAll() {
@@ -2706,7 +2737,7 @@ function setupMouseEvent() {
 
   // ── 더블클릭/더블탭: 기본 배율로 되돌리기 ──
   const resetZoom = () => {
-    state.keepZoom = null; state.keepFrom = null; state.keepTo = null; state.keepAtEnd = true;
+    clearView();
     const showLen = Math.min(calcShowCount(state.period, state.interval), state.data.length);
     state.range = [Math.max(0, state.data.length - showLen), state.data.length];
     state.hoverIdx = -1;
