@@ -605,6 +605,9 @@ let state = {
   frgnData: null,   // 외국인 일별 순매수 { date: net } 맵 (한국 종목만)
   shortData: null,  // 공매도 일별 { date: {vol, bal} } 맵 (한국 종목만)
   keepZoom: null,   // 사용자가 확대/축소한 표시 봉 개수 (종목 변경 시 유지)
+  keepFrom: null,   // 보고 있던 구간 시작 날짜 (종목 변경 시 같은 기간 복원)
+  keepTo: null,     // 보고 있던 구간 끝 날짜
+  keepAtEnd: true,  // 최신 구간에 붙어 있는지 (true면 항상 최신 기준)
 };
 
 // ══════════════════════════════════════
@@ -883,13 +886,34 @@ async function loadStock(stock) {
   }
 
   // 표시는 선택 기간만큼, 데이터는 넉넉히 받아 지표 계산
-  // 사용자가 확대/축소한 상태(keepZoom)가 있으면 그 배율을 유지
+  // 사용자가 보던 구간(날짜)이 있으면 같은 기간을 복원
   const showCount = calcShowCount(state.period, state.interval);
   let showLen = Math.min(showCount, state.data.length);
-  if (state.keepZoom && state.keepZoom > 0) {
-    showLen = Math.max(8, Math.min(state.keepZoom, state.data.length));
+  let restored = false;
+  if (state.keepFrom && state.keepTo && !state.keepAtEnd) {
+    // 날짜로 인덱스 찾기 (없으면 가장 가까운 날짜)
+    const idxOf = (target, dflt) => {
+      const arr = state.data;
+      let best = -1;
+      for (let i = 0; i < arr.length; i++) {
+        if (!arr[i] || !arr[i].date) continue;
+        if (arr[i].date >= target) { best = i; break; }
+      }
+      return best >= 0 ? best : dflt;
+    };
+    const s0 = idxOf(state.keepFrom, -1);
+    const e0 = idxOf(state.keepTo, -1);
+    if (s0 >= 0 && e0 >= 0 && e0 > s0) {
+      state.range = [s0, Math.min(state.data.length, e0 + 1)];
+      restored = true;
+    }
   }
-  state.range = [Math.max(0, state.data.length - showLen), state.data.length];
+  if (!restored) {
+    if (state.keepZoom && state.keepZoom > 0) {
+      showLen = Math.max(8, Math.min(state.keepZoom, state.data.length));
+    }
+    state.range = [Math.max(0, state.data.length - showLen), state.data.length];
+  }
 
   // 한국 종목 + 일봉이면 외국인 순매수 + 공매도 데이터도 로드
   state.frgnData = null;
@@ -964,7 +988,7 @@ function setupHeader() {
   if (sel) {
     sel.addEventListener('change', async () => {
       state.interval = sel.value;
-      state.keepZoom = null;  // 봉 단위가 바뀌면 확대 상태 해제(기본 기간으로)
+      state.keepZoom = null; state.keepFrom = null; state.keepTo = null; state.keepAtEnd = true;  // 봉 단위가 바뀌면 해제
       await loadStock(state.stock);
     });
   }
@@ -2494,6 +2518,21 @@ function setupMouseEvent() {
     if (e > total) { s -= (e - total); e = total; }
     s = Math.max(0, s); e = Math.min(total, e);
     state.range = [s, e];
+    rememberView();
+  }
+
+  // 현재 보고 있는 구간을 날짜로 기억 (종목 변경 시 같은 기간 복원용)
+  function rememberView() {
+    const d = state.data;
+    if (!d || !d.length) return;
+    const [s, e] = state.range;
+    state.keepZoom = e - s;
+    const first = d[Math.max(0, Math.min(d.length - 1, s))];
+    const last  = d[Math.max(0, Math.min(d.length - 1, e - 1))];
+    state.keepFrom = first && first.date ? first.date : null;
+    state.keepTo   = last  && last.date  ? last.date  : null;
+    // 오른쪽 끝(최신)에 붙어 있으면 '최신 추종' 모드로 표시
+    state.keepAtEnd = (e >= d.length);
   }
 
   function redrawAll() {
@@ -2615,7 +2654,7 @@ function setupMouseEvent() {
       if (s < 0) { e2 -= s; s = 0; }
       if (e2 > state.data.length) { s -= (e2 - state.data.length); e2 = state.data.length; }
       state.range = [Math.max(0, s), Math.min(state.data.length, e2)];
-      state.keepZoom = state.range[1] - state.range[0];  // 확대 상태 기억
+      rememberView();
       redrawAll();
       return;
     }
@@ -2661,13 +2700,13 @@ function setupMouseEvent() {
     if (s < 0) { e2 -= s; s = 0; }
     if (e2 > state.data.length) { s -= (e2 - state.data.length); e2 = state.data.length; }
     state.range = [Math.max(0, s), Math.min(state.data.length, e2)];
-    state.keepZoom = state.range[1] - state.range[0];  // 확대 상태 기억
+    rememberView();
     redrawAll();
   };
 
   // ── 더블클릭/더블탭: 기본 배율로 되돌리기 ──
   const resetZoom = () => {
-    state.keepZoom = null;
+    state.keepZoom = null; state.keepFrom = null; state.keepTo = null; state.keepAtEnd = true;
     const showLen = Math.min(calcShowCount(state.period, state.interval), state.data.length);
     state.range = [Math.max(0, state.data.length - showLen), state.data.length];
     state.hoverIdx = -1;
