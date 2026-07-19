@@ -604,6 +604,7 @@ let state = {
   clickPrice: null,  // 캔들 클릭 시 y축 표시할 가격
   frgnData: null,   // 외국인 일별 순매수 { date: net } 맵 (한국 종목만)
   shortData: null,  // 공매도 일별 { date: {vol, bal} } 맵 (한국 종목만)
+  keepZoom: null,   // 사용자가 확대/축소한 표시 봉 개수 (종목 변경 시 유지)
 };
 
 // ══════════════════════════════════════
@@ -882,8 +883,12 @@ async function loadStock(stock) {
   }
 
   // 표시는 선택 기간만큼, 데이터는 넉넉히 받아 지표 계산
+  // 사용자가 확대/축소한 상태(keepZoom)가 있으면 그 배율을 유지
   const showCount = calcShowCount(state.period, state.interval);
-  const showLen = Math.min(showCount, state.data.length);
+  let showLen = Math.min(showCount, state.data.length);
+  if (state.keepZoom && state.keepZoom > 0) {
+    showLen = Math.max(8, Math.min(state.keepZoom, state.data.length));
+  }
   state.range = [Math.max(0, state.data.length - showLen), state.data.length];
 
   // 한국 종목 + 일봉이면 외국인 순매수 + 공매도 데이터도 로드
@@ -959,6 +964,7 @@ function setupHeader() {
   if (sel) {
     sel.addEventListener('change', async () => {
       state.interval = sel.value;
+      state.keepZoom = null;  // 봉 단위가 바뀌면 확대 상태 해제(기본 기간으로)
       await loadStock(state.stock);
     });
   }
@@ -1512,7 +1518,8 @@ function drawCandle() {
   // 오버레이 범례 (세로로) — 이동평균(MA) 정보는 제외
   const legends = [];
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
-  if (overlays.ICHIMOKU) legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6'});
+  if (overlays.ICHIMOKU) legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6',
+    sub:[{t:'기준선', c:'#1976d2'}, {t:'전환선', c:'#ef5350'}]});
   if (overlays.DEMA)     legends.push({t:'DEMA 이중지수이동평균(20)', c:'#a8ff78'});
   if (overlays.VIDYA)    legends.push({t:'VIDYA 가변동적이동평균(14)', c:'#4ecdc4'});
   if (overlays.VPROFILE) legends.push({t:'VP 매물대(POC)', c:'#d2a8ff'});
@@ -1539,6 +1546,18 @@ function drawCandle() {
       ctx.fillStyle = lg.c;
       ctx.fillRect(lx, ly - 6, 7, 3);
       ctx.fillText(lg.t, lx + 9, ly);
+      // 서브 항목(예: 일목균형표의 기준선·전환선) 이름 옆에 색상 견본 + 라벨
+      if (lg.sub && lg.sub.length) {
+        let sx = lx + 9 + ctx.measureText(lg.t).width + 10;
+        lg.sub.forEach(sb => {
+          ctx.fillStyle = sb.c;
+          ctx.fillText(sb.t, sx, ly);
+          const tw = ctx.measureText(sb.t).width;
+          // 라벨 뒤에 선 견본(ㅡ)
+          ctx.fillRect(sx + tw + 3, ly - 4, 10, 2);
+          sx += tw + 3 + 10 + 8;
+        });
+      }
       ly += 13;
     });
   }
@@ -2596,6 +2615,7 @@ function setupMouseEvent() {
       if (s < 0) { e2 -= s; s = 0; }
       if (e2 > state.data.length) { s -= (e2 - state.data.length); e2 = state.data.length; }
       state.range = [Math.max(0, s), Math.min(state.data.length, e2)];
+      state.keepZoom = state.range[1] - state.range[0];  // 확대 상태 기억
       redrawAll();
       return;
     }
@@ -2641,8 +2661,27 @@ function setupMouseEvent() {
     if (s < 0) { e2 -= s; s = 0; }
     if (e2 > state.data.length) { s -= (e2 - state.data.length); e2 = state.data.length; }
     state.range = [Math.max(0, s), Math.min(state.data.length, e2)];
+    state.keepZoom = state.range[1] - state.range[0];  // 확대 상태 기억
     redrawAll();
   };
+
+  // ── 더블클릭/더블탭: 기본 배율로 되돌리기 ──
+  const resetZoom = () => {
+    state.keepZoom = null;
+    const showLen = Math.min(calcShowCount(state.period, state.interval), state.data.length);
+    state.range = [Math.max(0, state.data.length - showLen), state.data.length];
+    state.hoverIdx = -1;
+    redrawAll();
+    if (typeof showMsg === 'function') showMsg('기본 배율로 되돌렸습니다', 1200);
+  };
+  canvas.ondblclick = (e) => { e.preventDefault(); resetZoom(); };
+  let lastTapTime = 0;
+  canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length > 0) return;
+    const now = Date.now();
+    if (now - lastTapTime < 300) { resetZoom(); lastTapTime = 0; }
+    else lastTapTime = now;
+  });
 }
 
 // 리사이즈
