@@ -95,6 +95,20 @@ body {
 .detail-box { background: #0d1117; padding: 10px 12px; border-radius: 8px; line-height: 1.6; }
 .detail-box b { color: #58a6ff; }
 .tip-box { background: #1a2f1a; border-left: 3px solid #3fb950; padding: 10px 12px; border-radius: 6px; line-height: 1.6; }
+/* 설명 편집 */
+.edit-bar { display: flex; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
+.ebtn { padding: 7px 14px; border-radius: 7px; border: 1px solid #30363d; background: #21262d; color: #c9d1d9; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.ebtn.edit { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+.ebtn.save { background: #238636; border-color: #238636; color: #fff; }
+.ebtn.reset { color: #f0a836; }
+.ebtn.cancel { color: #8b949e; }
+.ebtn:active { opacity: .75; }
+.ed-input, .ed-area { width: 100%; box-sizing: border-box; background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+  padding: 8px 10px; border-radius: 7px; font-size: 13px; line-height: 1.55; font-family: inherit; }
+.ed-area { resize: vertical; }
+.ed-input:focus, .ed-area:focus { outline: none; border-color: #1f6feb; }
+.ed-hint { font-size: 11px; color: #8b949e; margin-bottom: 5px; line-height: 1.5; }
+.ed-hint b { color: #58a6ff; }
 .no-result { text-align: center; color: #6e7681; padding: 40px; }
 </style>
 </head>
@@ -154,6 +168,44 @@ const IND_PARAMS = {
   CMF:[{n:'기간',d:20}],
   MFI:[{n:'기간',d:14}],
 };
+
+// ══════════════════════════════════════
+// 지표 설명 사용자 편집본 (지표별 개별 저장)
+// ══════════════════════════════════════
+const DESC_KEY = 'kg_guide_desc';
+function loadDescEdits() {
+  try { return JSON.parse(localStorage.getItem(DESC_KEY) || '{}'); }
+  catch (e) { return {}; }
+}
+function saveDescEdit(key, obj) {
+  const all = loadDescEdits();
+  all[key] = obj;
+  try { localStorage.setItem(DESC_KEY, JSON.stringify(all)); return true; }
+  catch (e) { return false; }
+}
+function clearDescEdit(key) {
+  const all = loadDescEdits();
+  delete all[key];
+  try { localStorage.setItem(DESC_KEY, JSON.stringify(all)); } catch (e) {}
+}
+// 원본 + 사용자 편집본을 합친 최종 표시 데이터
+function mergedInd(ind) {
+  const e = loadDescEdits()[ind.key];
+  if (!e) {
+    // 편집본이 없으면 기존 detail + tip을 '상세설명'으로 통합
+    const m = [];
+    if (ind.detail) m.push(ind.detail);
+    if (ind.tip) m.push('<b>⭐ 활용 팁</b><br>' + ind.tip);
+    return { opt: ind.opt || '', desc: ind.desc || '', signals: ind.signals || [], detail: m.join('<br><br>'), edited: false };
+  }
+  return {
+    opt: e.opt != null ? e.opt : (ind.opt || ''),
+    desc: e.desc != null ? e.desc : (ind.desc || ''),
+    signals: e.signals != null ? e.signals : (ind.signals || []),
+    detail: e.detail != null ? e.detail : (ind.detail || ''),
+    edited: true
+  };
+}
 
 // 저장된 사용자 옵션값 로드/저장 (차트와 공유)
 function loadUserParams() {
@@ -443,47 +495,147 @@ function render() {
   cards.innerHTML = filtered.map(ind => {
     const c = CAT[ind.cat].color;
     const catLabel = CAT[ind.cat].label;
-    const sigRows = ind.signals.map(s => {
+    const M = mergedInd(ind);
+    const sigRows = M.signals.map(s => {
       const [type, text] = s;
       const cls = type === 'b' ? 'b' : type === 's' ? 's' : 'n';
       const tag = type === 'b' ? '매수' : type === 's' ? '매도' : '참고';
       return `<div class="signal-row"><span class="tag ${cls}">${tag}</span><span class="desc">${text}</span></div>`;
-    }).join('');
+    }).join('') || '<div class="section-content" style="color:#6e7681">등록된 매매 타이밍이 없습니다</div>';
+    // 편집용 텍스트: 매매타이밍은 "b|텍스트" 한 줄씩
+    const sigText = M.signals.map(s => `${s[0]}|${s[1]}`).join('\n');
 
     return `
-      <div class="card" style="--c:${c}">
+      <div class="card" style="--c:${c}" data-ikey="${ind.key}">
         <div class="card-head" onclick="toggleCard(this)">
           <span class="name" style="color:${c}">${ind.name}</span>
           <span class="cat-tag">${catLabel}</span>
+          ${M.edited ? '<span class="cat-tag" style="background:#1a2f1a;color:#3fb950">수정됨</span>' : ''}
           <span class="arrow">▶</span>
         </div>
         <div class="card-body">
-          <div class="section">
-            <div class="section-title"><span class="ico">⚙️</span>옵션값 설정</div>
-            ${renderParamInputs(ind.key, ind.opt)}
+
+          <!-- 보기 모드 -->
+          <div class="view-mode">
+            <div class="section">
+              <div class="section-title"><span class="ico">⚙️</span>옵션값 설정</div>
+              ${renderParamInputs(ind.key, M.opt)}
+            </div>
+            <div class="section">
+              <div class="section-title"><span class="ico">📖</span>설명</div>
+              <div class="section-content">${M.desc}</div>
+            </div>
+            <div class="section">
+              <div class="section-title"><span class="ico">💡</span>매매 타이밍</div>
+              ${sigRows}
+            </div>
+            ${M.detail ? `
+            <div class="section">
+              <div class="section-title"><span class="ico">🔍</span>상세 설명</div>
+              <div class="section-content detail-box">${M.detail}</div>
+            </div>` : ''}
+            <div class="edit-bar">
+              <button class="ebtn edit" data-act="edit">✏️ 설명 수정</button>
+              ${M.edited ? `<button class="ebtn reset" data-act="reset">↩ 원본 복원</button>` : ''}
+            </div>
           </div>
-          <div class="section">
-            <div class="section-title"><span class="ico">📖</span>설명</div>
-            <div class="section-content">${ind.desc}</div>
+
+          <!-- 편집 모드 -->
+          <div class="edit-mode" style="display:none">
+            <div class="section">
+              <div class="section-title"><span class="ico">⚙️</span>1. 옵션</div>
+              <input type="text" class="ed-input" data-f="opt" value="${escAttr(M.opt)}" placeholder="예: 기간 14일">
+            </div>
+            <div class="section">
+              <div class="section-title"><span class="ico">📖</span>2. 설명 (구성 기본자료·계산법)</div>
+              <textarea class="ed-area" data-f="desc" rows="4" placeholder="지표의 구성과 계산 방법">${escHtmlT(M.desc)}</textarea>
+            </div>
+            <div class="section">
+              <div class="section-title"><span class="ico">💡</span>3. 매매 타이밍</div>
+              <div class="ed-hint">한 줄에 하나씩 · 맨 앞에 <b>b</b>(매수) / <b>s</b>(매도) / <b>n</b>(참고) 와 <b>|</b> 기호<br>예) b|골든크로스 발생 시 매수</div>
+              <textarea class="ed-area" data-f="signals" rows="4" placeholder="b|매수 조건&#10;s|매도 조건&#10;n|참고 사항">${escHtmlT(sigText)}</textarea>
+            </div>
+            <div class="section">
+              <div class="section-title"><span class="ico">🔍</span>4. 상세 설명</div>
+              <div class="ed-hint">HTML 태그 사용 가능 (&lt;b&gt;굵게&lt;/b&gt;, &lt;br&gt;줄바꿈)</div>
+              <textarea class="ed-area" data-f="detail" rows="8" placeholder="자세한 해설·활용 팁">${escHtmlT(M.detail)}</textarea>
+            </div>
+            <div class="edit-bar">
+              <button class="ebtn save" data-act="save">💾 저장</button>
+              <button class="ebtn cancel" data-act="cancel">취소</button>
+            </div>
           </div>
-          <div class="section">
-            <div class="section-title"><span class="ico">💡</span>매매 타이밍</div>
-            ${sigRows}
-          </div>
-          ${ind.detail ? `
-          <div class="section">
-            <div class="section-title"><span class="ico">🔍</span>상세 설명</div>
-            <div class="section-content detail-box">${ind.detail}</div>
-          </div>` : ''}
-          ${ind.tip ? `
-          <div class="section">
-            <div class="section-title"><span class="ico">⭐</span>활용 팁</div>
-            <div class="section-content tip-box">${ind.tip}</div>
-          </div>` : ''}
+
         </div>
       </div>`;
   }).join('');
   bindParamInputs();
+  bindDescEdit();
+}
+
+// 텍스트를 속성/텍스트영역에 안전하게 넣기
+function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escHtmlT(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// 편집 버튼 이벤트
+function bindDescEdit() {
+  document.querySelectorAll('.card[data-ikey]').forEach(card => {
+    const key = card.dataset.ikey;
+    const viewEl = card.querySelector('.view-mode');
+    const editEl = card.querySelector('.edit-mode');
+    card.querySelectorAll('.ebtn').forEach(btn => {
+      btn.onclick = (ev) => {
+        ev.stopPropagation();
+        const act = btn.dataset.act;
+        if (act === 'edit') { viewEl.style.display = 'none'; editEl.style.display = 'block'; return; }
+        if (act === 'cancel') { editEl.style.display = 'none'; viewEl.style.display = 'block'; return; }
+        if (act === 'reset') {
+          if (!confirm('이 지표의 설명을 원래대로 되돌릴까요?')) return;
+          clearDescEdit(key); render();
+          return;
+        }
+        if (act === 'save') {
+          const val = (f) => {
+            const el = editEl.querySelector(`[data-f="${f}"]`);
+            return el ? el.value : '';
+          };
+          // 매매타이밍 파싱: "b|텍스트" 한 줄씩
+          const signals = val('signals').split('\n').map(line => {
+            const t = line.trim();
+            if (!t) return null;
+            const i = t.indexOf('|');
+            if (i < 0) return ['n', t];
+            const type = t.slice(0, i).trim().toLowerCase();
+            const text = t.slice(i + 1).trim();
+            if (!text) return null;
+            return [(type === 'b' || type === 's') ? type : 'n', text];
+          }).filter(Boolean);
+          const ok = saveDescEdit(key, {
+            opt: val('opt').trim(),
+            desc: val('desc').trim(),
+            signals,
+            detail: val('detail').trim()
+          });
+          if (ok) { render(); toastMsg('저장되었습니다'); }
+          else alert('저장에 실패했습니다. 저장 공간을 확인해 주세요.');
+        }
+      };
+    });
+  });
+}
+
+function toastMsg(m) {
+  let t = document.getElementById('gtoast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'gtoast';
+    t.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f6feb;color:#fff;padding:9px 18px;border-radius:20px;font-size:13px;font-weight:700;z-index:9999;box-shadow:0 4px 14px rgba(0,0,0,.4)';
+    document.body.appendChild(t);
+  }
+  t.textContent = m;
+  t.style.display = 'block';
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => { t.style.display = 'none'; }, 1600);
 }
 
 function renderParamInputs(key, optText) {
