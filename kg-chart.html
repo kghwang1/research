@@ -539,10 +539,30 @@ const CALC = {
   WILLR:(d)=>{return{wr:d.map((_,i)=>{if(i<13)return null;const sl=d.slice(i-13,i+1),hh=Math.max(...sl.map(x=>x.high)),ll=Math.min(...sl.map(x=>x.low));return hh===ll?-50:((hh-d[i].close)/(hh-ll))*-100;})};},
   ATR:(d)=>{const tr=d.map((x,i)=>i===0?x.high-x.low:Math.max(x.high-x.low,Math.abs(x.high-d[i-1].close),Math.abs(x.low-d[i-1].close)));return{atr:sma(tr,14)};},
   RVI:(d)=>{
-    const c=d.map(x=>x.close),sd=stdev(c,10);
-    const upSd=sd.map((v,i)=>c[i]>c[i-1]?v||0:0),dnSd=sd.map((v,i)=>c[i]<=c[i-1]?v||0:0);
-    const eu=ema(upSd,14),ed=ema(dnSd,14);
-    return{rvi:eu.map((v,i)=>v!=null&&ed[i]!=null?(v/((v+ed[i])||1))*100:null)};
+    // 책 공식: 9일 표준편차를 상승일/하락일로 나눠 와일더 평활(n=14)
+    //  당일종가 ≥ 전일종가 → up=9일 표준편차, dn=0
+    //  당일종가 <  전일종가 → up=0, dn=9일 표준편차
+    //  upavg = (upavg×(n-1)+up)/n , dnavg 동일
+    //  RVI = upavg / (upavg+dnavg) × 100
+    const n=P('RVI',0,14);
+    const c=d.map(x=>x.close), sd=stdev(c,9);
+    const up=[], dn=[];
+    for(let i=0;i<c.length;i++){
+      if(sd[i]==null || i===0){ up.push(null); dn.push(null); continue; }
+      if(c[i]>=c[i-1]){ up.push(sd[i]); dn.push(0); }
+      else { up.push(0); dn.push(sd[i]); }
+    }
+    // 와일더 평활
+    const rvi=new Array(c.length).fill(null);
+    let ua=null, da=null;
+    for(let i=0;i<c.length;i++){
+      if(up[i]==null||dn[i]==null) continue;
+      ua = (ua==null) ? up[i] : (ua*(n-1)+up[i])/n;
+      da = (da==null) ? dn[i] : (da*(n-1)+dn[i])/n;
+      const s=ua+da;
+      rvi[i] = s>0 ? (ua/s)*100 : null;
+    }
+    return{rvi};
   },
   INERTIA:(d)=>{
     const c=d.map(x=>x.close);
@@ -588,7 +608,7 @@ const IND_CFG = {
   MOM:{color:C.green,lines:[0]},
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
   ATR:{color:C.orange},
-  RVI:{color:C.purple,range:[0,100],lines:[50]},
+  RVI:{color:C.purple,range:[0,100],lines:[40,60]},
   INERTIA:{color:C.lime,lines:[50]},
   CHAIKIN_VOL:{color:C.teal,lines:[0]},
   VOLUME:{color:C.muted},
@@ -1777,6 +1797,98 @@ function drawSub(canvas, key) {
   });
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+
+  // ── RVI: 60/40 기준선 + 과열·과매도 색칠 + 매매지점 ──
+  if (key === 'RVI') {
+    const arr = vals[0];
+    const y60 = yOf(60), y40 = yOf(40);
+
+    // 과열(60↑) 영역 채움 — 빨강
+    ctx.fillStyle = 'rgba(239,83,80,0.13)';
+    ctx.beginPath(); let open1 = false;
+    for (let i = 0; i < n; i++) {
+      const v = arr[i];
+      if (v == null || v <= 60) { if (open1) { ctx.lineTo(xOf(i - 1), y60); ctx.closePath(); ctx.fill(); open1 = false; } continue; }
+      if (!open1) { ctx.beginPath(); ctx.moveTo(xOf(i), y60); open1 = true; }
+      ctx.lineTo(xOf(i), yOf(v));
+    }
+    if (open1) { ctx.lineTo(xOf(n - 1), y60); ctx.closePath(); ctx.fill(); }
+
+    // 과매도(40↓) 영역 채움 — 파랑
+    ctx.fillStyle = 'rgba(41,121,255,0.13)';
+    let open2 = false;
+    for (let i = 0; i < n; i++) {
+      const v = arr[i];
+      if (v == null || v >= 40) { if (open2) { ctx.lineTo(xOf(i - 1), y40); ctx.closePath(); ctx.fill(); open2 = false; } continue; }
+      if (!open2) { ctx.beginPath(); ctx.moveTo(xOf(i), y40); open2 = true; }
+      ctx.lineTo(xOf(i), yOf(v));
+    }
+    if (open2) { ctx.lineTo(xOf(n - 1), y40); ctx.closePath(); ctx.fill(); }
+
+    // 기준선 60 (빨강 점선) / 40 (파랑 점선)
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ef5350aa';
+    ctx.beginPath(); ctx.moveTo(PAD.l, y60); ctx.lineTo(W - PAD.r, y60); ctx.stroke();
+    ctx.strokeStyle = '#2979ffaa';
+    ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
+    ctx.setLineDash([]);
+    // 기준선 라벨
+    ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#ef5350aa'; ctx.fillText('60 과열(매도)', PAD.l + 3, y60 - 3);
+    ctx.fillStyle = '#2979ffaa'; ctx.fillText('40 과매도(매입)', PAD.l + 3, y40 + 10);
+
+    // RVI 본선
+    ctx.strokeStyle = '#bc8cff'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); let st = false;
+    arr.forEach((v, i) => { if (v == null) return; st ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), st = true); });
+    ctx.stroke();
+
+    // 매매 지점 (책 기준): 60 상향돌파=매도 / 40 하향이탈=매입
+    ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    for (let i = 1; i < n; i++) {
+      const p = arr[i - 1], v = arr[i];
+      if (p == null || v == null) continue;
+      if (p < 60 && v >= 60) {          // 매도
+        const x = xOf(i), y = yOf(v);
+        ctx.fillStyle = '#ef5350';
+        ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 17); ctx.closePath(); ctx.fill();
+        ctx.fillText('매도', x, y - 21);
+      }
+      if (p > 40 && v <= 40) {          // 매입
+        const x = xOf(i), y = yOf(v);
+        ctx.fillStyle = '#2979ff';
+        ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 5, y + 17); ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
+        ctx.fillText('매입', x, y + 28);
+      }
+    }
+
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+      const hv = arr[state.hoverIdx];
+      if (hv != null) {
+        const hy = yOf(hv);
+        ctx.fillStyle = '#2a1a3a'; ctx.fillRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
+        ctx.strokeStyle = '#bc8cff'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
+        ctx.fillStyle = '#bc8cff'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3);
+      }
+    }
+
+    // 레이블
+    const lastR = arr.filter(v => v != null).slice(-1)[0];
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = C.muted; ctx.fillText('RVI 상대변동성지수', PAD.l + 22, PAD.t + 11);
+    if (lastR != null) {
+      ctx.fillStyle = lastR >= 60 ? '#ef5350' : lastR <= 40 ? '#2979ff' : '#bc8cff';
+      ctx.fillText(lastR.toFixed(1) + (lastR >= 60 ? ' 과열' : lastR <= 40 ? ' 과매도' : ''), PAD.l + 150, PAD.t + 11);
+    }
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
 
   // ── ADXR: 20 기준으로 추세장/횡보장 구분 (책 스타일) ──
   if (key === 'ADXR') {
