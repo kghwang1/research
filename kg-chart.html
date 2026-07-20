@@ -253,6 +253,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
     <label class="ind-label" data-key="ICHIMOKU" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Ichimoku 일목균형표</span></label>
     <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DEMA 이중지수이동평균</span></label>
+    <label class="ind-label" data-key="VAMA" style="--col:#ffd54f"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VAMA 거래량조정이동평균</span></label>
     <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VIDYA 가변동적이동평균</span></label>
     <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VP 매물대(거래량프로파일)</span></label>
 
@@ -401,6 +402,16 @@ const CALC = {
     const senkouA=tenkan.map((v,i)=>v&&kijun[i]?(v+kijun[i])/2:null);
     const senkouB=d.map((_,i)=>i<51?null:(highest(h,52,i)+lowest(l,52,i))/2);
     return{tenkan,kijun,senkouA,senkouB,chikou:c};
+  },
+  VAMA:(d)=>{
+    // 거래량조정 이동평균 = Σ(거래량×종가) / Σ(거래량)  — 거래량 많은 날의 가격에 가중
+    const vama=(len)=>d.map((_,i)=>{
+      if(i<len-1) return null;
+      let sp=0, sv=0;
+      for(let k=i-len+1;k<=i;k++){ const v=d[k].volume||0; sp+=v*d[k].close; sv+=v; }
+      return sv>0 ? sp/sv : null;
+    });
+    return{short:vama(P('VAMA',0,5)), long:vama(P('VAMA',1,20))};
   },
   DEMA:(d)=>{const c=d.map(x=>x.close),e1=ema(c,20),e2=ema(e1,20);const dema=e1.map((v,i)=>v&&e2[i]?2*v-e2[i]:null);return{dema,signal:ema(dema,9)};},
   VIDYA:(d)=>{
@@ -1205,7 +1216,7 @@ function setupSearch() {
   });
 }
 
-const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VIDYA','VPROFILE'];
+const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VAMA','VIDYA','VPROFILE'];
 
 // 기본 표시 지표 불러오기 (localStorage)
 // 사용자 지정 지표 파라미터 (설명 페이지에서 편집)
@@ -1430,6 +1441,37 @@ function drawCandle() {
     ctx.setLineDash([]);
   }
 
+  // VAMA 거래량조정 이동평균 (5일 노랑 / 20일 빨강) + 골든·데드크로스
+  if (overlays.VAMA) {
+    const r = CALC.VAMA(data);
+    const s5 = r.short.slice(...range), s20 = r.long.slice(...range);
+    ctx.setLineDash([]);
+    // 20일선 (빨강)
+    ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.4; ctx.beginPath(); let a = false;
+    s20.forEach((v,i) => { if (!v) return; a ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), a=true); }); ctx.stroke();
+    // 5일선 (노랑)
+    ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.4; ctx.beginPath(); let b = false;
+    s5.forEach((v,i) => { if (!v) return; b ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), b=true); }); ctx.stroke();
+    // 골든크로스=매입 / 데드크로스=매도
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+    for (let i = 1; i < s5.length; i++) {
+      const a0 = s5[i-1], a1 = s5[i], b0 = s20[i-1], b1 = s20[i];
+      if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
+      if (a0 <= b0 && a1 > b1) {          // 골든크로스 → 매입
+        const x = xOf(i), y = yOf(a1);
+        ctx.fillStyle = '#2979ff';
+        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillText('매입', x, y + 22);
+      }
+      if (a0 >= b0 && a1 < b1) {          // 데드크로스 → 매도
+        const x = xOf(i), y = yOf(a1);
+        ctx.fillStyle = '#ef5350';
+        ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillText('매도', x, y - 14);
+      }
+    }
+  }
+
   // VIDYA + 시그널선
   if (overlays.VIDYA) {
     const r = CALC.VIDYA(data);
@@ -1629,6 +1671,8 @@ function drawCandle() {
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
   if (overlays.ICHIMOKU) legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6',
     sub:[{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}]});
+  if (overlays.VAMA)     legends.push({t:'VAMA 거래량조정이동평균', c:'#ffd54f',
+    sub:[{t:'5일', c:'#ffd54f'}, {t:'20일', c:'#ef5350'}]});
   if (overlays.DEMA)     legends.push({t:'DEMA 이중지수이동평균(20)', c:'#ffd54f',
     sub:[{t:'DEMA', c:'#ffd54f'}, {t:'시그널', c:'#ef5350'}]});
   if (overlays.VIDYA)    legends.push({t:'VIDYA 가변동적이동평균(14)', c:'#4ecdc4'});
