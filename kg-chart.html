@@ -598,7 +598,12 @@ const CALC = {
     const tp=d.map(x=>(x.high+x.low+x.close)/3);
     return{mfi:tp.map((_,i)=>{if(i<14)return null;let pos=0,neg=0;for(let j=i-13;j<=i;j++){const mf=tp[j]*d[j].volume;if(j>0&&tp[j]>tp[j-1])pos+=mf;else neg+=mf;}return 100-100/(1+pos/(neg||1e-10));})};
   },
-  PVT:(d)=>{let pvt=0;return{pvt:d.map((x,i)=>{if(i>0)pvt+=((x.close-d[i-1].close)/(d[i-1].close||1))*x.volume;return pvt;})};},
+  PVT:(d)=>{
+    // 책 공식: PVT = PVT₋₁ + 거래량 × (당일종가 - 전일종가) / 전일종가
+    let pvt=0;
+    const arr=d.map((x,i)=>{ if(i>0) pvt += ((x.close-d[i-1].close)/(d[i-1].close||1))*x.volume; return pvt; });
+    return{pvt:arr, sig:ema(arr,9)};
+  },
   WILLIAMS_AD:(d)=>{let ad=0;return{wad:d.map((x,i)=>{if(i>0){const pc=d[i-1].close,th=Math.max(x.high,pc),tl=Math.min(x.low,pc);if(x.close>pc)ad+=x.close-tl;else if(x.close<pc)ad+=x.close-th;}return ad;})};},
 };
 
@@ -1815,6 +1820,86 @@ function drawSub(canvas, key) {
   });
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+
+  // ── PVT: 전고점·전저점 돌파 + 주가 다이버전스 (책 매매법) ──
+  if (key === 'PVT') {
+    const arr = vals[0], sig = vals[1];
+    const base = state.data.slice(...state.range);   // 같은 구간 주가
+
+    // 직전 고점/저점 (현재 구간에서 마지막 값 제외한 이전 최고·최저)
+    let pHi = -Infinity, pLo = Infinity;
+    for (let i = 0; i < n - 1; i++) {
+      if (arr[i] == null) continue;
+      if (arr[i] > pHi) pHi = arr[i];
+      if (arr[i] < pLo) pLo = arr[i];
+    }
+    if (isFinite(pHi)) {
+      ctx.strokeStyle = '#ef535066'; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(PAD.l, yOf(pHi)); ctx.lineTo(W - PAD.r, yOf(pHi)); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '9px monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#ef535099'; ctx.fillText('전고점', PAD.l + 3, yOf(pHi) - 3);
+    }
+    if (isFinite(pLo)) {
+      ctx.strokeStyle = '#2979ff66'; ctx.lineWidth = 1; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(PAD.l, yOf(pLo)); ctx.lineTo(W - PAD.r, yOf(pLo)); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '9px monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#2979ff99'; ctx.fillText('전저점', PAD.l + 3, yOf(pLo) + 10);
+    }
+
+    // 시그널선 (9일 지수이동평균)
+    if (sig) {
+      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); let s0 = false;
+      sig.forEach((v, i) => { if (v == null) return; s0 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s0 = true); });
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    // PVT 본선
+    ctx.strokeStyle = '#4ecdc4'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); let s1 = false;
+    arr.forEach((v, i) => { if (v == null) return; s1 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s1 = true); });
+    ctx.stroke();
+
+    // 다이버전스: 주가와 PVT의 방향이 엇갈리면 추세전환 신호
+    const LB = Math.max(10, Math.floor(n / 6));
+    ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    for (let i = LB; i < n; i += Math.max(3, Math.floor(LB / 2))) {
+      if (arr[i] == null || arr[i - LB] == null || !base[i] || !base[i - LB]) continue;
+      const dP = base[i].close - base[i - LB].close;
+      const dV = arr[i] - arr[i - LB];
+      const pPct = Math.abs(dP / (base[i - LB].close || 1));
+      if (pPct < 0.04) continue;                    // 주가 변동이 미미하면 건너뜀
+      if (dP > 0 && dV <= 0) {                      // 주가↑ PVT↓ → 매도
+        const x = xOf(i), y = yOf(arr[i]);
+        ctx.fillStyle = '#ef5350';
+        ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 17); ctx.closePath(); ctx.fill();
+        ctx.fillText('매도', x, y - 21);
+      } else if (dP < 0 && dV >= 0) {               // 주가↓ PVT↑ → 매입
+        const x = xOf(i), y = yOf(arr[i]);
+        ctx.fillStyle = '#2979ff';
+        ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 5, y + 17); ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
+        ctx.fillText('매입', x, y + 28);
+      }
+    }
+
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+
+    // 레이블
+    const lastP = arr.filter(v => v != null).slice(-1)[0];
+    const fmtN = v => Math.abs(v) >= 1e8 ? (v / 1e8).toFixed(1) + '억' : Math.abs(v) >= 1e4 ? (v / 1e4).toFixed(1) + '만' : v.toFixed(0);
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = C.muted; ctx.fillText('PVT 거래량추세지수', PAD.l + 22, PAD.t + 11);
+    if (lastP != null) { ctx.fillStyle = '#4ecdc4'; ctx.fillText(fmtN(lastP), PAD.l + 150, PAD.t + 11); }
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace';
+    ctx.fillText(fmtN(maxV), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(fmtN(minV), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
 
   // ── Inertia 관성지수: 40/60 기준선 + 시그널곡선 교차 매매 ──
   if (key === 'INERTIA') {
