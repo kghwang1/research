@@ -1834,8 +1834,8 @@ function drawSub(canvas, key) {
     ctx.setLineDash([]);
     // 기준선 라벨
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = '#ef5350aa'; ctx.fillText('60 과열(매도)', PAD.l + 3, y60 - 3);
-    ctx.fillStyle = '#2979ffaa'; ctx.fillText('40 과매도(매입)', PAD.l + 3, y40 + 10);
+    ctx.fillStyle = '#ef5350aa'; ctx.fillText('60 과열 · 이탈 시 매도', PAD.l + 3, y60 - 3);
+    ctx.fillStyle = '#2979ffaa'; ctx.fillText('40 과매도 · 돌파 시 매입', PAD.l + 3, y40 + 10);
 
     // RVI 본선
     ctx.strokeStyle = '#bc8cff'; ctx.lineWidth = 1.8;
@@ -1843,22 +1843,22 @@ function drawSub(canvas, key) {
     arr.forEach((v, i) => { if (v == null) return; st ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), st = true); });
     ctx.stroke();
 
-    // 매매 지점 (책 기준): 60 상향돌파=매도 / 40 하향이탈=매입
+    // 매매 지점: 40 상향돌파=매입 / 60 하향돌파=매도
     ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
     for (let i = 1; i < n; i++) {
       const p = arr[i - 1], v = arr[i];
       if (p == null || v == null) continue;
-      if (p < 60 && v >= 60) {          // 매도
-        const x = xOf(i), y = yOf(v);
-        ctx.fillStyle = '#ef5350';
-        ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 17); ctx.closePath(); ctx.fill();
-        ctx.fillText('매도', x, y - 21);
-      }
-      if (p > 40 && v <= 40) {          // 매입
+      if (p < 40 && v >= 40) {          // 매입 — 40 이하에서 40선 상승 돌파
         const x = xOf(i), y = yOf(v);
         ctx.fillStyle = '#2979ff';
         ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 5, y + 17); ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
         ctx.fillText('매입', x, y + 28);
+      }
+      if (p > 60 && v <= 60) {          // 매도 — 60 이상에서 60선 하향 돌파
+        const x = xOf(i), y = yOf(v);
+        ctx.fillStyle = '#ef5350';
+        ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 17); ctx.closePath(); ctx.fill();
+        ctx.fillText('매도', x, y - 21);
       }
     }
 
