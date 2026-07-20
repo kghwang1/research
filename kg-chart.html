@@ -1643,18 +1643,23 @@ function drawCandle() {
     // 날짜 라벨 (하단)
     const hd = slice[state.hoverIdx];
     if (hd && hd.date) {
-      // YYYY-MM-DD → YY-MM-DD, 분봉이면 시각 포함
+      // 2026-07-20 → 7.20 (분봉이면 시각 포함)
+      const md = s => {
+        const m = String(s).match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+        return m ? String(parseInt(m[2],10)) + '.' + String(parseInt(m[3],10)) : String(s);
+      };
       let lbl;
       if (state.interval==='5m'||state.interval==='60m') {
-        lbl = hd.date.length>10 ? hd.date.slice(2,16) : hd.date.slice(2);
+        const t = String(hd.date).length > 10 ? String(hd.date).slice(11,16) : '';
+        lbl = md(hd.date) + (t ? ' ' + t : '');
       } else {
-        lbl = hd.date.slice(2); // 2026-06-03 → 26-06-03
+        lbl = md(hd.date);
       }
-      ctx.font = 'bold 10px monospace'; ctx.textAlign = 'center';
+      ctx.font = '11px monospace'; ctx.textAlign = 'center';
       const tw = ctx.measureText(lbl).width;
       // 배경 박스
       ctx.fillStyle = '#1f6feb';
-      ctx.fillRect(hx - tw/2 - 5, H - 18, tw + 10, 15);
+      ctx.fillRect(hx - tw/2 - 5, H - 19, tw + 10, 16);
       ctx.fillStyle = '#fff';
       ctx.fillText(lbl, hx, H - 7);
     }
