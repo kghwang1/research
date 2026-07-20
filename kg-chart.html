@@ -1385,7 +1385,7 @@ function drawCandle() {
       ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); let s = false;
       sl.forEach((v, i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
     };
-    drawL(ich.tenkan, '#ef5350', 1); drawL(ich.kijun, '#ffd54f', 1.5);
+    drawL(ich.tenkan, '#ffd54f', 1); drawL(ich.kijun, '#ef5350', 1.5);
     drawL(ich.senkouA, '#3fb950', 0.8); drawL(ich.senkouB, '#bc8cff', 0.8);
   }
 
@@ -1419,13 +1419,13 @@ function drawCandle() {
   // DEMA + 시그널선
   if (overlays.DEMA) {
     const r = CALC.DEMA(data);
-    // DEMA 본선 (밝은 초록 실선)
+    // DEMA 본선 (노랑 실선)
     const sl = r.dema.slice(...range);
-    ctx.strokeStyle = C.lime; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.beginPath(); let s = false;
+    ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.5; ctx.setLineDash([]); ctx.beginPath(); let s = false;
     sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
-    // 시그널선 (초록 점선)
+    // 시그널선 (빨강 점선)
     const sig = r.signal.slice(...range);
-    ctx.strokeStyle = '#3fb95099'; ctx.lineWidth = 1; ctx.setLineDash([4,3]); ctx.beginPath(); let s2 = false;
+    ctx.strokeStyle = '#ef5350cc'; ctx.lineWidth = 1; ctx.setLineDash([4,3]); ctx.beginPath(); let s2 = false;
     sig.forEach((v,i) => { if (!v) return; s2 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s2=true); }); ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -1628,8 +1628,9 @@ function drawCandle() {
   const legends = [];
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
   if (overlays.ICHIMOKU) legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6',
-    sub:[{t:'기준선', c:'#ffd54f'}, {t:'전환선', c:'#ef5350'}]});
-  if (overlays.DEMA)     legends.push({t:'DEMA 이중지수이동평균(20)', c:'#a8ff78'});
+    sub:[{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}]});
+  if (overlays.DEMA)     legends.push({t:'DEMA 이중지수이동평균(20)', c:'#ffd54f',
+    sub:[{t:'DEMA', c:'#ffd54f'}, {t:'시그널', c:'#ef5350'}]});
   if (overlays.VIDYA)    legends.push({t:'VIDYA 가변동적이동평균(14)', c:'#4ecdc4'});
   if (overlays.VPROFILE) legends.push({t:'VP 매물대(POC)', c:'#d2a8ff'});
 
@@ -1819,7 +1820,9 @@ function drawSub(canvas, key) {
     ctx.fillText(lv, W - PAD.r + 3, yOf(lv) + 3);
   });
 
-  const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+  let lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+  // 주선=노랑 / 시그널선=빨강 으로 통일하는 지표들
+  if (key === 'MACD' || key === 'SLOWSTOCH' || key === 'STOCH') lineColors = ['#ffd54f', '#ef5350', C.orange, C.cyan];
 
   // ── PVT: 전고점·전저점 돌파 + 주가 다이버전스 (책 매매법) ──
   if (key === 'PVT') {
@@ -1935,13 +1938,13 @@ function drawSub(canvas, key) {
 
     // 시그널곡선 (회색 파선)
     if (sig) {
-      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1.2; ctx.setLineDash([5, 3]);
+      ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.2; ctx.setLineDash([5, 3]);
       ctx.beginPath(); let s0 = false;
       sig.forEach((v, i) => { if (v == null) return; s0 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s0 = true); });
       ctx.stroke(); ctx.setLineDash([]);
     }
-    // Inertia 본선 (빨강 굵은 선 — 책 차트 스타일)
-    ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.8;
+    // Inertia 본선 (노랑 굵은 선)
+    ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.8;
     ctx.beginPath(); let s1 = false;
     inr.forEach((v, i) => { if (v == null) return; s1 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s1 = true); });
     ctx.stroke();
@@ -1994,8 +1997,8 @@ function drawSub(canvas, key) {
       if (hv != null) {
         const hy = yOf(Math.max(30, Math.min(80, hv)));
         ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
-        ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
-        ctx.fillStyle = '#ef5350'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
+        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
         ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3);
       }
     }
@@ -2005,8 +2008,8 @@ function drawSub(canvas, key) {
     const lastS = sigRaw ? sigRaw.filter(v => v != null).slice(-1)[0] : null;
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = C.muted; ctx.fillText('Inertia 관성지수', PAD.l + 22, PAD.t + 11);
-    if (lastI != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Inertia ' + lastI.toFixed(1), PAD.l + 128, PAD.t + 11); }
-    if (lastS != null) { ctx.fillStyle = '#8b949e'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
+    if (lastI != null) { ctx.fillStyle = '#ffd54f'; ctx.fillText('Inertia ' + lastI.toFixed(1), PAD.l + 128, PAD.t + 11); }
+    if (lastS != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
     if (lastI != null && lastS != null) {
       const df = lastI - lastS;
       ctx.fillStyle = df >= 0 ? '#2979ff' : '#ef5350';
@@ -2195,8 +2198,8 @@ function drawSub(canvas, key) {
       ctx.stroke();
     };
     // +DI 빨강, -DI 파랑
-    drawLine(pdi, '#d32f2f', 1.6);
-    drawLine(ndi, '#1976d2', 1.6);
+    drawLine(pdi, '#ffd54f', 1.6);
+    drawLine(ndi, '#ef5350', 1.6);
     // 교차 신호: +DI가 -DI 상향돌파=매수(▲), 하향돌파=매도(▼)
     for (let i = 1; i < n; i++) {
       if (pdi[i]==null||ndi[i]==null||pdi[i-1]==null||ndi[i-1]==null) continue;
@@ -2204,7 +2207,7 @@ function drawSub(canvas, key) {
       if (prevDiff<=0 && curDiff>0) {
         // 매수 ▲ (빨강, 교차점 아래)
         const y = yOf(pdi[i]);
-        ctx.fillStyle = '#d32f2f';
+        ctx.fillStyle = '#ffd54f';
         ctx.beginPath();
         ctx.moveTo(xOf(i), y+13); ctx.lineTo(xOf(i)-4, y+20); ctx.lineTo(xOf(i)+4, y+20); ctx.closePath(); ctx.fill();
       }
@@ -2236,8 +2239,8 @@ function drawSub(canvas, key) {
     const lastN = ndi.filter(v=>v!=null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = C.muted; ctx.fillText('DMI 방향성지수', PAD.l + 22, PAD.t + 11);
-    ctx.fillStyle = '#d32f2f'; ctx.fillText('+DI ' + (lastP!=null?lastP.toFixed(0):''), PAD.l + 118, PAD.t + 11);
-    ctx.fillStyle = '#1976d2'; ctx.fillText('-DI ' + (lastN!=null?lastN.toFixed(0):''), PAD.l + 174, PAD.t + 11);
+    ctx.fillStyle = '#ffd54f'; ctx.fillText('+DI ' + (lastP!=null?lastP.toFixed(0):''), PAD.l + 118, PAD.t + 11);
+    ctx.fillStyle = '#ef5350'; ctx.fillText('-DI ' + (lastN!=null?lastN.toFixed(0):''), PAD.l + 174, PAD.t + 11);
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
     ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
     ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
