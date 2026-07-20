@@ -523,7 +523,7 @@ function render() {
             </div>
             <div class="section">
               <div class="section-title"><span class="ico">📖</span>설명</div>
-              <div class="section-content">${M.desc}</div>
+              <div class="section-content">${nl2br(M.desc)}</div>
             </div>
             <div class="section">
               <div class="section-title"><span class="ico">💡</span>매매 타이밍</div>
@@ -532,7 +532,7 @@ function render() {
             ${M.detail ? `
             <div class="section">
               <div class="section-title"><span class="ico">🔍</span>상세 설명</div>
-              <div class="section-content detail-box">${M.detail}</div>
+              <div class="section-content detail-box">${nl2br(M.detail)}</div>
             </div>` : ''}
             <div class="edit-bar">
               <button class="ebtn edit" data-act="edit">✏️ 설명 수정</button>
@@ -574,6 +574,8 @@ function render() {
 }
 
 // 텍스트를 속성/텍스트영역에 안전하게 넣기
+// 입력한 줄바꿈을 화면에 그대로 반영 (HTML 태그는 유지)
+function nl2br(s) { return String(s == null ? '' : s).replace(/\r\n|\r|\n/g, '<br>'); }
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escHtmlT(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
