@@ -627,7 +627,7 @@ const IND_CFG = {
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
   ATR:{color:C.orange},
   RVI:{color:C.purple,range:[20,80],lines:[40,60]},
-  INERTIA:{color:C.lime,range:[0,100],lines:[40,60]},
+  INERTIA:{color:C.lime,range:[30,80],lines:[40,60]},
   CHAIKIN_VOL:{color:C.teal,lines:[0]},
   VOLUME:{color:C.muted},
   OBV:{color:C.cyan},
@@ -1818,7 +1818,10 @@ function drawSub(canvas, key) {
 
   // ── Inertia 관성지수: 40/60 기준선 + 시그널곡선 교차 매매 ──
   if (key === 'INERTIA') {
-    const inr = vals[0], sig = vals[1];
+    const inrRaw = vals[0], sigRaw = vals[1];
+    // 표시 범위(30~80)를 벗어난 값은 그리지 않음 — 범위 안에 들어온 값만 표시
+    const clip = a => a ? a.map(v => (v == null || v < 30 || v > 80) ? null : v) : a;
+    const inr = clip(inrRaw), sig = clip(sigRaw);
     const y60 = yOf(60), y40 = yOf(40);
 
     // 기준선 60 / 40 (가로 점선)
@@ -1832,12 +1835,25 @@ function drawSub(canvas, key) {
     ctx.fillStyle = '#ef535088'; ctx.fillText('60', PAD.l + 3, y60 - 3);
     ctx.fillStyle = '#2979ff88'; ctx.fillText('40', PAD.l + 3, y40 + 10);
 
-    // 시그널곡선 (검정에 가까운 얇은 선 — 책 차트 스타일)
+    // Inertia와 시그널 사이 간격을 색으로 채움 — 위=파랑(강세) / 아래=빨강(약세)
     if (sig) {
-      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1;
+      for (let i = 0; i < n - 1; i++) {
+        const a0 = inr[i], a1 = inr[i + 1], b0 = sig[i], b1 = sig[i + 1];
+        if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
+        ctx.fillStyle = (a0 >= b0) ? 'rgba(41,121,255,0.22)' : 'rgba(239,83,80,0.22)';
+        ctx.beginPath();
+        ctx.moveTo(xOf(i), yOf(a0)); ctx.lineTo(xOf(i + 1), yOf(a1));
+        ctx.lineTo(xOf(i + 1), yOf(b1)); ctx.lineTo(xOf(i), yOf(b0));
+        ctx.closePath(); ctx.fill();
+      }
+    }
+
+    // 시그널곡선 (회색 파선)
+    if (sig) {
+      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1.2; ctx.setLineDash([5, 3]);
       ctx.beginPath(); let s0 = false;
       sig.forEach((v, i) => { if (v == null) return; s0 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s0 = true); });
-      ctx.stroke();
+      ctx.stroke(); ctx.setLineDash([]);
     }
     // Inertia 본선 (빨강 굵은 선 — 책 차트 스타일)
     ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.8;
@@ -1848,20 +1864,39 @@ function drawSub(canvas, key) {
     // 매매: Inertia가 시그널곡선을 상향돌파=매입 / 하향돌파=매도
     if (sig) {
       ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      for (let i = 1; i < n; i++) {
-        const a0 = inr[i - 1], a1 = inr[i], b0 = sig[i - 1], b1 = sig[i];
-        if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
-        if (a0 <= b0 && a1 > b1) {          // 매입
-          const x = xOf(i), y = yOf(a1);
-          ctx.fillStyle = '#2979ff';
-          ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 5, y + 17); ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
-          ctx.fillText('매입', x, y + 28);
+      // 교차 후 방향이 유지되고 충분히 벌어질 때만 표시 (미세 교차 노이즈 제거)
+      const isReal = (i, up) => {
+        let mx = 0, hold = 0;
+        for (let k = i; k < Math.min(n, i + 6); k++) {
+          if (inrRaw[k] == null || sigRaw[k] == null) break;
+          const gap = up ? (inrRaw[k] - sigRaw[k]) : (sigRaw[k] - inrRaw[k]);
+          if (gap <= 0) break;          // 방향이 바로 뒤집히면 노이즈
+          hold++;
+          if (gap > mx) mx = gap;
         }
-        if (a0 >= b0 && a1 < b1) {          // 매도
-          const x = xOf(i), y = yOf(a1);
+        return hold >= 3 && mx >= 0.4;  // 3봉 이상 유지 + 최소 간격 확보
+      };
+      for (let i = 1; i < n; i++) {
+        const a0 = inrRaw[i - 1], a1 = inrRaw[i], b0 = sigRaw[i - 1], b1 = sigRaw[i];
+        if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
+        const ay = Math.max(30, Math.min(80, a1));   // 표시 위치만 범위 안으로
+        if (a0 <= b0 && a1 > b1 && isReal(i, true)) {          // 매입
+          const x = xOf(i), y = yOf(ay);
+          ctx.strokeStyle = '#2979ff66'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = '#2979ff';
+          ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x, y + 9); ctx.lineTo(x - 5, y + 18); ctx.lineTo(x + 5, y + 18); ctx.closePath(); ctx.fill();
+          ctx.fillText('매입', x, y + 29);
+        }
+        if (a0 >= b0 && a1 < b1 && isReal(i, false)) {          // 매도
+          const x = xOf(i), y = yOf(ay);
+          ctx.strokeStyle = '#ef535066'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch); ctx.stroke(); ctx.setLineDash([]);
           ctx.fillStyle = '#ef5350';
-          ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 17); ctx.closePath(); ctx.fill();
-          ctx.fillText('매도', x, y - 21);
+          ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x - 5, y - 18); ctx.lineTo(x + 5, y - 18); ctx.closePath(); ctx.fill();
+          ctx.fillText('매도', x, y - 22);
         }
       }
     }
@@ -1870,9 +1905,9 @@ function drawSub(canvas, key) {
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
       ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
-      const hv = inr[state.hoverIdx];
+      const hv = inrRaw[state.hoverIdx];
       if (hv != null) {
-        const hy = yOf(hv);
+        const hy = yOf(Math.max(30, Math.min(80, hv)));
         ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
         ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
         ctx.fillStyle = '#ef5350'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
@@ -1881,12 +1916,17 @@ function drawSub(canvas, key) {
     }
 
     // 레이블
-    const lastI = inr.filter(v => v != null).slice(-1)[0];
-    const lastS = sig ? sig.filter(v => v != null).slice(-1)[0] : null;
+    const lastI = inrRaw.filter(v => v != null).slice(-1)[0];
+    const lastS = sigRaw ? sigRaw.filter(v => v != null).slice(-1)[0] : null;
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = C.muted; ctx.fillText('Inertia 관성지수', PAD.l + 22, PAD.t + 11);
     if (lastI != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Inertia ' + lastI.toFixed(1), PAD.l + 128, PAD.t + 11); }
     if (lastS != null) { ctx.fillStyle = '#8b949e'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
+    if (lastI != null && lastS != null) {
+      const df = lastI - lastS;
+      ctx.fillStyle = df >= 0 ? '#2979ff' : '#ef5350';
+      ctx.fillText((df >= 0 ? '▲' : '▼') + Math.abs(df).toFixed(2) + (df >= 0 ? ' 강세' : ' 약세'), PAD.l + 300, PAD.t + 11);
+    }
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
     ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
     ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
