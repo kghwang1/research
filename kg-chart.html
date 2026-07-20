@@ -565,9 +565,27 @@ const CALC = {
     return{rvi};
   },
   INERTIA:(d)=>{
-    const c=d.map(x=>x.close);
-    const lrv=c.map((_,i)=>{if(i<19)return null;const sl=c.slice(i-19,i+1),n=sl.length,sx=n*(n-1)/2,sy=sl.reduce((a,b)=>a+b,0),sx2=sl.reduce((a,_,j)=>a+j*j,0),sxy=sl.reduce((a,b,j)=>a+j*b,0),slope=(n*sxy-sx*sy)/(n*sx2-sx*sx||1),intercept=(sy-slope*sx)/n;return intercept+slope*(n-1);});
-    return{inertia:ema(lrv,14)};
+    // 책 공식: Inertia = Least Square Moving Average of RVI
+    //  - RVI(0~100)를 최소자승 이동평균(기본 20일)한 것이 Inertia
+    //  - 시그널곡선 = Inertia를 다시 최소자승 이동평균(9일)한 것
+    const per=P('INERTIA',0,20), sigPer=9;
+    const rvi=CALC.RVI(d).rvi;
+    // 최소자승(선형회귀) 이동평균 — 구간 회귀선의 끝점 값
+    const lsma=(arr,len)=>arr.map((_,i)=>{
+      if(i<len-1) return null;
+      const sl=arr.slice(i-len+1,i+1);
+      if(sl.some(v=>v==null)) return null;
+      const n=sl.length;
+      const sx=n*(n-1)/2, sy=sl.reduce((a,b)=>a+b,0);
+      const sx2=sl.reduce((a,_,j)=>a+j*j,0), sxy=sl.reduce((a,b,j)=>a+j*b,0);
+      const den=n*sx2-sx*sx;
+      const slope=den?(n*sxy-sx*sy)/den:0;
+      const intercept=(sy-slope*sx)/n;
+      return intercept+slope*(n-1);
+    });
+    const inertia=lsma(rvi,per);
+    const signal=lsma(inertia,sigPer);
+    return{inertia,signal};
   },
   CHAIKIN_VOL:(d)=>{const hl=d.map(x=>x.high-x.low),e=ema(hl,10);return{cv:e.map((v,i)=>i>=10&&e[i-10]?((v-e[i-10])/e[i-10])*100:null)};},
   VOLUME:(d)=>{return{vol:d.map(x=>x.volume)};},
@@ -609,7 +627,7 @@ const IND_CFG = {
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
   ATR:{color:C.orange},
   RVI:{color:C.purple,range:[0,100],lines:[40,60]},
-  INERTIA:{color:C.lime,lines:[50]},
+  INERTIA:{color:C.lime,range:[0,100],lines:[40,60]},
   CHAIKIN_VOL:{color:C.teal,lines:[0]},
   VOLUME:{color:C.muted},
   OBV:{color:C.cyan},
@@ -1797,6 +1815,83 @@ function drawSub(canvas, key) {
   });
 
   const lineColors = [cfg.color, C.purple, C.orange, C.cyan];
+
+  // ── Inertia 관성지수: 40/60 기준선 + 시그널곡선 교차 매매 ──
+  if (key === 'INERTIA') {
+    const inr = vals[0], sig = vals[1];
+    const y60 = yOf(60), y40 = yOf(40);
+
+    // 기준선 60 / 40 (가로 점선)
+    ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ef535088';
+    ctx.beginPath(); ctx.moveTo(PAD.l, y60); ctx.lineTo(W - PAD.r, y60); ctx.stroke();
+    ctx.strokeStyle = '#2979ff88';
+    ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#ef535088'; ctx.fillText('60', PAD.l + 3, y60 - 3);
+    ctx.fillStyle = '#2979ff88'; ctx.fillText('40', PAD.l + 3, y40 + 10);
+
+    // 시그널곡선 (검정에 가까운 얇은 선 — 책 차트 스타일)
+    if (sig) {
+      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1;
+      ctx.beginPath(); let s0 = false;
+      sig.forEach((v, i) => { if (v == null) return; s0 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s0 = true); });
+      ctx.stroke();
+    }
+    // Inertia 본선 (빨강 굵은 선 — 책 차트 스타일)
+    ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.8;
+    ctx.beginPath(); let s1 = false;
+    inr.forEach((v, i) => { if (v == null) return; s1 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s1 = true); });
+    ctx.stroke();
+
+    // 매매: Inertia가 시그널곡선을 상향돌파=매입 / 하향돌파=매도
+    if (sig) {
+      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+      for (let i = 1; i < n; i++) {
+        const a0 = inr[i - 1], a1 = inr[i], b0 = sig[i - 1], b1 = sig[i];
+        if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
+        if (a0 <= b0 && a1 > b1) {          // 매입
+          const x = xOf(i), y = yOf(a1);
+          ctx.fillStyle = '#2979ff';
+          ctx.beginPath(); ctx.moveTo(x, y + 8); ctx.lineTo(x - 5, y + 17); ctx.lineTo(x + 5, y + 17); ctx.closePath(); ctx.fill();
+          ctx.fillText('매입', x, y + 28);
+        }
+        if (a0 >= b0 && a1 < b1) {          // 매도
+          const x = xOf(i), y = yOf(a1);
+          ctx.fillStyle = '#ef5350';
+          ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x - 5, y - 17); ctx.lineTo(x + 5, y - 17); ctx.closePath(); ctx.fill();
+          ctx.fillText('매도', x, y - 21);
+        }
+      }
+    }
+
+    // 호버선
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+      const hv = inr[state.hoverIdx];
+      if (hv != null) {
+        const hy = yOf(hv);
+        ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
+        ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
+        ctx.fillStyle = '#ef5350'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3);
+      }
+    }
+
+    // 레이블
+    const lastI = inr.filter(v => v != null).slice(-1)[0];
+    const lastS = sig ? sig.filter(v => v != null).slice(-1)[0] : null;
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = C.muted; ctx.fillText('Inertia 관성지수', PAD.l + 22, PAD.t + 11);
+    if (lastI != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Inertia ' + lastI.toFixed(1), PAD.l + 128, PAD.t + 11); }
+    if (lastS != null) { ctx.fillStyle = '#8b949e'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
+    ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
+    return;
+  }
 
   // ── RVI: 60/40 기준선 + 과열·과매도 색칠 + 매매지점 ──
   if (key === 'RVI') {
