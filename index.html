@@ -4410,10 +4410,12 @@ function frgnPeriod(){
   while(dow===0||dow===6){ base=new Date(base.getTime()-86400000); dow=base.getUTCDay(); }
   return base.getUTCFullYear()+'-'+String(base.getUTCMonth()+1).padStart(2,'0')+'-'+String(base.getUTCDate()).padStart(2,'0');
 }
-function loadFrgnCache(){ if(frgnCacheInit) return; frgnCacheInit=true; try{ const raw=localStorage.getItem('inv_frgn'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===frgnPeriod()&&o.map) Object.assign(FRGN,o.map); } }catch(e){} }
-function saveFrgnCache(){ try{ localStorage.setItem('inv_frgn', JSON.stringify({date:frgnPeriod(), map:FRGN})); }catch(e){} }
+function loadFrgnCache(){ if(frgnCacheInit) return; frgnCacheInit=true; try{ const raw=localStorage.getItem('inv_frgn2'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===frgnPeriod()&&o.map) Object.assign(FRGN,o.map); } localStorage.removeItem('inv_frgn'); }catch(e){} }
+function saveFrgnCache(){ try{ localStorage.setItem('inv_frgn2', JSON.stringify({date:frgnPeriod(), map:FRGN})); }catch(e){} }
 async function ensureForeign(codes){
   loadFrgnCache();
+  // 날짜(last) 정보가 없는 예전 캐시 항목은 다시 받도록 제거
+  codes.forEach(c=>{ const f=FRGN[c]; if(f && typeof f==='object' && !('last' in f)) delete FRGN[c]; });
   const need=codes.filter(c=>!(c in FRGN));
   if(!need.length||frgnLoading||!SRV_URL) return;
   frgnLoading=true;
