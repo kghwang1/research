@@ -2471,14 +2471,72 @@ function togglePin(code, renderFn){
 function pinVal(code){ const m=PIN_MARKS.get(code); return m==='pink'?2:m==='green'?0:1; } // 정렬값: pink=2(위), 없음=1, green=0(아래)
 // 핑크 토글 + 정렬 이벤트 바인딩 (각 렌더 함수 끝에서 호출)
 // 포트폴리오별 독립 정렬 상태
-const PSORT={kr:{roe:false,frgn:false,pin:false},watch:{roe:false,frgn:false,pin:false},invest:{roe:false,frgn:false,pin:false},investkq:{roe:false,frgn:false,pin:false}};
+const _ps0=()=>({score:false,rate:false,roe:false,frgn:false,amt:false,drop:false,tgt:false,pin:false});
+const PSORT={kr:_ps0(),watch:_ps0(),invest:_ps0(),investkq:_ps0()};
 let curPort='kr'; // 현재 렌더 중인 포트폴리오 ID
 // th 생성 헬퍼: 순서/ROE/외국인에 정렬 기능 부여
+// ── 정렬 기준별 값 추출 (모두 내림차순) ──
+// code: 종목코드, row: 표 행 객체(코스피200/코스닥100은 {code,roe,rate,hi,tgt...})
+function sortValOf(kind, code, row){
+  const R = row || {};
+  switch(kind){
+    case 'score':   return (typeof calcScore==='function' && code) ? (calcScore(code)??-999) : -999;
+    case 'rate': {  // 전일대비 상승률
+      if(R.rate!=null) return parseFloat(R.rate);
+      if(typeof krRate!=='undefined' && krRate && krRate[code]!=null) return parseFloat(krRate[code]);
+      if(typeof watchRate!=='undefined' && watchRate && watchRate[code]!=null) return parseFloat(watchRate[code]);
+      return -999;
+    }
+    case 'roe': {
+      if(R.roe!=null) return parseFloat(R.roe);
+      const z=(typeof krRoe!=='undefined'&&krRoe[code]) || (typeof watchRoe!=='undefined'&&watchRoe[code]) || (typeof cautionRoe!=='undefined'&&cautionRoe[code]);
+      return (z&&z.roe!=null)?parseFloat(z.roe):-999;
+    }
+    case 'frgn':    return (typeof frgnStarCount==='function' && code) ? frgnStarCount(code) : -999;  // 최근 연속 매수일수
+    case 'amt': {   // 최근 2일 순매수액
+      const f=(typeof FRGN!=='undefined')?FRGN[code]:null;
+      if(!f||!Array.isArray(f.amt)) return -1e18;
+      return f.amt.slice(-2).reduce((s,v)=>s+(v||0),0);
+    }
+    case 'drop': {  // 52주최고가 대비 낙폭이 큰 순 (낙폭 클수록 위)
+      let hi=R.hi, px=R.price;
+      if(hi==null && typeof watchHi!=='undefined' && watchHi) hi=watchHi[code];
+      if(px==null){
+        if(typeof krLive!=='undefined' && krLive && krLive[code]!=null) px=parseFloat(String(krLive[code]).replace(/[^0-9.]/g,''));
+        else if(typeof watchLive!=='undefined' && watchLive && watchLive[code]!=null) px=parseFloat(String(watchLive[code]).replace(/[^0-9.]/g,''));
+      }
+      if(!hi||!px) return -999;
+      return (hi-px)/hi*100;      // 낙폭 %
+    }
+    case 'tgt': {   // 목표가 상승여력이 큰 순
+      let tg=R.tgt, px=R.price;
+      if(tg==null && typeof REP!=='undefined' && REP && REP[code]) tg=REP[code].target;
+      if(px==null){
+        if(typeof krLive!=='undefined' && krLive && krLive[code]!=null) px=parseFloat(String(krLive[code]).replace(/[^0-9.]/g,''));
+        else if(typeof watchLive!=='undefined' && watchLive && watchLive[code]!=null) px=parseFloat(String(watchLive[code]).replace(/[^0-9.]/g,''));
+      }
+      if(!tg||!px) return -999;
+      return (tg-px)/px*100;      // 상승여력 %
+    }
+  }
+  return -999;
+}
+// 헤더 텍스트 → 정렬키 (해당 열이 없으면 정렬 없음)
+function sortKindOf(x){
+  if(x.indexOf('점수')>=0) return 'score';
+  if(x.indexOf('현재가')>=0) return 'rate';
+  if(x.indexOf('ROE')>=0) return 'roe';
+  if(x.indexOf('외국인')>=0) return 'frgn';
+  if(x.indexOf('매수액')>=0) return 'amt';
+  if(x.indexOf('52주최고가')>=0) return 'drop';
+  if(x.indexOf('목표가')>=0) return 'tgt';
+  return null;
+}
 function thGen(x){
   const ps=PSORT[curPort]||{};
   if(x==='순서') return '<th class="pin-hdr'+(ps.pin?' sort-on':'')+'">순서'+(ps.pin?'▼':'')+'</th>';
-  if(x.indexOf('ROE')>=0) return '<th class="sortable'+(ps.roe?' sort-on':'')+'" data-sort="roe">'+x+(ps.roe?'▼':'')+'</th>';
-  if(x.indexOf('외국인')>=0) return '<th class="sortable'+(ps.frgn?' sort-on':'')+'" data-sort="frgn">'+x+(ps.frgn?'▼':'')+'</th>';
+  const k=sortKindOf(x);
+  if(k) return '<th class="sortable'+(ps[k]?' sort-on':'')+'" data-sort="'+k+'">'+x+(ps[k]?'▼':'')+'</th>';
   return '<th>'+x+'</th>';
 }
 function bindPinEvents(tbl, renderFn, portId){
@@ -2491,7 +2549,12 @@ function bindPinEvents(tbl, renderFn, portId){
     th.onclick=()=>{ ps.pin=!ps.pin; if(renderFn) renderFn(); };
   });
   tbl.querySelectorAll('th.sortable').forEach(th=>{
-    th.onclick=()=>{ ps[th.dataset.sort]=!ps[th.dataset.sort]; if(renderFn) renderFn(); };
+    th.onclick=()=>{
+      const k=th.dataset.sort, was=ps[k];
+      ['score','rate','roe','frgn','amt','drop','tgt'].forEach(x=>{ ps[x]=false; });
+      ps[k]=!was;                       // 같은 열 다시 누르면 정렬 해제
+      if(renderFn) renderFn();
+    };
   });
 }
 async function fetchKrLive(rows){
@@ -2560,8 +2623,8 @@ function renderKrTable(){
   const krExtraCodes=new Set(krExtraLoad().map(e=>String(e[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
   const krDisp = (()=>{
     let arr=[...VAL]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT.kr;
-    if(ps.roe) arr.sort((a,b)=>((krRoe[gc(b)]||{}).roe??-999)-((krRoe[gc(a)]||{}).roe??-999));
-    if(ps.frgn) arr.sort((a,b)=>frgnStarCount(gc(b))-frgnStarCount(gc(a)));
+    const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
+    if(sk) arr.sort((a,b)=>sortValOf(sk,gc(b),null)-sortValOf(sk,gc(a),null));
     if(ps.pin) arr.sort((a,b)=>pinVal(gc(b))-pinVal(gc(a)));
     return arr;
   })();
@@ -2866,13 +2929,17 @@ function renderWatchTable(){
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목(코드입력)","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchUpBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="현재 주가 상승 종목만 수집">📈 상승만</button> <button id="watchGradeSortBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="점수 높은 순 정렬">📊 점수순</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchUpBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="현재 주가 상승 종목만 수집">📈 상승만</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
     let arr=[...displayRows]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT.watch;
-    if(ps.roe) arr.sort((a,b)=>((watchRoe[gc(b)]||{}).roe??-999)-((watchRoe[gc(a)]||{}).roe??-999));
-    if(ps.frgn) arr.sort((a,b)=>frgnStarCount(gc(b))-frgnStarCount(gc(a)));
+    const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
+    if(sk) arr.sort((a,b)=>{
+      const ca=gc(a), cb=gc(b);
+      if(!ca&&cb) return 1; if(ca&&!cb) return -1; if(!ca&&!cb) return 0;   // 빈 줄은 맨 뒤
+      return sortValOf(sk,cb,null)-sortValOf(sk,ca,null);
+    });
     if(ps.pin) arr.sort((a,b)=>pinVal(gc(b))-pinVal(gc(a)));
     return arr;
   })();
@@ -2935,16 +3002,6 @@ function renderWatchTable(){
   t.querySelectorAll('select.grade-sel').forEach(sel=>{
     sel.onchange=()=>{ if(sel.value) WATCH_GRADES.set(sel.dataset.code, parseInt(sel.value)); else WATCH_GRADES.delete(sel.dataset.code); saveWatchGrades(); sel.classList.toggle('neg', parseInt(sel.value)<0); };
   });
-  // 점수순 정렬 (점수 높은 순, 빈 줄은 맨 뒤)
-  const gsb=$('#watchGradeSortBtn'); if(gsb) gsb.onclick=()=>{
-    loadWatchRows();
-    WATCH_ROWS.sort((a,b)=>{
-      const ca=String(a[0]||'').replace(/[^0-9]/g,''), cb=String(b[0]||'').replace(/[^0-9]/g,'');
-      if(!ca&&cb) return 1; if(ca&&!cb) return -1; if(!ca&&!cb) return 0;
-      return calcScore(cb)-calcScore(ca);
-    });
-    saveWatchRows(); renderWatchTable();
-  };
   // 초기화 (색칠된 종목은 보존)
   const rb=$('#watchResetBtn'); if(rb) rb.onclick=()=>{
     loadWatchRows();
@@ -4788,8 +4845,8 @@ function renderInvestKq(){
   curPort='investkq';
   const invKqDisp = (()=>{
     let arr=[...INVEST_KQ_ROWS]; const ps=PSORT.investkq;
-    if(ps.roe) arr.sort((a,b)=>(b.roe??-999)-(a.roe??-999));
-    if(ps.frgn) arr.sort((a,b)=>frgnStarCount(b.code)-frgnStarCount(a.code));
+    const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
+    if(sk) arr.sort((a,b)=>sortValOf(sk,b.code,b)-sortValOf(sk,a.code,a));
     if(ps.pin) arr.sort((a,b)=>pinVal(b.code)-pinVal(a.code));
     return arr;
   })();
@@ -4861,8 +4918,8 @@ function renderInvest(){
   curPort='invest';
   const invDisp = (()=>{
     let arr=[...INVEST_ROWS]; const ps=PSORT.invest;
-    if(ps.roe) arr.sort((a,b)=>(b.roe??-999)-(a.roe??-999));
-    if(ps.frgn) arr.sort((a,b)=>frgnStarCount(b.code)-frgnStarCount(a.code));
+    const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
+    if(sk) arr.sort((a,b)=>sortValOf(sk,b.code,b)-sortValOf(sk,a.code,a));
     if(ps.pin) arr.sort((a,b)=>pinVal(b.code)-pinVal(a.code));
     return arr;
   })();
