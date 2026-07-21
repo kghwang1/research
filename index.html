@@ -4189,13 +4189,13 @@ function renderPnl(){
   // axes labels
   svg+=`<text x="${pad}" y="${H-pad+11}" fill="#888" font-size="8">${Math.round(xmin)}</text><text x="${W-8}" y="${H-pad+11}" fill="#888" font-size="8" text-anchor="end">${Math.round(xmax)}</text>`;
   svg+=`<text x="2" y="14" fill="#888" font-size="8">${Math.round(ymax)}억</text><text x="2" y="${H-pad}" fill="#888" font-size="8">${Math.round(ymin)}억</text>`;
-  // 세 선: 현물(초록) · 선물(주황) · 합계(하늘색, 굵게)
-  if(spotActive) svg+=`<path d="${pathOf(ysSpot)}" fill="none" stroke="#39d98a" stroke-width="1.6"/>`;
-  if(futActive) svg+=`<path d="${pathOf(ysFut)}" fill="none" stroke="#ffb020" stroke-width="1.6"/>`;
-  if(bothActive) svg+=`<path d="${pathOf(ysBoth)}" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="5 4"/>`;
+  // 세 선: 현물(녹색 실선) · 선물(청색 실선) · 현·선물 합(붉은색 실선)
+  if(spotActive) svg+=`<path d="${pathOf(ysSpot)}" fill="none" stroke="#39d98a" stroke-width="1.8"/>`;
+  if(futActive) svg+=`<path d="${pathOf(ysFut)}" fill="none" stroke="#2979ff" stroke-width="1.8"/>`;
+  if(bothActive) svg+=`<path d="${pathOf(ysBoth)}" fill="none" stroke="#ef5350" stroke-width="2.2"/>`;
   svg+='</svg>';
   if(bothActive){
-    svg+=`<div class="pnl-legend"><span><i style="background:#39d98a"></i>현물</span><span><i style="background:#ffb020"></i>선물</span><span><i style="background:#fff"></i>현·선물 합</span></div>`;
+    svg+=`<div class="pnl-legend"><span><i style="background:#2979ff"></i>선물</span><span><i style="background:#39d98a"></i>현물</span><span><i style="background:#ef5350"></i>현·선물 합</span></div>`;
   }
   box.innerHTML=svg;
   // 요약: 방향 / 손익분기·현재손익 / 외국인 매수 추정 평균가
