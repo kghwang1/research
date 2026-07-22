@@ -331,7 +331,25 @@ const C = {
 // 종목 목록
 // ══════════════════════════════════════
 const STOCKS = [
+  // ── 지수 ──
   {code:'KOSPI', name:'코스피', price:2680},
+  {code:'KOSDAQ', name:'코스닥', price:850},
+  {code:'^KS200', name:'코스피200', price:360, yahooSym:'^KS200'},
+  {code:'^GSPC', name:'S&P500', price:5500, yahooSym:'^GSPC'},
+  {code:'^IXIC', name:'나스닥', price:18000, yahooSym:'^IXIC'},
+  {code:'^DJI', name:'다우', price:40000, yahooSym:'^DJI'},
+  {code:'^SOX', name:'필라 반도체', price:5000, yahooSym:'^SOX'},
+  {code:'^N225', name:'니케이225', price:39000, yahooSym:'^N225'},
+  // ── 원자재·환율·금리 ──
+  {code:'GC=F', name:'금', price:2400, yahooSym:'GC=F'},
+  {code:'SI=F', name:'은', price:30, yahooSym:'SI=F'},
+  {code:'CL=F', name:'WTI 원유', price:80, yahooSym:'CL=F'},
+  {code:'HG=F', name:'구리', price:4.5, yahooSym:'HG=F'},
+  {code:'KRW=X', name:'원/달러 환율', price:1380, yahooSym:'KRW=X'},
+  {code:'DX-Y.NYB', name:'달러인덱스', price:104, yahooSym:'DX-Y.NYB'},
+  {code:'^TNX', name:'미국 10년물', price:4.2, yahooSym:'^TNX'},
+  {code:'BTC-USD', name:'비트코인', price:65000, yahooSym:'BTC-USD'},
+  // ── 국내 종목 ──
   {code:'005930', name:'삼성전자', price:72000},
   {code:'000660', name:'SK하이닉스', price:198000},
   {code:'035420', name:'NAVER', price:185000},
@@ -936,10 +954,11 @@ async function loadStock(stock) {
 
   // 검색창 표시:
   //  한국 = 기업명 / 외국 = 티커
-  if (isKorean) {
-    inp.value = stock.name; // 한국: 기업명만
+  const isPreset = STOCKS.some(s => s.code === stock.code && (s.yahooSym || s.code==='KOSPI' || s.code==='KOSDAQ'));
+  if (isKorean || isPreset) {
+    inp.value = stock.name; // 한국 종목·지수/원자재: 이름 표시
   } else {
-    inp.value = stock.code; // 외국: 티커
+    inp.value = stock.code; // 외국 개별종목: 티커
   }
   // 검색창 아래:
   //  한국 = 번호 / 외국 = 기업명 전체 (로딩 후 채움)
@@ -1120,7 +1139,7 @@ function setupSearch() {
   // 기본 종목 목록 표시
   function showDefault() {
     dropdown.innerHTML = STOCKS.map(s =>
-      `<div class="stock-item" data-code="${s.code}" data-name="${s.name}">
+      `<div class="stock-item" data-code="${s.code}" data-name="${s.name}"${s.yahooSym?` data-yahoo="${s.yahooSym}"`:''}>
         <span>${s.name}</span><span class="stock-code">${s.code}</span>
       </div>`
     ).join('');
@@ -1132,6 +1151,20 @@ function setupSearch() {
   async function searchNaver(q) {
     dropdown.innerHTML = '<div style="padding:8px 10px;color:#8b949e;font-size:11px">🔍 검색중...</div>';
     dropdown.style.display = 'block';
+
+    // 지수·원자재 등 기본 목록에서 먼저 찾기 (이름·심볼 부분일치)
+    const ql = q.toLowerCase().replace(/\s/g,'');
+    const isIdx = s => !!s.yahooSym || s.code === 'KOSPI' || s.code === 'KOSDAQ';
+    const presets = STOCKS.filter(s => isIdx(s) &&
+      (s.name.toLowerCase().replace(/\s/g,'').includes(ql) || s.code.toLowerCase().includes(ql)));
+    let preHtml = presets.map(s =>
+      `<div class="stock-item" data-code="${s.code}" data-name="${s.name}"${s.yahooSym?` data-yahoo="${s.yahooSym}"`:''}>
+        <span>${s.name}</span><span class="stock-code">${s.code}</span>
+      </div>`).join('');
+    if (preHtml) {
+      dropdown.innerHTML = preHtml;
+      bindItems();
+    }
 
     let html = '';
     try {
@@ -1160,10 +1193,11 @@ function setupSearch() {
     } catch(e) {}
 
     if (!html) {
+      if (preHtml) { dropdown.innerHTML = preHtml; bindItems(); return; }   // 지수·원자재만 있으면 그대로
       const other = state.market === 'kr' ? '🌐 해외' : '🇰🇷 한국';
       html = `<div style="padding:8px 10px;color:#8b949e;font-size:11px">검색 결과 없음<br><span style="font-size:10px">${other} 버튼도 확인해보세요</span></div>`;
     }
-    dropdown.innerHTML = html;
+    dropdown.innerHTML = preHtml + html;   // 지수·원자재를 위에, 종목 검색 결과를 아래에
     bindItems();
   }
 
