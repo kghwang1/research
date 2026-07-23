@@ -273,14 +273,14 @@
 
 
 .hdr-dt{font-size:8.5px;font-weight:400;color:#9fb0c9}
-  .wsearch-bar{position:relative;display:block;margin-bottom:6px}
+  .wsearch-bar{position:relative;display:block;margin-bottom:6px;z-index:40}
   .wsearch-bar #wSearchInput{width:100%;box-sizing:border-box;padding:7px 10px;background:#0d1117;border:1px solid #30363d;border-radius:7px;color:#e6edf3;font-size:12.5px;font-weight:600}
   .wsearch-bar #wSearchInput:focus{outline:none;border-color:#1f6feb}
   .wsearch-bar #wSearchInput::placeholder{color:#6e7681;font-weight:400}
-  .wsearch-ac{display:none;position:absolute;left:0;right:0;top:100%;margin-top:2px;background:#161b22;border:1px solid #30363d;border-radius:7px;max-height:220px;overflow-y:auto;z-index:30;box-shadow:0 6px 18px rgba(0,0,0,.5)}
-  .wac-item{padding:8px 11px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21262d;color:#e6edf3;text-align:left}
+  .wsearch-ac{display:none;position:absolute;left:0;right:0;top:calc(100% + 2px);background:#0d1117;border:1px solid #1f6feb;border-radius:7px;max-height:260px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.7)}
+  .wac-item{padding:9px 11px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21262d;color:#e6edf3;text-align:left;background:#0d1117}
   .wac-item:last-child{border-bottom:none}
-  .wac-item:hover{background:#1f6feb33}
+  .wac-item:hover,.wac-item:active{background:#1f6feb44}
   .wac-item span{color:#8b949e;font-size:11px;margin-left:4px}
   /* 종목 추가 행 */
   .add-row-btn{display:block;width:100%;padding:6px 0;font-size:12px;color:var(--accent);background:none;border:1px dashed var(--accent);border-radius:6px;cursor:pointer;text-align:center;margin-top:2px}
@@ -2088,6 +2088,8 @@ function renderVal(){
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
+  const _wsw=document.getElementById('wSearchWrap');
+  if(_wsw) _wsw.style.display=(valMarket==='watch'||valMarket==='invpf')?'':'none';
   if(valMarket==='watch'){ setWatchPort('watch'); multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
   if(valMarket==='invpf'){ setWatchPort('invpf'); multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
@@ -2760,7 +2762,7 @@ function saveWatchRows(){ try{ localStorage.setItem(watchKeyRows(), JSON.stringi
 // 관심 종목 시세/목표가/ROE 조회 (한국 포트와 동일 소스)
 async function fetchWatchLive(){
   watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={};
-  const codes=[...new Set((WATCH_ROWS||[]).map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean))];
+  const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
   if(!codes.length||!SRV_URL) return;
   const CH=40;
   for(let i=0;i<codes.length;i+=CH){
@@ -2934,14 +2936,15 @@ function renderWatchTable(){
   const t=$('#valTbl'); if(!t) return;
   loadWatchRows(); loadReportCache(); loadFrgnCache();
   // 정렬/필터 적용 (입력된 종목만 대상, 빈 줄은 마지막에 유지)
-  const filled = WATCH_ROWS.filter(r=>String(r[0]||'').replace(/[^0-9]/g,''));
-  const empties = WATCH_ROWS.filter(r=>!String(r[0]||'').replace(/[^0-9]/g,''));
+  const filled = WATCH_ROWS.filter(r=>String(r[0]||'').trim());
+  const empties = WATCH_ROWS.filter(r=>!String(r[0]||'').trim());
   let sorted = filled.slice();
-  // ROE 필터
+  // ROE 필터 (지수/원자재 행은 항상 통과)
+  const isIdxCode = c => c!=='' && !/^\d{6}$/.test(c);
   if(watchRoeMin==='up'){
-    sorted = sorted.filter(r=>{ const z=watchRoe[String(r[0]||'').replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.prevRoe!=null && (z.roe-z.prevRoe)>0; });
+    sorted = sorted.filter(r=>{ const rc=String(r[0]||'').trim(); if(isIdxCode(rc)) return true; const z=watchRoe[rc.replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.prevRoe!=null && (z.roe-z.prevRoe)>0; });
   } else if(watchRoeMin>0){
-    sorted = sorted.filter(r=>{ const z=watchRoe[String(r[0]||'').replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.roe>=watchRoeMin; });
+    sorted = sorted.filter(r=>{ const rc=String(r[0]||'').trim(); if(isIdxCode(rc)) return true; const z=watchRoe[rc.replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.roe>=watchRoeMin; });
   }
   // 외국인 정렬
   if(watchSortFrgn){
@@ -2952,7 +2955,7 @@ function renderWatchTable(){
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목(코드입력)","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  let h='<caption class="kr-cap"><div class="wsearch-bar"><input id="wSearchInput" type="text" placeholder="＋ 종목명·코드 입력 후 선택하면 목록에 추가" autocomplete="off"><div id="wSearchAc" class="wsearch-ac"></div></div>'+(watchPort==='invpf'?'투자 종목':'관심 종목')+' <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchUpBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="현재 주가 상승 종목만 수집">📈 상승만</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+(watchPort==='invpf'?'투자 종목':'관심 종목')+' <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchUpBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="현재 주가 상승 종목만 수집">📈 상승만</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -2967,8 +2970,18 @@ function renderWatchTable(){
     return arr;
   })();
   watchDisp.forEach((r,ri)=>{
-    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+    const rawCode=String(r[0]||'');
+    // 지수/원자재: 6자리 숫자 종목코드가 아닌 것 (KOSPI, ^KS200, GC=F 등)
+    const isIdxRow = rawCode!=='' && !/^\d{6}$/.test(rawCode);
+    const code = isIdxRow ? rawCode : rawCode.replace(/[^0-9]/g,'');
     const nm=r[1]||'';
+    if(isIdxRow){
+      // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
+      const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
+      const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="score-cell" data-code="${escHtml(code)}"></td><td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+      return;
+    }
     const live=watchLive[code];
     const liveStr= live? addComma(live) : (code?(SRV_URL?'…':'—'):'');
     const tgt=watchTarget[code];
@@ -3021,6 +3034,17 @@ function renderWatchTable(){
   h+=`<tr class="add-row"><td colspan="11"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
+  // 검색 바를 테이블 위에 별도 배치 (자동완성이 종목 행을 가리지 않도록)
+  (function(){
+    const sc=$('#valScroll'); if(!sc) return;
+    let bar=document.getElementById('wSearchWrap');
+    if(!bar){
+      bar=document.createElement('div');
+      bar.id='wSearchWrap';
+      bar.innerHTML='<div class="wsearch-bar"><input id="wSearchInput" type="text" placeholder="＋ 종목명·코드 입력 후 선택하면 목록에 추가" autocomplete="off"><div id="wSearchAc" class="wsearch-ac"></div></div>';
+      sc.parentNode.insertBefore(bar, sc);
+    }
+  })();
   // 등급 드롭다운
   t.querySelectorAll('select.grade-sel').forEach(sel=>{
     sel.onchange=()=>{ if(sel.value) WATCH_GRADES.set(sel.dataset.code, parseInt(sel.value)); else WATCH_GRADES.delete(sel.dataset.code); saveWatchGrades(); sel.classList.toggle('neg', parseInt(sel.value)<0); };
@@ -3088,7 +3112,8 @@ function renderWatchTable(){
   t.querySelectorAll('.wdel').forEach(x=>{ x.onclick=ev=>{ ev.stopPropagation(); watchDelete(parseInt(x.dataset.idx)); }; });
   // 현재가 클릭 → 차트
   t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
-  const codes=WATCH_ROWS.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
+  t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm); }; });
+  const codes=WATCH_ROWS.map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean);
   if(codes.length){ ensureReports(codes); ensureForeign(codes); ensureShort(codes); }
   // 시세가 아직 없으면 조회
   if(codes.length && !Object.keys(watchLive).length) fetchWatchLive();
@@ -5069,6 +5094,28 @@ function chartAutoSearch(q){
   }, 250);
 }
 
+// 지수·원자재 프리셋 (차트와 동일) — 종목 검색창에서도 찾을 수 있도록
+const IDX_PRESETS=[
+  {code:'KOSPI',name:'코스피'},{code:'KOSDAQ',name:'코스닥'},{code:'^KS200',name:'코스피200'},
+  {code:'^GSPC',name:'S&P500'},{code:'^IXIC',name:'나스닥'},{code:'^DJI',name:'다우'},
+  {code:'^SOX',name:'필라 반도체'},{code:'^N225',name:'니케이225'},
+  {code:'GC=F',name:'금'},{code:'SI=F',name:'은'},{code:'CL=F',name:'WTI 원유'},{code:'HG=F',name:'구리'},
+  {code:'KRW=X',name:'원/달러 환율'},{code:'DX-Y.NYB',name:'달러인덱스'},{code:'^TNX',name:'미국 10년물'},{code:'BTC-USD',name:'비트코인'}
+];
+function idxSearch(q){
+  const ql=String(q).toLowerCase().replace(/\s/g,'');
+  return IDX_PRESETS.filter(s=>s.name.toLowerCase().replace(/\s/g,'').includes(ql)||s.code.toLowerCase().includes(ql));
+}
+// 지수는 코드가 6자리가 아니므로 그대로 추가
+function watchAddIdx(code, name){
+  loadWatchRows();
+  if(WATCH_ROWS.some(r=>String(r[0]||'')===code)){ toast('이미 목록에 있습니다: '+name); return; }
+  const empIdx=WATCH_ROWS.findIndex(r=>!String(r[0]||''));
+  if(empIdx>=0) WATCH_ROWS.splice(empIdx,0,[code, name]);
+  else WATCH_ROWS.push([code, name]);
+  saveWatchRows(); renderWatchTable(); fetchWatchLive();
+  toast('추가됨: '+name);
+}
 // 관심/투자 표 상단 종목 검색창: 검색 → 선택 시 목록 맨 아래(빈 줄 앞)에 추가
 function watchAddCode(code, name){
   const c=String(code||'').replace(/[^0-9]/g,'').padStart(6,'0').slice(0,6);
@@ -5095,18 +5142,31 @@ function bindWatchSearch(t){
     if(!v){ close(); return; }
     // 6자리 숫자면 바로 추가 가능 안내
     timer=setTimeout(async()=>{
-      if(!SRV_URL || !ac) return;
-      try{
-        const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(v));
-        const d=await r.json();
-        const items=(d&&d.items)||[];
-        if(!items.length){ close(); return; }
-        ac.innerHTML=items.map(it=>`<div class="wac-item" data-code="${it.code}" data-name="${esc(it.name)}"><b>${esc(it.name)}</b> <span>${it.code}</span></div>`).join('');
-        ac.querySelectorAll('.wac-item').forEach(el=>{
-          el.onmousedown=ev=>{ ev.preventDefault(); watchAddCode(el.dataset.code, el.dataset.name); inp.value=''; close(); inp.focus(); };
-        });
-        ac.style.display='block';
-      }catch(e){}
+      if(!ac) return;
+      // 지수·원자재 프리셋 먼저
+      const idx=idxSearch(v);
+      let preHtml=idx.map(s=>`<div class="wac-item wac-idx" data-idx="1" data-code="${s.code}" data-name="${esc(s.name)}"><b>${esc(s.name)}</b> <span>지수</span></div>`).join('');
+      // 종목 검색 (worker)
+      let stkHtml='';
+      if(SRV_URL){
+        try{
+          const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(v));
+          const d=await r.json();
+          const items=(d&&d.items)||[];
+          stkHtml=items.map(it=>`<div class="wac-item" data-code="${it.code}" data-name="${esc(it.name)}"><b>${esc(it.name)}</b> <span>${it.code}</span></div>`).join('');
+        }catch(e){}
+      }
+      if(!preHtml && !stkHtml){ close(); return; }
+      ac.innerHTML=preHtml+stkHtml;
+      ac.querySelectorAll('.wac-item').forEach(el=>{
+        el.onmousedown=ev=>{
+          ev.preventDefault();
+          if(el.dataset.idx) watchAddIdx(el.dataset.code, el.dataset.name);
+          else watchAddCode(el.dataset.code, el.dataset.name);
+          inp.value=''; close(); inp.focus();
+        };
+      });
+      ac.style.display='block';
     }, 250);
   };
   inp.onkeydown=ev=>{
