@@ -422,11 +422,23 @@ const CALC = {
   BB:(d)=>{const bp=P('BB',0,20),bs=P('BB',1,2),c=d.map(x=>x.close),mid=sma(c,bp),sd=stdev(c,bp);return{upper:mid.map((v,i)=>v&&sd[i]?v+bs*sd[i]:null),mid,lower:mid.map((v,i)=>v&&sd[i]?v-bs*sd[i]:null)};},
   ICHIMOKU:(d)=>{
     const h=d.map(x=>x.high),l=d.map(x=>x.low),c=d.map(x=>x.close);
+    const S=26; // 이동 기간(기준기간)
+    const N=d.length;
     const tenkan=d.map((_,i)=>i<8?null:(highest(h,9,i)+lowest(l,9,i))/2);
     const kijun=d.map((_,i)=>i<25?null:(highest(h,26,i)+lowest(l,26,i))/2);
-    const senkouA=tenkan.map((v,i)=>v&&kijun[i]?(v+kijun[i])/2:null);
-    const senkouB=d.map((_,i)=>i<51?null:(highest(h,52,i)+lowest(l,52,i))/2);
-    return{tenkan,kijun,senkouA,senkouB,chikou:c};
+    const rawA=tenkan.map((v,i)=>v&&kijun[i]?(v+kijun[i])/2:null);
+    const rawB=d.map((_,i)=>i<51?null:(highest(h,52,i)+lowest(l,52,i))/2);
+    // 선행스팬 A·B: 26칸 앞(미래)으로 이동. 데이터 끝 너머 26칸까지 확장 배열
+    const senkouA=new Array(N+S).fill(null);
+    const senkouB=new Array(N+S).fill(null);
+    for(let i=0;i<N;i++){
+      if(rawA[i]!=null) senkouA[i+S]=rawA[i];
+      if(rawB[i]!=null) senkouB[i+S]=rawB[i];
+    }
+    // 후행스팬: 종가를 26칸 뒤(과거)로 이동
+    const chikou=new Array(N).fill(null);
+    for(let i=0;i<N;i++){ if(i-S>=0) chikou[i-S]=c[i]; }
+    return{tenkan,kijun,senkouA,senkouB,chikou};
   },
   VAMA:(d)=>{
     // 거래량조정 이동평균 = Σ(거래량×종가) / Σ(거래량)  — 거래량 많은 날의 가격에 가중
@@ -1381,6 +1393,10 @@ function drawCandle() {
   const {data, range, overlays} = state;
   if (!data.length) return;
   const slice = data.slice(...range);
+  // 일목균형표가 켜지면 오른쪽에 26칸 미래 여백 확보 (미래로 이동한 구름 표시용)
+  const ICHI_SHIFT = 26;
+  const futurePad = overlays.ICHIMOKU ? ICHI_SHIFT : 0;
+  const slotCount = slice.length + futurePad;   // x축 분할 기준 (여백 포함)
   const PAD = {l:8, r:62, t:10, b:24};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
 
@@ -1403,9 +1419,9 @@ function drawCandle() {
 
   const pad = (maxP - minP) * 0.04;
   maxP += pad; minP -= pad;
-  const xOf = i => PAD.l + (i + 0.5) * (cw / slice.length);
+  const xOf = i => PAD.l + (i + 0.5) * (cw / slotCount);
   const yOf = v => PAD.t + ch - ((v - minP) / (maxP - minP)) * ch;
-  const bw = Math.max(1, cw / slice.length * 0.55);
+  const bw = Math.max(1, cw / slotCount * 0.55);
 
   ctx.fillStyle = C.panel; ctx.fillRect(0, 0, W, H);
 
@@ -1422,9 +1438,10 @@ function drawCandle() {
   // 일목균형표 구름
   if (overlays.ICHIMOKU) {
     const ich = CALC.ICHIMOKU(data);
-    const sa = ich.senkouA.slice(...range), sb = ich.senkouB.slice(...range);
-    const ten = ich.tenkan.slice(...range), kij = ich.kijun.slice(...range);
-    for (let i = 0; i < slice.length - 1; i++) {
+    // 화면 표시 범위: range 시작 ~ range끝+미래여백 (senkouA/B는 N+26 길이 확장 배열)
+    const eStart = range[0], eEnd = range[1] + futurePad;
+    const sa = ich.senkouA.slice(eStart, eEnd), sb = ich.senkouB.slice(eStart, eEnd);
+    for (let i = 0; i < sa.length - 1; i++) {
       if (!sa[i] || !sb[i]) continue;
       ctx.beginPath();
       ctx.moveTo(xOf(i), yOf(sa[i])); ctx.lineTo(xOf(i+1), yOf(sa[i+1]||sa[i]));
@@ -1433,12 +1450,13 @@ function drawCandle() {
       ctx.fillStyle = sa[i] > sb[i] ? '#3fb95022' : '#ef535022'; ctx.fill();
     }
     const drawL = (arr, col, w) => {
-      const sl = arr.slice(...range);
+      const sl = arr.slice(eStart, eEnd);
       ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); let s = false;
       sl.forEach((v, i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); }); ctx.stroke();
     };
     drawL(ich.tenkan, '#ffd54f', 1); drawL(ich.kijun, '#ef5350', 1.5);
     drawL(ich.senkouA, '#3fb950', 0.8); drawL(ich.senkouB, '#bc8cff', 0.8);
+    drawL(ich.chikou, '#00bcd4', 1); // 후행스팬 (청록)
   }
 
   // BB
@@ -1716,7 +1734,7 @@ function drawCandle() {
   const legends = [];
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
   if (overlays.ICHIMOKU) legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6',
-    sub:[{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}]});
+    sub:[{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}, {t:'선행A', c:'#3fb950'}, {t:'선행B', c:'#bc8cff'}, {t:'후행', c:'#00bcd4'}]});
   if (overlays.VAMA)     legends.push({t:'VAMA 거래량조정이동평균', c:'#ffd54f',
     sub:[{t:'5일', c:'#ffd54f'}, {t:'20일', c:'#ef5350'}]});
   if (overlays.DEMA)     legends.push({t:'DEMA 이중지수이동평균(20)', c:'#ffd54f',
