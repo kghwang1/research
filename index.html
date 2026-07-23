@@ -272,7 +272,16 @@
   .btn-sm{padding:7px 12px;font-size:12px;background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
 
 
-  .hdr-dt{font-size:8.5px;font-weight:400;color:#9fb0c9}
+.hdr-dt{font-size:8.5px;font-weight:400;color:#9fb0c9}
+  .wsearch-bar{position:relative;display:block;margin-bottom:6px}
+  .wsearch-bar #wSearchInput{width:100%;box-sizing:border-box;padding:7px 10px;background:#0d1117;border:1px solid #30363d;border-radius:7px;color:#e6edf3;font-size:12.5px;font-weight:600}
+  .wsearch-bar #wSearchInput:focus{outline:none;border-color:#1f6feb}
+  .wsearch-bar #wSearchInput::placeholder{color:#6e7681;font-weight:400}
+  .wsearch-ac{display:none;position:absolute;left:0;right:0;top:100%;margin-top:2px;background:#161b22;border:1px solid #30363d;border-radius:7px;max-height:220px;overflow-y:auto;z-index:30;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+  .wac-item{padding:8px 11px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21262d;color:#e6edf3;text-align:left}
+  .wac-item:last-child{border-bottom:none}
+  .wac-item:hover{background:#1f6feb33}
+  .wac-item span{color:#8b949e;font-size:11px;margin-left:4px}
   /* 종목 추가 행 */
   .add-row-btn{display:block;width:100%;padding:6px 0;font-size:12px;color:var(--accent);background:none;border:1px dashed var(--accent);border-radius:6px;cursor:pointer;text-align:center;margin-top:2px}
   .add-row-btn:active{opacity:.7}
@@ -671,6 +680,7 @@
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">코스피200</span><span class="sb">코스피200 최대낙폭·ROE·외국인 투자</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('investkq');return false;"><span class="ic">📈</span><span class="tx"><span class="tt">코스닥100</span><span class="sb">코스닥100 최대낙폭·ROE·외국인 투자</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('watch');return false;"><span class="ic">⭐</span><span class="tx"><span class="tt">관심</span><span class="sb">직접 입력하는 관심 종목</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invpf');return false;"><span class="ic">💼</span><span class="tx"><span class="tt">투자</span><span class="sb">저장해 두는 투자 종목</span></span></a>
    </div>
    <!-- 국외 줄 -->
    <div class="port-col">
@@ -810,6 +820,7 @@
   <div class="subtab" data-m="invest">코스피200</div>
   <div class="subtab" data-m="investkq">코스닥100</div>
   <div class="subtab" data-m="watch">관심</div>
+  <div class="subtab" data-m="invpf">투자</div>
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
@@ -2077,7 +2088,8 @@ function renderVal(){
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
-  if(valMarket==='watch'){ multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
+  if(valMarket==='watch'){ setWatchPort('watch'); multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
+  if(valMarket==='invpf'){ setWatchPort('invpf'); multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); return; }
   multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='';
   loadVal();
   if(valMarket==='kr'){ renderKrTable(); return; }  // 한국: 국내 포트폴리오(적정가 입력·상승여력 자동계산)
@@ -2722,17 +2734,28 @@ let WATCH_GRADES = new Map(); // code → grade (1~5, -1, -2)
 function saveWatchGrades(){ try{ localStorage.setItem('kg_watch_grades', JSON.stringify([...WATCH_GRADES.entries()])); }catch(e){} }
 function gradeVal(code){ const g=WATCH_GRADES.get(code); return g||99; } // 정렬용: 1이 최상, 99=미지정
 
-let WATCH_ROWS = null;   // [[code, name], ...]
+let WATCH_ROWS = null;   // [[code, name], ...] — 현재 활성 탭(watch 또는 invpf)의 행
+// 관심·투자 탭은 동일 구조, 저장소만 분리
+let _WATCH_ROWS_watch = null, _WATCH_ROWS_invpf = null;
+let watchPort = 'watch';   // 현재 렌더 중인 탭: 'watch' | 'invpf'
+function watchKeyRows(){ return watchPort==='invpf' ? 'kg_invpf_rows' : 'kg_watch_rows'; }
+function watchKeySrv(){ return watchPort==='invpf' ? 'invpf_portfolio' : 'watch_portfolio'; }
+function setWatchPort(p){
+  // 현재 배열을 탭별 슬롯에 보관 후 전환
+  if(watchPort==='invpf') _WATCH_ROWS_invpf = WATCH_ROWS; else _WATCH_ROWS_watch = WATCH_ROWS;
+  watchPort = (p==='invpf') ? 'invpf' : 'watch';
+  WATCH_ROWS = (watchPort==='invpf') ? _WATCH_ROWS_invpf : _WATCH_ROWS_watch;
+}
 let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
 let watchSortFrgn=false, watchRoeMin=0;
 
 function loadWatchRows(){
   if(WATCH_ROWS) return WATCH_ROWS;
-  try{ const raw=localStorage.getItem('kg_watch_rows'); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)) WATCH_ROWS=a; } }catch(e){}
+  try{ const raw=localStorage.getItem(watchKeyRows()); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)) WATCH_ROWS=a; } }catch(e){}
   if(!WATCH_ROWS || !WATCH_ROWS.length) WATCH_ROWS=[['',''],['','']]; // 초기 2줄
   return WATCH_ROWS;
 }
-function saveWatchRows(){ try{ localStorage.setItem('kg_watch_rows', JSON.stringify(WATCH_ROWS)); }catch(e){} }
+function saveWatchRows(){ try{ localStorage.setItem(watchKeyRows(), JSON.stringify(WATCH_ROWS)); }catch(e){} }
 
 // 관심 종목 시세/목표가/ROE 조회 (한국 포트와 동일 소스)
 async function fetchWatchLive(){
@@ -2766,7 +2789,7 @@ async function fetchWatchLive(){
     }catch(e){}
   }
   saveWatchRows();
-  if(valMarket==='watch') renderWatchTable();
+  if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
 }
 
 function watchCommit(idx, code, name){
@@ -2929,7 +2952,7 @@ function renderWatchTable(){
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목(코드입력)","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  let h='<caption class="kr-cap">관심 종목 <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchUpBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="현재 주가 상승 종목만 수집">📈 상승만</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap"><div class="wsearch-bar"><input id="wSearchInput" type="text" placeholder="＋ 종목명·코드 입력 후 선택하면 목록에 추가" autocomplete="off"><div id="wSearchAc" class="wsearch-ac"></div></div>'+(watchPort==='invpf'?'투자 종목':'관심 종목')+' <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchUpBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="현재 주가 상승 종목만 수집">📈 상승만</button> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -3079,6 +3102,7 @@ function renderWatchTable(){
     msIn.onchange=()=>watchMinScoreSet(msIn.value.trim());
     msIn.onblur=()=>watchMinScoreSet(msIn.value.trim());
   }
+  bindWatchSearch(t);
 }
 /* =====================================================
    [주의] 포트폴리오 — 외국인 연속 순매도 종목 자동 수집
@@ -3465,7 +3489,7 @@ function renderInfo(box){
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); fetchKrRoe(VAL); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
-    if(valMarket==='watch'){ fetchWatchLive(); }
+    if(valMarket==='watch'||valMarket==='invpf'){ fetchWatchLive(); }
   });
   // 서버 저장 / 초기화(서버와 일치)
   const sb=$('#valSave');
@@ -4486,7 +4510,7 @@ async function ensureForeign(codes){
   if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
-  else if(valMarket==='watch') renderWatchTable();
+  else if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
 }
 // 외국인 정렬값: 최근일부터 연속된 순매수(★) 일수 (연속이 끊기면 중단)
 // 동점이면 5일 전체 별 개수로 2차 비교하도록 소수점 가중치 부여
@@ -4611,7 +4635,7 @@ async function ensureShort(codes){
   shortLoading=false;
   // 현재 활성 포트 재렌더
   if(valMarket==='kr') renderKrTable();
-  else if(valMarket==='watch') renderWatchTable();
+  else if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
   else if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
 }
@@ -4674,7 +4698,7 @@ async function ensureReports(codes){
   if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
-  else if(valMarket==='watch') renderWatchTable();
+  else if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
 }
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
 const KOSDAQ_FALLBACK=["247540","196170","086520","028300","091990","066970","035760","058470","240810","357780","293490","145020","328130","277810","141080","112040","067310","039030","036930","263750","214150","348370","253450","178320","950140","403870","166090","084990","000250","048410","085660","022100","036540","121600","265520","214450","035900","056190","287410","102710","092040","900140","240810","065350","195940","054620","376300","131970","137400","240600"];
@@ -5045,6 +5069,53 @@ function chartAutoSearch(q){
   }, 250);
 }
 
+// 관심/투자 표 상단 종목 검색창: 검색 → 선택 시 목록 맨 아래(빈 줄 앞)에 추가
+function watchAddCode(code, name){
+  const c=String(code||'').replace(/[^0-9]/g,'').padStart(6,'0').slice(0,6);
+  if(!c || c.length!==6){ toast('올바른 종목코드가 아닙니다'); return; }
+  loadWatchRows();
+  if(WATCH_ROWS.some(r=>String(r[0]||'').replace(/[^0-9]/g,'')===c)){ toast('이미 목록에 있습니다: '+(name||c)); return; }
+  const empIdx=WATCH_ROWS.findIndex(r=>!String(r[0]||''));
+  if(empIdx>=0) WATCH_ROWS.splice(empIdx,0,[c, name||'']);
+  else WATCH_ROWS.push([c, name||'']);
+  saveWatchRows();
+  renderWatchTable();
+  fetchWatchLive();
+  toast('추가됨: '+(name||c));
+}
+function bindWatchSearch(t){
+  const inp=t.querySelector('#wSearchInput'); if(!inp) return;
+  const ac=t.querySelector('#wSearchAc');
+  let timer=null;
+  const close=()=>{ if(ac){ ac.style.display='none'; ac.innerHTML=''; } };
+  inp.onclick=(e)=>e.stopPropagation();
+  inp.oninput=()=>{
+    const v=inp.value.trim();
+    if(timer) clearTimeout(timer);
+    if(!v){ close(); return; }
+    // 6자리 숫자면 바로 추가 가능 안내
+    timer=setTimeout(async()=>{
+      if(!SRV_URL || !ac) return;
+      try{
+        const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(v));
+        const d=await r.json();
+        const items=(d&&d.items)||[];
+        if(!items.length){ close(); return; }
+        ac.innerHTML=items.map(it=>`<div class="wac-item" data-code="${it.code}" data-name="${esc(it.name)}"><b>${esc(it.name)}</b> <span>${it.code}</span></div>`).join('');
+        ac.querySelectorAll('.wac-item').forEach(el=>{
+          el.onmousedown=ev=>{ ev.preventDefault(); watchAddCode(el.dataset.code, el.dataset.name); inp.value=''; close(); inp.focus(); };
+        });
+        ac.style.display='block';
+      }catch(e){}
+    }, 250);
+  };
+  inp.onkeydown=ev=>{
+    if(ev.key==='Enter'){ ev.preventDefault(); const c=inp.value.replace(/[^0-9]/g,''); if(c.length===6){ watchAddCode(c,''); inp.value=''; close(); } }
+    else if(ev.key==='Escape'){ close(); }
+  };
+  inp.onblur=()=>{ setTimeout(close, 200); };
+}
+
 // 관심 종목 서버 저장/불러오기 (Cloudflare KV)
 async function saveWatchToServer(){
   if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
@@ -5055,7 +5126,7 @@ async function saveWatchToServer(){
     savedAt: new Date().toISOString()
   });
   try{
-    const r = await fetch(SRV_URL+'/?data=watch', {
+    const r = await fetch(SRV_URL+'/?data='+watchKeySrv(), {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: data
@@ -5067,9 +5138,9 @@ async function saveWatchToServer(){
 }
 async function loadWatchFromServer(){
   if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
-  if(!confirm('서버에서 불러오면 현재 관심 목록이 교체됩니다. 계속할까요?')) return;
+  if(!confirm('서버에서 불러오면 현재 목록이 교체됩니다. 계속할까요?')) return;
   try{
-    const r = await fetch(SRV_URL+'/?data=watch');
+    const r = await fetch(SRV_URL+'/?data='+watchKeySrv());
     const d = await r.json();
     if(!d.ok || !d.value){ toast('서버에 저장된 데이터가 없습니다'); return; }
     const saved = JSON.parse(d.value);
