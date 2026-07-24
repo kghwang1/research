@@ -847,53 +847,51 @@ async function fetchReal(stock) {
   const isKrStock = /^\d{6}$/.test(code); // 순수 한국 주식 (지수 제외)
   const range = toYahooRange(state.period, state.interval);
 
-  // ── 한국 주식: KIS API ──────────────────────────────────
-  if (isKrStock && state.interval === '1d') {
-    try {
-      const url = `${WORKER}/?kisChart=${encodeURIComponent(code)}&range=2y&_t=${Date.now()}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      const json = await res.json();
-      if (json.ok && json.ohlcv && json.ohlcv.length >= 5) {
-        return {
-          ohlcv: json.ohlcv,
-          name: stock.name || code,
-          validSymbol: true,
-          realSymbol: code,
-          currency: 'KRW',
-          exchange: 'KRX',
-        };
-      }
-    } catch(e) {
-      console.warn('KIS fetch fail, fallback to yahoo:', e);
-    }
-    // KIS 실패 시 야후로 fallback
-  }
-
-
-  // ── 한국 종목 일/주/월봉: 네이버 차트 API 우선 (KRX 공식 데이터) ──
-  const isKR = /^\d{6}$/.test(stock.code);
+  // ── 한국 종목 일/주/월봉: 네이버 차트 우선 (KRX 공식 데이터, HTS와 일치) ──
   const naverTF = {'1d':'day','1wk':'week','1mo':'month'}[state.interval];
-  if (isKR && naverTF) {
+  if (isKrStock && naverTF) {
     try {
-      const nUrl = `${WORKER}/?naverChart=${stock.code}&timeframe=${naverTF}&days=300&_t=${Date.now()}`;
+      const nUrl = `${WORKER}/?naverChart=${code}&timeframe=${naverTF}&days=400&_t=${Date.now()}`;
       const nRes = await fetch(nUrl, { cache: 'no-store' });
       const nJson = await nRes.json();
       if (nJson.ok && nJson.data && nJson.data.length >= 5) {
         return {
           ohlcv: nJson.data,
-          name: stock.name || stock.code,
+          name: stock.name || code,
           validSymbol: true,
-          realSymbol: stock.code,
+          realSymbol: code,
           currency: 'KRW',
           exchange: 'KRX',
+          source: 'naver',
         };
       }
     } catch(e) {
-      console.warn('Naver chart fail, fallback to yahoo:', e);
+      console.warn('Naver chart fail, try KIS:', e);
+    }
+    // 네이버 실패 시 KIS 시도
+    if (state.interval === '1d') {
+      try {
+        const url = `${WORKER}/?kisChart=${encodeURIComponent(code)}&range=2y&_t=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        const json = await res.json();
+        if (json.ok && json.ohlcv && json.ohlcv.length >= 5) {
+          return {
+            ohlcv: json.ohlcv,
+            name: stock.name || code,
+            validSymbol: true,
+            realSymbol: code,
+            currency: 'KRW',
+            exchange: 'KRX',
+            source: 'kis',
+          };
+        }
+      } catch(e) {
+        console.warn('KIS fetch fail, fallback to yahoo:', e);
+      }
     }
   }
 
-  // ── 미국주식/지수/분봉/주봉/월봉: 야후 ────────────────────
+  // ── 미국주식/지수/분봉: 야후 (국내 종목도 위 실패 시 최후 수단) ──
   const sym = toYahooSymbol(stock);
   const url = `${WORKER}/?yahooChart=${encodeURIComponent(sym)}&range=${range}&interval=${state.interval}&_t=${Date.now()}`;
   try {
