@@ -1390,11 +1390,12 @@ function drawCandle() {
 
   const {data, range, overlays} = state;
   if (!data.length) return;
-  const slice = data.slice(...range);
-  // 일목균형표가 켜지면 오른쪽에 26칸 미래 여백 확보 (미래로 이동한 구름 표시용)
+  // range 끝이 데이터 길이를 넘을 수 있음(미래 여백). 캔들은 실제 데이터 구간만 그림
+  const dataEnd = Math.min(range[1], data.length);
+  const slice = data.slice(range[0], dataEnd);
   const ICHI_SHIFT = 26;
-  const futurePad = overlays.ICHIMOKU ? ICHI_SHIFT : 0;
-  const slotCount = slice.length + futurePad;   // x축 분할 기준 (여백 포함)
+  // 화면 전체 슬롯 = range 폭 (미래 여백이 range에 포함됨)
+  const slotCount = range[1] - range[0];
   const PAD = {l:8, r:62, t:10, b:24};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
 
@@ -1437,7 +1438,7 @@ function drawCandle() {
   if (overlays.ICHIMOKU) {
     const ich = CALC.ICHIMOKU(data);
     // 화면 표시 범위: range 시작 ~ range끝+미래여백 (senkouA/B는 N+26 길이 확장 배열)
-    const eStart = range[0], eEnd = range[1] + futurePad;
+    const eStart = range[0], eEnd = range[1];
     const sa = ich.senkouA.slice(eStart, eEnd), sb = ich.senkouB.slice(eStart, eEnd);
     for (let i = 0; i < sa.length - 1; i++) {
       if (!sa[i] || !sb[i]) continue;
@@ -3068,12 +3069,14 @@ function setupMouseEvent() {
 
   function shiftRange(deltaIdx) {
     const total = state.data.length;
+    const fpad = state.overlays.ICHIMOKU ? 26 : 0;  // 미래 여백(구름)
+    const maxRight = total + fpad;  // 최신에서 미래 여백만큼 더 오른쪽까지 허용 (점프 방지)
     const len = n();
     let s = dragStartRange[0] - deltaIdx;
     let e = dragStartRange[1] - deltaIdx;
     if (s < 0) { e -= s; s = 0; }
-    if (e > total) { s -= (e - total); e = total; }
-    s = Math.max(0, s); e = Math.min(total, e);
+    if (e > maxRight) { s -= (e - maxRight); e = maxRight; }
+    s = Math.max(0, s); e = Math.min(maxRight, e);
     state.range = [s, e];
     rememberView();
   }
