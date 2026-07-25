@@ -827,7 +827,7 @@ function toYahooRange(period, interval) {
   if (interval === '60m') return '1mo';   // 1시간봉: 1개월
   if (interval === '1mo') return '10y';   // 월봉
   if (interval === '1wk') return '3y';    // 주봉
-  return '2y';                            // 일봉
+  return '3y';                            // 일봉 (약 750거래일)
 }
 
 // 초기 표시할 캔들 개수 (이후 손가락 확대/축소로 조절)
@@ -851,7 +851,7 @@ async function fetchReal(stock) {
   const naverTF = {'1d':'day','1wk':'week','1mo':'month'}[state.interval];
   if (isKrStock && naverTF) {
     try {
-      const nUrl = `${WORKER}/?naverChart=${code}&timeframe=${naverTF}&days=400&_t=${Date.now()}`;
+      const nUrl = `${WORKER}/?naverChart=${code}&timeframe=${naverTF}&days=1000&_t=${Date.now()}`;
       const nRes = await fetch(nUrl, { cache: 'no-store' });
       const nJson = await nRes.json();
       if (nJson.ok && nJson.data && nJson.data.length >= 5) {
@@ -871,7 +871,7 @@ async function fetchReal(stock) {
     // 네이버 실패 시 KIS 시도
     if (state.interval === '1d') {
       try {
-        const url = `${WORKER}/?kisChart=${encodeURIComponent(code)}&range=2y&_t=${Date.now()}`;
+        const url = `${WORKER}/?kisChart=${encodeURIComponent(code)}&range=3y&_t=${Date.now()}`;
         const res = await fetch(url, { cache: 'no-store' });
         const json = await res.json();
         if (json.ok && json.ohlcv && json.ohlcv.length >= 5) {
