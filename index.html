@@ -2906,6 +2906,16 @@ function renderWatchTable(){
   if(watchSortFrgn){
     sorted.sort((a,b)=>{ const fa=frgnStarCount(String(a[0]||'').replace(/[^0-9]/g,'')), fb=frgnStarCount(String(b[0]||'').replace(/[^0-9]/g,'')); return fb-fa; });
   }
+  // 기본 배열: 국내(6자리) 먼저, 해외(US:) 나중, 지수는 그 사이 — 안정 정렬로 기존 순서 유지
+  const rowClass = r => {
+    const c=String(r[0]||'').trim();
+    if(/^US:/i.test(c)) return 2;        // 해외
+    if(/^\d{6}$/.test(c)) return 0;      // 국내 종목
+    return 1;                             // 지수·원자재
+  };
+  sorted = sorted.map((r,i)=>[r,i]).sort((a,b)=>{
+    const d=rowClass(a[0])-rowClass(b[0]); return d!==0?d:a[1]-b[1];
+  }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
   const W=[96,28,90,92,90,90,90,100,100,200,110];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
@@ -2927,10 +2937,19 @@ function renderWatchTable(){
   })();
   watchDisp.forEach((r,ri)=>{
     const rawCode=String(r[0]||'');
-    // 지수/원자재: 6자리 숫자 종목코드가 아닌 것 (KOSPI, ^KS200, GC=F 등)
-    const isIdxRow = rawCode!=='' && !/^\d{6}$/.test(rawCode);
-    const code = isIdxRow ? rawCode : rawCode.replace(/[^0-9]/g,'');
+    // 지수/원자재/해외: 6자리 숫자 종목코드가 아닌 것
+    const isUSRow = /^US:/i.test(rawCode);
+    const isIdxRow = rawCode!=='' && !/^\d{6}$/.test(rawCode) && !isUSRow;
+    const code = (isIdxRow||isUSRow) ? rawCode : rawCode.replace(/[^0-9]/g,'');
     const nm=r[1]||'';
+    if(isUSRow){
+      // 해외(미국) 종목: 이름·차트만 (국내용 시세·ROE·외국인·목표가·보고서 없음)
+      const ticker=rawCode.replace(/^US:/i,'');
+      const stkInner=`<span class="kn">${escHtml(nm||ticker)}</span><span class="kc" style="color:#f0883e">${escHtml(ticker)} · 해외</span>`;
+      const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="score-cell" data-code="${escHtml(code)}"></td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+      return;
+    }
     if(isIdxRow){
       // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
@@ -3069,6 +3088,7 @@ function renderWatchTable(){
   // 현재가 클릭 → 차트
   t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
   t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm); }; });
+  t.querySelectorAll('a.wusa, td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c) openChart(c, nm); }; });
   const codes=WATCH_ROWS.map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean);
   if(codes.length){ ensureReports(codes); ensureForeign(codes); ensureShort(codes); }
   // 시세가 아직 없으면 조회
@@ -5061,6 +5081,19 @@ function idxSearch(q){
   return IDX_PRESETS.filter(s=>s.name.toLowerCase().replace(/\s/g,'').includes(ql)||s.code.toLowerCase().includes(ql));
 }
 // 지수는 코드가 6자리가 아니므로 그대로 추가
+// 해외(미국) 종목 추가 — 코드는 "US:AAPL" 형식으로 저장 (국내 6자리와 구분)
+function watchAddUS(sym, name){
+  const s=String(sym||'').toUpperCase().trim();
+  if(!s){ toast('올바른 티커가 아닙니다'); return; }
+  const code='US:'+s;
+  loadWatchRows();
+  if(WATCH_ROWS.some(r=>String(r[0]||'').toUpperCase()===code)){ toast('이미 목록에 있습니다: '+(name||s)); return; }
+  const empIdx=WATCH_ROWS.findIndex(r=>!String(r[0]||''));
+  if(empIdx>=0) WATCH_ROWS.splice(empIdx,0,[code, name||s]);
+  else WATCH_ROWS.push([code, name||s]);
+  saveWatchRows(); renderWatchTable(); fetchWatchLive();
+  toast('추가됨: '+(name||s));
+}
 function watchAddIdx(code, name){
   loadWatchRows();
   if(WATCH_ROWS.some(r=>String(r[0]||'')===code)){ toast('이미 목록에 있습니다: '+name); return; }
@@ -5100,7 +5133,7 @@ function bindWatchSearch(t){
       // 지수·원자재 프리셋 먼저
       const idx=idxSearch(v);
       let preHtml=idx.map(s=>`<div class="wac-item wac-idx" data-idx="1" data-code="${s.code}" data-name="${esc(s.name)}"><b>${esc(s.name)}</b> <span>지수</span></div>`).join('');
-      // 종목 검색 (worker)
+      // 국내 종목 검색 (worker)
       let stkHtml='';
       if(SRV_URL){
         try{
@@ -5110,12 +5143,23 @@ function bindWatchSearch(t){
           stkHtml=items.map(it=>`<div class="wac-item" data-code="${it.code}" data-name="${esc(it.name)}"><b>${esc(it.name)}</b> <span>${it.code}</span></div>`).join('');
         }catch(e){}
       }
-      if(!preHtml && !stkHtml){ close(); return; }
-      ac.innerHTML=preHtml+stkHtml;
+      // 해외(미국) 종목 검색 — 영문·숫자 검색어에 대해
+      let usHtml='';
+      if(SRV_URL && /[a-zA-Z]/.test(v)){
+        try{
+          const r=await fetch(SRV_URL+'/?ussearch='+encodeURIComponent(v));
+          const d=await r.json();
+          const items=(d&&d.items)||[];
+          usHtml=items.slice(0,8).map(it=>`<div class="wac-item wac-us" data-us="1" data-code="${esc(it.symbol)}" data-name="${esc(it.name||it.symbol)}"><b>${esc(it.symbol)}</b> <span>${esc(it.name||'')} · 해외</span></div>`).join('');
+        }catch(e){}
+      }
+      if(!preHtml && !stkHtml && !usHtml){ close(); return; }
+      ac.innerHTML=preHtml+stkHtml+usHtml;
       ac.querySelectorAll('.wac-item').forEach(el=>{
         el.onmousedown=ev=>{
           ev.preventDefault();
           if(el.dataset.idx) watchAddIdx(el.dataset.code, el.dataset.name);
+          else if(el.dataset.us) watchAddUS(el.dataset.code, el.dataset.name);
           else watchAddCode(el.dataset.code, el.dataset.name);
           inp.value=''; close(); inp.focus();
         };
