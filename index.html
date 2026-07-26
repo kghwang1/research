@@ -5118,8 +5118,10 @@ function watchAddCode(code, name){
   toast('추가됨: '+(name||c));
 }
 function bindWatchSearch(t){
-  const inp=t.querySelector('#wSearchInput'); if(!inp) return;
-  const ac=t.querySelector('#wSearchAc');
+  const inp=document.getElementById('wSearchInput'); if(!inp) return;
+  let ac=document.getElementById('wSearchAc');
+  // 자동완성을 body 직속으로 옮겨 어떤 컨테이너에도 가리지 않게
+  if(ac && ac.parentNode !== document.body){ document.body.appendChild(ac); }
   let timer=null;
   const close=()=>{ if(ac){ ac.style.display='none'; ac.innerHTML=''; } };
   inp.onclick=(e)=>e.stopPropagation();
