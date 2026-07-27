@@ -495,12 +495,13 @@ const CALC = {
   ADXR:(d)=>{
     // ADXR = (오늘의 ADX + n일 전의 ADX) / 2  (n=14, 웰리스 와일더)
     const period=14;
-    const adx=CALC.ADX(d).adx;
+    const a=CALC.ADX(d);
+    const adx=a.adx;
     const adxr=adx.map((v,i)=>{
       const prev=i-period>=0?adx[i-period]:null;
       return (v!=null&&prev!=null)?(v+prev)/2:null;
     });
-    return{adxr,adx};
+    return{adxr,adx,pdi:a.pdi,ndi:a.ndi};
   },
   CCI:(d)=>{const cp=P('CCI',0,20),tp=d.map(x=>(x.high+x.low+x.close)/3);return{cci:tp.map((_,i)=>{if(i<cp-1)return null;const sl=tp.slice(i-cp+1,i+1),m=sl.reduce((a,b)=>a+b)/cp,md=sl.reduce((a,b)=>a+Math.abs(b-m),0)/cp;return(tp[i]-m)/(0.015*(md||1e-10));})};},
   AROON:(d)=>{
@@ -2225,7 +2226,17 @@ function drawSub(canvas, key) {
 
   // ── ADXR: 20 기준으로 추세장/횡보장 구분 (책 스타일) ──
   if (key === 'ADXR') {
-    const adxr = vals[0], adxLine = vals[1];
+    const adxr = vals[0], adxLine = vals[1], pdi = vals[2], ndi = vals[3];
+    // 배경 색칠: 추세장(ADXR≥20)이면 DMI 방향에 따라 상승=빨강 / 하락=파랑 (횡보는 색 없음)
+    if (pdi && ndi) {
+      const colW = cw / n;
+      for (let i = 0; i < n; i++) {
+        if (adxr[i] == null || pdi[i] == null || ndi[i] == null) continue;
+        if (adxr[i] < 20) continue;                    // 횡보장은 색칠 안 함
+        ctx.fillStyle = (pdi[i] >= ndi[i]) ? 'rgba(239,83,80,0.10)' : 'rgba(41,121,255,0.10)';
+        ctx.fillRect(PAD.l + i * colW, PAD.t, colW + 0.5, ch);
+      }
+    }
     // 기준선 20 — X축 방향 가로 점선
     const y20 = yOf(20);
     ctx.strokeStyle = '#e0b341aa'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
@@ -2266,8 +2277,18 @@ function drawSub(canvas, key) {
     const lastV = adxr.filter(v => v != null).slice(-1)[0];
     if (lastV != null) {
       ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
-      ctx.fillStyle = lastV >= 20 ? '#e0b341' : '#8b949e';
-      ctx.fillText(lastV >= 20 ? '추세장' : '횡보장', PAD.l + 5, PAD.t + 22);
+      // 마지막 유효 인덱스의 DMI 방향
+      let dir = '';
+      if (pdi && ndi) {
+        for (let i = n - 1; i >= 0; i--) { if (pdi[i] != null && ndi[i] != null) { dir = pdi[i] >= ndi[i] ? '상승' : '하락'; break; } }
+      }
+      if (lastV >= 20) {
+        ctx.fillStyle = dir === '상승' ? '#ef5350' : dir === '하락' ? '#2979ff' : '#e0b341';
+        ctx.fillText((dir ? dir + ' ' : '') + '추세장', PAD.l + 5, PAD.t + 22);
+      } else {
+        ctx.fillStyle = '#8b949e';
+        ctx.fillText('횡보장', PAD.l + 5, PAD.t + 22);
+      }
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
