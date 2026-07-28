@@ -273,7 +273,11 @@
 
 
 .hdr-dt{font-size:8.5px;font-weight:400;color:#9fb0c9}
-  .hdr-sub{font-size:8.5px;font-weight:400;color:#3fb950}
+  .hdr-sub{font-size:12px;font-weight:700;color:#3fb950}
+  .inv-chk-wrap{display:flex;flex-direction:column;gap:1px;align-items:flex-start;padding:2px 3px}
+  .inv-chk{display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10px;color:#333;white-space:nowrap;line-height:1.4}
+  .inv-chk input{width:13px;height:13px;margin:0;cursor:pointer;flex-shrink:0}
+  .inv-cell{padding:2px!important}
   #wSearchWrap{position:relative;z-index:60;background:#0d1117;padding:2px 0}
   .wsearch-bar{position:relative;display:block;margin-bottom:6px;z-index:60}
   .wsearch-bar #wSearchInput{width:100%;box-sizing:border-box;padding:7px 10px;background:#0d1117;border:1px solid #30363d;border-radius:7px;color:#e6edf3;font-size:12.5px;font-weight:600}
@@ -2487,7 +2491,7 @@ function togglePin(code, renderFn){
 function pinVal(code){ const m=PIN_MARKS.get(code); return m==='pink'?2:m==='green'?0:1; } // 정렬값: pink=2(위), 없음=1, green=0(아래)
 // 핑크 토글 + 정렬 이벤트 바인딩 (각 렌더 함수 끝에서 호출)
 // 포트폴리오별 독립 정렬 상태
-const _ps0=()=>({score:false,rate:false,roe:false,frgn:false,amt:false,drop:false,tgt:false,pin:false});
+const _ps0=()=>({invchk:false,score:false,rate:false,roe:false,frgn:false,amt:false,drop:false,tgt:false,pin:false});
 const PSORT={kr:_ps0(),watch:_ps0(),invest:_ps0(),investkq:_ps0()};
 let curPort='kr'; // 현재 렌더 중인 포트폴리오 ID
 // th 생성 헬퍼: 순서/ROE/외국인에 정렬 기능 부여
@@ -2496,6 +2500,7 @@ let curPort='kr'; // 현재 렌더 중인 포트폴리오 ID
 function sortValOf(kind, code, row){
   const R = row || {};
   switch(kind){
+    case 'invchk':  return (typeof invCheckCount==='function' && code) ? invCheckCount(code) : -1;
     case 'score':   return (typeof calcScore==='function' && code) ? (calcScore(code)??-999) : -999;
     case 'rate': {  // 전일대비 상승률
       if(R.rate!=null) return parseFloat(R.rate);
@@ -2539,6 +2544,7 @@ function sortValOf(kind, code, row){
 }
 // 헤더 텍스트 → 정렬키 (해당 열이 없으면 정렬 없음)
 function sortKindOf(x){
+  if(x==='투자') return 'invchk';
   if(x.indexOf('점수')>=0) return 'score';
   if(x.indexOf('현재가')>=0) return 'rate';
   if(x.indexOf('ROE')>=0) return 'roe';
@@ -2567,7 +2573,7 @@ function bindPinEvents(tbl, renderFn, portId){
   tbl.querySelectorAll('th.sortable').forEach(th=>{
     th.onclick=()=>{
       const k=th.dataset.sort, was=ps[k];
-      ['score','rate','roe','frgn','amt','drop','tgt'].forEach(x=>{ ps[x]=false; });
+      ['invchk','score','rate','roe','frgn','amt','drop','tgt'].forEach(x=>{ ps[x]=false; });
       ps[k]=!was;                       // 같은 열 다시 누르면 정렬 해제
       if(renderFn) renderFn();
     };
@@ -2734,6 +2740,23 @@ function renderKrTable(){
 
 // ═══ 관심 포트폴리오 등급 시스템 ═══
 let WATCH_GRADES = new Map(); // code → grade (1~5, -1, -2)
+// 투자 체크: code → {chart:bool, frgn:bool, score:bool}
+let INV_CHECKS = new Map();
+(function loadInvChecks(){ try{ const r=localStorage.getItem('kg_inv_checks'); if(r) INV_CHECKS=new Map(JSON.parse(r)); }catch(e){} })();
+function saveInvChecks(){ try{ localStorage.setItem('kg_inv_checks', JSON.stringify([...INV_CHECKS.entries()])); }catch(e){} }
+function getInvCheck(code){ return INV_CHECKS.get(code) || {chart:false, frgn:false, score:false}; }
+function invCheckCellHtml(code){
+  if(!code) return '';
+  const c=getInvCheck(code);
+  const box=(f,lbl)=>`<label class="inv-chk"><input type="checkbox" data-inv="${escHtml(code)}" data-invf="${f}"${c[f]?' checked':''}><span>${lbl}</span></label>`;
+  return `<div class="inv-chk-wrap">${box('chart','차트')}${box('frgn','외국인')}${box('score','점수')}</div>`;
+}
+function invCheckCount(code){ const c=getInvCheck(code); return (c.chart?1:0)+(c.frgn?1:0)+(c.score?1:0); }
+function toggleInvCheck(code, field){
+  const c=getInvCheck(code); c[field]=!c[field];
+  if(!c.chart && !c.frgn && !c.score) INV_CHECKS.delete(code); else INV_CHECKS.set(code, c);
+  saveInvChecks();
+}
 (function loadWatchGrades(){ try{ const r=localStorage.getItem('kg_watch_grades'); if(r) WATCH_GRADES=new Map(JSON.parse(r)); }catch(e){} })();
 function saveWatchGrades(){ try{ localStorage.setItem('kg_watch_grades', JSON.stringify([...WATCH_GRADES.entries()])); }catch(e){} }
 function gradeVal(code){ const g=WATCH_GRADES.get(code); return g||99; } // 정렬용: 1이 최상, 99=미지정
@@ -2853,7 +2876,37 @@ function addToWatchList(matched){
   return added;
 }
 
+// 관심 탭에서 '투자' 체크(차트·외국인·점수 중 하나 이상)된 종목을 투자 탭 목록으로 모으기
+function collectFromInvChecks(btn){
+  // 관심 탭 행 로드
+  let watchRows=[];
+  try{ const raw=localStorage.getItem('kg_watch_rows'); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)) watchRows=a; } }catch(e){}
+  // 체크된 종목 코드 수집 (INV_CHECKS에 항목이 있으면 체크된 것)
+  const checked=[];
+  watchRows.forEach(r=>{
+    const code=String(r[0]||'').trim(); if(!code) return;
+    if(invCheckCount(code)>0) checked.push([code, r[1]||'']);
+  });
+  if(!checked.length){ toast('관심 포트폴리오에서 투자 항목에 체크된 종목이 없습니다'); return; }
+  // 현재 투자 탭 목록에 없는 것만 추가
+  loadWatchRows();  // watchPort==='invpf'이므로 투자 목록 로드됨
+  const exist=new Set(WATCH_ROWS.map(r=>String(r[0]||'').trim()).filter(Boolean));
+  let added=0;
+  checked.forEach(([code,name])=>{
+    if(exist.has(code)) return;
+    const empIdx=WATCH_ROWS.findIndex(r=>!String(r[0]||''));
+    if(empIdx>=0) WATCH_ROWS.splice(empIdx,0,[code,name]); else WATCH_ROWS.push([code,name]);
+    exist.add(code); added++;
+  });
+  saveWatchRows(); renderWatchTable(); fetchWatchLive();
+  toast(added>0 ? added+'개 종목을 불러왔습니다 (전체 체크 '+checked.length+'개)' : '이미 모두 목록에 있습니다');
+}
 async function autoCollectWatch(btn){
+  // 투자 탭에서 모으기 → 관심 탭에서 '투자' 체크된 종목을 불러온다
+  if(watchPort==='invpf'){
+    collectFromInvChecks(btn);
+    return;
+  }
   if(!SRV_URL){ toast('서버(worker) 설정이 필요합니다'); return; }
   const orig=btn.textContent; btn.disabled=true; btn.textContent='수집 중…';
   try{
@@ -2918,16 +2971,16 @@ function renderWatchTable(){
     const d=rowClass(a[0])-rowClass(b[0]); return d!==0?d:a[1]-b[1];
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
-  const W=[96,28,90,92,90,90,90,100,100,200,110];
+  const W=[96,28,52,90,92,90,90,90,100,100,200,110];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["종목(코드입력)","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+  const H=["종목(코드입력)","점수","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   let h='<caption class="kr-cap">'+(watchPort==='invpf'?'투자 종목':'관심 종목')+' <button id="watchAutoBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px" title="색칠 종목 + 입력 점수 이상 종목 수집">⭐ 모으기</button> <span style="font-size:11px;color:#8b949e;font-weight:600">점수 (<input id="watchMinScore" type="text" inputmode="text" value="'+watchMinScoreGet()+'" style="width:34px;padding:2px 3px;margin:0 2px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;border-radius:4px;font-size:11.5px;text-align:center;font-weight:700">)</span> <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
-    let arr=[...displayRows]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT.watch;
-    const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
+    let arr=[...displayRows]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT[watchPort]||PSORT.watch;
+    const sk=['invchk','score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
     if(sk) arr.sort((a,b)=>{
       const ca=gc(a), cb=gc(b);
       if(!ca&&cb) return 1; if(ca&&!cb) return -1; if(!ca&&!cb) return 0;   // 빈 줄은 맨 뒤
@@ -2948,14 +3001,14 @@ function renderWatchTable(){
       const ticker=rawCode.replace(/^US:/i,'');
       const stkInner=`<span class="kn">${escHtml(nm||ticker)}</span><span class="kc" style="color:#f0883e">${escHtml(ticker)} · 해외</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="score-cell" data-code="${escHtml(code)}"></td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="score-cell" data-code="${escHtml(code)}"></td><td class="inv-cell">${invCheckCellHtml(code)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
       return;
     }
     if(isIdxRow){
       // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="score-cell" data-code="${escHtml(code)}"></td><td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="score-cell" data-code="${escHtml(code)}"></td><td class="inv-cell">${invCheckCellHtml(code)}</td><td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>`;
       return;
     }
     const live=watchLive[code];
@@ -2995,6 +3048,7 @@ function renderWatchTable(){
     h+='<tr>';
     h+=`<td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>`;
     h+=`<td class="score-cell ${PIN_MARKS.get(code)||''}" data-code="${code}">${scoreCell(code)}</td>`;
+    h+=`<td class="inv-cell">${invCheckCellHtml(code)}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
     h+=`<td>${roeTxt}</td>`;
@@ -3007,7 +3061,7 @@ function renderWatchTable(){
     h+=`<td class="mp-r">${scoreFormulaCell(code)}</td>`;
     h+='</tr>';
   });
-  h+=`<tr class="add-row"><td colspan="11"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
+  h+=`<tr class="add-row"><td colspan="12"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
   // 검색 바를 테이블 위에 별도 배치 (자동완성이 종목 행을 가리지 않도록)
@@ -3113,6 +3167,10 @@ function renderWatchTable(){
     msIn.onblur=()=>watchMinScoreSet(msIn.value.trim());
   }
   bindWatchSearch(t);
+  // 투자 체크박스
+  t.querySelectorAll('input[data-inv]').forEach(cb=>{
+    cb.onclick=(e)=>{ e.stopPropagation(); toggleInvCheck(cb.dataset.inv, cb.dataset.invf); };
+  });
 }
 /* =====================================================
    [주의] 포트폴리오 — 외국인 연속 순매도 종목 자동 수집
