@@ -2749,7 +2749,13 @@ function invMigrate(v){ if(!v||typeof v!=='object') return ''; if(v.chart)return
 function saveInvChecks(){ try{ localStorage.setItem('kg_inv_checks', JSON.stringify([...INV_CHECKS.entries()])); }catch(e){} }
 function getInvSel(code){ return INV_CHECKS.get(code) || ''; }
 function setInvSel(code, val){ if(!val) INV_CHECKS.delete(code); else INV_CHECKS.set(code, val); saveInvChecks(); }
-function invSelRank(code){ const v=getInvSel(code); const i=INV_OPTS.findIndex(o=>o[0]===v); return i<0?0:i; }
+// 정렬 우선순위: 차트(맨위) > 외국인 > 점수 > 매도 > 관찰 > 선택없음(맨아래)
+// 내림차순 정렬이므로 차트에 가장 큰 값 부여
+function invSelRank(code){
+  const v=getInvSel(code);
+  const order={chart:5, frgn:4, score:3, sell:2, watch:1};
+  return order[v] || 0;
+}
 function invCheckCellHtml(code){
   if(!code) return '';
   const cur=getInvSel(code);
