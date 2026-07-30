@@ -801,14 +801,21 @@
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
     <button id="chartHomeBtn" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:#0c0e14;font-weight:700;font-size:12px;cursor:pointer">홈</button>
-    <button id="chartSideToggle" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer">종목</button>
+    <button id="chartSideToggle" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer;display:none">종목</button>
+    <select id="chartPortSel" style="padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer">
+      <option value="invpf">투자</option>
+      <option value="watch">관심</option>
+      <option value="kr">한국(체)</option>
+      <option value="usc">미국(체)</option>
+    </select>
   </div>
   <div style="display:flex;flex:1;overflow:hidden">
-    <div id="chartSidebar" style="width:130px;min-width:110px;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden">
+    <div id="chartSidebar" style="width:150px;min-width:80px;max-width:60%;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0">
       <input id="chartStockSearch" type="text" placeholder="종목 검색" style="margin:5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:11px">
       <div id="chartStockItems" style="flex:1;overflow-y:auto;font-size:11px"></div>
     </div>
-    <div style="flex:1;overflow:hidden">
+    <div id="chartResizer" style="width:6px;cursor:col-resize;background:var(--line);flex-shrink:0;position:relative" title="드래그하여 크기 조절"></div>
+    <div style="flex:1;overflow:hidden;min-width:0">
       <iframe id="chartIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
     </div>
   </div>
@@ -5303,6 +5310,9 @@ function openChartView(){
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
+  // 기본 포트: 투자
+  chartPort='invpf';
+  const ps=$('#chartPortSel'); if(ps) ps.value='invpf';
   buildChartStockList();
   // 첫 종목 자동 선택
   setTimeout(()=>{
@@ -5320,26 +5330,51 @@ function closeChartView(){
   const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
   const ps=$('#port'); if(ps) ps.classList.add('on');
 }
+let chartPort = 'invpf';  // 차트뷰 좌측 포트 (기본: 투자)
+function chartPortRows(port){
+  // 각 포트폴리오의 [코드, 명칭] 목록 반환
+  if(port==='watch'){
+    try{ const r=localStorage.getItem('kg_watch_rows'); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
+    return [];
+  }
+  if(port==='invpf'){
+    try{ const r=localStorage.getItem('kg_invpf_rows'); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
+    return [];
+  }
+  if(port==='kr'){
+    return (typeof KR_PF!=='undefined' && KR_PF.rows) ? KR_PF.rows.map(r=>[r[0], r[1]]) : [];
+  }
+  if(port==='usc'){
+    return (typeof USC_DATA!=='undefined') ? USC_DATA.map(r=>[r[0], r[1]]) : [];
+  }
+  return [];
+}
 function buildChartStockList(filter){
-  loadWatchRows();
   const box=$('#chartStockItems'); if(!box) return;
   const f=(filter||'').toLowerCase();
+  const rows=chartPortRows(chartPort);
+  const isUS=(chartPort==='usc');
   let h='';
-  (WATCH_ROWS||[]).forEach(r=>{
-    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+  rows.forEach(r=>{
+    let rawCode=String(r[0]||'').trim();
     const name=r[1]||'';
-    if(!code) return;
-    if(f && !name.toLowerCase().includes(f) && !code.includes(f)) return;
-    h+=`<div class="cs-item" data-code="${code}" data-name="${escHtml(name)}"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${code}</span></div>`;
+    if(!rawCode) return;  // 현금 등 코드 없는 항목 제외
+    // 차트 열기용 코드: 미국(체)는 티커 그대로, 국내는 6자리, US: 접두어 제거
+    let code, isForeign=false;
+    if(isUS){ code=rawCode; isForeign=true; }
+    else if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
+    else { code=rawCode.replace(/[^0-9]/g,''); if(!code){ code=rawCode; } }
+    if(f && !name.toLowerCase().includes(f) && !code.toLowerCase().includes(f)) return;
+    h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${isForeign?' · 해외':''}</span></div>`;
   });
-  if(!h) h='<div style="padding:12px;color:var(--dim);font-size:11px">관심 종목을 먼저 추가해주세요</div>';
+  if(!h) h='<div style="padding:12px;color:var(--dim);font-size:11px">종목이 없습니다</div>';
   box.innerHTML=h;
   box.querySelectorAll('.cs-item').forEach(el=>{
     el.onclick=()=>{
       box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
       el.classList.add('on');
       const ifr=$('#chartIframe');
-      if(ifr) ifr.src='kg-chart.html?code='+el.dataset.code+'&name='+encodeURIComponent(el.dataset.name);
+      if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name);
     };
   });
 }
@@ -5421,6 +5456,34 @@ document.addEventListener('DOMContentLoaded',()=>{
     st.style.background=sb.style.display==='none'?'var(--panel)':'var(--accent)';
     st.style.color=sb.style.display==='none'?'var(--ink)':'#0c0e14';
   };
+  // 포트폴리오 드롭다운 → 좌측 종목 목록 갱신
+  const ps=$('#chartPortSel'); if(ps){
+    ps.onchange=()=>{
+      chartPort=ps.value;
+      const si2=$('#chartStockSearch'); if(si2) si2.value='';
+      buildChartStockList();
+      setTimeout(()=>{ const first=$('#chartStockItems .cs-item'); if(first) first.click(); }, 60);
+    };
+  }
+  // 좌측 프레임 ↔ 우측 경계 드래그로 크기 조절
+  const rz=$('#chartResizer'); if(rz){
+    let dragging=false;
+    const onMove=(clientX)=>{
+      const sb=$('#chartSidebar'); if(!sb) return;
+      const parent=sb.parentElement; const rect=parent.getBoundingClientRect();
+      let w=clientX-rect.left;
+      const max=rect.width*0.6, min=80;
+      w=Math.max(min, Math.min(max, w));
+      sb.style.width=w+'px';
+    };
+    rz.addEventListener('mousedown',e=>{ dragging=true; e.preventDefault(); document.body.style.userSelect='none'; });
+    document.addEventListener('mousemove',e=>{ if(dragging) onMove(e.clientX); });
+    document.addEventListener('mouseup',()=>{ if(dragging){ dragging=false; document.body.style.userSelect=''; } });
+    // 터치(모바일)
+    rz.addEventListener('touchstart',e=>{ dragging=true; document.body.style.userSelect='none'; },{passive:true});
+    document.addEventListener('touchmove',e=>{ if(dragging && e.touches[0]) onMove(e.touches[0].clientX); },{passive:true});
+    document.addEventListener('touchend',()=>{ if(dragging){ dragging=false; document.body.style.userSelect=''; } });
+  }
 });
 
 </script>
