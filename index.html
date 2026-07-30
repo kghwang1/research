@@ -2854,6 +2854,7 @@ function setWatchPort(p){
   if(!WATCH_ROWS) WATCH_ROWS=[['',''],['','']];
 }
 let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
+let watchUsNews={};  // US:티커 → {title, link, date}
 let watchSortFrgn=false, watchRoeMin=0;
 
 function loadWatchRows(){
@@ -2920,6 +2921,20 @@ async function fetchWatchLive(fresh){
         const d=await r.json();
         ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const key='US:'+String(q.symbol||'').toUpperCase(); watchLive[key]=q.priceStr||String(q.price); if(q.rate!=null) watchRate[key]=q.rate;
           if(q.high52!=null) watchHigh52[key]=q.high52Str||String(q.high52);
+        } });
+      }catch(e){}
+    }
+    // 미국 종목 종합정보: ROE·52주최고가·목표가·뉴스 (네이버)
+    for(let i=0;i<usCodes.length;i+=20){
+      const part=usCodes.slice(i,i+20);
+      try{
+        const r=await fetch(SRV_URL+'/?usinfos='+encodeURIComponent(part.join(',')));
+        const d=await r.json();
+        ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const key='US:'+String(q.ticker||'').toUpperCase();
+          if(q.roe!=null) watchRoe[key]={roe:q.roe, period:'', prevRoe:null};
+          if(q.target!=null) watchTarget[key]=q.target;
+          if(q.high52!=null && !watchHigh52[key]) watchHigh52[key]=String(q.high52);
+          if(q.newsTitle) watchUsNews[key]={title:q.newsTitle, link:q.newsLink||'', date:q.newsDate||''};
         } });
       }catch(e){}
     }
@@ -3112,20 +3127,39 @@ function renderWatchTable(){
     const code = (isIdxRow||isUSRow) ? rawCode : rawCode.replace(/[^0-9]/g,'');
     const nm=r[1]||'';
     if(isUSRow){
-      // 해외(미국) 종목: 이름·현재가·등락률·52주최고가 + 차트 (ROE·외국인·목표가·보고서는 없음)
+      // 해외(미국) 종목: 현재가·등락률·ROE·52주최고가·목표가·뉴스 (외국인·매수액·공매도는 해당없음)
       const ticker=rawCode.replace(/^US:/i,'');
       const uKey='US:'+ticker.toUpperCase();
       const uLive=watchLive[uKey];
       const uRate=watchRate[uKey];
       const uHigh=watchHigh52[uKey];
+      const uRoe=watchRoe[uKey];
+      const uTgt=watchTarget[uKey];
+      const uNews=watchUsNews[uKey];
       const liveStr= uLive ? addComma(uLive) : (SRV_URL?'…':'—');
       const rateH = (uLive && uRate!=null) ? rateHtml(uRate) : '';
-      const highStr= uHigh ? addComma(uHigh) : '—';
+      const highStr= uHigh ? addComma(uHigh) : (SRV_URL?'…':'—');
+      // ROE
+      const roeStr = (uRoe && uRoe.roe!=null) ? uRoe.roe.toFixed(2) : (SRV_URL?'…':'—');
+      // 목표가 + 상승여력
+      let tgtCell='—';
+      if(uTgt!=null){
+        const cur=uLive?parseFloat(String(uLive).replace(/[^0-9.]/g,'')):null;
+        const up = (cur&&cur>0) ? ((uTgt-cur)/cur*100) : null;
+        const upH = up!=null ? ` <span class="rchg ${up>=0?'up':'down'}">(${(up>=0?'+':'')+up.toFixed(1)}%)</span>` : '';
+        tgtCell=`${addComma(uTgt)}${upH}`;
+      } else if(SRV_URL) tgtCell='…';
+      // 뉴스(보고서 열)
+      let newsCell='—';
+      if(uNews && uNews.title){
+        const t=escHtml(uNews.title.length>28?uNews.title.slice(0,28)+'…':uNews.title);
+        newsCell = uNews.link ? `<a href="${escHtml(uNews.link)}" class="rptlink" target="_blank" rel="noopener">${t}</a>` : t;
+      } else if(SRV_URL) newsCell='…';
       const stkInner=`<span class="kn">${escHtml(nm||ticker)}</span><span class="kc" style="color:#f0883e">${escHtml(ticker)} · 해외</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
       const usLiveStyle = uLive ? ' style="cursor:pointer;text-decoration:underline dotted"' : ' style="cursor:pointer;color:#58a6ff"';
       const liveCell = uLive ? `${liveStr}${rateH}` : '차트▶';
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>—</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${newsCell}</td>${isInv?'':'<td>—</td>'}</tr>`;
       return;
     }
     if(isIdxRow){
@@ -5235,12 +5269,10 @@ function closeFlow(){
 /* ── 챠트앱 연결 ── */
 const CHART_URL = 'https://kghwang1.github.io/research/kg-chart.html';
 function openChart(code, name) {
-  let url = CHART_URL;
-  if (code) {
-    url += '?code=' + encodeURIComponent(code);
-    if (name) url += '&name=' + encodeURIComponent(name);
-  }
-  window.open(url, '_blank', 'noopener');
+  // 현재 보고 있는 포트폴리오를 좌측에, 클릭한 종목 차트를 우측에 (차트 페이지와 동일 형식)
+  const portMap={ watch:'watch', invpf:'invpf', kr:'kr', invest:'invest', investkq:'investkq', usc:'usc', us:'us', etf:'etf' };
+  const port = portMap[valMarket] || 'invpf';
+  openChartView(port, code, name);
 }
 
 // ═══ 챠트 전체화면 ═══
@@ -5428,22 +5460,29 @@ async function loadWatchFromServer(){
     toast('서버에서 불러오기 완료'+(saved.savedAt?' ('+saved.savedAt.slice(0,16)+')':''));
   }catch(e){ toast('불러오기 실패: '+e.message); }
 }
-function openChartView(){
+function openChartView(initPort, initCode, initName){
   const ov=$('#chartFullScreen'); if(!ov) return;
   ov.style.display='flex';
   document.body.style.overflow='hidden';
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
-  // 기본 포트: 투자
-  chartPort='invpf';
-  const ps=$('#chartPortSel'); if(ps) ps.value='invpf';
+  // 포트: 지정값 또는 기본(투자)
+  chartPort = initPort || 'invpf';
+  const ps=$('#chartPortSel'); if(ps) ps.value=chartPort;
   buildChartStockList();
-  // 첫 종목 자동 선택
   setTimeout(()=>{
-    const first=$('#chartStockItems .cs-item');
-    if(first) first.click();
-  }, 100);
+    const box=$('#chartStockItems');
+    if(!box) return;
+    let target=null;
+    if(initCode){
+      // 지정 종목 찾기 (국내 6자리 또는 해외 티커)
+      const want=String(initCode).replace(/^US:/i,'').toUpperCase();
+      target=[...box.querySelectorAll('.cs-item')].find(el=>String(el.dataset.code||'').toUpperCase()===want);
+    }
+    (target || box.querySelector('.cs-item'))?.click();
+    if(target) target.scrollIntoView({block:'nearest'});
+  }, 120);
 }
 function closeChartView(){
   const ov=$('#chartFullScreen'); if(ov) ov.style.display='none';
