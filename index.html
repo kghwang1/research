@@ -1811,6 +1811,7 @@ const VAL_EDITABLE=new Set([3,4,5,6,7,8,9,10,11,12,13,14,15,16]); // (참고용)
    c = 원본 VAL 배열의 열 인덱스 (live는 -1) */
 const VAL_VIEW=[
  {h:"Symbol",   c:2,  kind:'namelink', bg:'fff2cc'},
+ {h:"분류",     c:-1, kind:'cls',  bg:'fff'},
  {h:"비중",     c:5,  kind:'val',  bg:'ecd6ec', wt:true, green:true},
  {h:"현재가<br>(전일대비%)",   c:-1, kind:'live', bg:'fde9d9', green:true},
  {h:"적정주가<br>(상승여력%)", c:8,  kind:'fairm2', bg:'fff2cc', green:true},
@@ -1955,11 +1956,12 @@ const USETF_CFG={
   cols:[
     {h:"종목(Ticker)", kind:"ticker", w:96},
     {h:"명칭",         kind:"name",   w:210, align:"left"},
+    {h:"분류",         kind:"cls",    w:60},
     {h:"5월 비중(%)",  kind:"edit",   w:96},
     {h:"6월 비중(%)",  kind:"edit",   w:96},
     {h:"변경(%p)",     kind:"edit",   w:84},
   ],
-  sumCols:[2,3], totalSpan:2,
+  sumCols:[2,3], totalSpan:3, totalSpanData:2,
 };
 /* 한국 ETF 표 구성 (수정 가능 + Ticker·명칭 연동 링크 → 네이버 국내 페이지) */
 const KRETF_CFG={
@@ -1967,11 +1969,12 @@ const KRETF_CFG={
   cols:[
     {h:"종목(Ticker)",   kind:"ticker", w:82},
     {h:"명칭",           kind:"name",   w:172, align:"left"},
+    {h:"분류",           kind:"cls",    w:60},
     {h:"26.5월 비중(%)", kind:"edit",   w:108},
     {h:"26.4월 비중(%)", kind:"edit",   w:108},
     {h:"변경(%)",        kind:"edit",   w:84},
   ],
-  sumCols:[2,3], totalSpan:2,
+  sumCols:[2,3], totalSpan:3, totalSpanData:2,
 };
 /* 국내 포트폴리오. 저장형식: [심볼, 종목명, 비중%, 조정비율%, 적정가, 기록]
    현재가(라이브)·상승여력(계산)은 표시 시 추가됨 */
@@ -2151,7 +2154,12 @@ function renderVal(){
     VAL_VIEW.forEach(col=>{
       const bg=col.bg;
       let cls='vcell'+(col.green?' gcol':''), cell='', attr='';
-      if(col.kind==='sym'||col.kind==='namelink'){
+      if(col.kind==='cls'){
+        const sym=row[1]??'';
+        const nm=row[2]??'';
+        cell = clsCellHtmlUS(sym, nm||sym);
+        cls='cls-cell';
+      }else if(col.kind==='sym'||col.kind==='namelink'){
         const sym=row[1]??'';
         const nm=row[2]??'';
         let inner;
@@ -2771,6 +2779,15 @@ function invSelRank(code){
   const v=getInvSel(code);
   const order={chart:5, frgn:4, score:3, sell:2, watch:1};
   return order[v] || 0;
+}
+// 미국(해외) 종목용 분류 셀 — 코드를 US:티커로 저장
+function clsCellHtmlUS(ticker, name){
+  const t=String(ticker||'').trim().toUpperCase();
+  if(!t) return '';
+  const code='US:'+t;
+  const inW=inPort('kg_watch_rows', code), inI=inPort('kg_invpf_rows', code);
+  const box=(key,lbl,on)=>`<label class="cls-chk"><input type="checkbox" data-cls="${key}" data-clscode="${escHtml(code)}" data-clsname="${escHtml(name||t)}"${on?' checked':''}><span>${lbl}</span></label>`;
+  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','투자',inI)}</div>`;
 }
 function invCheckCellHtml(code){
   if(!code) return '';
@@ -3459,8 +3476,8 @@ async function fetchUscTargets(rows){
 }
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
-  const W=[150,56,84,90,100,80,96];
-  const H=["Symbol","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록"];
+  const W=[150,60,56,84,90,100,80,96];
+  const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록"];
   let h='<caption class="kr-cap">'+USC_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -3481,6 +3498,7 @@ function renderUscTable(){
     const stkCell = sym ? `<a href="#" class="uscnv" data-sym="${encodeURIComponent(sym)}">${stkInner}</a>` : stkInner;
     h+='<tr>';
     h+=`<td class="al">${stkCell}</td>`;
+    h+=`<td class="cls-cell">${clsCellHtmlUS(sym, r[1]||sym)}</td>`;
     h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
     const uscLiveStyle = sym && liveQ ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="uslive" data-sym="${sym}" data-name="${r[1]||sym}"${uscLiveStyle}>${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`;
@@ -3514,18 +3532,27 @@ function renderEtfTable(tableEl, market, cfg, arr){
   h+='<thead><tr>'+cols.map(c=>`<th>${c.h}</th>`).join('')+'</tr></thead><tbody>';
   arr.forEach((row,ri)=>{
     h+='<tr>';
+    let di=0;  // 실제 데이터 컬럼 인덱스 (분류 열은 데이터 없음 → 건너뜀)
     cols.forEach((c,ci)=>{
       const cls=c.align==='left'?'mp-l':'mp-c';
-      const val=row[ci]==null?'':row[ci];
+      if(c.kind==='cls'){
+        const tk=String(row[0]||'').trim();
+        const nm=row[1]||tk;
+        const cell = (cfg.link==='domestic' && /^\d{6}$/.test(tk)) ? clsCellHtml(tk, nm) : clsCellHtmlUS(tk, nm);
+        h+=`<td class="cls-cell">${cell}</td>`;
+        return;  // di 증가 안 함
+      }
+      const val=row[di]==null?'':row[di];
       if(c.kind==='name'){ h+=`<td class="${cls}"><a href="#" class="etflink" data-sym="${encodeURIComponent(row[0])}">${val}</a></td>`; }
-      else if(c.kind==='ticker'){ h+=`<td class="${cls} tkr" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`; }
-      else { const wt=(cfg.sumCols&&cfg.sumCols.includes(ci))?' wt':''; h+=`<td class="${cls}${wt}" contenteditable data-r="${ri}" data-c="${ci}">${val}</td>`; }
+      else if(c.kind==='ticker'){ h+=`<td class="${cls} tkr" contenteditable data-r="${ri}" data-c="${di}">${val}</td>`; }
+      else { const wt=(cfg.sumCols&&cfg.sumCols.includes(di))?' wt':''; h+=`<td class="${cls}${wt}" contenteditable data-r="${ri}" data-c="${di}">${val}</td>`; }
+      di++;
     });
     h+='</tr>';
   });
   if(cfg.sumCols){
     h+='<tr class="mp-total"><td class="mp-c" colspan="'+cfg.totalSpan+'">합계</td>';
-    for(let ci=cfg.totalSpan; ci<n; ci++){ h += cfg.sumCols.includes(ci)?`<td class="mp-c" data-sum="${ci}">${etfSumArr(arr,ci)}</td>`:'<td class="mp-c">-</td>'; }
+    for(let dci=cfg.totalSpanData; dci<arr[0]?.length; dci++){ h += cfg.sumCols.includes(dci)?`<td class="mp-c" data-sum="${dci}">${etfSumArr(arr,dci)}</td>`:'<td class="mp-c">-</td>'; }
     h+='</tr>';
   }
   h+='</tbody>';
