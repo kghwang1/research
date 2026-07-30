@@ -806,7 +806,11 @@
       <option value="invpf">투자</option>
       <option value="watch">관심</option>
       <option value="kr">한국(체)</option>
+      <option value="invest">코스피200</option>
+      <option value="investkq">코스닥100</option>
       <option value="usc">미국(체)</option>
+      <option value="us">미국(반)</option>
+      <option value="etf">한·미 ETF</option>
     </select>
   </div>
   <div style="display:flex;flex:1;overflow:hidden">
@@ -5347,27 +5351,46 @@ function chartPortRows(port){
   if(port==='usc'){
     return (typeof USC_DATA!=='undefined') ? USC_DATA.map(r=>[r[0], r[1]]) : [];
   }
+  if(port==='invest'){  // 코스피200
+    return (typeof INVEST_ROWS!=='undefined' && INVEST_ROWS.length) ? INVEST_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']) : [];
+  }
+  if(port==='investkq'){  // 코스닥100
+    return (typeof INVEST_KQ_ROWS!=='undefined' && INVEST_KQ_ROWS.length) ? INVEST_KQ_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']) : [];
+  }
+  if(port==='us'){  // 미국(반)
+    return (typeof VAL_DATA!=='undefined') ? VAL_DATA.map(r=>[r[1], r[2]]) : [];  // [순위,티커,명칭,...] → 티커·명칭
+  }
+  if(port==='etf'){  // 한·미 ETF
+    const kr=(typeof KRETF_DATA!=='undefined') ? KRETF_DATA.map(r=>[r[0], r[1]]) : [];
+    const us=(typeof USETF_DATA!=='undefined') ? USETF_DATA.map(r=>[r[0], r[1]]) : [];
+    return kr.concat(us);
+  }
   return [];
 }
 function buildChartStockList(filter){
   const box=$('#chartStockItems'); if(!box) return;
   const f=(filter||'').toLowerCase();
   const rows=chartPortRows(chartPort);
-  const isUS=(chartPort==='usc');
+  const usPort=(chartPort==='usc' || chartPort==='us');  // 미국(체)·미국(반)은 티커 기반
   let h='';
   rows.forEach(r=>{
     let rawCode=String(r[0]||'').trim();
     const name=r[1]||'';
     if(!rawCode) return;  // 현금 등 코드 없는 항목 제외
-    // 차트 열기용 코드: 미국(체)는 티커 그대로, 국내는 6자리, US: 접두어 제거
+    // 차트 열기용 코드
     let code, isForeign=false;
-    if(isUS){ code=rawCode; isForeign=true; }
-    else if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
-    else { code=rawCode.replace(/[^0-9]/g,''); if(!code){ code=rawCode; } }
+    if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
+    else if(/^\d{6}$/.test(rawCode)){ code=rawCode; }   // 국내 6자리
+    else if(usPort && /^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // 미국 티커
+    else if(/^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // ETF 등 티커
+    else { code=rawCode.replace(/[^0-9]/g,'') || rawCode; }
     if(f && !name.toLowerCase().includes(f) && !code.toLowerCase().includes(f)) return;
     h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${isForeign?' · 해외':''}</span></div>`;
   });
-  if(!h) h='<div style="padding:12px;color:var(--dim);font-size:11px">종목이 없습니다</div>';
+  if(!h){
+    const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요' : '종목이 없습니다';
+    h='<div style="padding:12px;color:var(--dim);font-size:11px">'+msg+'</div>';
+  }
   box.innerHTML=h;
   box.querySelectorAll('.cs-item').forEach(el=>{
     el.onclick=()=>{
