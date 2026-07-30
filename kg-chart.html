@@ -247,61 +247,57 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
   <!-- 사이드바 -->
   <div id="sidebar">
     <div class="sidebar-help">
-      <b>⭐앞칸</b> = 시작할 때 기본 표시<br>
-      <span class="c2">☑뒤칸</span> = 지금만 표시
+      <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
+      아래 <b>기본 조합</b> 버튼으로 추천 지표를 한 번에 표시
     </div>
-    <div class="cb-legend">
-      <span class="k"><span class="box" style="background:#f0a836"></span>기본</span>
-      <span class="k"><span class="box" style="background:#58a6ff"></span>표시</span>
-      <span style="color:#6e7681;font-size:8px">기본=시작시 자동</span>
-    </div>
+    <button id="defaultComboBtn" style="width:calc(100% - 12px);margin:6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#1f6feb;color:#fff;font-weight:700;font-size:12px;cursor:pointer">📊 기본 조합 표시</button>
     <div class="group-title">▶ 오버레이</div>
-    <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
-    <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
-    <label class="ind-label" data-mark5 data-key="ICHIMOKU" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Ichimoku 일목균형표</span></label>
-    <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DEMA 이중지수이동평균</span></label>
-    <label class="ind-label" data-mark5 data-key="VAMA" style="--col:#ffd54f"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VAMA 거래량조정이동평균</span></label>
-    <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VIDYA 가변동적이동평균</span></label>
-    <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">VP 매물대(거래량프로파일)</span></label>
+    <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
+    <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
+    <label class="ind-label" data-mark5 data-key="ICHIMOKU" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">Ichimoku 일목균형표</span></label>
+    <label class="ind-label" data-key="DEMA" style="--col:#a8ff78"><input type="checkbox" class="cb-show"> <span class="nm">DEMA 이중지수이동평균</span></label>
+    <label class="ind-label" data-mark5 data-key="VAMA" style="--col:#ffd54f"><input type="checkbox" class="cb-show"> <span class="nm">VAMA 거래량조정이동평균</span></label>
+    <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">VIDYA 가변동적이동평균</span></label>
+    <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-show"> <span class="nm">VP 매물대(거래량프로파일)</span></label>
 
     <div class="group-title">▶ 추세지표</div>
-    <label class="ind-label" data-mark5 data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">MACD 이동평균수렴발산</span></label>
-    <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">DMI 방향성지수</span></label>
-    <label class="ind-label" data-key="ADXR" style="--col:#e0b341"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ADXR 평균방향성지표순위</span></label>
-    <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CCI 추세채널지수</span></label>
-    <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Aroon 아룬</span></label>
-    <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Force 포스인덱스</span></label>
-    <label class="ind-label" data-key="FRGN_NET" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">외국인 순매수</span></label>
-    <label class="ind-label" data-key="INST_NET" style="--col:#ff9800"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">기관 순매수</span></label>
-    <label class="ind-label" data-key="SHORT_SELL" style="--col:#ef5350"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">SHORT 공매도</span></label>
+    <label class="ind-label" data-mark5 data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-show"> <span class="nm">MACD 이동평균수렴발산</span></label>
+    <label class="ind-label" data-key="ADX" style="--col:#3fb950"><input type="checkbox" class="cb-show"> <span class="nm">DMI 방향성지수</span></label>
+    <label class="ind-label" data-key="ADXR" style="--col:#e0b341"><input type="checkbox" class="cb-show"> <span class="nm">ADXR 평균방향성지표순위</span></label>
+    <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-show"> <span class="nm">CCI 추세채널지수</span></label>
+    <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-show"> <span class="nm">Aroon 아룬</span></label>
+    <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">Force 포스인덱스</span></label>
+    <label class="ind-label" data-key="FRGN_NET" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">외국인 순매수</span></label>
+    <label class="ind-label" data-key="INST_NET" style="--col:#ff9800"><input type="checkbox" class="cb-show"> <span class="nm">기관 순매수</span></label>
+    <label class="ind-label" data-key="SHORT_SELL" style="--col:#ef5350"><input type="checkbox" class="cb-show"> <span class="nm">SHORT 공매도</span></label>
 
     <div class="group-title">▶ 모멘텀지표</div>
-    <label class="ind-label" data-mark5 data-key="RSI" style="--col:#3fb950"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">RSI 상대강도지수</span></label>
-    <label class="ind-label" data-key="SMI" style="--col:#f0a836"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">SMI 스토캐스틱모멘텀지수</span></label>
-    <label class="ind-label" data-key="STOCHRSI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">StochRSI 상대강도스토캐스틱</span></label>
-    <label class="ind-label" data-key="STOCH" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Stoch 스토캐스틱</span></label>
-    <label class="ind-label" data-mark5 data-key="SLOWSTOCH" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">SlowStoch 완만한스토캐스틱</span></label>
-    <label class="ind-label" data-key="CMO" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CMO 샨드모멘텀오실레이터</span></label>
-    <label class="ind-label" data-key="DMI_DYN" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Dyn.MI 다이나믹모멘텀지수</span></label>
-    <label class="ind-label" data-key="MASS" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Mass 대중심리지수</span></label>
-    <label class="ind-label" data-key="DISPARITY" style="--col:#58a6ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Disparity 이격도</span></label>
-    <label class="ind-label" data-key="CHAIKIN_OSC" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Chaikin Osc 차이킨오실레이터</span></label>
-    <label class="ind-label" data-key="MOM" style="--col:#3fb950"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">MOM 모멘텀</span></label>
-    <label class="ind-label" data-key="WILLR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">%R 윌리엄스퍼센트R</span></label>
+    <label class="ind-label" data-mark5 data-key="RSI" style="--col:#3fb950"><input type="checkbox" class="cb-show"> <span class="nm">RSI 상대강도지수</span></label>
+    <label class="ind-label" data-key="SMI" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">SMI 스토캐스틱모멘텀지수</span></label>
+    <label class="ind-label" data-key="STOCHRSI" style="--col:#bc8cff"><input type="checkbox" class="cb-show"> <span class="nm">StochRSI 상대강도스토캐스틱</span></label>
+    <label class="ind-label" data-key="STOCH" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">Stoch 스토캐스틱</span></label>
+    <label class="ind-label" data-mark5 data-key="SLOWSTOCH" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">SlowStoch 완만한스토캐스틱</span></label>
+    <label class="ind-label" data-key="CMO" style="--col:#f78166"><input type="checkbox" class="cb-show"> <span class="nm">CMO 샨드모멘텀오실레이터</span></label>
+    <label class="ind-label" data-key="DMI_DYN" style="--col:#a8ff78"><input type="checkbox" class="cb-show"> <span class="nm">Dyn.MI 다이나믹모멘텀지수</span></label>
+    <label class="ind-label" data-key="MASS" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">Mass 대중심리지수</span></label>
+    <label class="ind-label" data-key="DISPARITY" style="--col:#58a6ff"><input type="checkbox" class="cb-show"> <span class="nm">Disparity 이격도</span></label>
+    <label class="ind-label" data-key="CHAIKIN_OSC" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">Chaikin Osc 차이킨오실레이터</span></label>
+    <label class="ind-label" data-key="MOM" style="--col:#3fb950"><input type="checkbox" class="cb-show"> <span class="nm">MOM 모멘텀</span></label>
+    <label class="ind-label" data-key="WILLR" style="--col:#f78166"><input type="checkbox" class="cb-show"> <span class="nm">%R 윌리엄스퍼센트R</span></label>
 
     <div class="group-title">▶ 변동성지표</div>
-    <label class="ind-label" data-key="ATR" style="--col:#f78166"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">ATR 평균진정가격범위</span></label>
-    <label class="ind-label" data-mark5 data-key="RVI" style="--col:#bc8cff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">RVI 상대변동성지수</span></label>
-    <label class="ind-label" data-mark5 data-key="INERTIA" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Inertia 관성지수</span></label>
-    <label class="ind-label" data-key="CHAIKIN_VOL" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Chaikin Vol 차이킨변동성</span></label>
+    <label class="ind-label" data-key="ATR" style="--col:#f78166"><input type="checkbox" class="cb-show"> <span class="nm">ATR 평균진정가격범위</span></label>
+    <label class="ind-label" data-mark5 data-key="RVI" style="--col:#bc8cff"><input type="checkbox" class="cb-show"> <span class="nm">RVI 상대변동성지수</span></label>
+    <label class="ind-label" data-mark5 data-key="INERTIA" style="--col:#a8ff78"><input type="checkbox" class="cb-show"> <span class="nm">Inertia 관성지수</span></label>
+    <label class="ind-label" data-key="CHAIKIN_VOL" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">Chaikin Vol 차이킨변동성</span></label>
 
     <div class="group-title">▶ 거래량지표</div>
-    <label class="ind-label" data-key="VOLUME" style="--col:#8b949e"><input type="checkbox" class="cb-def" checked> <input type="checkbox" class="cb-show"> <span class="nm">거래량</span></label>
-    <label class="ind-label" data-key="OBV" style="--col:#39d353"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">OBV 누적거래량</span></label>
-    <label class="ind-label" data-key="CMF" style="--col:#ff7eb6"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">CMF 차이킨자금흐름</span></label>
-    <label class="ind-label" data-key="MFI" style="--col:#a8ff78"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">MFI 자금수급지수</span></label>
-    <label class="ind-label" data-key="PVT" style="--col:#4ecdc4"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">PVT 거래량추세지수</span></label>
-    <label class="ind-label" data-key="WILLIAMS_AD" style="--col:#58a6ff"><input type="checkbox" class="cb-def"> <input type="checkbox" class="cb-show"> <span class="nm">Williams AD 윌리엄스누적확산지수</span></label>
+    <label class="ind-label" data-key="VOLUME" style="--col:#8b949e"><input type="checkbox" class="cb-show"> <span class="nm">거래량</span></label>
+    <label class="ind-label" data-key="OBV" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">OBV 누적거래량</span></label>
+    <label class="ind-label" data-key="CMF" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">CMF 차이킨자금흐름</span></label>
+    <label class="ind-label" data-key="MFI" style="--col:#a8ff78"><input type="checkbox" class="cb-show"> <span class="nm">MFI 자금수급지수</span></label>
+    <label class="ind-label" data-key="PVT" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">PVT 거래량추세지수</span></label>
+    <label class="ind-label" data-key="WILLIAMS_AD" style="--col:#58a6ff"><input type="checkbox" class="cb-show"> <span class="nm">Williams AD 윌리엄스누적확산지수</span></label>
   </div>
 
   <div id="toggle-btn" onclick="toggleSidebar()" title="지표 패널 열기/닫기">›</div>
@@ -1282,13 +1278,17 @@ function P(key, idx, def) {
   return def;
 }
 
+// 기본 조합 (일목·DMI·ADXR·RSI·외국인순매수) — 순서 중요
+const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'FRGN_NET'];
 function loadDefaults() {
   try {
     const saved = localStorage.getItem('kgchart_defaults');
-    if (saved) return JSON.parse(saved);
+    if (saved) { const d = JSON.parse(saved); if (d && Object.keys(d).length) return d; }
   } catch(e) {}
-  // 기본값
-  return { MA:true, VOLUME:true, MACD:true, RSI:true };
+  // 저장값 없으면 기본 조합
+  const d = {};
+  DEFAULT_COMBO.forEach(k => d[k] = true);
+  return d;
 }
 function saveDefaults(defs) {
   try { localStorage.setItem('kgchart_defaults', JSON.stringify(defs)); } catch(e) {}
@@ -1296,17 +1296,15 @@ function saveDefaults(defs) {
 
 function setupSidebar() {
   const defaults = loadDefaults();
-  const hasSaved = defaults && Object.keys(defaults).length > 0;
 
   document.querySelectorAll('.ind-label').forEach(label => {
     const key = label.dataset.key;
-    const cbDef = label.querySelector('.cb-def');   // 앞칸: 기본(시작시 자동)
-    const cbShow = label.querySelector('.cb-show');  // 뒤칸: 지금 표시
+    const cbShow = label.querySelector('.cb-show');  // 표시 체크박스 (유일)
     const span = label.querySelector('span.nm');
     const col = getComputedStyle(label).getPropertyValue('--col').trim();
-    if (!cbDef || !cbShow) return;
+    if (!cbShow) return;
 
-    // 명칭(span) 클릭 → 설명 페이지로 이동 (명칭 자동 검색 + 현재 종목 유지)
+    // 명칭(span) 클릭 → 설명 페이지로 이동
     if (span) {
       span.style.cursor = 'pointer';
       span.addEventListener('click', (e) => {
@@ -1322,13 +1320,8 @@ function setupSidebar() {
       });
     }
 
-    // 저장된 기본값이 있으면 그것을 우선 적용
-    if (hasSaved) {
-      cbDef.checked = !!defaults[key];
-    }
-
-    // 시작 표시 상태 = 기본(cbDef) 값
-    const isOn = cbDef.checked;
+    // 시작 표시 상태 = 저장된 기본값
+    const isOn = !!defaults[key];
     cbShow.checked = isOn;
     if (isOn) {
       label.classList.add('active');
@@ -1340,23 +1333,13 @@ function setupSidebar() {
       else state.selected[key] = false;
     }
 
-    // 앞칸(기본) 클릭 → 저장만, 화면 변화 없음
-    cbDef.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const defs = loadDefaults();
-      if (cbDef.checked) defs[key] = true;
-      else delete defs[key];
-      saveDefaults(defs);
-    });
-
-    // 뒤칸(표시) 클릭 → 지금 화면에 표시/숨김
+    // 표시 체크박스 클릭 → 지금 화면에 표시/숨김
     cbShow.addEventListener('change', (e) => {
       e.stopPropagation();
       if (OVERLAY_KEYS.includes(key)) {
         state.overlays[key] = cbShow.checked;
       } else {
         state.selected[key] = cbShow.checked;
-        // 선택 순서 기록: 새로 켜면 맨 뒤에 추가
         if (cbShow.checked) {
           if (!state.selectedOrder.includes(key)) state.selectedOrder.push(key);
         } else {
@@ -1370,10 +1353,42 @@ function setupSidebar() {
 
     // label 텍스트 클릭 시 뒤칸 토글되지 않도록 (체크박스만 반응)
     label.addEventListener('click', (e) => {
-      if (e.target === cbDef || e.target === cbShow) return;
+      if (e.target === cbShow) return;
       e.preventDefault();
     });
   });
+
+  // 기본 조합 버튼: 보조차트 모두 지우고 지정 조합만 순서대로 표시 + 기본으로 저장
+  const comboBtn = document.getElementById('defaultComboBtn');
+  if (comboBtn) {
+    comboBtn.addEventListener('click', () => {
+      // 현재 표시된 모든 지표 끄기
+      Object.keys(state.selected).forEach(k => state.selected[k] = false);
+      state.selectedOrder = [];
+      Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
+      // 기본 조합을 순서대로 켜기
+      DEFAULT_COMBO.forEach(key => {
+        if (OVERLAY_KEYS.includes(key)) state.overlays[key] = true;
+        else { state.selected[key] = true; state.selectedOrder.push(key); }
+      });
+      // 체크박스·라벨 UI 동기화
+      document.querySelectorAll('.ind-label').forEach(label => {
+        const key = label.dataset.key;
+        const cbShow = label.querySelector('.cb-show');
+        const span = label.querySelector('span.nm');
+        const col = getComputedStyle(label).getPropertyValue('--col').trim();
+        const on = DEFAULT_COMBO.includes(key);
+        if (cbShow) cbShow.checked = on;
+        if (on) { label.classList.add('active'); if (span) span.style.color = col; }
+        else { label.classList.remove('active'); if (span) span.style.color = ''; }
+      });
+      // 이 조합을 기본값으로 저장
+      const defs = {};
+      DEFAULT_COMBO.forEach(k => defs[k] = true);
+      saveDefaults(defs);
+      renderAll();
+    });
+  }
 }
 
 // ══════════════════════════════════════
