@@ -1358,6 +1358,16 @@ function setupSidebar() {
     });
   });
 
+  // 초기 표시된 보조차트 순서를 기본 조합 순서에 맞춤 (DOM 순서 대신)
+  // 저장된 순서(kgchart_order)가 있으면 그것을, 없으면 DEFAULT_COMBO 순서를 우선
+  let orderPref = DEFAULT_COMBO;
+  try { const so = localStorage.getItem('kgchart_order'); if (so) { const a = JSON.parse(so); if (Array.isArray(a) && a.length) orderPref = a; } } catch(e) {}
+  state.selectedOrder.sort((a, b) => {
+    const ia = orderPref.indexOf(a), ib = orderPref.indexOf(b);
+    const va = ia < 0 ? 999 : ia, vb = ib < 0 ? 999 : ib;
+    return va - vb;
+  });
+
   // 기본 조합 버튼: 보조차트 모두 지우고 지정 조합만 순서대로 표시 + 기본으로 저장
   const comboBtn = document.getElementById('defaultComboBtn');
   if (comboBtn) {
@@ -1386,6 +1396,7 @@ function setupSidebar() {
       const defs = {};
       DEFAULT_COMBO.forEach(k => defs[k] = true);
       saveDefaults(defs);
+      try { localStorage.setItem('kgchart_order', JSON.stringify(DEFAULT_COMBO)); } catch(e) {}
       renderAll();
     });
   }
