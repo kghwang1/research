@@ -888,6 +888,29 @@ async function fetchReal(stock) {
     }
   }
 
+  // ── 미국(해외) 종목 일/주/월봉: 네이버 해외주식 차트 우선 (HTS와 근접) ──
+  const isForeignStock = !isKrStock && /^[A-Za-z]/.test(String(code)) && !/^\^/.test(String(code));
+  if (isForeignStock && naverTF) {
+    try {
+      const nwUrl = `${WORKER}/?naverWorldChart=${encodeURIComponent(code)}&timeframe=${naverTF}&days=1000&_t=${Date.now()}`;
+      const nwRes = await fetch(nwUrl, { cache: 'no-store' });
+      const nwJson = await nwRes.json();
+      if (nwJson.ok && nwJson.data && nwJson.data.length >= 5) {
+        return {
+          ohlcv: nwJson.data,
+          name: stock.name || code,
+          validSymbol: true,
+          realSymbol: code,
+          currency: 'USD',
+          exchange: 'US',
+          source: 'naver_world',
+        };
+      }
+    } catch(e) {
+      console.warn('Naver world chart fail, try yahoo:', e);
+    }
+  }
+
   // ── 미국주식/지수/분봉: 야후 (국내 종목도 위 실패 시 최후 수단) ──
   const sym = toYahooSymbol(stock);
   const url = `${WORKER}/?yahooChart=${encodeURIComponent(sym)}&range=${range}&interval=${state.interval}&_t=${Date.now()}`;
