@@ -10,7 +10,7 @@
     --ink:#e8eaf0; --sub:#8b92a6; --dim:#5a6175;
     --accent:#d4ff3f; --accent2:#7c8cff;
     --buy:#3ddc84; --hold:#ffc24b; --sell:#ff5d5d;
-    --up:#ef5350; --dn:#3fb950;
+    --up:#ef5350; --dn:#1976d2;
     --r:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -37,9 +37,14 @@
 
 
   /* 챠트 전체화면 종목 리스트 */
-  #chartStockItems .cs-item{padding:7px 10px;cursor:pointer;border-bottom:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--sub)}
+  #chartStockItems .cs-item{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);display:flex;align-items:center;gap:6px}
+  #chartStockItems .cs-chks{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+  #chartStockItems .cs-chk{display:flex;margin:0;cursor:pointer}
+  #chartStockItems .cs-chk input{width:14px;height:14px;margin:0;cursor:pointer}
+  #chartStockItems .cs-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
   #chartStockItems .cs-item:hover{background:var(--panel)}
   #chartStockItems .cs-item.on{background:var(--accent);color:#0c0e14;font-weight:700}
+  #chartStockItems .cs-item .cs-name{display:block;overflow:hidden;text-overflow:ellipsis}
   #chartStockItems .cs-item .cs-code{font-size:10px;color:var(--dim);display:block}
   #chartStockItems .cs-item.on .cs-code{color:#0c0e14aa}
   section{display:none;padding-top:18px}
@@ -406,7 +411,7 @@
   .val-tbl .rsub{font-weight:600;font-size:.85em;color:var(--dim)}
   .val-tbl .rchg{display:block;font-size:11px;font-weight:600;margin-top:1px}
   .val-tbl .rchg.up{color:#ef5350}
-  .val-tbl .rchg.down{color:#3fb950}
+  .val-tbl .rchg.down{color:#1976d2}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
   #valNote{font-size:14.3px;line-height:1.6;position:sticky;left:0;width:100vw;box-sizing:border-box;background:var(--bg)}
   .signbtn{flex:0 0 auto;width:40px;padding:8px 0;border-radius:8px;border:1px solid #777;background:#222634;color:#eee;font-size:16px;font-weight:700}
@@ -537,8 +542,8 @@
   th.sort-on{background:#f8b4c8!important;color:#0c0e14}
   .val-tbl .diffp{font-weight:600;color:#2a7d2a}
   .val-tbl td .diffp{display:block;font-size:11px;margin-top:1px}
-  .val-tbl .diffp.neg{color:#e01010}
-  .val-tbl td.neg{color:#e01010}
+  .val-tbl .diffp.neg{color:#1976d2}
+  .val-tbl td.neg{color:#1976d2}
   .val-tbl td[contenteditable]{cursor:text}
   .val-tbl td[contenteditable]:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbe6}
   .val-tbl td a{color:#1257c2;text-decoration:none;font-weight:700;border-bottom:1px dotted #1257c2}
@@ -554,11 +559,11 @@
   .val-tbl td.wt{font-size:1.1em;font-weight:800;color:#c00000}
   .val-tbl td.uscchg{font-weight:800}
   .val-tbl td.uscchg.up{color:#ef5350}
-  .val-tbl td.uscchg.down{color:#3fb950}
+  .val-tbl td.uscchg.down{color:#1976d2}
   .val-tbl td.kredit{background:#fdf6b8;color:#222;cursor:text}
   .val-tbl td.kredit:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbd6}
   .val-tbl td.up{color:#ef5350;font-weight:700}
-  .val-tbl td.down{color:#3fb950;font-weight:700}
+  .val-tbl td.down{color:#1976d2;font-weight:700}
   .val-tbl caption.kr-cap{caption-side:top;text-align:left;color:#ff5b5b;font-weight:800;font-size:14px;padding:6px 4px 8px}
   .form-note{font-size:12px;color:var(--sub);line-height:1.5;padding:4px 0}
   #rUrls .url-row{display:flex;gap:6px;margin-bottom:6px}
@@ -1098,7 +1103,7 @@ function archRateHtml(code){
   const rt=ARCH_RATE[code]; if(rt==null||rt==='') return '';
   const n=parseFloat(rt); if(!isFinite(n)) return '';
   const s=(n>=0?'+':'')+n.toFixed(2)+'%';
-  return ` <span style="font-size:.82em;font-weight:700;color:${n>=0?'#ef5350':'#3fb950'}">(${s})</span>`;
+  return ` <span style="font-size:.82em;font-weight:700;color:${n>=0?'#ef5350':'#1976d2'}">(${s})</span>`;
 }
 function targetOf(r){ return (r.code&&ARCH_TGT[r.code]!=null)?ARCH_TGT[r.code]:null; }
 function upside(r){
@@ -4669,7 +4674,7 @@ function scoreFormulaCell(code){
     if(!code) return '';
     const d=calcScoreDetail(code);
   const fmt=v=>v<0?'('+v+')':String(v);
-  const col=d.total>0?'#ef5350':d.total<0?'#3fb950':'#888';
+  const col=d.total>0?'#ef5350':d.total<0?'#1976d2':'#888';
   const dbg = d.shortDbg ? '<br><span style="font-size:9px;color:#888">공'+d.shortDbg+'</span>' : '';
   return '<span style="font-size:10px;color:'+col+';white-space:nowrap">'+fmt(d.r)+'+'+fmt(d.f)+'+'+fmt(d.a)+'+'+fmt(d.s)+'=<b>'+d.total+'</b>'+dbg+'</span>';
   }catch(e){ console.error('scoreFormula error:', code, e); return '<span style="color:red;font-size:9px">ERR</span>'; }
@@ -5500,7 +5505,11 @@ function buildChartStockList(filter){
     else if(/^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // ETF 등 티커
     else { code=rawCode.replace(/[^0-9]/g,'') || rawCode; }
     if(f && !name.toLowerCase().includes(f) && !code.toLowerCase().includes(f)) return;
-    h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${isForeign?' · 해외':''}</span></div>`;
+    // 관심/투자 저장용 코드: 해외는 US:티커, 국내는 6자리
+    const saveCode = isForeign ? ('US:'+String(code).toUpperCase()) : code;
+    const inW=inPort('kg_watch_rows', saveCode), inI=inPort('kg_invpf_rows', saveCode);
+    const chks=`<div class="cs-chks"><label class="cs-chk" title="관심 복사"><input type="checkbox" data-cls="kg_watch_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inW?' checked':''}></label><label class="cs-chk" title="투자 복사"><input type="checkbox" data-cls="kg_invpf_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inI?' checked':''}></label></div>`;
+    h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}">${chks}<div class="cs-txt"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${isForeign?' · 해외':''}</span></div></div>`;
   });
   if(!h){
     const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요' : '종목이 없습니다';
@@ -5508,12 +5517,19 @@ function buildChartStockList(filter){
   }
   box.innerHTML=h;
   box.querySelectorAll('.cs-item').forEach(el=>{
-    el.onclick=()=>{
+    el.onclick=(ev)=>{
+      // 체크박스 클릭이면 종목 선택(차트 열기) 무시
+      if(ev.target && ev.target.closest && ev.target.closest('.cs-chks')) return;
       box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
       el.classList.add('on');
       const ifr=$('#chartIframe');
       if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name);
     };
+  });
+  // 관심·투자 체크박스 → 포트 복사
+  box.querySelectorAll('.cs-chk input[data-cls]').forEach(cb=>{
+    cb.onchange=(e)=>{ e.stopPropagation(); togglePortMember(cb.dataset.cls, cb.dataset.clscode, cb.dataset.clsname); };
+    cb.onclick=(e)=>e.stopPropagation();
   });
 }
 

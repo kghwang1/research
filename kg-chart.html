@@ -321,7 +321,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 const C = {
   bg:'#0d1117', panel:'#161b22', panel2:'#1c2128',
   border:'#21262d', text:'#e6edf3', muted:'#8b949e',
-  up:'#ef5350', down:'#3fb950',
+  up:'#f01d1d', down:'#1976d2',
   accent:'#58a6ff', green:'#3fb950', yellow:'#f0a836',
   purple:'#bc8cff', cyan:'#39d353', orange:'#f78166',
   pink:'#ff7eb6', lime:'#a8ff78', teal:'#4ecdc4',
@@ -1695,10 +1695,10 @@ function drawCandle() {
     // 날짜 라벨 (하단)
     const hd = slice[state.hoverIdx];
     if (hd && hd.date) {
-      // 2026-07-20 → 7.20 (분봉이면 시각 포함)
+      // 2026-07-20 → 26.7.20 (분봉이면 시각 포함)
       const md = s => {
         const m = String(s).match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-        return m ? String(parseInt(m[2],10)) + '.' + String(parseInt(m[3],10)) : String(s);
+        return m ? m[1].slice(2) + '.' + String(parseInt(m[2],10)) + '.' + String(parseInt(m[3],10)) : String(s);
       };
       let lbl;
       if (state.interval==='5m'||state.interval==='60m') {
@@ -2120,7 +2120,7 @@ function drawSub(canvas, key) {
     if (lastS != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
     if (lastI != null && lastS != null) {
       const df = lastI - lastS;
-      ctx.fillStyle = df >= 0 ? '#ef5350' : '#3fb950';
+      ctx.fillStyle = df >= 0 ? '#ef5350' : '#1976d2';
       ctx.fillText((df >= 0 ? '▲' : '▼') + Math.abs(df).toFixed(2) + (df >= 0 ? ' 강세' : ' 약세'), PAD.l + 300, PAD.t + 11);
     }
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
@@ -2571,7 +2571,7 @@ function drawSub(canvas, key) {
       if (netArr[i] == null || netArr[i] === 0) continue;
       const v = netArr[i];
       const bh = Math.max(1, Math.abs(v) / maxN * (ch/2 - 2));
-      ctx.fillStyle = v > 0 ? '#ef535088' : '#3fb95088';
+      ctx.fillStyle = v > 0 ? '#ef535088' : '#1976d288';
       if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
       else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
     }
@@ -2635,7 +2635,7 @@ function drawSub(canvas, key) {
       if (instArr[i] == null || instArr[i] === 0) continue;
       const v = instArr[i];
       const bh = Math.max(1, Math.abs(v) / maxN * (ch/2 - 2));
-      ctx.fillStyle = v > 0 ? '#ef535088' : '#3fb95088';
+      ctx.fillStyle = v > 0 ? '#ef535088' : '#1976d288';
       if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
       else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
     }
@@ -3010,7 +3010,7 @@ function updateIframeStockName() {
       const price = last.close;
       const chg = ((price - prev.close) / prev.close) * 100;
       const sign = chg > 0 ? '+' : '';  // 음수는 자체 부호
-      chgColor = chg > 0 ? '#ef5350' : chg < 0 ? '#3fb950' : '#8b949e';  // 상승 빨강, 하락 녹색
+      chgColor = chg > 0 ? '#f01d1d' : chg < 0 ? '#1976d2' : '#8b949e';  // 상승 진빨강, 하락 청색 (캔들과 통일)
       const priceFmt = price >= 100 ? Math.round(price).toLocaleString() : price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
       priceStr = `${priceFmt} (${sign}${chg.toFixed(2)}%)`;
     }
@@ -3065,7 +3065,7 @@ function renderAll() {
     wrap.appendChild(closeBtn);
 
     chartArea.appendChild(wrap);
-    setTimeout(() => drawSub(canvas, key), 0);
+    setTimeout(() => { drawSub(canvas, key); if(window._bindSubPan) window._bindSubPan(canvas); }, 0);
   });
 
   // OHLC 정보 업데이트
@@ -3084,7 +3084,7 @@ function updateOHLC(d) {
   if (!last) return;
   const el = document.getElementById.bind(document);
   el('info-close').textContent = last.close.toLocaleString();
-  el('info-close').style.color = last.close >= last.open ? '#ef5350' : '#3fb950';
+  el('info-close').style.color = last.close >= last.open ? '#f01d1d' : '#1976d2';
   el('info-open').textContent = last.open.toLocaleString();
   el('info-high').textContent = last.high.toLocaleString();
   el('info-low').textContent = last.low.toLocaleString();
@@ -3320,6 +3320,48 @@ function setupMouseEvent() {
     if (now - lastTapTime < 300) { resetZoom(); lastTapTime = 0; }
     else lastTapTime = now;
   });
+
+  // ── 보조차트에도 좌우 드래그(패닝) 적용 → 메인+보조 함께 이동 ──
+  window._bindSubPan = function(subCv){
+    let sX=null, sRange=null, sDrag=false;
+    subCv.style.cursor='grab';
+    subCv.onmousedown=(e)=>{ sX=e.clientX; sRange=[...state.range]; sDrag=false; subCv.style.cursor='grabbing'; };
+    subCv.onmousemove=(e)=>{
+      if(sX===null) return;
+      const rect=subCv.getBoundingClientRect();
+      const cw=rect.width - PAD_L - PAD_R;
+      const pxPerBar=cw/n();
+      const deltaPx=e.clientX - sX;
+      if(Math.abs(deltaPx)>4){
+        sDrag=true; state.hoverIdx=-1;
+        const deltaIdx=Math.round(deltaPx/pxPerBar);
+        dragStartRange=sRange;
+        shiftRange(deltaIdx);
+        redrawAll();
+      }
+    };
+    const endMs=()=>{ sX=null; sRange=null; sDrag=false; subCv.style.cursor='grab'; };
+    subCv.onmouseup=endMs; subCv.onmouseleave=endMs;
+    // 터치
+    let tX=null, tRange=null;
+    subCv.ontouchstart=(e)=>{ if(e.touches.length===1){ tX=e.touches[0].clientX; tRange=[...state.range]; } };
+    subCv.ontouchmove=(e)=>{
+      if(tX===null||e.touches.length!==1) return;
+      e.preventDefault();
+      const rect=subCv.getBoundingClientRect();
+      const cw=rect.width - PAD_L - PAD_R;
+      const pxPerBar=cw/n();
+      const deltaPx=e.touches[0].clientX - tX;
+      if(Math.abs(deltaPx)>10){
+        state.hoverIdx=-1;
+        const deltaIdx=Math.round(deltaPx/pxPerBar);
+        dragStartRange=tRange;
+        shiftRange(deltaIdx);
+        redrawAll();
+      }
+    };
+    subCv.ontouchend=()=>{ tX=null; tRange=null; };
+  };
 }
 
 // 리사이즈
