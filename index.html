@@ -496,8 +496,8 @@
   td.famtc{font-size:12px;white-space:nowrap;text-align:right}
   td.grade-cell{text-align:center}
   .score-cell{text-align:center;vertical-align:middle;cursor:pointer;font-weight:700;font-size:12px}
-  .score-cell.pink,.val-tbl.mp td.score-cell.pink{background:#f8b4c8!important}
-  .score-cell.green,.val-tbl.mp td.score-cell.green{background:#b4f8c8!important}
+  .score-cell.pink,.val-tbl.mp td.score-cell.pink{}
+  .score-cell.green,.val-tbl.mp td.score-cell.green{}
   /* 점수표 편집 */
   .score-edit-tbl{width:100%;border-collapse:collapse;font-size:12px}
   .score-edit-tbl th{background:#404040;color:#fff;padding:8px 4px;font-weight:700;border:1px solid #555;text-align:center;font-size:12px}
@@ -2803,10 +2803,15 @@ function togglePortMember(key, code, name){
     const empIdx=rows.findIndex(r=>!String(r[0]||''));
     if(empIdx>=0) rows.splice(empIdx,0,[code,name||'']); else rows.push([code,name||'']);
   }
+  // 빈 줄 최소 1개 유지
+  if(!rows.some(r=>!String(r[0]||''))) rows.push(['','']);
   _portSave(key, rows);
-  // 현재 보고 있는 포트가 대상이면 즉시 갱신
-  if((key==='kg_watch_rows'&&watchPort!=='invpf'&&(valMarket==='watch'))||(key==='kg_invpf_rows'&&watchPort==='invpf'&&valMarket==='invpf')){
-    loadWatchRows(); renderWatchTable(); fetchWatchLive();
+  // 메모리 슬롯도 동기화 (setWatchPort가 메모리를 쓰므로)
+  if(key==='kg_watch_rows'){ _WATCH_ROWS_watch = rows; if(watchPort!=='invpf') WATCH_ROWS = rows; }
+  else if(key==='kg_invpf_rows'){ _WATCH_ROWS_invpf = rows; if(watchPort==='invpf') WATCH_ROWS = rows; }
+  // 현재 관심/투자 탭을 보고 있으면 즉시 갱신
+  if((key==='kg_watch_rows'&&valMarket==='watch')||(key==='kg_invpf_rows'&&valMarket==='invpf')){
+    renderWatchTable(); fetchWatchLive();
   }
 }
 // 분류 열 HTML (관심·투자 체크박스)
@@ -2821,7 +2826,10 @@ function setWatchPort(p){
   // 현재 배열을 탭별 슬롯에 보관 후 전환
   if(watchPort==='invpf') _WATCH_ROWS_invpf = WATCH_ROWS; else _WATCH_ROWS_watch = WATCH_ROWS;
   watchPort = (p==='invpf') ? 'invpf' : 'watch';
+  // 분류 열 등으로 localStorage가 바뀌었을 수 있으니 항상 최신을 읽어옴
+  try{ const raw=localStorage.getItem(watchKeyRows()); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)){ WATCH_ROWS=a; return; } } }catch(e){}
   WATCH_ROWS = (watchPort==='invpf') ? _WATCH_ROWS_invpf : _WATCH_ROWS_watch;
+  if(!WATCH_ROWS) WATCH_ROWS=[['',''],['','']];
 }
 let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
 let watchSortFrgn=false, watchRoeMin=0;
@@ -3037,13 +3045,13 @@ function renderWatchTable(){
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
   const W = (watchPort==='invpf')
-    ? [96,52,90,92,90,90,90,100,100,200]
-    : [96,28,52,90,92,90,90,90,100,100,200,110];
+    ? [96,90,92,90,90,90,100,100,200]
+    : [96,28,90,92,90,90,90,100,100,200,110];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');   // 투자 탭: 점수·합산식 열 숨김
   const H = isInv
-    ? ["종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"]
-    : ["종목(코드입력)","점수","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+    ? ["종목(코드입력)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"]
+    : ["종목(코드입력)","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
   let h='<caption class="kr-cap">'+(watchPort==='invpf'?'투자 종목':'관심 종목')+' <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
@@ -3072,14 +3080,14 @@ function renderWatchTable(){
       const ticker=rawCode.replace(/^US:/i,'');
       const stkInner=`<span class="kn">${escHtml(nm||ticker)}</span><span class="kc" style="color:#f0883e">${escHtml(ticker)} · 해외</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="inv-cell">${invCheckCellHtml(code)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
       return;
     }
     if(isIdxRow){
       // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="inv-cell">${invCheckCellHtml(code)}</td><td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
       return;
     }
     const live=watchLive[code];
@@ -3119,7 +3127,6 @@ function renderWatchTable(){
     h+='<tr>';
     h+=`<td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>`;
     if(!isInv) h+=`<td class="score-cell ${PIN_MARKS.get(code)||''}" data-code="${code}">${scoreCell(code)}</td>`;
-    h+=`<td class="inv-cell">${invCheckCellHtml(code)}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
     h+=`<td>${roeTxt}</td>`;
