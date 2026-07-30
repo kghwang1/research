@@ -1866,15 +1866,15 @@ function valUpside(ri, baseVal){
 function openNaverWorld(sym){
   const qs=valQuoteSym(sym);
   const ticker=(qs&&!qs.startsWith('STK:'))?qs:sym;
-  // worker가 월드스톡 주소를 못 찾으면 네이버에서 '티커'만 검색 (금융 카드가 바로 뜸)
-  const fallback='https://finance.naver.com/search/search.naver?query='+encodeURIComponent(ticker);
+  const tk=String(ticker).trim().toUpperCase();
+  const searchUrl='https://finance.naver.com/search/search.naver?query='+encodeURIComponent(tk);
   const w=window.open('about:blank','_blank');
   const go=u=>{ if(w){ w.location=u; } else { location.href=u; } };
-  if(!SRV_URL){ go(fallback); return; }
-  fetch(SRV_URL+'/?nvlink='+encodeURIComponent(ticker))
+  if(!SRV_URL){ go(searchUrl); return; }
+  fetch(SRV_URL+'/?nvlink='+encodeURIComponent(tk))
     .then(r=>r.json())
-    .then(d=>{ go(d&&d.ok&&d.url ? d.url : fallback); })
-    .catch(()=>{ go(fallback); });
+    .then(d=>{ go(d&&d.ok&&d.url ? d.url : searchUrl); })
+    .catch(()=>{ go(searchUrl); });
 }
 /* 네이버 통합검색으로 열기 (한국 ETF 종목명 등) */
 function openNaverSearch(q){
@@ -2905,6 +2905,20 @@ async function fetchWatchLive(fresh){
       ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) watchRoe[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
     }catch(e){}
   }
+  // 미국(해외) 종목 시세 조회 (US:티커 → 야후)
+  const usCodes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^US:/i.test(rc)?rc.replace(/^US:/i,'').toUpperCase():''; }).filter(Boolean))];
+  if(usCodes.length){
+    for(let i=0;i<usCodes.length;i+=CH){
+      const part=usCodes.slice(i,i+CH);
+      try{
+        const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.join(','))+freshQ);
+        const d=await r.json();
+        ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const key='US:'+String(q.symbol||'').toUpperCase(); watchLive[key]=q.priceStr||String(q.price); if(q.rate!=null) watchRate[key]=q.rate;
+          if(q.high52!=null) watchHigh52[key]=q.high52Str||String(q.high52);
+        } });
+      }catch(e){}
+    }
+  }
   saveWatchRows();
   if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
 }
@@ -3093,11 +3107,20 @@ function renderWatchTable(){
     const code = (isIdxRow||isUSRow) ? rawCode : rawCode.replace(/[^0-9]/g,'');
     const nm=r[1]||'';
     if(isUSRow){
-      // 해외(미국) 종목: 이름·차트만 (국내용 시세·ROE·외국인·목표가·보고서 없음)
+      // 해외(미국) 종목: 이름·현재가·등락률·52주최고가 + 차트 (ROE·외국인·목표가·보고서는 없음)
       const ticker=rawCode.replace(/^US:/i,'');
+      const uKey='US:'+ticker.toUpperCase();
+      const uLive=watchLive[uKey];
+      const uRate=watchRate[uKey];
+      const uHigh=watchHigh52[uKey];
+      const liveStr= uLive ? addComma(uLive) : (SRV_URL?'…':'—');
+      const rateH = (uLive && uRate!=null) ? rateHtml(uRate) : '';
+      const highStr= uHigh ? addComma(uHigh) : '—';
       const stkInner=`<span class="kn">${escHtml(nm||ticker)}</span><span class="kc" style="color:#f0883e">${escHtml(ticker)} · 해외</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
+      const usLiveStyle = uLive ? ' style="cursor:pointer;text-decoration:underline dotted"' : ' style="cursor:pointer;color:#58a6ff"';
+      const liveCell = uLive ? `${liveStr}${rateH}` : '차트▶';
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>—</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
       return;
     }
     if(isIdxRow){
