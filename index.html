@@ -3276,7 +3276,8 @@ function renderWatchTable(){
   // 현재가 클릭 → 차트 + 그 종목만 최신 시세 새로고침
   t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c){ refreshOneWatch(c); openChart(c, nm); } }; });
   t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm); }; });
-  t.querySelectorAll('a.wusa, td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c) openChart(c, nm); }; });
+  t.querySelectorAll('a.wusa').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code; if(c) openNaverWorld(c); }; });
+  t.querySelectorAll('td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c) openChart(c, nm); }; });
   const codes=WATCH_ROWS.map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean);
   if(codes.length){ ensureReports(codes); ensureForeign(codes); ensureShort(codes); }
   // 시세가 아직 없으면 조회

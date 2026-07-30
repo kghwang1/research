@@ -1041,7 +1041,7 @@ async function loadStock(stock) {
     if (state.keepZoom && state.keepZoom > 0) {
       showLen = Math.max(8, Math.min(state.keepZoom, state.data.length));
     }
-    state.range = [Math.max(0, state.data.length - showLen), state.data.length];
+    state.range = [Math.max(0, state.data.length - showLen), state.data.length + (state.overlays.ICHIMOKU ? 0 : 1)];
   }
 
   // 한국 종목 + 일봉이면 외국인 순매수 + 공매도 데이터도 로드
@@ -1461,13 +1461,15 @@ function drawCandle() {
     ctx.fillText(v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(1), W - PAD.r + 3, y + 3);
   }
 
-  // 차트 끝 표시: 마지막 실제 캔들 다음(내일 자리)에 세로 기준선 (격자와 같은 색)
+  // 차트 끝 표시: 마지막 실제 캔들 다음(내일 자리)에 세로 기준선
   {
     const lastIdx = dataEnd - 1 - range[0];   // range 기준 마지막 캔들 슬롯
     const tomoX = xOf(lastIdx + 1);            // 내일 자리 x
     if (tomoX >= PAD.l && tomoX <= W - PAD.r) {
-      ctx.strokeStyle = C.border; ctx.lineWidth = 0.5;
+      ctx.save();
+      ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.55;
       ctx.beginPath(); ctx.moveTo(tomoX, PAD.t); ctx.lineTo(tomoX, PAD.t + ch); ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -1970,8 +1972,10 @@ function drawSub(canvas, key) {
     const lastIdx = dataEnd - 1 - state.range[0];
     const tomoX = xOf(lastIdx + 1);
     if (tomoX >= PAD.l && tomoX <= W - PAD.r) {
-      ctx.strokeStyle = C.border; ctx.lineWidth = 0.5; ctx.setLineDash([]);
+      ctx.save();
+      ctx.strokeStyle = C.muted; ctx.lineWidth = 1; ctx.setLineDash([4, 3]); ctx.globalAlpha = 0.55;
       ctx.beginPath(); ctx.moveTo(tomoX, PAD.t); ctx.lineTo(tomoX, PAD.t + ch); ctx.stroke();
+      ctx.restore();
     }
   }
 
@@ -3154,7 +3158,7 @@ function setupMouseEvent() {
 
   function shiftRange(deltaIdx) {
     const total = state.data.length;
-    const fpad = state.overlays.ICHIMOKU ? 26 : 0;  // 미래 여백(구름)
+    const fpad = state.overlays.ICHIMOKU ? 26 : 1;  // 미래 여백(구름 26칸, 없어도 내일 자리 1칸)
     const maxRight = total + fpad;  // 최신에서 미래 여백만큼 더 오른쪽까지 허용 (점프 방지)
     const len = n();
     let s = dragStartRange[0] - deltaIdx;
@@ -3354,7 +3358,7 @@ function setupMouseEvent() {
   const resetZoom = () => {
     clearView();
     const showLen = Math.min(calcShowCount(state.period, state.interval), state.data.length);
-    state.range = [Math.max(0, state.data.length - showLen), state.data.length];
+    state.range = [Math.max(0, state.data.length - showLen), state.data.length + (state.overlays.ICHIMOKU ? 0 : 1)];
     state.hoverIdx = -1;
     redrawAll();
     if (typeof showMsg === 'function') showMsg('기본 배율로 되돌렸습니다', 1200);
