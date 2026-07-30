@@ -10,7 +10,7 @@
     --ink:#e8eaf0; --sub:#8b92a6; --dim:#5a6175;
     --accent:#d4ff3f; --accent2:#7c8cff;
     --buy:#3ddc84; --hold:#ffc24b; --sell:#ff5d5d;
-    --up:#3fb950; --dn:#ef5350;
+    --up:#ef5350; --dn:#3fb950;
     --r:14px;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -401,8 +401,8 @@
   .val-tbl:not(.mp) td.gcol{background:#e2f0d9}
   .val-tbl .rsub{font-weight:600;font-size:.85em;color:var(--dim)}
   .val-tbl .rchg{display:block;font-size:11px;font-weight:600;margin-top:1px}
-  .val-tbl .rchg.up{color:#3fb950}
-  .val-tbl .rchg.down{color:#ef5350}
+  .val-tbl .rchg.up{color:#ef5350}
+  .val-tbl .rchg.down{color:#3fb950}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
   #valNote{font-size:14.3px;line-height:1.6;position:sticky;left:0;width:100vw;box-sizing:border-box;background:var(--bg)}
   .signbtn{flex:0 0 auto;width:40px;padding:8px 0;border-radius:8px;border:1px solid #777;background:#222634;color:#eee;font-size:16px;font-weight:700}
@@ -549,12 +549,12 @@
   .val-tbl.mp td.mp-r{text-align:right}
   .val-tbl td.wt{font-size:1.1em;font-weight:800;color:#c00000}
   .val-tbl td.uscchg{font-weight:800}
-  .val-tbl td.uscchg.up{color:#3fb950}
-  .val-tbl td.uscchg.down{color:#ef5350}
+  .val-tbl td.uscchg.up{color:#ef5350}
+  .val-tbl td.uscchg.down{color:#3fb950}
   .val-tbl td.kredit{background:#fdf6b8;color:#222;cursor:text}
   .val-tbl td.kredit:focus{outline:2px solid var(--accent2);outline-offset:-2px;background:#fffbd6}
-  .val-tbl td.up{color:#3fb950;font-weight:700}
-  .val-tbl td.down{color:#5b9cff;font-weight:700}
+  .val-tbl td.up{color:#ef5350;font-weight:700}
+  .val-tbl td.down{color:#3fb950;font-weight:700}
   .val-tbl caption.kr-cap{caption-side:top;text-align:left;color:#ff5b5b;font-weight:800;font-size:14px;padding:6px 4px 8px}
   .form-note{font-size:12px;color:var(--sub);line-height:1.5;padding:4px 0}
   #rUrls .url-row{display:flex;gap:6px;margin-bottom:6px}
@@ -1094,7 +1094,7 @@ function archRateHtml(code){
   const rt=ARCH_RATE[code]; if(rt==null||rt==='') return '';
   const n=parseFloat(rt); if(!isFinite(n)) return '';
   const s=(n>=0?'+':'')+n.toFixed(2)+'%';
-  return ` <span style="font-size:.82em;font-weight:700;color:${n>=0?'#ff6b6b':'#5b9cff'}">(${s})</span>`;
+  return ` <span style="font-size:.82em;font-weight:700;color:${n>=0?'#ef5350':'#3fb950'}">(${s})</span>`;
 }
 function targetOf(r){ return (r.code&&ARCH_TGT[r.code]!=null)?ARCH_TGT[r.code]:null; }
 function upside(r){
@@ -4555,7 +4555,7 @@ function scoreFormulaCell(code){
     if(!code) return '';
     const d=calcScoreDetail(code);
   const fmt=v=>v<0?'('+v+')':String(v);
-  const col=d.total>0?'#3fb950':d.total<0?'#ef5350':'#888';
+  const col=d.total>0?'#ef5350':d.total<0?'#3fb950':'#888';
   const dbg = d.shortDbg ? '<br><span style="font-size:9px;color:#888">공'+d.shortDbg+'</span>' : '';
   return '<span style="font-size:10px;color:'+col+';white-space:nowrap">'+fmt(d.r)+'+'+fmt(d.f)+'+'+fmt(d.a)+'+'+fmt(d.s)+'=<b>'+d.total+'</b>'+dbg+'</span>';
   }catch(e){ console.error('scoreFormula error:', code, e); return '<span style="color:red;font-size:9px">ERR</span>'; }
@@ -4564,7 +4564,7 @@ function scoreCell(code){
   try{
     if(!code) return '';
     const s=calcScore(code);
-    const col = s>0 ? '#3fb950' : s<0 ? '#ef5350' : '#888';
+    const col = s>0 ? '#ef5350' : s<0 ? '#3fb950' : '#888';
     return '<span style="color:'+col+'">'+s+'</span>';
   }catch(e){ return '?'; }
 }

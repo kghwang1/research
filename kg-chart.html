@@ -321,7 +321,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 const C = {
   bg:'#0d1117', panel:'#161b22', panel2:'#1c2128',
   border:'#21262d', text:'#e6edf3', muted:'#8b949e',
-  up:'#ef5350', down:'#1976d2',
+  up:'#ef5350', down:'#3fb950',
   accent:'#58a6ff', green:'#3fb950', yellow:'#f0a836',
   purple:'#bc8cff', cyan:'#39d353', orange:'#f78166',
   pink:'#ff7eb6', lime:'#a8ff78', teal:'#4ecdc4',
@@ -2120,7 +2120,7 @@ function drawSub(canvas, key) {
     if (lastS != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
     if (lastI != null && lastS != null) {
       const df = lastI - lastS;
-      ctx.fillStyle = df >= 0 ? '#2979ff' : '#ef5350';
+      ctx.fillStyle = df >= 0 ? '#ef5350' : '#3fb950';
       ctx.fillText((df >= 0 ? '▲' : '▼') + Math.abs(df).toFixed(2) + (df >= 0 ? ' 강세' : ' 약세'), PAD.l + 300, PAD.t + 11);
     }
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
@@ -2571,7 +2571,7 @@ function drawSub(canvas, key) {
       if (netArr[i] == null || netArr[i] === 0) continue;
       const v = netArr[i];
       const bh = Math.max(1, Math.abs(v) / maxN * (ch/2 - 2));
-      ctx.fillStyle = v > 0 ? '#ef535088' : '#4dabf788';
+      ctx.fillStyle = v > 0 ? '#ef535088' : '#3fb95088';
       if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
       else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
     }
@@ -2635,7 +2635,7 @@ function drawSub(canvas, key) {
       if (instArr[i] == null || instArr[i] === 0) continue;
       const v = instArr[i];
       const bh = Math.max(1, Math.abs(v) / maxN * (ch/2 - 2));
-      ctx.fillStyle = v > 0 ? '#ef535088' : '#4dabf788';
+      ctx.fillStyle = v > 0 ? '#ef535088' : '#3fb95088';
       if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
       else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
     }
@@ -3002,6 +3002,7 @@ function updateIframeStockName() {
   const nm = s.name || s.code || '';
   // 현재가·등락률 (마지막 종가 vs 전일 종가)
   let priceStr = '0 (0)';  // 미개장/데이터 없음 기본값
+  let chgColor = '#8b949e';
   const d = state.data;
   if (d && d.length >= 2) {
     const last = d[d.length - 1], prev = d[d.length - 2];
@@ -3009,12 +3010,12 @@ function updateIframeStockName() {
       const price = last.close;
       const chg = ((price - prev.close) / prev.close) * 100;
       const sign = chg > 0 ? '+' : '';  // 음수는 자체 부호
-      // 원화는 정수, 소수 가격(해외)은 소수 2자리
+      chgColor = chg > 0 ? '#ef5350' : chg < 0 ? '#3fb950' : '#8b949e';  // 상승 빨강, 하락 녹색
       const priceFmt = price >= 100 ? Math.round(price).toLocaleString() : price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
       priceStr = `${priceFmt} (${sign}${chg.toFixed(2)}%)`;
     }
   }
-  el.innerHTML = `${escapeHtml(nm)} <span style="color:#8b949e;font-weight:400">/</span> <span style="color:#e6edf3">${priceStr}</span>`;
+  el.innerHTML = `${escapeHtml(nm)} <span style="color:#8b949e;font-weight:400">/</span> <span style="color:${chgColor}">${priceStr}</span>`;
 }
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function renderAll() {
@@ -3083,7 +3084,7 @@ function updateOHLC(d) {
   if (!last) return;
   const el = document.getElementById.bind(document);
   el('info-close').textContent = last.close.toLocaleString();
-  el('info-close').style.color = last.close >= last.open ? '#ef5350' : '#1976d2';
+  el('info-close').style.color = last.close >= last.open ? '#ef5350' : '#3fb950';
   el('info-open').textContent = last.open.toLocaleString();
   el('info-high').textContent = last.high.toLocaleString();
   el('info-low').textContent = last.low.toLocaleString();
