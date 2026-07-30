@@ -1461,6 +1461,16 @@ function drawCandle() {
     ctx.fillText(v >= 1000 ? Math.round(v).toLocaleString() : v.toFixed(1), W - PAD.r + 3, y + 3);
   }
 
+  // 차트 끝 표시: 마지막 실제 캔들 다음(내일 자리)에 세로 기준선 (격자와 같은 색)
+  {
+    const lastIdx = dataEnd - 1 - range[0];   // range 기준 마지막 캔들 슬롯
+    const tomoX = xOf(lastIdx + 1);            // 내일 자리 x
+    if (tomoX >= PAD.l && tomoX <= W - PAD.r) {
+      ctx.strokeStyle = C.border; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(tomoX, PAD.t); ctx.lineTo(tomoX, PAD.t + ch); ctx.stroke();
+    }
+  }
+
   // 일목균형표 구름
   if (overlays.ICHIMOKU) {
     const ich = CALC.ICHIMOKU(data);
@@ -1953,6 +1963,17 @@ function drawSub(canvas, key) {
     ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText(lv, W - PAD.r + 3, yOf(lv) + 3);
   });
+
+  // 차트 끝 표시: 마지막 실제 데이터 다음(내일 자리)에 세로 기준선 (메인 차트와 동일)
+  {
+    const dataEnd = Math.min(state.range[1], state.data.length);
+    const lastIdx = dataEnd - 1 - state.range[0];
+    const tomoX = xOf(lastIdx + 1);
+    if (tomoX >= PAD.l && tomoX <= W - PAD.r) {
+      ctx.strokeStyle = C.border; ctx.lineWidth = 0.5; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(tomoX, PAD.t); ctx.lineTo(tomoX, PAD.t + ch); ctx.stroke();
+    }
+  }
 
   let lineColors = [cfg.color, C.purple, C.orange, C.cyan];
   // 주선=노랑 / 시그널선=빨강 으로 통일하는 지표들
