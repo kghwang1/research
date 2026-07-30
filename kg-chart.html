@@ -2999,8 +2999,24 @@ function updateIframeStockName() {
   const el = document.getElementById('iframe-stock-name');
   if (!el || !state.stock) return;
   const s = state.stock;
-  el.textContent = (s.name || s.code || '') + (s.name ? '' : '');
+  const nm = s.name || s.code || '';
+  // 현재가·등락률 (마지막 종가 vs 전일 종가)
+  let priceStr = '0 (0)';  // 미개장/데이터 없음 기본값
+  const d = state.data;
+  if (d && d.length >= 2) {
+    const last = d[d.length - 1], prev = d[d.length - 2];
+    if (last && prev && last.close > 0 && prev.close > 0) {
+      const price = last.close;
+      const chg = ((price - prev.close) / prev.close) * 100;
+      const sign = chg > 0 ? '+' : '';  // 음수는 자체 부호
+      // 원화는 정수, 소수 가격(해외)은 소수 2자리
+      const priceFmt = price >= 100 ? Math.round(price).toLocaleString() : price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      priceStr = `${priceFmt} (${sign}${chg.toFixed(2)}%)`;
+    }
+  }
+  el.innerHTML = `${escapeHtml(nm)} <span style="color:#8b949e;font-weight:400">/</span> <span style="color:#e6edf3">${priceStr}</span>`;
 }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function renderAll() {
   updateIframeStockName();
   const activeKeys = getActiveKeys();
