@@ -283,6 +283,17 @@
   .cls-wrap{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
   .cls-chk{display:flex;align-items:center;gap:3px;cursor:pointer;font-size:10.5px;color:#333;white-space:nowrap;line-height:1.3}
   .cls-chk input{width:14px;height:14px;margin:0;cursor:pointer;flex-shrink:0}
+  .div-wrap{padding:4px 2px}
+  .div-filter{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 10px;margin-bottom:8px;background:#0d1117;border:1px solid #30363d;border-radius:8px}
+  .div-filter-row{display:flex;align-items:center;gap:8px}
+  .div-fl-label{font-size:11px;color:#8b949e;font-weight:700}
+  .div-chk{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;color:#e6edf3}
+  .div-chk input{width:15px;height:15px;margin:0;cursor:pointer}
+  .div-tbl th{font-size:11px}
+  .div-tbl .div-name .kn{display:block;font-size:11.5px}
+  .div-tbl .div-name .kc{display:block;font-size:10px}
+  .div-tbl td{vertical-align:middle}
+  .div-grp td{font-size:12px}
   .inv-cell{padding:3px!important;text-align:center}
   .inv-sel{width:100%;max-width:56px;padding:4px 2px;font-size:11.5px;font-weight:700;border:1px solid #bbb;border-radius:5px;background:#f5f5f5;color:#666;cursor:pointer;text-align:center;text-align-last:center}
   .inv-sel.has{background:#e3f0ff;border-color:#1f6feb;color:#1f6feb}
@@ -695,6 +706,7 @@
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('investkq');return false;"><span class="ic">📈</span><span class="tx"><span class="tt">코스닥100</span><span class="sb">코스닥100 최대낙폭·ROE·외국인 투자</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('watch');return false;"><span class="ic">⭐</span><span class="tx"><span class="tt">관심</span><span class="sb">직접 입력하는 관심 종목</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invpf');return false;"><span class="ic">💼</span><span class="tx"><span class="tt">투자</span><span class="sb">저장해 두는 투자 종목</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('dividend');return false;"><span class="ic">💰</span><span class="tx"><span class="tt">배당</span><span class="sb">장세별 배당 ETF (상승·횡보·하락)</span></span></a>
    </div>
    <!-- 국외 줄 -->
    <div class="port-col">
@@ -820,6 +832,7 @@
       <option value="usc">미국(체)</option>
       <option value="us">미국(반)</option>
       <option value="etf">한·미 ETF</option>
+      <option value="dividend">배당</option>
     </select>
   </div>
   <div style="display:flex;flex:1;overflow:hidden">
@@ -849,6 +862,7 @@
   <div class="subtab" data-m="usc">미국(체)</div>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
+  <div class="subtab" data-m="dividend">배당</div>
  </div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table><div id="valNote" class="val-note" style="display:none"></div></div>
  <button id="scoreCardBtn" style="display:none;position:absolute;right:12px;bottom:14px;z-index:30;padding:9px 15px;border-radius:22px;border:none;background:#7c83ff;color:#fff;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35)">⚙ 점수표</button>
@@ -1903,6 +1917,47 @@ const USETF_DATA=[
   ["SOXX","필라델피아반도체 지수","30%","30%","-"],
   ["DRAM","ROUNDHILL MEMORY ETF","30%","30%","-"],
 ];
+/* ===== 배당 포트폴리오 데이터 =====
+   장세(market): up=상승, side=횡보, down=하락
+   region: kr=국내, us=해외
+   [코드/티커, 종목전체명, market, region] */
+const DIVIDEND_DATA=[
+  ["458730","TIGER 미국배당다우존스","up","kr"],
+  ["446720","SOL 미국배당다우존스","up","kr"],
+  ["489250","KODEX 미국배당다우존스","up","kr"],
+  ["325020","KODEX 배당가치","up","kr"],
+  ["266160","KBSTAR 고배당","up","kr"],
+  ["SCHD","Schwab US Dividend Equity ETF","up","us"],
+  ["VYM","Vanguard High Dividend Yield ETF","up","us"],
+  ["DGRO","iShares Core Dividend Growth ETF","up","us"],
+  ["VIG","Vanguard Dividend Appreciation ETF","up","us"],
+  ["DVY","iShares Select Dividend ETF","up","us"],
+  ["441680","TIGER 미국나스닥100커버드콜(합성)","side","kr"],
+  ["472150","TIGER 배당커버드콜액티브","side","kr"],
+  ["475080","ACE 미국빅테크7+데일리타겟커버드콜","side","kr"],
+  ["464600","KODEX 미국배당프리미엄액티브","side","kr"],
+  ["429000","KODEX 미국S&P500","side","kr"],
+  ["JEPI","JPMorgan Equity Premium Income ETF","side","us"],
+  ["JEPQ","JPMorgan Nasdaq Equity Premium Income ETF","side","us"],
+  ["DIVO","Amplify CWP Enhanced Dividend Income ETF","side","us"],
+  ["QYLD","Global X Nasdaq 100 Covered Call ETF","side","us"],
+  ["XYLD","Global X S&P 500 Covered Call ETF","side","us"],
+  ["251340","KODEX 200고배당커버드콜","down","kr"],
+  ["210780","TIGER 코스피고배당","down","kr"],
+  ["279530","KODEX 고배당","down","kr"],
+  ["329200","TIGER 리츠부동산인프라","down","kr"],
+  ["449170","KODEX 배당성장채권혼합","down","kr"],
+  ["JEPI","JPMorgan Equity Premium Income ETF","down","us"],
+  ["SPHD","Invesco S&P 500 High Div Low Vol ETF","down","us"],
+  ["HDV","iShares Core High Dividend ETF","down","us"],
+  ["NOBL","ProShares S&P500 Dividend Aristocrats ETF","down","us"],
+  ["VNQ","Vanguard Real Estate ETF","down","us"],
+];
+const DIVIDEND_MARKETS=[
+  {key:'up', label:'상승장', desc:'배당성장형 — 주가 상승 참여', color:'#ef5350'},
+  {key:'side', label:'횡보장', desc:'커버드콜 — 박스권 프리미엄', color:'#f0a836'},
+  {key:'down', label:'하락장', desc:'방어형·저변동 — 손실 완충', color:'#1976d2'},
+];
 /* 한국 ETF 모델포트폴리오 데이터 [Ticker(코드), 명칭, 26.7월, 26.6월, 변경] — 수정 가능, 저장됨 */
 const KRETF_DATA=[
   ["396500","TIGER 반도체TOP10","48.4","44.7","+3.7"],
@@ -1969,6 +2024,65 @@ const USETF_CFG={
   sumCols:[2,3], totalSpan:3, totalSpanData:2,
 };
 /* 한국 ETF 표 구성 (수정 가능 + Ticker·명칭 연동 링크 → 네이버 국내 페이지) */
+/* ══════ 배당 ETF 포트폴리오 (장세별) ══════ */
+const DIV_ETF = {
+  rise: {
+    kr: [
+      ["458730","TIGER 미국배당다우존스"],
+      ["446720","SOL 미국배당다우존스"],
+      ["211900","KODEX 배당가치"],
+      ["211560","TIGER 배당성장"],
+      ["161510","PLUS 고배당주"],
+    ],
+    us: [
+      ["SCHD","Schwab US Dividend Equity"],
+      ["VYM","Vanguard High Dividend Yield"],
+      ["DGRO","iShares Core Dividend Growth"],
+      ["VIG","Vanguard Dividend Appreciation"],
+      ["DVY","iShares Select Dividend"],
+    ],
+  },
+  side: {
+    kr: [
+      ["441640","KODEX 미국배당커버드콜액티브"],
+      ["441680","TIGER 미국나스닥100커버드콜"],
+      ["458750","TIGER 미국배당다우존스타겟커버드콜"],
+      ["472150","TIGER 배당커버드콜액티브"],
+      ["476550","SOL 미국배당다우존스타겟커버드콜"],
+    ],
+    us: [
+      ["JEPI","JPMorgan Equity Premium Income"],
+      ["JEPQ","JPMorgan Nasdaq Equity Premium Income"],
+      ["DIVO","Amplify CWP Enhanced Dividend Income"],
+      ["QYLD","Global X Nasdaq 100 Covered Call"],
+      ["XYLD","Global X S&P 500 Covered Call"],
+    ],
+  },
+  fall: {
+    kr: [
+      ["210780","TIGER 코스피고배당"],
+      ["329200","TIGER 리츠부동산인프라"],
+      ["476800","KODEX 한국부동산리츠인프라"],
+      ["161510","PLUS 고배당주"],
+      ["329660","KODEX 200고배당커버드콜"],
+    ],
+    us: [
+      ["JEPI","JPMorgan Equity Premium Income"],
+      ["SPHD","Invesco S&P 500 High Div Low Vol"],
+      ["HDV","iShares Core High Dividend"],
+      ["SPYD","SPDR Portfolio S&P 500 High Div"],
+      ["NOBL","ProShares S&P 500 Dividend Aristocrats"],
+    ],
+  },
+};
+const DIV_GROUPS = [
+  {key:'rise', label:'상승장', desc:'배당성장형 · 상승분 향유', color:'#ef5350'},
+  {key:'side', label:'횡보장', desc:'커버드콜 · 박스권 프리미엄', color:'#f0a836'},
+  {key:'fall', label:'하락장', desc:'방어형 · 저변동/리츠/채권', color:'#1976d2'},
+];
+let divFilter = { kr:true, us:true, rec:false, hold:false };
+let divData = {};
+
 const KRETF_CFG={
   title:"국내 ETF 포트폴리오 (2026.06 → 2026.07)", link:"domestic",
   cols:[
@@ -2118,6 +2232,7 @@ function renderVal(){
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
+  if(valMarket==='dividend'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderDividend(multi); return; }
   const _wsw=document.getElementById('wSearchWrap');
   if(_wsw) _wsw.style.display=(valMarket==='watch'||valMarket==='invpf')?'':'none';
   if(valMarket==='watch'){ setWatchPort('watch'); multi.style.display='none'; sc.style.display=''; em.style.display='none'; if(foot)foot.style.display='none'; renderWatchTable(); fetchWatchLive(true); return; }
@@ -3647,6 +3762,175 @@ function etfResetMarket(market, tableEl, cfg, btn){
     btn.textContent='초기화'; renderEtfTable(tableEl,market,cfg,arr);
   });
 }
+// ══════ 배당 ETF 포트폴리오 렌더 ══════
+// 배당 페이지 전용 추천/보유 저장소 (관심/투자 포트와 완전 분리)
+function _divRows(key){ try{ const r=localStorage.getItem(key); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){} return []; }
+function _divInSet(key, code){ return _divRows(key).some(c=>String(c).toUpperCase()===String(code).toUpperCase()); }
+function _divToggle(key, code){
+  let rows=_divRows(key);
+  const cu=String(code).toUpperCase();
+  const idx=rows.findIndex(c=>String(c).toUpperCase()===cu);
+  if(idx>=0) rows.splice(idx,1); else rows.push(code);
+  try{ localStorage.setItem(key, JSON.stringify(rows)); }catch(e){}
+}
+function divClsHtml(code, name, isUS){
+  const saveCode = isUS ? ('US:'+String(code).toUpperCase()) : code;
+  const inR=_divInSet('kg_div_rec', saveCode), inH=_divInSet('kg_div_hold', saveCode);
+  const box=(key,lbl,on)=>`<label class="cls-chk"><input type="checkbox" data-divcls="${key}" data-divcode="${escHtml(saveCode)}"${on?' checked':''}><span>${lbl}</span></label>`;
+  return `<div class="cls-wrap">${box('kg_div_rec','추천',inR)}${box('kg_div_hold','보유',inH)}</div>`;
+}
+
+// 미니 6개월 차트 SVG
+function divMiniChart(arr){
+  if(!arr || arr.length<2) return '<span style="color:#6e7681;font-size:10px">—</span>';
+  const w=90, h=28, pad=2;
+  const vals=arr.map(p=>p.close!=null?p.close:p);
+  const mn=Math.min(...vals), mx=Math.max(...vals), rng=(mx-mn)||1;
+  const step=(w-pad*2)/(vals.length-1);
+  const pts=vals.map((v,i)=>`${(pad+i*step).toFixed(1)},${(pad+(h-pad*2)*(1-(v-mn)/rng)).toFixed(1)}`).join(' ');
+  const up = vals[vals.length-1]>=vals[0];
+  const col = up ? '#ef5350' : '#1976d2';
+  return `<svg width="${w}" height="${h}" style="display:block"><polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.3"/></svg>`;
+}
+
+function renderDividend(box){
+  if(!box) return;
+  const f=divFilter;
+  // 상단 필터 UI
+  let h='<div class="div-wrap">';
+  h+='<div class="div-filter">';
+  h+='<div class="div-filter-row"><span class="div-fl-label">시장</span>'
+    +`<label class="div-chk"><input type="checkbox" id="divKr"${f.kr?' checked':''}><span>국내</span></label>`
+    +`<label class="div-chk"><input type="checkbox" id="divUs"${f.us?' checked':''}><span>해외</span></label></div>`;
+  h+='<div class="div-filter-row"><span class="div-fl-label">보기</span>'
+    +`<label class="div-chk"><input type="checkbox" id="divRec"${f.rec?' checked':''}><span>추천</span></label>`
+    +`<label class="div-chk"><input type="checkbox" id="divHold"${f.hold?' checked':''}><span>보유</span></label></div>`;
+  h+='<button id="divRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">🔄 시세 조회</button>';
+  h+='</div>';
+
+  // 표
+  const cols=['시장','종목명','분류','배당율','수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
+  const W=[70,220,88,72,150,100,60];
+  h+='<table class="val-tbl mp div-tbl"><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+
+  let shown=0;
+  DIV_GROUPS.forEach(g=>{
+    // 이 그룹에서 필터로 보일 종목 모으기
+    const list=[];
+    if(f.kr) DIV_ETF[g.key].kr.forEach(e=>list.push({code:e[0],name:e[1],isUS:false}));
+    if(f.us) DIV_ETF[g.key].us.forEach(e=>list.push({code:e[0],name:e[1],isUS:true}));
+    // 보유/추천 필터
+    const filtered=list.filter(it=>{
+      const sc=it.isUS?('US:'+it.code.toUpperCase()):it.code;
+      if(f.hold && !_divInSet('kg_div_hold', sc)) return false;
+      if(f.rec && !_divInSet('kg_div_rec', sc)) return false;
+      return true;
+    });
+    if(!filtered.length) return;
+    // 그룹 헤더 행
+    h+=`<tr class="div-grp"><td colspan="7" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
+    filtered.forEach((it,i)=>{
+      shown++;
+      const key=it.isUS?('US:'+it.code.toUpperCase()):it.code;
+      const d=divData[key]||{};
+      const mkt = it.isUS ? '<span style="color:#f0883e;font-size:10px">해외</span>' : '<span style="color:#58a6ff;font-size:10px">국내</span>';
+      const idTag = it.isUS ? it.code : it.code;
+      const nameCell=`<a href="#" class="div-link" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" data-name="${escHtml(it.name)}"><span class="kn">${escHtml(it.name)}</span><span class="kc" style="color:#8b949e">${escHtml(idTag)}</span></a>`;
+      // 배당율
+      const divYld = (d.div!=null) ? d.div.toFixed(2)+'%' : (SRV_URL?'…':'—');
+      // 수익률 (1/3/6/12개월)
+      const rfmt=v=>{ if(v==null) return '<span style="color:#6e7681">—</span>'; const c=v>=0?'#ef5350':'#1976d2'; return `<span style="color:${c}">${(v>=0?'+':'')+v.toFixed(1)}</span>`; };
+      const retCell = `<span style="font-size:10.5px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
+      // 미니차트
+      const chartCell = d.chart ? divMiniChart(d.chart) : (SRV_URL?'<span style="color:#6e7681;font-size:10px">…</span>':'—');
+      // 보고서 (네이버 링크)
+      const rptCell = `<a href="#" class="div-rpt" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" style="color:#58a6ff;font-size:10px">네이버▶</a>`;
+      h+=`<tr>`
+        +`<td class="mp-c">${mkt}</td>`
+        +`<td class="mp-l div-name">${nameCell}</td>`
+        +`<td class="cls-cell">${divClsHtml(it.code, it.name, it.isUS)}</td>`
+        +`<td class="mp-r" style="color:#3fb950;font-weight:600">${divYld}</td>`
+        +`<td class="mp-c">${retCell}</td>`
+        +`<td class="mp-c">${chartCell}</td>`
+        +`<td class="mp-c">${rptCell}</td>`
+        +`</tr>`;
+    });
+  });
+  if(!shown){
+    h+='<tr><td colspan="7" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
+  }
+  h+='</tbody></table>';
+  h+='<div style="font-size:10.5px;color:#6e7681;margin-top:8px;line-height:1.5">※ 배당율·수익률·차트는 네이버 자료 기준이며, 종목에 따라 값이 없을 수 있습니다(—). 커버드콜 ETF는 배당율이 높아도 총수익률은 다를 수 있습니다. 투자 판단·책임은 본인에게 있습니다.</div>';
+  h+='</div>';
+  box.innerHTML=h;
+
+  // 필터 이벤트
+  const bind=(id,key)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>{ divFilter[key]=el.checked; renderDividend(box); }; };
+  bind('divKr','kr'); bind('divUs','us'); bind('divRec','rec'); bind('divHold','hold');
+  // 배당 전용 추천/보유 체크박스 (관심/투자 포트와 분리)
+  box.querySelectorAll('input[data-divcls]').forEach(cb=>{
+    cb.onchange=(e)=>{ e.stopPropagation(); _divToggle(cb.dataset.divcls, cb.dataset.divcode); renderDividend(box); };
+  });
+  // 시세 조회 버튼
+  const rf=document.getElementById('divRefresh');
+  if(rf) rf.onclick=()=>fetchDivData(box);
+  // 종목명·보고서 클릭 → 네이버
+  box.querySelectorAll('.div-link, .div-rpt').forEach(a=>{
+    a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, isUS=a.dataset.us;
+      if(isUS) openNaverWorld(c); else openNaverDomestic(c);
+    };
+  });
+  // 첫 진입 시 자동 조회 (한 번만)
+  if(!renderDividend._fetched){ renderDividend._fetched=true; fetchDivData(box); }
+}
+
+// 배당 데이터 네이버 조회 (배당율·수익률·차트)
+async function fetchDivData(box){
+  if(!SRV_URL) return;
+  // 현재 필터로 보이는 모든 종목 수집
+  const targets=[];
+  DIV_GROUPS.forEach(g=>{
+    if(divFilter.kr) DIV_ETF[g.key].kr.forEach(e=>targets.push({code:e[0],isUS:false}));
+    if(divFilter.us) DIV_ETF[g.key].us.forEach(e=>targets.push({code:e[0],isUS:true}));
+  });
+  // 중복 제거
+  const seen=new Set(); const uniq=targets.filter(t=>{ const k=(t.isUS?'US:':'')+t.code; if(seen.has(k))return false; seen.add(k); return true; });
+
+  for(const t of uniq){
+    const key=t.isUS?('US:'+t.code.toUpperCase()):t.code;
+    try{
+      // 차트 데이터 (6개월+): 수익률 계산용
+      const url = t.isUS
+        ? SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=300'
+        : SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=300';
+      const r=await fetch(url); const d=await r.json();
+      if(d && d.ok && d.data && d.data.length>5){
+        const data=d.data;
+        const last=data[data.length-1].close;
+        const retAt=(daysAgo)=>{ const idx=data.length-1-daysAgo; if(idx<0) return null; const past=data[idx].close; return past>0?((last-past)/past*100):null; };
+        // 거래일 기준: 1개월≈21, 3개월≈63, 6개월≈126, 12개월≈252
+        divData[key]={
+          price:last,
+          ret1:retAt(21), ret3:retAt(63), ret6:retAt(126), ret12:retAt(252),
+          chart:data.slice(-126),  // 6개월 미니차트
+          div:(divData[key]&&divData[key].div)||null,
+        };
+      }
+    }catch(e){}
+    // 배당율 조회 (국내: 네이버 ETF 분배율 / 해외: usinfo)
+    try{
+      if(t.isUS){
+        const r=await fetch(SRV_URL+'/?usinfo='+encodeURIComponent(t.code)); const d=await r.json();
+        if(d&&d.ok){ divData[key]=divData[key]||{}; /* 배당율은 usinfo에 없을 수 있음 */ }
+      }
+    }catch(e){}
+    // 부분 갱신 렌더
+    renderDividend(box);
+  }
+}
+
+
 function renderEtfCombined(box){
   box.innerHTML =
     '<div class="etf-sec"><div class="etf-cap">한국 ETF</div>'
