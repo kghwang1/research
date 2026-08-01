@@ -3903,32 +3903,36 @@ function renderDividend(box){
 // 배당 데이터 네이버 조회 (배당율·수익률·차트)
 async function fetchDivData(box){
   if(!SRV_URL) return;
+  // ── 하루 1회 캐시 (배당율·수익률·차트) + 현재가만 매번 갱신 ──
+  const CACHE_KEY='kg_div_cache';
+  const today=new Date().toISOString().slice(0,10);
+  // 캐시 로드
+  let cache={};
+  try{ const raw=localStorage.getItem(CACHE_KEY); if(raw){ const o=JSON.parse(raw); if(o && o.date===today && o.data){ cache=o.data; } } }catch(e){}
+  const haveCache=Object.keys(cache).length>0;
+  // 대상 종목
   const targets=[];
   DIV_GROUPS.forEach(g=>{
-    if(divFilter.kr) DIV_ETF[g.key].kr.forEach(e=>targets.push({code:e[0],isUS:false}));
-    if(divFilter.us) DIV_ETF[g.key].us.forEach(e=>targets.push({code:e[0],isUS:true}));
+    DIV_ETF[g.key].kr.forEach(e=>targets.push({code:e[0],isUS:false}));
+    DIV_ETF[g.key].us.forEach(e=>targets.push({code:e[0],isUS:true}));
   });
   const seen=new Set(); const uniq=targets.filter(t=>{ const k=(t.isUS?'US:':'')+t.code; if(seen.has(k))return false; seen.add(k); return true; });
 
+  if(haveCache){
+    // 캐시 적용 → 즉시 표시
+    Object.keys(cache).forEach(k=>{ divData[k]=Object.assign(divData[k]||{}, cache[k]); });
+    renderDividend(box);
+    // 현재가만 갱신 (가벼움)
+    await refreshDivPrices(uniq);
+    renderDividend(box);
+    return;
+  }
+
+  // 캐시 없음 → 전체 조회 (하루 1회)
   for(const t of uniq){
     const key=t.isUS?('US:'+t.code.toUpperCase()):t.code;
     divData[key]=divData[key]||{};
     if(t.isUS){
-      // 해외 미니차트 + 수익률 계산 (차트는 검증된 소스라 확실)
-      try{
-        const r=await fetch(SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=400'); const d=await r.json();
-        if(d && d.ok && d.data && d.data.length>5){
-          const data=d.data;
-          const last=data[data.length-1].close;
-          const prev=data.length>=2?data[data.length-2].close:last;
-          const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
-          divData[key].price=last;
-          divData[key].rate = prev>0 ? ((last-prev)/prev*100) : null;
-          divData[key].ret1=retAt(21); divData[key].ret3=retAt(63); divData[key].ret6=retAt(126); divData[key].ret12=retAt(252);
-          divData[key].chart=data.slice(-126);
-        }
-      }catch(e){}
-      // 배당·정확한 네이버 수익률 (있으면 덮어씀, 없어도 위 차트값 유지)
       try{
         const r=await fetch(SRV_URL+'/?usinfo='+encodeURIComponent(t.code)); const d=await r.json();
         if(d && d.ok){
@@ -3939,48 +3943,75 @@ async function fetchDivData(box){
           if(d.ret6!=null) divData[key].ret6=d.ret6;
           if(d.ret12!=null) divData[key].ret12=d.ret12;
           if(d.divYield!=null) divData[key].div=d.divYield;
-          if(d.divAmt!=null){ divData[key].divAmt=d.divAmt;
-            // 배당금으로 연배당률 추정 (분기배당 가정: ×4). 배당률 직접값 없을 때만
-            if(divData[key].div==null && d.price>0) divData[key].div=(d.divAmt*4/d.price*100);
+          else if(d.divAmt!=null && d.price>0) divData[key].div=(d.divAmt*4/d.price*100);
+          if(d.divAmt!=null) divData[key].divAmt=d.divAmt;
+          if(d.chart) divData[key].chart=d.chart;
+        }
+      }catch(e){}
+      // 네이버 종목은 차트가 usinfo에 없으니 별도 조회
+      if(!divData[key].chart){
+        try{
+          const r=await fetch(SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=400'); const d=await r.json();
+          if(d && d.ok && d.data && d.data.length>5){
+            const data=d.data; const last=data[data.length-1].close;
+            const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
+            divData[key].chart=data.slice(-126);
+            if(divData[key].ret1==null) divData[key].ret1=retAt(21);
+            if(divData[key].ret3==null) divData[key].ret3=retAt(63);
+            if(divData[key].ret6==null) divData[key].ret6=retAt(126);
+            if(divData[key].ret12==null) divData[key].ret12=retAt(252);
           }
-        }
-      }catch(e){}
+        }catch(e){}
+      }
     } else {
-      // 국내: 네이버 차트로 수익률 계산 + 시세
-      try{
-        const r=await fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=400'); const d=await r.json();
-        if(d && d.ok && d.data && d.data.length>5){
-          const data=d.data;
-          const last=data[data.length-1].close;
-          const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
-          divData[key].price=last;
-          divData[key].ret1=retAt(21); divData[key].ret3=retAt(63); divData[key].ret6=retAt(126); divData[key].ret12=retAt(252);
-          divData[key].chart=data.slice(-126);
-        }
-      }catch(e){}
-      // 국내 현재가 등락률
-      try{
-        const r=await fetch(SRV_URL+'/?symbols=STK:'+encodeURIComponent(t.code)); const d=await r.json();
-        const q=(d&&d.items&&d.items[0])||null;
-        if(q&&q.ok){ if(q.price!=null) divData[key].price=q.price; if(q.rate!=null) divData[key].rate=q.rate; }
-      }catch(e){}
-      // 국내 ETF 배당수익률·수익률 (네이버 정확한 값 우선)
+      // 국내: 네이버 종합정보
       try{
         const r=await fetch(SRV_URL+'/?krinfo='+encodeURIComponent(t.code)); const d=await r.json();
         if(d && d.ok){
-          if(d.divYield!=null) divData[key].div=d.divYield;
           if(d.price!=null) divData[key].price=d.price;
           if(d.rate!=null) divData[key].rate=d.rate;
           if(d.ret1!=null) divData[key].ret1=d.ret1;
           if(d.ret3!=null) divData[key].ret3=d.ret3;
           if(d.ret6!=null) divData[key].ret6=d.ret6;
           if(d.ret12!=null) divData[key].ret12=d.ret12;
+          if(d.divYield!=null) divData[key].div=d.divYield;
         }
+      }catch(e){}
+      // 국내 미니차트
+      try{
+        const r=await fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=200'); const d=await r.json();
+        if(d && d.ok && d.data && d.data.length>5){ divData[key].chart=d.data.slice(-126); }
       }catch(e){}
     }
     renderDividend(box);
-    // 네이버 API rate limit 회피: 종목 사이 지연
-    await new Promise(res=>setTimeout(res, 250));
+  }
+  // 캐시 저장 (하루치)
+  try{
+    const toSave={};
+    uniq.forEach(t=>{ const k=t.isUS?('US:'+t.code.toUpperCase()):t.code; if(divData[k]) toSave[k]=divData[k]; });
+    localStorage.setItem(CACHE_KEY, JSON.stringify({date:today, data:toSave}));
+  }catch(e){}
+}
+
+// 현재가만 갱신 (페이지 열 때마다, 가벼움)
+async function refreshDivPrices(list){
+  if(!SRV_URL) return;
+  // 국내는 한 번에, 해외는 개별
+  const krCodes=list.filter(t=>!t.isUS).map(t=>t.code);
+  const usCodes=list.filter(t=>t.isUS).map(t=>t.code);
+  // 국내 일괄
+  if(krCodes.length){
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(krCodes.map(c=>'STK:'+c).join(','))); const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const code=String(q.symbol||'').replace(/^STK:/,''); if(divData[code]){ if(q.price!=null)divData[code].price=q.price; if(q.rate!=null)divData[code].rate=q.rate; } } });
+    }catch(e){}
+  }
+  // 해외 일괄 (야후 시세)
+  if(usCodes.length){
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(usCodes.join(','))); const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const key='US:'+String(q.symbol||'').toUpperCase(); if(divData[key]){ if(q.price!=null)divData[key].price=q.price; if(q.rate!=null)divData[key].rate=q.rate; } } });
+    }catch(e){}
   }
 }
 
