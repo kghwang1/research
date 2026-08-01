@@ -3762,15 +3762,30 @@ function etfResetMarket(market, tableEl, cfg, btn){
 let selFilter = { kr:true, us:true, watch:false, invest:false };  // 국내/국외/관심/투자
 let selData = {};  // code → {price, rate, roe, ...}
 
-// 통합 종목 목록: kg_watch_rows(관심) + kg_invpf_rows(투자) 병합
+// 통합 종목 목록: kg_watch_rows(관심) + kg_invpf_rows(투자) 전부 병합
+function selReadRows(key){
+  try { const r = localStorage.getItem(key); if(r){ const a = JSON.parse(r); if(Array.isArray(a)) return a; } } catch(e){}
+  return [];
+}
+function selWriteRows(key, rows){
+  if(!Array.isArray(rows)) return;
+  try { localStorage.setItem(key, JSON.stringify(rows)); } catch(e){}
+  // 관심/투자 표가 쓰는 메모리 슬롯도 동기화
+  if(key==='kg_watch_rows'){ _WATCH_ROWS_watch = rows; if(typeof watchPort!=='undefined' && watchPort!=='invpf') WATCH_ROWS = rows; }
+  else if(key==='kg_invpf_rows'){ _WATCH_ROWS_invpf = rows; if(typeof watchPort!=='undefined' && watchPort==='invpf') WATCH_ROWS = rows; }
+}
 function selAllRows(){
   const map = new Map();  // key(code) → {code, name, isUS, watch, invest}
   const load = (key, flag) => {
-    let rows = [];
-    try { const r = localStorage.getItem(key); if(r){ const a = JSON.parse(r); if(Array.isArray(a)) rows = a; } } catch(e){}
-    rows.forEach(row => {
-      const code = String(row[0]||'').trim(); if(!code) return;
-      const name = row[1] || '';
+    selReadRows(key).forEach(row => {
+      if(!row) return;
+      // 행이 배열이 아니라 객체로 저장된 경우도 허용
+      const rawCode = Array.isArray(row) ? row[0] : (row.code || row[0]);
+      const rawName = Array.isArray(row) ? row[1] : (row.name || row[1]);
+      let code = String(rawCode==null?'':rawCode).trim();
+      if(!code) return;                                   // 빈 줄 건너뜀
+      if(/^US:/i.test(code)) code = 'US:' + code.slice(3).trim().toUpperCase();
+      const name = String(rawName==null?'':rawName).trim();
       const isUS = /^US:/i.test(code);
       const k = code.toUpperCase();
       if(!map.has(k)) map.set(k, {code, name, isUS, watch:false, invest:false});
@@ -3820,6 +3835,18 @@ function renderSelect(box){
   h += '<button id="selRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">🔄 시세 조회</button>';
   h += '</div>';
 
+  // 서버 저장/불러오기 + 종목 수
+  {
+    const cw = selReadRows('kg_watch_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
+    const ci = selReadRows('kg_invpf_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
+    h += '<div class="sel-srvbar" style="display:flex;align-items:center;gap:6px;margin:0 0 8px 0;flex-wrap:wrap">'
+       + `<span style="font-size:11px;color:#8b949e">관심 ${cw} · 투자 ${ci} · 통합 ${selAllRows().length}종목</span>`
+       + '<span style="flex:1"></span>'
+       + '<button id="selSrvSave" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#3fb950">💾 서버 저장</button>'
+       + '<button id="selSrvLoad" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">📥 서버 불러오기</button>'
+       + '</div>';
+  }
+
   // 표: 시장·종목명·분류·현재가·ROE·수익률(1·3·6·12개월)·6개월차트·보고서
   const cols = ['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','ROE','수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
   const W = [64,200,84,100,66,150,96,58];
@@ -3827,12 +3854,13 @@ function renderSelect(box){
   h += '<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
 
   const all = selAllRows();
-  // 필터 적용
+  // 필터 적용 — 관심/투자는 OR(둘 다 체크하면 둘 중 하나라도 해당되면 표시)
   const filtered = all.filter(it => {
     if(it.isUS && !f.us) return false;
     if(!it.isUS && !f.kr) return false;
-    if(f.watch && !it.watch) return false;
-    if(f.invest && !it.invest) return false;
+    if(f.watch || f.invest){
+      if(!((f.watch && it.watch) || (f.invest && it.invest))) return false;
+    }
     return true;
   });
 
@@ -3882,6 +3910,9 @@ function renderSelect(box){
   });
   // 시세 조회
   const rf=document.getElementById('selRefresh'); if(rf) rf.onclick=()=>fetchSelData(box);
+  // 서버 저장 / 불러오기
+  const sv=document.getElementById('selSrvSave'); if(sv) sv.onclick=()=>selSaveToServer(sv);
+  const ld=document.getElementById('selSrvLoad'); if(ld) ld.onclick=()=>selLoadFromServer(box, ld);
   // 종목명·보고서 클릭 → 네이버
   box.querySelectorAll('.sel-link, .sel-rpt').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, isUS=a.dataset.us; if(isUS) openNaverWorld(c); else openNaverDomestic(c); };
@@ -3894,6 +3925,90 @@ function renderSelect(box){
   bindSelSearch(box);
   // 첫 진입 자동 조회
   if(!renderSelect._fetched){ renderSelect._fetched=true; fetchSelData(box); }
+}
+
+// ══════ 선정주 서버 저장/불러오기 (Cloudflare KV) ══════
+const SEL_SRV_KEY = 'selpf';                                  // 신규 통합 키
+const SEL_LEGACY_KEYS = ['watch_portfolio', 'watch', 'invpf_portfolio'];  // 구버전 키
+
+async function selSaveToServer(btn){
+  if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
+  const payload = {
+    watch:  selReadRows('kg_watch_rows'),
+    invest: selReadRows('kg_invpf_rows'),
+    grades: (typeof WATCH_GRADES!=='undefined' && WATCH_GRADES) ? [...WATCH_GRADES.entries()] : [],
+    savedAt: new Date().toISOString()
+  };
+  const cnt = selAllRows().length;
+  const old = btn ? btn.textContent : '';
+  if(btn){ btn.textContent='저장 중…'; btn.disabled=true; }
+  try{
+    const r = await fetch(SRV_URL+'/?data='+SEL_SRV_KEY, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
+    });
+    const d = await r.json();
+    if(d && d.ok) toast('서버에 저장했습니다 ('+cnt+'종목 · 모든 기기 공유)');
+    else toast('저장 실패: '+((d&&d.error)||'시세서버/KV 연결을 확인하세요'));
+  }catch(e){ toast('저장 실패: '+(e.message||e)); }
+  if(btn){ btn.textContent=old||'💾 서버 저장'; btn.disabled=false; }
+}
+
+// KV 한 키에서 행 배열 꺼내기 ({rows:[...]} 또는 [...] 또는 {watch,invest} 모두 대응)
+async function selFetchKey(key){
+  try{
+    const r = await fetch(SRV_URL+'/?data='+key);
+    const d = await r.json();
+    if(d && d.ok && d.value) return JSON.parse(d.value);
+  }catch(e){}
+  return null;
+}
+
+async function selLoadFromServer(box, btn){
+  if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
+  if(!confirm('서버 자료로 관심·투자 목록을 교체합니다.\n이 기기의 현재 목록은 사라집니다. 계속할까요?')) return;
+  const old = btn ? btn.textContent : '';
+  if(btn){ btn.textContent='불러오는 중…'; btn.disabled=true; }
+  try{
+    let watchRows=null, investRows=null, grades=null, savedAt='';
+    // ① 신규 통합 키
+    const o = await selFetchKey(SEL_SRV_KEY);
+    if(o && (Array.isArray(o.watch) || Array.isArray(o.invest))){
+      if(Array.isArray(o.watch))  watchRows  = o.watch;
+      if(Array.isArray(o.invest)) investRows = o.invest;
+      if(Array.isArray(o.grades)) grades = o.grades;
+      savedAt = o.savedAt || '';
+    }
+    // ② 구버전 키에서 보완 (예전 관심/투자 포트가 서버에 남아 있는 경우)
+    if(watchRows===null || investRows===null){
+      for(const k of SEL_LEGACY_KEYS){
+        const v = await selFetchKey(k);
+        if(!v) continue;
+        // 방송 목록('watch' 키의 순수 배열)은 포트폴리오가 아니므로 제외
+        const rows = (v && Array.isArray(v.rows)) ? v.rows : null;
+        if(!rows) continue;
+        if(k==='invpf_portfolio'){ if(investRows===null) investRows = rows; }
+        else { if(watchRows===null) watchRows = rows; }
+        if(Array.isArray(v.grades) && !grades) grades = v.grades;
+        if(v.savedAt && !savedAt) savedAt = v.savedAt;
+      }
+    }
+    if(watchRows===null && investRows===null){
+      toast('서버에 저장된 선정주 자료가 없습니다');
+      if(btn){ btn.textContent=old||'📥 서버 불러오기'; btn.disabled=false; }
+      return;
+    }
+    if(Array.isArray(watchRows))  selWriteRows('kg_watch_rows',  watchRows);
+    if(Array.isArray(investRows)) selWriteRows('kg_invpf_rows', investRows);
+    if(Array.isArray(grades) && typeof WATCH_GRADES!=='undefined'){
+      WATCH_GRADES = new Map(grades);
+      if(typeof saveWatchGrades==='function') saveWatchGrades();
+    }
+    selData = {};                       // 시세 캐시 비우고 다시 조회
+    renderSelect._fetched = false;
+    renderSelect(box);
+    toast('서버에서 불러왔습니다 ('+selAllRows().length+'종목'+(savedAt?' · '+savedAt.slice(0,16).replace('T',' '):'')+')');
+  }catch(e){ toast('불러오기 실패: '+(e.message||e)); }
+  if(btn){ btn.textContent=old||'📥 서버 불러오기'; btn.disabled=false; }
 }
 
 // 선정주 검색창 → 관심 목록에 추가
