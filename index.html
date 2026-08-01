@@ -3939,7 +3939,10 @@ async function fetchDivData(box){
           if(d.ret6!=null) divData[key].ret6=d.ret6;
           if(d.ret12!=null) divData[key].ret12=d.ret12;
           if(d.divYield!=null) divData[key].div=d.divYield;
-          if(d.divAmt!=null) divData[key].divAmt=d.divAmt;
+          if(d.divAmt!=null){ divData[key].divAmt=d.divAmt;
+            // 배당금으로 연배당률 추정 (분기배당 가정: ×4). 배당률 직접값 없을 때만
+            if(divData[key].div==null && d.price>0) divData[key].div=(d.divAmt*4/d.price*100);
+          }
         }
       }catch(e){}
     } else {
@@ -3961,12 +3964,17 @@ async function fetchDivData(box){
         const q=(d&&d.items&&d.items[0])||null;
         if(q&&q.ok){ if(q.price!=null) divData[key].price=q.price; if(q.rate!=null) divData[key].rate=q.rate; }
       }catch(e){}
-      // 국내 ETF 배당수익률·1년수익률 (네이버 분석)
+      // 국내 ETF 배당수익률·수익률 (네이버 정확한 값 우선)
       try{
         const r=await fetch(SRV_URL+'/?krinfo='+encodeURIComponent(t.code)); const d=await r.json();
         if(d && d.ok){
           if(d.divYield!=null) divData[key].div=d.divYield;
-          if(d.ret12!=null) divData[key].ret12=d.ret12;  // 1년은 네이버 값 우선
+          if(d.price!=null) divData[key].price=d.price;
+          if(d.rate!=null) divData[key].rate=d.rate;
+          if(d.ret1!=null) divData[key].ret1=d.ret1;
+          if(d.ret3!=null) divData[key].ret3=d.ret3;
+          if(d.ret6!=null) divData[key].ret6=d.ret6;
+          if(d.ret12!=null) divData[key].ret12=d.ret12;
         }
       }catch(e){}
     }
