@@ -3480,10 +3480,14 @@ function renderWatchTable(){
   // 삭제
   t.querySelectorAll('.wdel').forEach(x=>{ x.onclick=ev=>{ ev.stopPropagation(); watchDeleteByCode(x.dataset.wcode, x.dataset.idx); }; });
   // 현재가 클릭 → 차트 + 그 종목만 최신 시세 새로고침
-  t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c){ refreshOneWatch(c); openChart(c, nm); } }; });
-  t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm); }; });
+  //  좌측 목록에는 '지금 이 표에 보이는 종목'만 넘긴다 (필터 적용 결과)
+  const visRows=()=> (Array.isArray(WATCH_ROWS)?WATCH_ROWS:[])
+      .map(r=>[String((r&&r[0])||'').trim(), String((r&&r[1])||'').trim()])
+      .filter(r=>r[0]);
+  t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c){ refreshOneWatch(c); openChart(c, nm, visRows()); } }; });
+  t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm, visRows()); }; });
   t.querySelectorAll('a.wusa').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code; if(c) openNaverWorld(c); }; });
-  t.querySelectorAll('td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c) openChart(c, nm); }; });
+  t.querySelectorAll('td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c) openChart('US:'+String(c).toUpperCase(), nm, visRows()); }; });
   const codes=WATCH_ROWS.map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean);
   if(codes.length){ ensureReports(codes); ensureForeign(codes); ensureShort(codes); }
   // 시세가 아직 없으면 조회
@@ -4318,6 +4322,7 @@ function renderDividend(box){
   h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
 
   let shown=0;
+  const shownRows=[];   // 차트뷰 좌측에 넘길, 지금 화면에 보이는 종목만
   DIV_GROUPS.forEach(g=>{
     // 이 그룹에서 필터로 보일 종목 모으기
     const list=[];
@@ -4336,6 +4341,7 @@ function renderDividend(box){
     filtered.forEach((it,i)=>{
       shown++;
       const key=it.isUS?('US:'+it.code.toUpperCase()):it.code;
+      shownRows.push([key, it.name]);
       const d=divData[key]||{};
       const mkt = it.isUS ? '<span style="color:#f0883e;font-size:10px">해외</span>' : '<span style="color:#58a6ff;font-size:10px">국내</span>';
       const idTag = it.isUS ? it.code : it.code;
@@ -4398,7 +4404,7 @@ function renderDividend(box){
   // 현재가 클릭 → 차트뷰 (배당 포트 좌측 목록 + 해당 종목 차트)
   box.querySelectorAll('.div-price').forEach(td=>{
     td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name, isUS=td.dataset.us;
-      openChartView('dividend', isUS?('US:'+c):c, nm);
+      openChartView('dividend', isUS?('US:'+c):c, nm, shownRows);
     };
   });
   // 첫 진입 시 자동 조회 (한 번만)
@@ -6139,11 +6145,11 @@ function closeFlow(){
 
 /* ── 챠트앱 연결 ── */
 const CHART_URL = 'https://kghwang1.github.io/research/kg-chart.html';
-function openChart(code, name) {
+function openChart(code, name, rowsOverride) {
   // 현재 보고 있는 포트폴리오를 좌측에, 클릭한 종목 차트를 우측에 (차트 페이지와 동일 형식)
   const portMap={ watch:'watch', invpf:'invpf', kr:'kr', invest:'invest', investkq:'investkq', usc:'usc', us:'us', etf:'etf' };
   const port = portMap[valMarket] || 'invpf';
-  openChartView(port, code, name);
+  openChartView(port, code, name, rowsOverride);
 }
 
 // ═══ 챠트 전체화면 ═══
@@ -6331,7 +6337,9 @@ async function loadWatchFromServer(){
     toast('서버에서 불러오기 완료'+(saved.savedAt?' ('+saved.savedAt.slice(0,16)+')':''));
   }catch(e){ toast('불러오기 실패: '+e.message); }
 }
-function openChartView(initPort, initCode, initName){
+// 특정 화면에서 '지금 보이는 종목만' 차트 좌측에 넘길 때 사용
+let chartRowsOverride = null;   // {port, rows:[[code,name],...]}
+function openChartView(initPort, initCode, initName, rowsOverride){
   const ov=$('#chartFullScreen'); if(!ov) return;
   ov.style.display='flex';
   document.body.style.overflow='hidden';
@@ -6340,6 +6348,8 @@ function openChartView(initPort, initCode, initName){
   const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
   // 포트: 지정값 또는 기본(지수)
   chartPort = initPort || 'idx';
+  // 표에서 넘어온 목록이 있으면 그 종목만, 없으면(홈→차트 등) 포트 전체
+  chartRowsOverride = (rowsOverride && rowsOverride.length) ? { port: chartPort, rows: rowsOverride } : null;
   const ps=$('#chartPortSel'); if(ps) ps.value=chartPort;
   buildChartStockList();
   setTimeout(()=>{
@@ -6376,6 +6386,8 @@ const CHART_IDX_ROWS = [
   ['BTC-USD','비트코인'], ['ETH-USD','이더리움']
 ];
 function chartPortRows(port){
+  // 표에서 넘어온 '보이는 종목만' 목록이 있으면 그것을 사용
+  if(chartRowsOverride && chartRowsOverride.port===port) return chartRowsOverride.rows;
   // 각 포트폴리오의 [코드, 명칭] 목록 반환
   if(port==='dividend'){
     // 배당 ETF 전체 (상승·횡보·하락 그룹, 국내+해외). 해외는 US: 접두사
@@ -6561,6 +6573,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   const ps=$('#chartPortSel'); if(ps){
     ps.onchange=()=>{
       chartPort=ps.value;
+      chartRowsOverride=null;   // 사용자가 포트를 바꾸면 전체 목록으로
+
       const si2=$('#chartStockSearch'); if(si2) si2.value='';
       buildChartStockList();
       setTimeout(()=>{ const first=$('#chartStockItems .cs-item'); if(first) first.click(); }, 60);
