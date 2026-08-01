@@ -3914,7 +3914,21 @@ async function fetchDivData(box){
     const key=t.isUS?('US:'+t.code.toUpperCase()):t.code;
     divData[key]=divData[key]||{};
     if(t.isUS){
-      // 해외: 네이버 종합정보(현재가·수익률·배당) — 이미지3의 네이버 값 그대로
+      // 해외 미니차트 + 수익률 계산 (차트는 검증된 소스라 확실)
+      try{
+        const r=await fetch(SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=400'); const d=await r.json();
+        if(d && d.ok && d.data && d.data.length>5){
+          const data=d.data;
+          const last=data[data.length-1].close;
+          const prev=data.length>=2?data[data.length-2].close:last;
+          const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
+          divData[key].price=last;
+          divData[key].rate = prev>0 ? ((last-prev)/prev*100) : null;
+          divData[key].ret1=retAt(21); divData[key].ret3=retAt(63); divData[key].ret6=retAt(126); divData[key].ret12=retAt(252);
+          divData[key].chart=data.slice(-126);
+        }
+      }catch(e){}
+      // 배당·정확한 네이버 수익률 (있으면 덮어씀, 없어도 위 차트값 유지)
       try{
         const r=await fetch(SRV_URL+'/?usinfo='+encodeURIComponent(t.code)); const d=await r.json();
         if(d && d.ok){
@@ -3928,25 +3942,10 @@ async function fetchDivData(box){
           if(d.divAmt!=null) divData[key].divAmt=d.divAmt;
         }
       }catch(e){}
-      // 해외 미니차트: 네이버 해외 차트
-      try{
-        const r=await fetch(SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=140'); const d=await r.json();
-        if(d && d.ok && d.data && d.data.length>5){
-          const data=d.data;
-          divData[key].chart=data.slice(-126);
-          if(divData[key].price==null) divData[key].price=data[data.length-1].close;
-          // 수익률이 네이버에서 안 왔으면 차트로 보완
-          const last=data[data.length-1].close;
-          const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
-          if(divData[key].ret1==null) divData[key].ret1=retAt(21);
-          if(divData[key].ret3==null) divData[key].ret3=retAt(63);
-          if(divData[key].ret6==null) divData[key].ret6=retAt(126);
-        }
-      }catch(e){}
     } else {
       // 국내: 네이버 차트로 수익률 계산 + 시세
       try{
-        const r=await fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=300'); const d=await r.json();
+        const r=await fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=400'); const d=await r.json();
         if(d && d.ok && d.data && d.data.length>5){
           const data=d.data;
           const last=data[data.length-1].close;
