@@ -2977,6 +2977,7 @@ function setWatchPort(p){
 }
 let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
 let watchUsNews={};  // US:티커 → {title, link, date}
+let watchUsCons={};  // US:티커 → {str, opinion, score, count} — 네이버 컨센서스
 let watchSortFrgn=false, watchRoeMin=0;
 
 function loadWatchRows(){
@@ -3007,7 +3008,7 @@ async function refreshOneWatch(code){
   }catch(e){}
 }
 async function fetchWatchLive(fresh){
-  watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={};
+  watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={}; watchUsCons={};
   const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
   if(!codes.length||!SRV_URL) return;
   const freshQ = fresh ? '&fresh=1' : '';
@@ -3059,7 +3060,8 @@ async function fetchWatchLive(fresh){
         ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const key='US:'+String(q.ticker||'').toUpperCase();
           if(q.roe!=null) watchRoe[key]={roe:q.roe, period:'', prevRoe:null};
           if(q.target!=null) watchTarget[key]=q.target;
-          if(q.high52!=null && !watchHigh52[key]) watchHigh52[key]=String(q.high52);
+          if(q.high52!=null) watchHigh52[key]=String(q.high52);   // 네이버 종목페이지 우선
+          if(q.consStr||q.consScore!=null||q.consOpinion) watchUsCons[key]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore, count:q.consCount};
           if(q.newsTitle) watchUsNews[key]={title:q.newsTitle, link:q.newsLink||'', date:q.newsDate||''};
         } });
       }catch(e){}
@@ -3283,9 +3285,15 @@ function renderWatchTable(){
       const uRoe=watchRoe[uKey];
       const uTgt=watchTarget[uKey];
       const uNews=watchUsNews[uKey];
+      const uCons=watchUsCons[uKey];
       const liveStr= uLive ? addComma(uLive) : (SRV_URL?'…':'—');
       const rateH = (uLive && uRate!=null) ? rateHtml(uRate) : '';
-      const highStr= uHigh ? addComma(uHigh) : (SRV_URL?'…':'—');
+      // 52주최고가 + 낙폭%
+      let highStr = SRV_URL?'…':'—';
+      if(uHigh){
+        const hd=krUpside(uHigh, uLive);
+        highStr = addComma(uHigh) + (hd!=='' ? ` <span class="diffp${parseFloat(hd)>=0?'':' neg'}">(${hd}%)</span>` : '');
+      }
       // ROE
       const roeStr = (uRoe && uRoe.roe!=null) ? uRoe.roe.toFixed(2) : (SRV_URL?'…':'—');
       // 목표가 + 상승여력
@@ -3296,17 +3304,29 @@ function renderWatchTable(){
         const upH = up!=null ? ` <span class="rchg ${up>=0?'up':'down'}">(${(up>=0?'+':'')+up.toFixed(1)}%)</span>` : '';
         tgtCell=`${addComma(uTgt)}${upH}`;
       } else if(SRV_URL) tgtCell='…';
-      // 뉴스(보고서 열)
-      let newsCell='—';
+      // 보고서 열: 컨센서스(투자의견 점수) + 최신 뉴스
+      let consH='';
+      if(uCons && (uCons.str || uCons.score!=null)){
+        const txt = uCons.str || ((uCons.opinion||'')+' '+(uCons.score!=null?uCons.score.toFixed(1):'')).trim();
+        const cnt = (uCons.count!=null && uCons.count>0) ? ` <span class="rsub">(${uCons.count})</span>` : '';
+        const col = (uCons.score!=null && uCons.score>=3.5) ? '#ef5350' : (uCons.score!=null && uCons.score<2.5 ? '#1976d2' : '#e6edf3');
+        consH = `<span style="color:${col};font-weight:600">${escHtml(txt)}</span>${cnt}`;
+      }
+      let newsCell='';
       if(uNews && uNews.title){
-        const t=escHtml(uNews.title.length>28?uNews.title.slice(0,28)+'…':uNews.title);
+        const t=escHtml(uNews.title.length>24?uNews.title.slice(0,24)+'…':uNews.title);
         newsCell = uNews.link ? `<a href="${escHtml(uNews.link)}" class="rptlink" target="_blank" rel="noopener">${t}</a>` : t;
-      } else if(SRV_URL) newsCell='…';
+      }
+      let repCellUS;
+      if(consH && newsCell) repCellUS = consH + '<br>' + newsCell;
+      else if(consH) repCellUS = consH;
+      else if(newsCell) repCellUS = newsCell;
+      else repCellUS = SRV_URL ? '<span class="rsub">…</span>' : '—';
       const stkInner=`<span class="kn">${escHtml(nm||ticker)}</span><span class="kc" style="color:#f0883e">${escHtml(ticker)} · 해외</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" data-wcode="${escHtml(rawCode)}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
       const usLiveStyle = uLive ? ' style="cursor:pointer;text-decoration:underline dotted"' : ' style="cursor:pointer;color:#58a6ff"';
       const liveCell = uLive ? `${liveStr}${rateH}` : '차트▶';
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${newsCell}</td></tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
       return;
     }
     if(isIdxRow){
@@ -4202,6 +4222,41 @@ async function fetchSelData(box){
 
 
 // ══════ 배당 ETF 포트폴리오 렌더 ══════
+// ══════ 배당 서버 저장/불러오기 (Cloudflare KV: divpf) ══════
+const DIV_SRV_KEY = 'divpf';
+async function divSaveToServer(btn){
+  if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
+  const payload = { rec:_divRows('kg_div_rec'), hold:_divRows('kg_div_hold'), savedAt:new Date().toISOString() };
+  const old = btn?btn.textContent:'';
+  if(btn){ btn.textContent='저장 중…'; btn.disabled=true; }
+  try{
+    const r=await fetch(SRV_URL+'/?data='+DIV_SRV_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const d=await r.json();
+    if(d&&d.ok) toast('서버에 저장했습니다 (추천 '+payload.rec.length+' · 보유 '+payload.hold.length+')');
+    else toast('저장 실패: '+((d&&d.error)||'시세서버/KV 연결을 확인하세요'));
+  }catch(e){ toast('저장 실패: '+(e.message||e)); }
+  if(btn){ btn.textContent=old||'💾 저장'; btn.disabled=false; }
+}
+async function divLoadFromServer(box, btn){
+  if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
+  if(!confirm('서버 자료로 추천·보유 표시를 교체합니다.\n이 기기의 현재 표시는 사라집니다. 계속할까요?')) return;
+  const old = btn?btn.textContent:'';
+  if(btn){ btn.textContent='불러오는 중…'; btn.disabled=true; }
+  try{
+    const r=await fetch(SRV_URL+'/?data='+DIV_SRV_KEY);
+    const d=await r.json();
+    if(!d||!d.ok||!d.value){ toast('서버에 저장된 배당 자료가 없습니다'); }
+    else{
+      const o=JSON.parse(d.value);
+      if(Array.isArray(o.rec))  try{ localStorage.setItem('kg_div_rec', JSON.stringify(o.rec)); }catch(e){}
+      if(Array.isArray(o.hold)) try{ localStorage.setItem('kg_div_hold', JSON.stringify(o.hold)); }catch(e){}
+      renderDividend(box);
+      toast('서버에서 불러왔습니다'+(o.savedAt?' ('+String(o.savedAt).slice(0,16).replace('T',' ')+')':''));
+    }
+  }catch(e){ toast('불러오기 실패: '+(e.message||e)); }
+  if(btn){ btn.textContent=old||'📥 불러오기'; btn.disabled=false; }
+}
+
 // 배당 페이지 전용 추천/보유 저장소 (관심/투자 포트와 완전 분리)
 function _divRows(key){ try{ const r=localStorage.getItem(key); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){} return []; }
 function _divInSet(key, code){ return _divRows(key).some(c=>String(c).toUpperCase()===String(code).toUpperCase()); }
@@ -4245,10 +4300,18 @@ function renderDividend(box){
     +`<label class="div-chk"><input type="checkbox" id="divRec"${f.rec?' checked':''}><span>추천</span></label>`
     +`<label class="div-chk"><input type="checkbox" id="divHold"${f.hold?' checked':''}><span>보유</span></label></div>`;
   h+='<button id="divRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">🔄 시세 조회</button>';
+  h+='<button id="divSrvSave" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#3fb950">💾 저장</button>';
+  h+='<button id="divSrvLoad" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">📥 불러오기</button>';
+  h+=`<span style="font-size:11px;color:#8b949e;margin-left:4px">추천 ${_divRows('kg_div_rec').length} · 보유 ${_divRows('kg_div_hold').length}</span>`;
   h+='</div>';
 
+  // 안내: 연 수익률 정의
+  h+='<div class="div-formula" style="font-size:11.5px;color:#e6edf3;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:6px 10px;margin:0 0 8px 0">'
+   +'연 수익률 = <span style="color:#3fb950;font-weight:600">연 배당</span> + <span style="color:#58a6ff;font-weight:600">연 주가 수익률</span>'
+   +'</div>';
+
   // 표
-  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','배당율','수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
+  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','연 배당','주가 수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
   const W=[64,210,84,100,66,150,96,58];
   h+='<table class="val-tbl mp div-tbl"><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
@@ -4309,7 +4372,7 @@ function renderDividend(box){
     h+='<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
   }
   h+='</tbody></table>';
-  h+='<div style="font-size:10.5px;color:#6e7681;margin-top:8px;line-height:1.5">※ 배당율·수익률·차트는 네이버 자료 기준이며, 종목에 따라 값이 없을 수 있습니다(—). 커버드콜 ETF는 배당율이 높아도 총수익률은 다를 수 있습니다. 투자 판단·책임은 본인에게 있습니다.</div>';
+  h+='<div style="font-size:10.5px;color:#6e7681;margin-top:8px;line-height:1.5">※ 연 배당·주가 수익률·차트는 네이버 자료 기준이며, 종목에 따라 값이 없을 수 있습니다(—). 네이버의 주가 수익률은 배당을 뺀 가격 기준이므로, 연 수익률은 위 식대로 연 배당을 더해 보셔야 합니다. 커버드콜 ETF는 연 배당이 높아도 연 수익률은 다를 수 있습니다. 투자 판단·책임은 본인에게 있습니다.</div>';
   h+='</div>';
   box.innerHTML=h;
 
@@ -4323,6 +4386,8 @@ function renderDividend(box){
   // 시세 조회 버튼
   const rf=document.getElementById('divRefresh');
   if(rf) rf.onclick=()=>fetchDivData(box);
+  const dsv=document.getElementById('divSrvSave'); if(dsv) dsv.onclick=()=>divSaveToServer(dsv);
+  const dld=document.getElementById('divSrvLoad'); if(dld) dld.onclick=()=>divLoadFromServer(box, dld);
   // 종목명·보고서 클릭 → 네이버
   box.querySelectorAll('.div-link, .div-rpt').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, isUS=a.dataset.us;
