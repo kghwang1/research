@@ -823,6 +823,7 @@
     <button id="chartHomeBtn" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:#0c0e14;font-weight:700;font-size:12px;cursor:pointer">홈</button>
     <button id="chartSideToggle" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer;display:none">종목</button>
     <select id="chartPortSel" style="padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer">
+      <option value="idx">(지수)</option>
       <option value="invpf">선정주</option>
       <option value="kr">한국(체)</option>
       <option value="invest">코스피200</option>
@@ -6187,7 +6188,7 @@ function chartAutoSearch(q){
 const IDX_PRESETS=[
   {code:'KOSPI',name:'코스피'},{code:'KOSDAQ',name:'코스닥'},{code:'^KS200',name:'코스피200'},
   {code:'^GSPC',name:'S&P500'},{code:'^IXIC',name:'나스닥'},{code:'^DJI',name:'다우'},
-  {code:'^SOX',name:'필라 반도체'},{code:'^N225',name:'니케이225'},{code:'^RUT',name:'러셀2000'},{code:'^VIX',name:'VIX 변동성'},{code:'^HSI',name:'항셍'},
+  {code:'EWY',name:'MSCI 코리아'},{code:'^SOX',name:'필라 반도체'},{code:'^N225',name:'니케이225'},{code:'^RUT',name:'러셀2000'},{code:'^VIX',name:'VIX 변동성'},{code:'^HSI',name:'항셍'},
   {code:'GC=F',name:'금'},{code:'SI=F',name:'은'},{code:'CL=F',name:'WTI 원유'},{code:'HG=F',name:'구리'},{code:'NG=F',name:'천연가스'},
   {code:'KRW=X',name:'원/달러 환율'},{code:'DX-Y.NYB',name:'달러인덱스'},{code:'^TNX',name:'미국 10년물'},{code:'BTC-USD',name:'비트코인'},{code:'ETH-USD',name:'이더리움'}
 ];
@@ -6337,8 +6338,8 @@ function openChartView(initPort, initCode, initName){
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
-  // 포트: 지정값 또는 기본(투자)
-  chartPort = initPort || 'invpf';
+  // 포트: 지정값 또는 기본(지수)
+  chartPort = initPort || 'idx';
   const ps=$('#chartPortSel'); if(ps) ps.value=chartPort;
   buildChartStockList();
   setTimeout(()=>{
@@ -6364,7 +6365,16 @@ function closeChartView(){
   const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
   const ps=$('#port'); if(ps) ps.classList.add('on');
 }
-let chartPort = 'invpf';  // 차트뷰 좌측 포트 (기본: 투자)
+let chartPort = 'idx';   // 차트뷰 좌측 포트 (기본: 지수)
+// 차트 좌측 (지수) 목록
+const CHART_IDX_ROWS = [
+  ['KOSPI','코스피'], ['KOSDAQ','코스닥'], ['^KS200','코스피200'], ['EWY','MSCI 코리아'],
+  ['^IXIC','나스닥'], ['^GSPC','S&P500'], ['^DJI','다우'], ['^SOX','필라 반도체'],
+  ['^RUT','러셀2000'], ['^N225','니케이225'], ['^HSI','항셍'], ['^VIX','VIX 변동성'],
+  ['GC=F','금'], ['SI=F','은'], ['CL=F','WTI 원유'], ['HG=F','구리'], ['NG=F','천연가스'],
+  ['KRW=X','원/달러 환율'], ['DX-Y.NYB','달러인덱스'], ['^TNX','미국 10년물'],
+  ['BTC-USD','비트코인'], ['ETH-USD','이더리움']
+];
 function chartPortRows(port){
   // 각 포트폴리오의 [코드, 명칭] 목록 반환
   if(port==='dividend'){
@@ -6382,9 +6392,22 @@ function chartPortRows(port){
     try{ const r=localStorage.getItem('kg_watch_rows'); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
     return [];
   }
+  if(port==='idx'){ return CHART_IDX_ROWS.map(r=>[r[0], r[1]]); }
   if(port==='invpf'){
-    try{ const r=localStorage.getItem('kg_invpf_rows'); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
-    return [];
+    // 선정주 = 관심 + 투자 통합 (선정주 표와 동일)
+    if(typeof selAllRows==='function'){
+      const m=selAllRows().map(it=>[it.code, it.name||it.code]);
+      if(m.length) return m;
+    }
+    const out=[]; const seen=new Set();
+    ['kg_watch_rows','kg_invpf_rows'].forEach(k=>{
+      try{ const r=localStorage.getItem(k); if(!r) return; const a=JSON.parse(r); if(!Array.isArray(a)) return;
+        a.forEach(row=>{ const c=String((Array.isArray(row)?row[0]:row&&row.code)||'').trim(); if(!c) return;
+          const u=c.toUpperCase(); if(seen.has(u)) return; seen.add(u);
+          out.push([c, (Array.isArray(row)?row[1]:row&&row.name)||'']); });
+      }catch(e){}
+    });
+    return out;
   }
   if(port==='kr'){
     return (typeof KR_PF!=='undefined' && KR_PF.rows) ? KR_PF.rows.map(r=>[r[0], r[1]]) : [];
@@ -6413,6 +6436,7 @@ function buildChartStockList(filter){
   const f=(filter||'').toLowerCase();
   const rows=chartPortRows(chartPort);
   const usPort=(chartPort==='usc' || chartPort==='us');  // 미국(체)·미국(반)은 티커 기반
+  const idxPort=(chartPort==='idx');                      // 지수·원자재는 코드 그대로
   let h='';
   rows.forEach(r=>{
     let rawCode=String(r[0]||'').trim();
@@ -6420,7 +6444,8 @@ function buildChartStockList(filter){
     if(!rawCode) return;  // 현금 등 코드 없는 항목 제외
     // 차트 열기용 코드
     let code, isForeign=false;
-    if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
+    if(idxPort){ code=rawCode; }                          // 지수는 변환 없이 그대로
+    else if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
     else if(/^\d{6}$/.test(rawCode)){ code=rawCode; }   // 국내 6자리
     else if(usPort && /^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // 미국 티커
     else if(/^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // ETF 등 티커
@@ -6429,11 +6454,12 @@ function buildChartStockList(filter){
     // 관심/투자 저장용 코드: 해외는 US:티커, 국내는 6자리
     const saveCode = isForeign ? ('US:'+String(code).toUpperCase()) : code;
     const inW=inPort('kg_watch_rows', saveCode), inI=inPort('kg_invpf_rows', saveCode);
-    const chks=`<div class="cs-chks"><label class="cs-chk" title="관심 복사"><input type="checkbox" data-cls="kg_watch_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inW?' checked':''}></label><label class="cs-chk" title="투자 복사"><input type="checkbox" data-cls="kg_invpf_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inI?' checked':''}></label></div>`;
+    const chks=idxPort ? '' : `<div class="cs-chks"><label class="cs-chk" title="관심 복사"><input type="checkbox" data-cls="kg_watch_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inW?' checked':''}></label><label class="cs-chk" title="투자 복사"><input type="checkbox" data-cls="kg_invpf_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inI?' checked':''}></label></div>`;
     h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}">${chks}<div class="cs-txt"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${isForeign?' · 해외':''}</span></div></div>`;
   });
   if(!h){
-    const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요' : '종목이 없습니다';
+    const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요'
+            : (chartPort==='invpf' ? '선정주에 담긴 종목이 없습니다' : '종목이 없습니다');
     h='<div style="padding:12px;color:var(--dim);font-size:11px">'+msg+'</div>';
   }
   box.innerHTML=h;
