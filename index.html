@@ -3979,6 +3979,8 @@ async function fetchDivData(box){
       }catch(e){}
     }
     renderDividend(box);
+    // 네이버 API rate limit 회피: 종목 사이 지연
+    await new Promise(res=>setTimeout(res, 250));
   }
 }
 
