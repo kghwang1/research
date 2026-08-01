@@ -3095,14 +3095,12 @@ function renderWatchTable(){
     const d=rowClass(a[0])-rowClass(b[0]); return d!==0?d:a[1]-b[1];
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
-  const W = (watchPort==='invpf')
-    ? [96,90,92,90,90,90,100,100,200]
-    : [96,28,90,92,90,90,90,100,100,200,110];
+  // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
+  const W = [96,60,90,92,90,90,90,100,100,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const isInv = (watchPort==='invpf');   // 투자 탭: 점수·합산식 열 숨김
-  const H = isInv
-    ? ["종목(코드입력)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"]
-    : ["종목(코드입력)","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+  const isInv = (watchPort==='invpf');
+  // 관심·투자 공통: 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서 (점수·합산식 없음)
+  const H = ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
   let h='<caption class="kr-cap">'+(watchPort==='invpf'?'투자 종목':'관심 종목')+' <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
@@ -3159,14 +3157,14 @@ function renderWatchTable(){
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
       const usLiveStyle = uLive ? ' style="cursor:pointer;text-decoration:underline dotted"' : ' style="cursor:pointer;color:#58a6ff"';
       const liveCell = uLive ? `${liveStr}${rateH}` : '차트▶';
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${newsCell}</td>${isInv?'':'<td>—</td>'}</tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${newsCell}</td></tr>`;
       return;
     }
     if(isIdxRow){
       // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${isInv?'':`<td class="score-cell" data-code="${escHtml(code)}"></td>`}<td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td>${isInv?'':'<td>—</td>'}</tr>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="cls-cell">${clsCellHtml(code, nm||'')}</td><td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td></tr>`;
       return;
     }
     const live=watchLive[code];
@@ -3205,7 +3203,7 @@ function renderWatchTable(){
     }
     h+='<tr>';
     h+=`<td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>`;
-    if(!isInv) h+=`<td class="score-cell ${PIN_MARKS.get(code)||''}" data-code="${code}">${scoreCell(code)}</td>`;
+    h+=`<td class="cls-cell">${clsCellHtml(code, nm||'')}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
     h+=`<td>${roeTxt}</td>`;
@@ -3215,10 +3213,9 @@ function renderWatchTable(){
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
-    if(!isInv) h+=`<td class="mp-r">${scoreFormulaCell(code)}</td>`;
     h+='</tr>';
   });
-  h+=`<tr class="add-row"><td colspan="${isInv?10:12}"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
+  h+=`<tr class="add-row"><td colspan="10"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
   // 검색 바를 테이블 위에 별도 배치 (자동완성이 종목 행을 가리지 않도록)
@@ -5317,9 +5314,9 @@ function chartAutoSearch(q){
 const IDX_PRESETS=[
   {code:'KOSPI',name:'코스피'},{code:'KOSDAQ',name:'코스닥'},{code:'^KS200',name:'코스피200'},
   {code:'^GSPC',name:'S&P500'},{code:'^IXIC',name:'나스닥'},{code:'^DJI',name:'다우'},
-  {code:'^SOX',name:'필라 반도체'},{code:'^N225',name:'니케이225'},
-  {code:'GC=F',name:'금'},{code:'SI=F',name:'은'},{code:'CL=F',name:'WTI 원유'},{code:'HG=F',name:'구리'},
-  {code:'KRW=X',name:'원/달러 환율'},{code:'DX-Y.NYB',name:'달러인덱스'},{code:'^TNX',name:'미국 10년물'},{code:'BTC-USD',name:'비트코인'}
+  {code:'^SOX',name:'필라 반도체'},{code:'^N225',name:'니케이225'},{code:'^RUT',name:'러셀2000'},{code:'^VIX',name:'VIX 변동성'},{code:'^HSI',name:'항셍'},
+  {code:'GC=F',name:'금'},{code:'SI=F',name:'은'},{code:'CL=F',name:'WTI 원유'},{code:'HG=F',name:'구리'},{code:'NG=F',name:'천연가스'},
+  {code:'KRW=X',name:'원/달러 환율'},{code:'DX-Y.NYB',name:'달러인덱스'},{code:'^TNX',name:'미국 10년물'},{code:'BTC-USD',name:'비트코인'},{code:'ETH-USD',name:'이더리움'}
 ];
 function idxSearch(q){
   const ql=String(q).toLowerCase().replace(/\s/g,'');
