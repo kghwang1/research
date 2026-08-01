@@ -3809,8 +3809,8 @@ function renderDividend(box){
   h+='</div>';
 
   // 표
-  const cols=['시장','종목명','분류','배당율','수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
-  const W=[70,220,88,72,150,100,60];
+  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','배당율','수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
+  const W=[64,210,84,100,66,150,96,58];
   h+='<table class="val-tbl mp div-tbl"><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
 
@@ -3829,7 +3829,7 @@ function renderDividend(box){
     });
     if(!filtered.length) return;
     // 그룹 헤더 행
-    h+=`<tr class="div-grp"><td colspan="7" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
+    h+=`<tr class="div-grp"><td colspan="8" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
     filtered.forEach((it,i)=>{
       shown++;
       const key=it.isUS?('US:'+it.code.toUpperCase()):it.code;
@@ -3838,7 +3838,9 @@ function renderDividend(box){
       const idTag = it.isUS ? it.code : it.code;
       const nameCell=`<a href="#" class="div-link" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" data-name="${escHtml(it.name)}"><span class="kn">${escHtml(it.name)}</span><span class="kc" style="color:#8b949e">${escHtml(idTag)}</span></a>`;
       // 배당율
-      const divYld = (d.div!=null) ? d.div.toFixed(2)+'%' : (SRV_URL?'…':'—');
+      const divYld = (d.div!=null) ? d.div.toFixed(2)+'%'
+                   : (d.divAmt!=null) ? '$'+d.divAmt.toFixed(2)
+                   : (SRV_URL?'…':'—');
       // 수익률 (1/3/6/12개월)
       const rfmt=v=>{ if(v==null) return '<span style="color:#6e7681">—</span>'; const c=v>=0?'#ef5350':'#1976d2'; return `<span style="color:${c}">${(v>=0?'+':'')+v.toFixed(1)}</span>`; };
       const retCell = `<span style="font-size:10.5px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
@@ -3846,10 +3848,17 @@ function renderDividend(box){
       const chartCell = d.chart ? divMiniChart(d.chart) : (SRV_URL?'<span style="color:#6e7681;font-size:10px">…</span>':'—');
       // 보고서 (네이버 링크)
       const rptCell = `<a href="#" class="div-rpt" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" style="color:#58a6ff;font-size:10px">네이버▶</a>`;
+      // 현재가 + 변동율 (클릭 → 차트)
+      let priceCell='<span style="color:#6e7681">'+(SRV_URL?'…':'—')+'</span>';
+      if(d.price!=null){
+        const rateH = (d.rate!=null) ? ` <span style="color:${d.rate>=0?'#ef5350':'#1976d2'};font-size:10px">(${(d.rate>=0?'+':'')+d.rate.toFixed(2)}%)</span>` : '';
+        priceCell=`${addComma(d.price)}${rateH}`;
+      }
       h+=`<tr>`
         +`<td class="mp-c">${mkt}</td>`
         +`<td class="mp-l div-name">${nameCell}</td>`
         +`<td class="cls-cell">${divClsHtml(it.code, it.name, it.isUS)}</td>`
+        +`<td class="mp-r div-price" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" data-name="${escHtml(it.name)}" style="cursor:pointer;text-decoration:underline dotted">${priceCell}</td>`
         +`<td class="mp-r" style="color:#3fb950;font-weight:600">${divYld}</td>`
         +`<td class="mp-c">${retCell}</td>`
         +`<td class="mp-c">${chartCell}</td>`
@@ -3858,7 +3867,7 @@ function renderDividend(box){
     });
   });
   if(!shown){
-    h+='<tr><td colspan="7" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
+    h+='<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
   }
   h+='</tbody></table>';
   h+='<div style="font-size:10.5px;color:#6e7681;margin-top:8px;line-height:1.5">※ 배당율·수익률·차트는 네이버 자료 기준이며, 종목에 따라 값이 없을 수 있습니다(—). 커버드콜 ETF는 배당율이 높아도 총수익률은 다를 수 있습니다. 투자 판단·책임은 본인에게 있습니다.</div>';
@@ -3881,6 +3890,12 @@ function renderDividend(box){
       if(isUS) openNaverWorld(c); else openNaverDomestic(c);
     };
   });
+  // 현재가 클릭 → 차트뷰 (배당 포트 좌측 목록 + 해당 종목 차트)
+  box.querySelectorAll('.div-price').forEach(td=>{
+    td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name, isUS=td.dataset.us;
+      openChartView('dividend', isUS?('US:'+c):c, nm);
+    };
+  });
   // 첫 진입 시 자동 조회 (한 번만)
   if(!renderDividend._fetched){ renderDividend._fetched=true; fetchDivData(box); }
 }
@@ -3888,44 +3903,74 @@ function renderDividend(box){
 // 배당 데이터 네이버 조회 (배당율·수익률·차트)
 async function fetchDivData(box){
   if(!SRV_URL) return;
-  // 현재 필터로 보이는 모든 종목 수집
   const targets=[];
   DIV_GROUPS.forEach(g=>{
     if(divFilter.kr) DIV_ETF[g.key].kr.forEach(e=>targets.push({code:e[0],isUS:false}));
     if(divFilter.us) DIV_ETF[g.key].us.forEach(e=>targets.push({code:e[0],isUS:true}));
   });
-  // 중복 제거
   const seen=new Set(); const uniq=targets.filter(t=>{ const k=(t.isUS?'US:':'')+t.code; if(seen.has(k))return false; seen.add(k); return true; });
 
   for(const t of uniq){
     const key=t.isUS?('US:'+t.code.toUpperCase()):t.code;
-    try{
-      // 차트 데이터 (6개월+): 수익률 계산용
-      const url = t.isUS
-        ? SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=300'
-        : SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=300';
-      const r=await fetch(url); const d=await r.json();
-      if(d && d.ok && d.data && d.data.length>5){
-        const data=d.data;
-        const last=data[data.length-1].close;
-        const retAt=(daysAgo)=>{ const idx=data.length-1-daysAgo; if(idx<0) return null; const past=data[idx].close; return past>0?((last-past)/past*100):null; };
-        // 거래일 기준: 1개월≈21, 3개월≈63, 6개월≈126, 12개월≈252
-        divData[key]={
-          price:last,
-          ret1:retAt(21), ret3:retAt(63), ret6:retAt(126), ret12:retAt(252),
-          chart:data.slice(-126),  // 6개월 미니차트
-          div:(divData[key]&&divData[key].div)||null,
-        };
-      }
-    }catch(e){}
-    // 배당율 조회 (국내: 네이버 ETF 분배율 / 해외: usinfo)
-    try{
-      if(t.isUS){
+    divData[key]=divData[key]||{};
+    if(t.isUS){
+      // 해외: 네이버 종합정보(현재가·수익률·배당) — 이미지3의 네이버 값 그대로
+      try{
         const r=await fetch(SRV_URL+'/?usinfo='+encodeURIComponent(t.code)); const d=await r.json();
-        if(d&&d.ok){ divData[key]=divData[key]||{}; /* 배당율은 usinfo에 없을 수 있음 */ }
-      }
-    }catch(e){}
-    // 부분 갱신 렌더
+        if(d && d.ok){
+          if(d.price!=null) divData[key].price=d.price;
+          if(d.rate!=null) divData[key].rate=d.rate;
+          if(d.ret1!=null) divData[key].ret1=d.ret1;
+          if(d.ret3!=null) divData[key].ret3=d.ret3;
+          if(d.ret6!=null) divData[key].ret6=d.ret6;
+          if(d.ret12!=null) divData[key].ret12=d.ret12;
+          if(d.divYield!=null) divData[key].div=d.divYield;
+          if(d.divAmt!=null) divData[key].divAmt=d.divAmt;
+        }
+      }catch(e){}
+      // 해외 미니차트: 네이버 해외 차트
+      try{
+        const r=await fetch(SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=140'); const d=await r.json();
+        if(d && d.ok && d.data && d.data.length>5){
+          const data=d.data;
+          divData[key].chart=data.slice(-126);
+          if(divData[key].price==null) divData[key].price=data[data.length-1].close;
+          // 수익률이 네이버에서 안 왔으면 차트로 보완
+          const last=data[data.length-1].close;
+          const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
+          if(divData[key].ret1==null) divData[key].ret1=retAt(21);
+          if(divData[key].ret3==null) divData[key].ret3=retAt(63);
+          if(divData[key].ret6==null) divData[key].ret6=retAt(126);
+        }
+      }catch(e){}
+    } else {
+      // 국내: 네이버 차트로 수익률 계산 + 시세
+      try{
+        const r=await fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=300'); const d=await r.json();
+        if(d && d.ok && d.data && d.data.length>5){
+          const data=d.data;
+          const last=data[data.length-1].close;
+          const retAt=(n)=>{ const idx=data.length-1-n; if(idx<0)return null; const p=data[idx].close; return p>0?((last-p)/p*100):null; };
+          divData[key].price=last;
+          divData[key].ret1=retAt(21); divData[key].ret3=retAt(63); divData[key].ret6=retAt(126); divData[key].ret12=retAt(252);
+          divData[key].chart=data.slice(-126);
+        }
+      }catch(e){}
+      // 국내 현재가 등락률
+      try{
+        const r=await fetch(SRV_URL+'/?symbols=STK:'+encodeURIComponent(t.code)); const d=await r.json();
+        const q=(d&&d.items&&d.items[0])||null;
+        if(q&&q.ok){ if(q.price!=null) divData[key].price=q.price; if(q.rate!=null) divData[key].rate=q.rate; }
+      }catch(e){}
+      // 국내 ETF 배당수익률·1년수익률 (네이버 분석)
+      try{
+        const r=await fetch(SRV_URL+'/?krinfo='+encodeURIComponent(t.code)); const d=await r.json();
+        if(d && d.ok){
+          if(d.divYield!=null) divData[key].div=d.divYield;
+          if(d.ret12!=null) divData[key].ret12=d.ret12;  // 1년은 네이버 값 우선
+        }
+      }catch(e){}
+    }
     renderDividend(box);
   }
 }
@@ -5778,6 +5823,17 @@ function closeChartView(){
 let chartPort = 'invpf';  // 차트뷰 좌측 포트 (기본: 투자)
 function chartPortRows(port){
   // 각 포트폴리오의 [코드, 명칭] 목록 반환
+  if(port==='dividend'){
+    // 배당 ETF 전체 (상승·횡보·하락 그룹, 국내+해외). 해외는 US: 접두사
+    const rows=[]; const seen=new Set();
+    if(typeof DIV_ETF!=='undefined' && typeof DIV_GROUPS!=='undefined'){
+      DIV_GROUPS.forEach(g=>{
+        (DIV_ETF[g.key].kr||[]).forEach(e=>{ if(!seen.has(e[0])){ seen.add(e[0]); rows.push([e[0], e[1]]); } });
+        (DIV_ETF[g.key].us||[]).forEach(e=>{ const c='US:'+e[0]; if(!seen.has(c)){ seen.add(c); rows.push([c, e[1]]); } });
+      });
+    }
+    return rows;
+  }
   if(port==='watch'){
     try{ const r=localStorage.getItem('kg_watch_rows'); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
     return [];
