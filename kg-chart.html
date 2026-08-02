@@ -151,7 +151,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 #chart-area {
   flex: 1; display: flex; flex-direction: column;
   overflow-y: auto; overflow-x: hidden;
-  padding: 2px 4px 80px; gap: 3px;
+  padding: 2px 4px 10px; gap: 3px;
   -webkit-overflow-scrolling: touch;
 }
 #chart-area::-webkit-scrollbar { width: 4px; }
@@ -1343,8 +1343,8 @@ function P(key, idx, def) {
   return def;
 }
 
-// 기본 조합 (일목·DMI·ADXR·RSI·외국인순매수) — 순서 중요
-const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'FRGN_NET'];
+// 기본 조합 (일목·DMI·ADXR·엘더레이·RSI·외국인순매수) — 순서 중요
+const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'ELDER', 'RSI', 'FRGN_NET'];
 function loadDefaults() {
   try {
     const saved = localStorage.getItem('kgchart_defaults');
@@ -1424,9 +1424,30 @@ function setupSidebar() {
   });
 
   // 초기 표시된 보조차트 순서를 기본 조합 순서에 맞춤 (DOM 순서 대신)
-  // 저장된 순서(kgchart_order)가 있으면 그것을, 없으면 DEFAULT_COMBO 순서를 우선
-  let orderPref = DEFAULT_COMBO;
-  try { const so = localStorage.getItem('kgchart_order'); if (so) { const a = JSON.parse(so); if (Array.isArray(a) && a.length) orderPref = a; } } catch(e) {}
+  // 저장된 순서(kgchart_order)가 있으면 그것을 우선하되,
+  // 새로 추가된 지표(저장 순서에 없는 것)는 DEFAULT_COMBO 의 제자리에 끼워 넣는다.
+  // 그냥 뒤로 보내면 새 지표가 항상 맨 아래로 밀린다.
+  let orderPref = DEFAULT_COMBO.slice();
+  try {
+    const so = localStorage.getItem('kgchart_order');
+    if (so) {
+      const a = JSON.parse(so);
+      if (Array.isArray(a) && a.length) {
+        const merged = a.slice();
+        DEFAULT_COMBO.forEach((k, i) => {
+          if (merged.includes(k)) return;
+          // 기본 조합에서 바로 앞에 오는 지표 뒤에 삽입
+          let at = merged.length;
+          for (let j = i - 1; j >= 0; j--) {
+            const idx = merged.indexOf(DEFAULT_COMBO[j]);
+            if (idx >= 0) { at = idx + 1; break; }
+          }
+          merged.splice(at, 0, k);
+        });
+        orderPref = merged;
+      }
+    }
+  } catch(e) {}
   state.selectedOrder.sort((a, b) => {
     const ia = orderPref.indexOf(a), ib = orderPref.indexOf(b);
     const va = ia < 0 ? 999 : ia, vb = ib < 0 ? 999 : ib;
@@ -2008,7 +2029,8 @@ function drawSub(canvas, key) {
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
   // FRGN_NET은 수량(vals[0])과 금액(vals[1])의 단위가 완전히 달라서
   // 막대(수량) 스케일 계산 시 금액을 섞으면 막대가 안 보이게 됨 → 수량만으로 스케일 계산
-  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'INST_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'SHORT_SELL') ? (vals[0] || []).filter(v => v != null && v > 0) : vals.flat().filter(v => v != null);
+  // ELDER는 세 번째 값이 EMA(주가 수준)이라 축 계산에 섞이면 선이 0 근처로 눌린다 → Bull/Bear만 사용
+  const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'INST_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'SHORT_SELL') ? (vals[0] || []).filter(v => v != null && v > 0) : (key === 'ELDER') ? [...(vals[0] || []), ...(vals[1] || [])].filter(v => v != null) : vals.flat().filter(v => v != null);
   const allVals = scaleVals;
   if (!allVals.length) return;
 
@@ -2051,22 +2073,31 @@ function drawSub(canvas, key) {
   // ── ELDER: 강세지수(Bull)·약세지수(Bear) 막대 ──
   if (key === 'ELDER') {
     const bull = vals[0], bear = vals[1];
-    const bw = Math.max(1, Math.min(9, (cw / n) * 0.7));
-    const y0 = yOf(0);
-    // Bear (저가 - 이평) : 대개 0 아래, 파랑
-    ctx.fillStyle = '#1976d2cc';
-    bear.forEach((v, i) => {
-      if (v == null) return;
-      const y = yOf(v);
-      ctx.fillRect(xOf(i) - bw/2, Math.min(y, y0), bw, Math.max(1, Math.abs(y - y0)));
-    });
-    // Bull (고가 - 이평) : 대개 0 위, 빨강. 겹쳐 보이도록 살짝 좁게
-    ctx.fillStyle = '#ef5350cc';
-    bull.forEach((v, i) => {
-      if (v == null) return;
-      const y = yOf(v);
-      ctx.fillRect(xOf(i) - bw*0.32, Math.min(y, y0), bw*0.64, Math.max(1, Math.abs(y - y0)));
-    });
+    // 0선 — 강세·약세를 가르는 기준이라 노란 실선으로 뚜렷하게 (선 아래 깔리도록 먼저 그림)
+    if (0 >= minV && 0 <= maxV) {
+      ctx.save();
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(PAD.l, yOf(0)); ctx.lineTo(W - PAD.r, yOf(0)); ctx.stroke();
+      ctx.fillStyle = '#ffd54f'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('0', W - PAD.r + 3, yOf(0) + 3);
+      ctx.restore();
+    }
+    // 책(차트의 정석)과 같은 선 그래프. 한 칸에 강세(빨강)·약세(파랑)를 겹쳐 그린다
+    const drawLine = (arr, color, width) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath();
+      let started = false;
+      arr.forEach((v, i) => {
+        if (v == null) { started = false; return; }
+        const x = xOf(i), y = yOf(v);
+        started ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), started = true);
+      });
+      ctx.stroke();
+    };
+    drawLine(bear, '#58a6ff', 1.4);   // 약세지수 (저가 - 이평)
+    drawLine(bull, '#ef5350', 1.4);   // 강세지수 (고가 - 이평)
 
     // ── 매매신호 (차트의 정석 p.198 매도 / p.201 매입) ──
     //  매도 : 지수이평 하락 전환 + Bull이 (+)이면서 점차 감소
@@ -3275,6 +3306,53 @@ function bindStepBtn(){
   setup('step-fwd',  -1, '첫 봉입니다');
 }
 
+// ══════════════════════════════════════
+// 보조지표가 많아도 한 화면에 다 들어오도록 높이를 자동 배분
+//  · 메인 캔들과 보조칸을 화면 높이에 맞춰 나눠 갖는다
+//  · 칸이 너무 얇아지면(최소 높이) 그때부터는 스크롤로 넘긴다
+// ══════════════════════════════════════
+const FIT_MAIN_MIN = 150;   // 메인 캔들 최소 높이
+const FIT_MAIN_MAX = 320;   // 메인 캔들 최대 높이
+const FIT_SUB_MIN  = 56;    // 보조칸 최소 높이
+const FIT_SUB_MAX  = 98;    // 보조칸 최대 높이
+
+function fitPanels() {
+  const area = document.getElementById('chart-area');
+  const main = document.getElementById('candle-wrap');
+  if (!area || !main) return;
+  const subs = [...area.querySelectorAll('.sub-wrap')];
+  const k = subs.length;
+  const gap = 3;
+  // 사용 가능한 세로 공간 (아래쪽 여백은 넘기기 버튼 자리만 남긴다)
+  const avail = area.clientHeight - 8 - gap * (k + 1);
+  if (avail <= 0) return;
+
+  let mainH, subH;
+  if (k === 0) {
+    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, avail));
+    subH = FIT_SUB_MAX;
+  } else {
+    // 메인은 화면의 약 42%를 갖되 최소·최대 범위 안에서
+    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.42)));
+    subH = Math.floor((avail - mainH) / k);
+    if (subH > FIT_SUB_MAX) {
+      subH = FIT_SUB_MAX;                                  // 남으면 메인을 키운다
+      mainH = Math.min(FIT_MAIN_MAX, avail - subH * k);
+    } else if (subH < FIT_SUB_MIN) {
+      subH = FIT_SUB_MIN;                                  // 너무 얇아지면 메인을 줄인다
+      mainH = Math.max(FIT_MAIN_MIN, avail - subH * k);
+    }
+  }
+  main.style.flex = '0 0 ' + mainH + 'px';
+  main.style.height = mainH + 'px';
+  subs.forEach(w => {
+    // 거래량은 조금 낮게 유지
+    const h = (w.dataset.key === 'VOLUME') ? Math.max(FIT_SUB_MIN, Math.round(subH * 0.85)) : subH;
+    w.style.flex = '0 0 ' + h + 'px';
+    w.style.height = h + 'px';
+  });
+}
+
 function renderAll() {
   updateIframeStockName();
   const activeKeys = getActiveKeys();
@@ -3288,11 +3366,7 @@ function renderAll() {
     const wrap = document.createElement('div');
     wrap.className = 'sub-wrap';
     wrap.style.position = 'relative';
-    // 거래량은 높이 40% 축소 (140 → 84px)
-    if (key === 'VOLUME') {
-      wrap.style.flex = '0 0 84px';
-      wrap.style.height = '84px';
-    }
+    wrap.dataset.key = key;   // fitPanels 에서 거래량 칸을 구분하는 용도
     const canvas = document.createElement('canvas');
     canvas.className = 'sub-canvas';
     canvas.style.width = '100%'; canvas.style.height = '100%';
@@ -3322,7 +3396,13 @@ function renderAll() {
     wrap.appendChild(closeBtn);
 
     chartArea.appendChild(wrap);
-    setTimeout(() => { drawSub(canvas, key); if(window._bindSubPan) window._bindSubPan(canvas); }, 0);
+    wrap._canvas = canvas; wrap._key = key;
+  });
+
+  // 높이를 먼저 배분한 뒤에 그려야 캔버스 크기가 맞는다
+  fitPanels();
+  chartArea.querySelectorAll('.sub-wrap').forEach(w => {
+    setTimeout(() => { drawSub(w._canvas, w._key); if(window._bindSubPan) window._bindSubPan(w._canvas); }, 0);
   });
 
   // OHLC 정보 업데이트
@@ -3646,6 +3726,7 @@ function setupMouseEvent() {
 
 // 리사이즈
 window.addEventListener('resize', () => renderAll());
+window.addEventListener('orientationchange', () => setTimeout(renderAll, 250));
 
 // 시작!
 window.addEventListener('pageshow', () => { if (state.data && state.data.length) renderAll(); });
