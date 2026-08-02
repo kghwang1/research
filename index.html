@@ -2995,6 +2995,171 @@ function saveWatchRows(){
 
 // 관심 종목 시세/목표가/ROE 조회 (한국 포트와 동일 소스)
 // 종목 하나만 캐시 우회로 최신 시세 조회 후 표 갱신
+// ══════════════════════════════════════
+// 서버 일일 스냅샷 — 표 자료를 하루 1회만 수집하고 서버에 보관해 재사용
+//   · 표를 열 때: 오늘자 스냅샷이 있으면 그대로 사용(네트워크 조회 없음)
+//   · ↻ 새로고침: 실조회 후 스냅샷 덮어쓰기
+//   · 종목명·현재가 클릭: 그 종목만 즉시 최신화
+// ══════════════════════════════════════
+let snapInfo = {};   // key → 마지막 저장 시각(표시용)
+
+async function snapLoad(key){
+  if(!SRV_URL) return null;
+  try{
+    const r=await fetch(SRV_URL+'/?data='+key);
+    const d=await r.json();
+    if(d&&d.ok&&d.value){
+      const o=JSON.parse(d.value);
+      if(o && o.date===invToday()){ snapInfo[key]=o.savedAt||''; return o; }
+    }
+  }catch(e){}
+  return null;
+}
+async function snapSave(key, obj){
+  if(!SRV_URL) return false;
+  try{
+    obj.date=invToday(); obj.savedAt=new Date().toISOString();
+    const r=await fetch(SRV_URL+'/?data='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj)});
+    const d=await r.json();
+    if(d&&d.ok){ snapInfo[key]=obj.savedAt; return true; }
+  }catch(e){}
+  return false;
+}
+function snapStamp(key){
+  const t=snapInfo[key]; if(!t) return '';
+  try{ const d=new Date(t); return String(d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }catch(e){ return ''; }
+}
+
+// ── 선정주 표 ──
+const SNAP_SEL='snap_sel';
+let watchDataState='idle';   // idle | loading | ready
+function watchCodesKr(){
+  return [...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
+}
+async function ensureWatchData(force){
+  if(!SRV_URL) return;
+  if(watchDataState==='loading') return;
+  if(!force && watchDataState==='ready') return;
+  watchDataState='loading';
+  try{
+    if(!force){
+      const s=await snapLoad(SNAP_SEL);
+      if(s){
+        watchLive=s.live||{}; watchRate=s.rate||{}; watchTarget=s.target||{}; watchHigh52=s.high52||{};
+        watchRoe=s.roe||{}; watchUsCons=s.usCons||{}; watchUsNews=s.usNews||{};
+        loadFrgnCache(); loadShortCache(); loadReportCache();
+        if(s.frgn) Object.assign(FRGN, s.frgn);
+        if(s.short) Object.assign(SHORT, s.short);
+        if(s.report) Object.assign(REPORT, s.report);
+        watchDataState='ready';
+        if(valMarket==='invpf'||valMarket==='watch') renderWatchTable();
+        fillWatchGaps();          // 스냅샷 이후 새로 담은 종목 보충
+        return;
+      }
+    }
+    // 스냅샷이 없거나 새로고침 → 실조회 후 저장
+    await fetchWatchLive(force);
+    const codes=watchCodesKr();
+    if(codes.length){ await ensureReports(codes); await ensureForeign(codes); await ensureShort(codes); }
+    watchDataState='ready';
+    if(valMarket==='invpf'||valMarket==='watch') renderWatchTable();
+    await snapSaveWatch();
+  }catch(e){ watchDataState='ready'; }
+}
+// 스냅샷에 없는 종목(스냅샷 저장 뒤 새로 담은 것)만 골라 보충 조회
+let watchGapBusy=false;
+async function fillWatchGaps(){
+  if(!SRV_URL || watchGapBusy) return;
+  const missing=[];
+  (WATCH_ROWS||[]).forEach(r=>{
+    const c=String((r&&r[0])||'').trim(); if(!c) return;
+    const isUS=/^US:/i.test(c);
+    if(!isUS && !/^\d{6}$/.test(c)) return;               // 지수·원자재 행은 제외
+    const key=isUS ? ('US:'+c.replace(/^US:/i,'').toUpperCase()) : c;
+    if(watchLive[key]==null) missing.push(c);
+  });
+  if(!missing.length) return;
+  watchGapBusy=true;
+  try{
+    for(const c of missing.slice(0,20)) await refreshOneStock(c);
+    await snapSaveWatch();
+  }catch(e){}
+  watchGapBusy=false;
+}
+
+async function snapSaveWatch(){
+  const codes=watchCodesKr();
+  const pick=(src)=>{ const o={}; codes.forEach(c=>{ if(c in src) o[c]=src[c]; }); return o; };
+  return snapSave(SNAP_SEL, {
+    live:watchLive, rate:watchRate, target:watchTarget, high52:watchHigh52,
+    roe:watchRoe, usCons:watchUsCons, usNews:watchUsNews,
+    frgn:pick(FRGN), short:pick(SHORT), report:pick(REPORT)
+  });
+}
+// ↻ 새로고침: 전부 다시 수집 후 서버 저장
+async function refreshWatchAll(btn){
+  const old=btn?btn.textContent:'';
+  if(btn){ btn.textContent='갱신 중…'; btn.disabled=true; }
+  watchDataState='idle';
+  // 캐시 비우고 다시
+  watchCodesKr().forEach(c=>{ delete FRGN[c]; delete SHORT[c]; delete REPORT[c]; });
+  await ensureWatchData(true);
+  if(btn){ btn.textContent=old||'↻ 새로고침'; btn.disabled=false; }
+  toast('최신 자료로 갱신하고 서버에 저장했습니다');
+}
+
+// ── 한 종목만 최신화 (종목명·현재가 클릭) ──
+async function refreshOneStock(rawCode){
+  if(!SRV_URL) return;
+  const c=String(rawCode||'').trim(); if(!c) return;
+  const isUS=/^US:/i.test(c);
+  try{
+    if(isUS){
+      const t=c.replace(/^US:/i,'').toUpperCase(), key='US:'+t;
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(t)+'&fresh=1');
+      const d=await r.json();
+      const q=((d&&d.items)||[])[0];
+      if(q&&q.ok&&q.price!=null){
+        watchLive[key]=q.priceStr||String(q.price);
+        if(q.rate!=null) watchRate[key]=q.rate;
+        if(q.high52!=null) watchHigh52[key]=q.high52Str||String(q.high52);
+      }
+      try{
+        const r2=await fetch(SRV_URL+'/?usinfos='+encodeURIComponent(t));
+        const d2=await r2.json();
+        const u=((d2&&d2.items)||[])[0];
+        if(u&&u.ok){
+          if(u.roe!=null) watchRoe[key]={roe:u.roe, period:'', prevRoe:null};
+          if(u.target!=null) watchTarget[key]=u.target;
+          if(u.high52!=null) watchHigh52[key]=String(u.high52);
+          if(u.consStr||u.consScore!=null) watchUsCons[key]={str:u.consStr||'', opinion:u.consOpinion||'', score:u.consScore, count:u.consCount};
+          if(u.newsTitle) watchUsNews[key]={title:u.newsTitle, link:u.newsLink||'', date:u.newsDate||''};
+        }
+      }catch(e){}
+    } else if(/^\d{6}$/.test(c)){
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent('STK:'+c)+'&fresh=1');
+      const d=await r.json();
+      const q=((d&&d.items)||[])[0];
+      if(q&&q.ok&&q.price!=null){
+        watchLive[c]=q.priceStr||String(q.price);
+        if(q.rate!=null) watchRate[c]=q.rate;
+      }
+      try{
+        const r2=await fetch(SRV_URL+'/?targets='+encodeURIComponent(c));
+        const d2=await r2.json();
+        const q2=((d2&&d2.items)||[])[0];
+        if(q2&&q2.ok){
+          if(q2.target!=null) watchTarget[c]=q2.targetStr||String(q2.target);
+          if(q2.high52!=null) watchHigh52[c]=q2.high52Str||String(q2.high52);
+        }
+      }catch(e){}
+      delete REPORT[c]; delete FRGN[c]; delete SHORT[c];
+      await Promise.all([ensureReports([c]), ensureForeign([c]), ensureShort([c])]);
+    } else return;
+  }catch(e){}
+  if(valMarket==='invpf'||valMarket==='watch') renderWatchTable();
+}
+
 async function refreshOneWatch(code){
   if(!SRV_URL || !/^\d{6}$/.test(code)) return;
   try{
@@ -3255,7 +3420,7 @@ function renderWatchTable(){
       + `<span style="color:#3fb950">관심 ${cw} · 투자 ${ci}</span>`
       + '</div>';
   }
-  let h='<caption class="kr-cap">'+capTitle+' <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목</span>'+capFilter+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+capTitle+' <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <button id="watchDataBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e" title="표 자료를 다시 수집해 서버에 저장">↻ 새로고침</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목'+(snapStamp(SNAP_SEL)?' <span style="color:#6e7681;font-weight:400">· 자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</span>'+capFilter+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -3422,6 +3587,7 @@ function renderWatchTable(){
   // 서버 저장/불러오기 (선정주는 관심+투자 통합 저장)
   const svb=$('#watchSaveBtn'); if(svb) svb.onclick=()=>{ if(watchPort==='invpf') selSaveToServer(svb); else saveWatchToServer(); };
   const ldb=$('#watchLoadBtn'); if(ldb) ldb.onclick=()=>{ if(watchPort==='invpf') selLoadFromServer(null, ldb); else loadWatchFromServer(); };
+  const rdb=$('#watchDataBtn'); if(rdb) rdb.onclick=()=>refreshWatchAll(rdb);
   // 선정주 필터 (시장 국내/국외 · 보기 관심/투자)
   if(watchPort==='invpf'){
     const bindF=(id,key)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>{ selFilter[key]=el.checked; renderWatchTable(); }; };
@@ -3476,7 +3642,7 @@ function renderWatchTable(){
     inp.onblur=()=>{ setTimeout(()=>{ if(acBox) acBox.style.display='none'; }, 200); };
   });
   // 종목 링크 → 네이버
-  t.querySelectorAll('a.wlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) openNaverDomestic(c); }; });
+  t.querySelectorAll('a.wlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c){ refreshOneStock(c); openNaverDomestic(c); } }; });
   // 삭제
   t.querySelectorAll('.wdel').forEach(x=>{ x.onclick=ev=>{ ev.stopPropagation(); watchDeleteByCode(x.dataset.wcode, x.dataset.idx); }; });
   // 현재가 클릭 → 차트 + 그 종목만 최신 시세 새로고침
@@ -3484,14 +3650,12 @@ function renderWatchTable(){
   const visRows=()=> (Array.isArray(WATCH_ROWS)?WATCH_ROWS:[])
       .map(r=>[String((r&&r[0])||'').trim(), String((r&&r[1])||'').trim()])
       .filter(r=>r[0]);
-  t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c){ refreshOneWatch(c); openChart(c, nm, visRows()); } }; });
+  t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c){ refreshOneStock(c); openChart(c, nm, visRows()); } }; });
   t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm, visRows()); }; });
-  t.querySelectorAll('a.wusa').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code; if(c) openNaverWorld(c); }; });
-  t.querySelectorAll('td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c) openChart('US:'+String(c).toUpperCase(), nm, visRows()); }; });
-  const codes=WATCH_ROWS.map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean);
-  if(codes.length){ ensureReports(codes); ensureForeign(codes); ensureShort(codes); }
-  // 시세가 아직 없으면 조회
-  if(codes.length && !Object.keys(watchLive).length) fetchWatchLive();
+  t.querySelectorAll('a.wusa').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code; if(c){ refreshOneStock('US:'+String(c).toUpperCase()); openNaverWorld(c); } }; });
+  t.querySelectorAll('td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c){ refreshOneStock('US:'+String(c).toUpperCase()); openChart('US:'+String(c).toUpperCase(), nm, visRows()); } }; });
+  // 표 자료: 오늘자 서버 스냅샷이 있으면 재사용, 없으면 수집 후 저장
+  ensureWatchData(false);
   const autoBtn=$('#watchAutoBtn');
   if(autoBtn) autoBtn.onclick=()=>autoCollectWatch(autoBtn);
   const msIn=$('#watchMinScore');
@@ -4392,7 +4556,13 @@ function renderDividend(box){
   });
   // 시세 조회 버튼
   const rf=document.getElementById('divRefresh');
-  if(rf) rf.onclick=()=>fetchDivData(box);
+  if(rf) rf.onclick=async()=>{
+    const t0=rf.textContent; rf.textContent='갱신 중…'; rf.disabled=true;
+    try{ localStorage.removeItem('kg_div_cache'); }catch(e){}
+    await fetchDivData(box, true);
+    rf.textContent=t0; rf.disabled=false;
+    toast('최신 자료로 갱신하고 서버에 저장했습니다');
+  };
   const dsv=document.getElementById('divSrvSave'); if(dsv) dsv.onclick=()=>divSaveToServer(dsv);
   const dld=document.getElementById('divSrvLoad'); if(dld) dld.onclick=()=>divLoadFromServer(box, dld);
   // 종목명·보고서 클릭 → 네이버
@@ -4412,14 +4582,25 @@ function renderDividend(box){
 }
 
 // 배당 데이터 네이버 조회 (배당율·수익률·차트)
-async function fetchDivData(box){
+const SNAP_DIV='snap_div';
+async function fetchDivData(box, force){
   if(!SRV_URL) return;
-  // ── 하루 1회 캐시 (배당율·수익률·차트) + 현재가만 매번 갱신 ──
+  // ── 하루 1회 캐시 (기기 localStorage → 없으면 서버 스냅샷) + 현재가만 매번 갱신 ──
   const CACHE_KEY='kg_div_cache';
   const today=new Date().toISOString().slice(0,10);
   // 캐시 로드
   let cache={};
-  try{ const raw=localStorage.getItem(CACHE_KEY); if(raw){ const o=JSON.parse(raw); if(o && o.date===today && o.data){ cache=o.data; } } }catch(e){}
+  if(!force){
+    try{ const raw=localStorage.getItem(CACHE_KEY); if(raw){ const o=JSON.parse(raw); if(o && o.date===today && o.data){ cache=o.data; } } }catch(e){}
+    // 기기에 없으면 서버 스냅샷에서 (다른 기기가 이미 모아둔 자료 재사용)
+    if(!Object.keys(cache).length){
+      const s=await snapLoad(SNAP_DIV);
+      if(s && s.data && Object.keys(s.data).length){
+        cache=s.data;
+        try{ localStorage.setItem(CACHE_KEY, JSON.stringify({date:today, data:cache})); }catch(e){}
+      }
+    }
+  }
   const haveCache=Object.keys(cache).length>0;
   // 대상 종목
   const targets=[];
@@ -4496,12 +4677,11 @@ async function fetchDivData(box){
     }
     renderDividend(box);
   }
-  // 캐시 저장 (하루치)
-  try{
-    const toSave={};
-    uniq.forEach(t=>{ const k=t.isUS?('US:'+t.code.toUpperCase()):t.code; if(divData[k]) toSave[k]=divData[k]; });
-    localStorage.setItem(CACHE_KEY, JSON.stringify({date:today, data:toSave}));
-  }catch(e){}
+  // 캐시 저장 (하루치) — 기기 + 서버 스냅샷
+  const toSave={};
+  uniq.forEach(t=>{ const k=t.isUS?('US:'+t.code.toUpperCase()):t.code; if(divData[k]) toSave[k]=divData[k]; });
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({date:today, data:toSave})); }catch(e){}
+  if(Object.keys(toSave).length) await snapSave(SNAP_DIV, {data:toSave});
 }
 
 // 현재가만 갱신 (페이지 열 때마다, 가벼움)
