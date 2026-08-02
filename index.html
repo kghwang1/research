@@ -3218,8 +3218,8 @@ async function fetchWatchLive(fresh){
       }catch(e){}
     }
     // 미국 종목 종합정보: ROE·52주최고가·목표가·뉴스 (네이버)
-    for(let i=0;i<usCodes.length;i+=20){
-      const part=usCodes.slice(i,i+20);
+    for(let i=0;i<usCodes.length;i+=8){
+      const part=usCodes.slice(i,i+8);
       try{
         const r=await fetch(SRV_URL+'/?usinfos='+encodeURIComponent(part.join(',')));
         const d=await r.json();
@@ -3867,7 +3867,7 @@ async function fetchUscTargets(rows){
   uscTarget={}; uscCons={};
   if(!SRV_URL||!rows||!rows.length) return;
   const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
-  const CH=20;
+  const CH=8;   // worker 서브리퀘스트 한도(요청당 50) 대비
   for(let i=0;i<syms.length;i+=CH){
     const part=syms.slice(i,i+CH).join(',');
     try{
