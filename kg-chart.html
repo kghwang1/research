@@ -1337,6 +1337,15 @@ function loadUserParams() {
   try { return JSON.parse(localStorage.getItem('kgchart_params') || '{}'); }
   catch(e) { return {}; }
 }
+// 지표별 표시 옵션 (설명 페이지에서 켜고 끔) — kgchart_opts
+function OPT(key, name, def) {
+  try {
+    const all = JSON.parse(localStorage.getItem('kgchart_opts') || '{}');
+    if (all[key] && all[key][name] != null) return !!all[key][name];
+  } catch(e) {}
+  return def;
+}
+
 function P(key, idx, def) {
   const all = loadUserParams();
   if (all[key] && all[key][idx] != null && all[key][idx] > 0) return all[key][idx];
@@ -1580,7 +1589,7 @@ function drawCandle() {
     };
     drawL(ich.tenkan, '#ffd54f', 1); drawL(ich.kijun, '#ef5350', 1.5);
     drawL(ich.senkouA, '#3fb950', 0.8); drawL(ich.senkouB, '#bc8cff', 0.8);
-    drawL(ich.chikou, '#00bcd4', 1); // 후행스팬 (청록)
+    if (OPT('ICHIMOKU', 'chikou', true)) drawL(ich.chikou, '#00bcd4', 1); // 후행스팬 (청록)
   }
 
   // BB
@@ -1857,8 +1866,11 @@ function drawCandle() {
   // 오버레이 범례 (세로로) — 이동평균(MA) 정보는 제외
   const legends = [];
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
-  if (overlays.ICHIMOKU) legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6',
-    sub:[{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}, {t:'선행A', c:'#3fb950'}, {t:'선행B', c:'#bc8cff'}, {t:'후행', c:'#00bcd4'}]});
+  if (overlays.ICHIMOKU) {
+    const ichSub = [{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}, {t:'선행A', c:'#3fb950'}, {t:'선행B', c:'#bc8cff'}];
+    if (OPT('ICHIMOKU', 'chikou', true)) ichSub.push({t:'후행', c:'#00bcd4'});
+    legends.push({t:'Ichimoku 일목균형표', c:'#ff7eb6', sub:ichSub});
+  }
   if (overlays.VAMA)     legends.push({t:'VAMA 거래량조정이동평균', c:'#ffd54f',
     sub:[{t:'5일', c:'#ffd54f'}, {t:'20일', c:'#ef5350'}]});
   if (overlays.DEMA)     legends.push({t:'DEMA 이중지수이동평균(20)', c:'#ffd54f',
@@ -2073,12 +2085,13 @@ function drawSub(canvas, key) {
   // ── ELDER: 강세지수(Bull)·약세지수(Bear) 막대 ──
   if (key === 'ELDER') {
     const bull = vals[0], bear = vals[1];
-    // 0선 — 강세·약세를 가르는 기준이라 노란 실선으로 뚜렷하게 (선 아래 깔리도록 먼저 그림)
+    // 0선 — 강세·약세를 가르는 기준. 노란 점선 (선 아래 깔리도록 먼저 그림)
     if (0 >= minV && 0 <= maxV) {
       ctx.save();
-      ctx.setLineDash([]);
-      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 0.8;
       ctx.beginPath(); ctx.moveTo(PAD.l, yOf(0)); ctx.lineTo(W - PAD.r, yOf(0)); ctx.stroke();
+      ctx.setLineDash([]);
       ctx.fillStyle = '#ffd54f'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
       ctx.fillText('0', W - PAD.r + 3, yOf(0) + 3);
       ctx.restore();

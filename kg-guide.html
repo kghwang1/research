@@ -210,6 +210,34 @@ function mergedInd(ind) {
 }
 
 // 저장된 사용자 옵션값 로드/저장 (차트와 공유)
+// 지표별 표시 옵션 (체크박스). 차트의 OPT() 가 같은 값을 읽는다
+const IND_TOGGLES = {
+  ICHIMOKU: [{ k:'chikou', n:'후행스팬 표시', d:true, tip:'종가를 26칸 뒤로 옮겨 그린 청록색 선' }],
+};
+function loadUserOpts() {
+  try { return JSON.parse(localStorage.getItem('kgchart_opts') || '{}'); }
+  catch(e) { return {}; }
+}
+function saveUserOpts(o) {
+  try { localStorage.setItem('kgchart_opts', JSON.stringify(o)); } catch(e) {}
+}
+function getOpt(key, name, def) {
+  const all = loadUserOpts();
+  if (all[key] && all[key][name] != null) return !!all[key][name];
+  return def;
+}
+function setOpt(key, name, val) {
+  const all = loadUserOpts();
+  if (!all[key]) all[key] = {};
+  all[key][name] = !!val;
+  saveUserOpts(all);
+}
+function resetOpt(key) {
+  const all = loadUserOpts();
+  delete all[key];
+  saveUserOpts(all);
+}
+
 function loadUserParams() {
   try { return JSON.parse(localStorage.getItem('kgchart_params') || '{}'); }
   catch(e) { return {}; }
@@ -695,10 +723,27 @@ function toastMsg(m) {
   t._tm = setTimeout(() => { t.style.display = 'none'; }, 1600);
 }
 
+function renderToggles(key) {
+  const tg = IND_TOGGLES[key];
+  if (!tg || !tg.length) return '';
+  let h = '<div class="toggle-grid" style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 4px">';
+  tg.forEach(t => {
+    const on = getOpt(key, t.k, t.d);
+    h += `<label class="toggle-item" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#e6edf3;cursor:pointer">
+        <input type="checkbox" class="opt-input" data-key="${key}" data-opt="${t.k}"${on ? ' checked' : ''}>
+        <span>${t.n}</span>
+        ${t.tip ? `<span style="font-size:11px;color:#8b949e">${t.tip}</span>` : ''}
+      </label>`;
+  });
+  h += '</div>';
+  return h;
+}
+
 function renderParamInputs(key, optText) {
   const params = IND_PARAMS[key];
+  const toggles = renderToggles(key);
   if (!params || !params.length) {
-    return `<div class="opt-box">${optText}</div>`;
+    return `<div class="opt-box">${optText}</div>` + toggles;
   }
   let html = '<div class="param-grid">';
   params.forEach((p, i) => {
@@ -711,12 +756,14 @@ function renderParamInputs(key, optText) {
       </div>`;
   });
   html += '</div>';
+  html += toggles;
   html += `<button class="param-reset" onclick="resetParams('${key}')">↺ 기본값으로</button>`;
   return html;
 }
 
 function resetParams(key) {
   resetParam(key);
+  resetOpt(key);
   render();
 }
 
@@ -726,6 +773,14 @@ function toggleCard(head) {
 
 // 파라미터 입력 이벤트 바인딩
 function bindParamInputs() {
+  document.querySelectorAll('.opt-input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      setOpt(cb.dataset.key, cb.dataset.opt, cb.checked);
+      toastMsg(cb.checked ? '후행스팬을 표시합니다' : '후행스팬을 숨깁니다');
+    });
+    cb.addEventListener('click', e => e.stopPropagation());
+  });
+  document.querySelectorAll('.toggle-item').forEach(l => l.addEventListener('click', e => e.stopPropagation()));
   document.querySelectorAll('.param-input').forEach(inp => {
     inp.addEventListener('change', () => {
       const key = inp.dataset.key;
