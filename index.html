@@ -3863,23 +3863,30 @@ async function fetchUscLive(rows){
     }catch(e){}
   }
 }
+// 목표가·컨센서스: 종목당 1건씩 조회한다.
+//  복수(?ustargets=)로 묶으면 worker 한 번에 네이버 호출이 몰려 실패하므로,
+//  검증된 단수 경로(?ustarget=)를 소수 동시 실행으로 부른다.
+const USC_TGT_CONC = 3;   // 동시 실행 수
 async function fetchUscTargets(rows){
   uscTarget={}; uscCons={};
   if(!SRV_URL||!rows||!rows.length) return;
   const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
-  const CH=8;   // worker 서브리퀘스트 한도(요청당 50) 대비
-  for(let i=0;i<syms.length;i+=CH){
-    const part=syms.slice(i,i+CH).join(',');
+  const fails=[];
+  const one=async sym=>{
     try{
-      const r=await fetch(SRV_URL+'/?ustargets='+encodeURIComponent(part));
-      const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(!q||!q.ok) return;
-        const s=String(q.ticker||q.symbol||'').toUpperCase(); if(!s) return;
-        if(q.target!=null) uscTarget[s]=q.targetStr||String(q.target);
-        if(q.consStr||q.consScore!=null) uscCons[s]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
-      });
-    }catch(e){}
+      const r=await fetch(SRV_URL+'/?ustarget='+encodeURIComponent(sym));
+      const q=await r.json();
+      if(!q||!q.ok){ fails.push(sym+':'+((q&&q.error)||'no-response')); return; }
+      if(q.target!=null) uscTarget[sym]=q.targetStr||String(q.target);
+      if(q.consStr||q.consScore!=null) uscCons[sym]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
+      if(q.target==null && q.consScore==null) fails.push(sym+':'+(q.tried?q.tried.join('|'):'empty'));
+    }catch(e){ fails.push(sym+':'+(e.message||e)); }
+  };
+  for(let i=0;i<syms.length;i+=USC_TGT_CONC){
+    await Promise.all(syms.slice(i,i+USC_TGT_CONC).map(one));
+    renderVal();   // 받는 대로 화면에 반영
   }
+  if(fails.length) console.warn('[미국(체)] 목표가 조회 실패:', fails);
 }
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
