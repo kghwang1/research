@@ -3870,48 +3870,107 @@ async function fetchUscLive(rows){
 // 일시 차단으로 실패한 종목은 잠시 뒤 한 번 더 시도한다.
 const USC_TGT_CONC = 2;    // 동시 실행 수
 const USC_TGT_GAP  = 200;  // 묶음 사이 간격(ms)
+const SNAP_USC     = 'snap_usc';
 const uscSleep = ms => new Promise(r=>setTimeout(r,ms));
+let uscTgtState='idle';    // idle | loading | ready
+
+function uscSyms(rows){
+  return [...new Set((rows||[]).map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
+}
+
+// 한 종목 조회 → uscTarget/uscCons/uscTgtDone 채움
+async function uscFetchOne(sym, fails, retry){
+  try{
+    const r=await fetch(SRV_URL+'/?ustarget='+encodeURIComponent(sym));
+    if(!r.ok){ retry.push(sym); fails.push(sym+':HTTP '+r.status); return; }
+    const q=await r.json();
+    if(!q||!q.ok){ retry.push(sym); fails.push(sym+':'+((q&&q.error)||'no-response')); return; }
+    if(q.target!=null) uscTarget[sym]=q.targetStr||String(q.target);
+    if(q.consStr||q.consScore!=null) uscCons[sym]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
+    if(q.transient){ retry.push(sym); fails.push(sym+':일시차단 '+(q.tried?q.tried.join('/'):'')); return; }
+    uscTgtDone[sym]=true;   // 정상 응답 (값이 없으면 컨센서스 미제공 종목)
+  }catch(e){ retry.push(sym); fails.push(sym+':'+(e.message||e)); }
+}
+
+// 간격을 두고 순차 조회
+async function uscRun(list, fails, retry){
+  for(let i=0;i<list.length;i+=USC_TGT_CONC){
+    await Promise.all(list.slice(i,i+USC_TGT_CONC).map(x=>uscFetchOne(x, fails, retry)));
+    renderVal();                       // 받는 대로 화면에 반영
+    if(i+USC_TGT_CONC<list.length) await uscSleep(USC_TGT_GAP);
+  }
+}
+
+// 전체 수집 (새로고침·스냅샷 없음일 때)
 async function fetchUscTargets(rows){
   uscTarget={}; uscCons={}; uscTgtDone={};
   if(!SRV_URL||!rows||!rows.length) return;
-  const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
+  const syms=uscSyms(rows);
   const fails=[], retry=[];
-  const one=async sym=>{
-    try{
-      const r=await fetch(SRV_URL+'/?ustarget='+encodeURIComponent(sym));
-      if(!r.ok){ retry.push(sym); fails.push(sym+':HTTP '+r.status); return; }
-      const q=await r.json();
-      if(!q||!q.ok){ retry.push(sym); fails.push(sym+':'+((q&&q.error)||'no-response')); return; }
-      if(q.target!=null) uscTarget[sym]=q.targetStr||String(q.target);
-      if(q.consStr||q.consScore!=null) uscCons[sym]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
-      if(q.transient){ retry.push(sym); fails.push(sym+':일시차단 '+(q.tried?q.tried.join('/'):'')); return; }
-      uscTgtDone[sym]=true;   // 정상 응답 (값이 없으면 컨센서스 미제공 종목)
-    }catch(e){ retry.push(sym); fails.push(sym+':'+(e.message||e)); }
-  };
-  const run=async list=>{
-    for(let i=0;i<list.length;i+=USC_TGT_CONC){
-      await Promise.all(list.slice(i,i+USC_TGT_CONC).map(one));
-      renderVal();                       // 받는 대로 화면에 반영
-      if(i+USC_TGT_CONC<list.length) await uscSleep(USC_TGT_GAP);
-    }
-  };
-  await run(syms);
+  await uscRun(syms, fails, retry);
   // 일시 차단으로 빠진 종목 재시도 (한 번, 더 느리게)
   if(retry.length){
     const again=[...new Set(retry)]; retry.length=0; fails.length=0;
     await uscSleep(1200);
-    await run(again);
+    await uscRun(again, fails, retry);
   }
   if(fails.length){
     console.warn('[미국(체)] 목표가 조회 실패 '+fails.length+'건 → '+fails.join('  |  '));
     console.warn('[미국(체)] 강제 재조회: '+SRV_URL+'/?ustarget='+encodeURIComponent(syms[0]||'')+'&nocache=1');
   }
 }
+
+// 스냅샷에 없는 종목(나중에 표에 추가된 것)만 보충
+async function fillUscGaps(rows){
+  if(!SRV_URL) return false;
+  const missing=uscSyms(rows).filter(x=>!uscTgtDone[x]);
+  if(!missing.length) return false;
+  const fails=[], retry=[];
+  await uscRun(missing.slice(0,20), fails, retry);
+  return true;
+}
+
+// ── 표 열 때: 오늘자 서버 스냅샷 재사용, 없으면 수집 후 저장 ──
+async function ensureUscTargets(rows, force){
+  if(!SRV_URL) return;
+  if(uscTgtState==='loading') return;
+  if(!force && uscTgtState==='ready') return;
+  uscTgtState='loading';
+  try{
+    if(!force){
+      const snap=await snapLoad(SNAP_USC);
+      if(snap && snap.target){
+        uscTarget=snap.target||{}; uscCons=snap.cons||{}; uscTgtDone=snap.done||{};
+        uscTgtState='ready';
+        renderVal();
+        if(await fillUscGaps(rows)) await snapSaveUsc();   // 새로 담긴 종목이 있으면 갱신
+        return;
+      }
+    }
+    await fetchUscTargets(rows);
+    uscTgtState='ready';
+    renderVal();
+    await snapSaveUsc();
+  }catch(e){ uscTgtState='ready'; }
+}
+async function snapSaveUsc(){
+  return snapSave(SNAP_USC, {target:uscTarget, cons:uscCons, done:uscTgtDone});
+}
+// ↻ 새로고침: 다시 수집해 서버에 덮어쓰기
+async function refreshUscAll(btn){
+  const old=btn?btn.textContent:'';
+  if(btn){ btn.textContent='갱신 중…'; btn.disabled=true; }
+  uscTgtState='idle';
+  await fetchUscLive(VAL);
+  await ensureUscTargets(VAL, true);
+  if(btn){ btn.textContent=old||'↻ 새로고침'; btn.disabled=false; }
+  toast('최신 자료로 갱신하고 서버에 저장했습니다');
+}
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[150,60,56,84,90,100,80,96];
   const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록<br><span style=\"font-size:9px;color:#8b949e\">(컨센서스)</span>"];
-  let h='<caption class="kr-cap">'+USC_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+USC_LABEL+' <button id="uscRefresh" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e" title="목표가·컨센서스를 다시 수집해 서버에 저장">↻ 새로고침</button><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다'+(snapStamp(SNAP_USC)?' <span style="color:#6e7681;font-weight:400">· 자료 '+snapStamp(SNAP_USC)+'</span>':'')+'</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
     const sym=String(r[0]||'').trim().toUpperCase();
@@ -3952,6 +4011,7 @@ function renderUscTable(){
   h+='</tbody>';
   t.className='val-tbl'; t.innerHTML=h;
   // 미국 종목명 클릭 → 네이버 월드스톡
+  const urb=$('#uscRefresh'); if(urb) urb.onclick=()=>refreshUscAll(urb);
   t.querySelectorAll('a.uscnv').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); openNaverWorld(decodeURIComponent(a.dataset.sym||'')); }; });
   // 미국 현재가 셀 클릭 → 챠트
   t.querySelectorAll('td.uslive').forEach(td=>{ td.onclick=()=>{
@@ -4818,7 +4878,7 @@ function renderInfo(box){
     valMarket=s.dataset.m;
     renderVal();
     if(valMarket==='us'){ fetchValLive().then(renderVal); }
-    if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); fetchUscTargets(VAL).then(renderVal); }
+    if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); ensureUscTargets(VAL, false); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); fetchKrRoe(VAL); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
     if(valMarket==='watch'||valMarket==='invpf'){ fetchWatchLive(); }
