@@ -284,6 +284,7 @@ body.sidebar-open #step-pad { left: 170px; }
     <label class="ind-label" data-key="ADXR" style="--col:#e0b341"><input type="checkbox" class="cb-show"> <span class="nm">ADXR 평균방향성지표순위</span></label>
     <label class="ind-label" data-key="CCI" style="--col:#f78166"><input type="checkbox" class="cb-show"> <span class="nm">CCI 추세채널지수</span></label>
     <label class="ind-label" data-key="AROON" style="--col:#bc8cff"><input type="checkbox" class="cb-show"> <span class="nm">Aroon 아룬</span></label>
+    <label class="ind-label" data-key="ELDER" style="--col:#ef5350"><input type="checkbox" class="cb-show"> <span class="nm">Elder Ray 엘더레이 강·약세지수</span></label>
     <label class="ind-label" data-key="FORCE" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">Force 포스인덱스</span></label>
     <label class="ind-label" data-key="FRGN_NET" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">외국인 순매수</span></label>
     <label class="ind-label" data-key="INST_NET" style="--col:#ff9800"><input type="checkbox" class="cb-show"> <span class="nm">기관 순매수</span></label>
@@ -558,6 +559,16 @@ const CALC = {
     const bal = d.map(x => (sd && sd[x.date]) ? sd[x.date].bal : null);
     return { vol, bal };
   },
+  ELDER:(d)=>{
+    // 엘더레이 강세지수 (차트의 정석 p.195)
+    //   ERayBull = High - EMA(Close, 13)   고가와 지수이평의 차 → 매입세의 힘
+    //   ERayBear = Low  - EMA(Close, 13)   저가와 지수이평의 차 → 매도세의 힘
+    const len = P('ELDER', 0, 13);
+    const e = ema(d.map(x=>x.close), len);
+    const bull = d.map((x,i)=> e[i]==null ? null : x.high - e[i]);
+    const bear = d.map((x,i)=> e[i]==null ? null : x.low  - e[i]);
+    return { bull, bear, ema: e };
+  },
   RSI:(d)=>{
     const rp=P('RSI',0,14);
     const c=d.map(x=>x.close),gains=[],losses=[];
@@ -692,6 +703,7 @@ const IND_CFG = {
   FRGN_NET:{color:C.cyan,lines:[0]},
   INST_NET:{color:'#ff9800',lines:[0]},
   SHORT_SELL:{color:'#ef5350',lines:[0]},
+  ELDER:{color:'#ef5350',lines:[0]},
   RSI:{color:'#d32f2f',range:[0,100],lines:[70,50,30]},
   SMI:{color:C.yellow,range:[-100,100],lines:[40,0,-40]},
   STOCHRSI:{color:C.purple,range:[0,100],lines:[80,50,20]},
@@ -2036,6 +2048,99 @@ function drawSub(canvas, key) {
   // 주선=노랑 / 시그널선=빨강 으로 통일하는 지표들
   if (key === 'MACD' || key === 'SLOWSTOCH' || key === 'STOCH') lineColors = ['#ffd54f', '#ef5350', C.orange, C.cyan];
 
+  // ── ELDER: 강세지수(Bull)·약세지수(Bear) 막대 ──
+  if (key === 'ELDER') {
+    const bull = vals[0], bear = vals[1];
+    const bw = Math.max(1, Math.min(9, (cw / n) * 0.7));
+    const y0 = yOf(0);
+    // Bear (저가 - 이평) : 대개 0 아래, 파랑
+    ctx.fillStyle = '#1976d2cc';
+    bear.forEach((v, i) => {
+      if (v == null) return;
+      const y = yOf(v);
+      ctx.fillRect(xOf(i) - bw/2, Math.min(y, y0), bw, Math.max(1, Math.abs(y - y0)));
+    });
+    // Bull (고가 - 이평) : 대개 0 위, 빨강. 겹쳐 보이도록 살짝 좁게
+    ctx.fillStyle = '#ef5350cc';
+    bull.forEach((v, i) => {
+      if (v == null) return;
+      const y = yOf(v);
+      ctx.fillRect(xOf(i) - bw*0.32, Math.min(y, y0), bw*0.64, Math.max(1, Math.abs(y - y0)));
+    });
+
+    // ── 매매신호 (차트의 정석 p.198 매도 / p.201 매입) ──
+    //  매도 : 지수이평 하락 전환 + Bull이 (+)이면서 점차 감소
+    //  매입 : 지수이평 상승 전환 + Bear가 (-)이면서 점차 증가
+    //  보조 : Bear와 주가의 다이버전스(주가는 저점을 낮췄는데 Bear는 저점을 높임) → 더 명확한 매입
+    const emaArr = (CALC.ELDER(state.data).ema || []).slice(...state.range);
+    const px = state.data.slice(...state.range);
+
+    // Bear의 국소 저점 위치 (다이버전스 판정용)
+    const bearLows = [];
+    for (let i = 2; i < n - 2; i++) {
+      if (bear[i] == null || bear[i-1] == null || bear[i+1] == null) continue;
+      if (bear[i] < bear[i-1] && bear[i] < bear[i+1]) bearLows.push(i);
+    }
+    const isDiverge = i => {
+      // i 부근의 Bear 저점과 직전 Bear 저점을 비교
+      const cur = bearLows.filter(k => k <= i).slice(-1)[0];
+      const prev = bearLows.filter(k => k < (cur == null ? -1 : cur) - 2).slice(-1)[0];
+      if (cur == null || prev == null) return false;
+      if (!px[cur] || !px[prev]) return false;
+      return px[cur].low < px[prev].low && bear[cur] > bear[prev];   // 주가 저점↓ + Bear 저점↑
+    };
+
+    ctx.textAlign = 'center';
+    let nSell = 0, nBuy = 0;
+    for (let i = 3; i < n; i++) {
+      if (emaArr[i] == null || emaArr[i-1] == null) continue;
+      const emaUp = emaArr[i] > emaArr[i-1];
+      const emaDown = emaArr[i] < emaArr[i-1];
+
+      // 매도 ▼ (파랑, Bull 기준)
+      if (nSell < 40 && bull[i] != null && bull[i-1] != null && bull[i-2] != null) {
+        if (emaDown && bull[i] > 0 && bull[i] < bull[i-1] && bull[i-1] < bull[i-2]) {
+          const x = xOf(i), y = yOf(bull[i]);
+          ctx.fillStyle = '#1976d2';
+          ctx.beginPath();
+          ctx.moveTo(x, y-12); ctx.lineTo(x-4, y-19); ctx.lineTo(x+4, y-19); ctx.closePath(); ctx.fill();
+          nSell++;
+        }
+      }
+      // 매입 ▲ (빨강, Bear 기준). 다이버전스까지 맞으면 크게 그린다
+      if (nBuy < 40 && bear[i] != null && bear[i-1] != null && bear[i-2] != null) {
+        if (emaUp && bear[i] < 0 && bear[i] > bear[i-1] && bear[i-1] > bear[i-2]) {
+          const x = xOf(i), y = yOf(bear[i]);
+          const strong = isDiverge(i);
+          const h = strong ? 9 : 7, w2 = strong ? 5 : 4;
+          ctx.fillStyle = strong ? '#ff1744' : '#ef5350';
+          ctx.beginPath();
+          ctx.moveTo(x, y+12); ctx.lineTo(x-w2, y+12+h); ctx.lineTo(x+w2, y+12+h); ctx.closePath(); ctx.fill();
+          nBuy++;
+        }
+      }
+    }
+
+    const lb = bull.filter(v => v != null).slice(-1)[0];
+    const lr = bear.filter(v => v != null).slice(-1)[0];
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = '#ef5350';
+    ctx.fillText('Elder Ray 엘더레이(' + P('ELDER',0,13) + ')   Bull ' + (lb != null ? lb.toFixed(1) : '—'), PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = '#58a6ff';
+    ctx.fillText('Bear ' + (lr != null ? lr.toFixed(1) : '—'), PAD.l + 22, PAD.t + 23);
+    ctx.font = '9px monospace'; ctx.fillStyle = C.muted;
+    ctx.fillText('▲매입(약세지수)  ▼매도(강세지수)', PAD.l + 22, PAD.t + 34);
+    // 우측 축 최대/최소
+    ctx.fillStyle = C.muted; ctx.font = '10px monospace';
+    ctx.fillText(maxV.toFixed(1), W - PAD.r + 3, PAD.t + 9);
+    ctx.fillText(minV.toFixed(1), W - PAD.r + 3, PAD.t + ch - 1);
+    if (state.hoverIdx >= 0 && state.hoverIdx < n) {
+      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
+    }
+    return;
+  }
+
   // ── PVT: 전고점·전저점 돌파 + 주가 다이버전스 (책 매매법) ──
   if (key === 'PVT') {
     const arr = vals[0], sig = vals[1];
@@ -3074,7 +3179,7 @@ function drawSub(canvas, key) {
 
   // 레이블
   const lastName = {MACD:'MACD 이동평균수렴발산', ADX:'DMI 방향성지수', ADXR:'ADXR 평균방향성지표순위', CCI:'CCI 추세채널지수', AROON:'Aroon 아룬', FORCE:'Force 포스인덱스', FRGN_NET:'외국인순매수', INST_NET:'기관순매수', SHORT_SELL:'공매도 거래량/잔고',
-    RSI:'RSI 상대강도지수', SMI:'SMI 스토캐스틱모멘텀지수', STOCHRSI:'StochRSI 상대강도스토캐스틱', STOCH:'Stoch 스토캐스틱', SLOWSTOCH:'SlowStoch 완만한스토캐스틱',
+    ELDER:'Elder Ray 엘더레이 강·약세지수', RSI:'RSI 상대강도지수', SMI:'SMI 스토캐스틱모멘텀지수', STOCHRSI:'StochRSI 상대강도스토캐스틱', STOCH:'Stoch 스토캐스틱', SLOWSTOCH:'SlowStoch 완만한스토캐스틱',
     CMO:'CMO 샨드모멘텀오실레이터', DMI_DYN:'Dyn.MI 다이나믹모멘텀지수', MASS:'Mass 대중심리지수', DISPARITY:'Disparity 이격도', CHAIKIN_OSC:'Chaikin Osc 차이킨오실레이터',
     MOM:'MOM 모멘텀', WILLR:'%R 윌리엄스퍼센트R', ATR:'ATR 평균진정가격범위', RVI:'RVI 상대변동성지수', INERTIA:'Inertia 관성지수',
     CHAIKIN_VOL:'Chaikin Vol 차이킨변동성', VOLUME:'거래량', OBV:'OBV 누적거래량', CMF:'CMF 차이킨자금흐름', MFI:'MFI 자금수급지수', PVT:'PVT 거래량추세지수', WILLIAMS_AD:'Williams AD 윌리엄스누적확산지수'};
