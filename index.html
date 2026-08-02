@@ -1834,7 +1834,7 @@ const VAL_VIEW=[
  {h:"적정주가<br>(상승여력%)", c:8,  kind:'fairm2', bg:'fff2cc', green:true},
  {h:"PEG",      c:4,  kind:'val',  bg:'ecd6ec', green:true},
  {h:"P/E(F)",   c:3,  kind:'val',  bg:'ecd6ec'},
- {h:"목표주가", c:6,  kind:'val',  bg:'fff2cc'},
+ {h:"목표주가<br>(상승여력%)", c:6,  kind:'goalm2', bg:'fff2cc', green:true},
  {h:"52주최고가", c:-1, kind:'hi52', bg:'c6e0b4'},
 ];
 /* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
@@ -2254,7 +2254,7 @@ function renderVal(){
       html+=`<th class="syhdr-th"><div class="syhdr"><span>${col.h}</span><button type="button" class="usinv-btn${usInvest?' on':''}">투자</button></div></th>`;
       return;
     }
-    const sortable = col.kind==='fairm2';
+    const sortable = (col.kind==='fairm2' || col.kind==='goalm2');
     const arrow = sortable ? (usSortFair?' ▲':' ⇅') : '';
     html+=`<th class="${sortable?'sortable':''}">${col.h}${arrow}</th>`;
   });
@@ -2306,8 +2306,8 @@ function renderVal(){
         const v=valDiff(ri,8);  // 적정주가 대비 차이
         const diffHtml = (q && v!=null) ? ` <span class="diffp${v<0?' neg':''}">(${valPct(v)})</span>` : '';
         cell = px + diffHtml;
-      }else if(col.kind==='fairm2'){
-        const base=row[8]??'';
+      }else if(col.kind==='fairm2'||col.kind==='goalm2'){
+        const base=row[col.kind==='goalm2'?6:8]??'';
         const v=valUpside(ri, base);
         const diffHtml = v!=null ? ` <span class="diffp${v<0?' neg':''}">(${valPct(v)})</span>` : '';
         cell = base!=='' ? `${base}${diffHtml}` : '';
@@ -3848,7 +3848,7 @@ function renderCautionTable(){
 }
 
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
-let uscLive={}, uscTarget={}; // 심볼 -> {price,priceStr} / 목표가str
+let uscLive={}, uscTarget={}, uscCons={}; // 심볼 -> {price,priceStr} / 목표가str / 컨센서스
 async function fetchUscLive(rows){
   uscLive={};
   if(!SRV_URL||!rows||!rows.length) return;
@@ -3864,7 +3864,7 @@ async function fetchUscLive(rows){
   }
 }
 async function fetchUscTargets(rows){
-  uscTarget={};
+  uscTarget={}; uscCons={};
   if(!SRV_URL||!rows||!rows.length) return;
   const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
   const CH=20;
@@ -3873,14 +3873,18 @@ async function fetchUscTargets(rows){
     try{
       const r=await fetch(SRV_URL+'/?ustargets='+encodeURIComponent(part));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.target!=null){ const s=String(q.ticker||q.symbol||'').toUpperCase(); uscTarget[s]=q.targetStr||String(q.target); } });
+      ((d&&d.items)||[]).forEach(q=>{ if(!q||!q.ok) return;
+        const s=String(q.ticker||q.symbol||'').toUpperCase(); if(!s) return;
+        if(q.target!=null) uscTarget[s]=q.targetStr||String(q.target);
+        if(q.consStr||q.consScore!=null) uscCons[s]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
+      });
     }catch(e){}
   }
 }
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[150,60,56,84,90,100,80,96];
-  const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록"];
+  const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록<br><span style=\"font-size:9px;color:#8b949e\">(컨센서스)</span>"];
   let h='<caption class="kr-cap">'+USC_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span></caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   VAL.forEach((r,ri)=>{
@@ -3908,7 +3912,14 @@ function renderUscTable(){
     h+=`<td>${tgtStr}${upHtml}</td>`;
     h+=`<td>${hiStr}${hdHtml}</td>`;
     h+=`<td class="uscchg ${chgCls}">${chg}</td>`;
-    h+=`<td class="kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</td>`;
+    const cs=uscCons[sym];
+    let csHtml='';
+    if(cs && (cs.str || cs.score!=null)){
+      const txt = cs.str || ((cs.opinion||'')+' '+(cs.score!=null?cs.score.toFixed(2):'')).trim();
+      const col = (cs.score!=null && cs.score>=3.5) ? '#ef5350' : (cs.score!=null && cs.score<2.5 ? '#1976d2' : '#8b949e');
+      csHtml = `<div class="usc-cons" style="font-size:10.5px;font-weight:600;color:${col};margin-bottom:2px">${escHtml(txt)}</div>`;
+    }
+    h+=`<td class="usc-rec">${csHtml}<div class="kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</div></td>`;
     h+='</tr>';
   });
   h+='</tbody>';
@@ -3921,7 +3932,7 @@ function renderUscTable(){
     const nm = td.dataset.name;
     if(s) openChart(s, nm);
   }; });
-  t.querySelectorAll('td.kredit').forEach(td=>{
+  t.querySelectorAll('.kredit').forEach(td=>{
     td.onblur=()=>{ const r=+td.dataset.r, f=+td.dataset.f; VAL[r][f]=td.textContent.trim(); saveVal(); };
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
   });
