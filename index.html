@@ -3866,31 +3866,45 @@ async function fetchUscLive(rows){
 // 목표가·컨센서스: 종목당 1건씩 조회한다.
 //  복수(?ustargets=)로 묶으면 worker 한 번에 네이버 호출이 몰려 실패하므로,
 //  검증된 단수 경로(?ustarget=)를 소수 동시 실행으로 부른다.
-const USC_TGT_CONC = 3;   // 동시 실행 수
+// 네이버가 요청이 몰리면 409로 막으므로 2개씩·간격을 두고 부르고,
+// 일시 차단으로 실패한 종목은 잠시 뒤 한 번 더 시도한다.
+const USC_TGT_CONC = 2;    // 동시 실행 수
+const USC_TGT_GAP  = 200;  // 묶음 사이 간격(ms)
+const uscSleep = ms => new Promise(r=>setTimeout(r,ms));
 async function fetchUscTargets(rows){
   uscTarget={}; uscCons={}; uscTgtDone={};
   if(!SRV_URL||!rows||!rows.length) return;
   const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
-  const fails=[];
+  const fails=[], retry=[];
   const one=async sym=>{
     try{
       const r=await fetch(SRV_URL+'/?ustarget='+encodeURIComponent(sym));
-      if(!r.ok){ fails.push(sym+':HTTP '+r.status); return; }
+      if(!r.ok){ retry.push(sym); fails.push(sym+':HTTP '+r.status); return; }
       const q=await r.json();
-      if(!q||!q.ok){ fails.push(sym+':'+((q&&q.error)||'no-response')); return; }
-      uscTgtDone[sym]=true;   // 응답을 받았음 (값이 없으면 컨센서스 미제공 종목)
+      if(!q||!q.ok){ retry.push(sym); fails.push(sym+':'+((q&&q.error)||'no-response')); return; }
       if(q.target!=null) uscTarget[sym]=q.targetStr||String(q.target);
       if(q.consStr||q.consScore!=null) uscCons[sym]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
-    }catch(e){ fails.push(sym+':'+(e.message||e)); }
+      if(q.transient){ retry.push(sym); fails.push(sym+':일시차단 '+(q.tried?q.tried.join('/'):'')); return; }
+      uscTgtDone[sym]=true;   // 정상 응답 (값이 없으면 컨센서스 미제공 종목)
+    }catch(e){ retry.push(sym); fails.push(sym+':'+(e.message||e)); }
   };
-  for(let i=0;i<syms.length;i+=USC_TGT_CONC){
-    await Promise.all(syms.slice(i,i+USC_TGT_CONC).map(one));
-    renderVal();   // 받는 대로 화면에 반영
+  const run=async list=>{
+    for(let i=0;i<list.length;i+=USC_TGT_CONC){
+      await Promise.all(list.slice(i,i+USC_TGT_CONC).map(one));
+      renderVal();                       // 받는 대로 화면에 반영
+      if(i+USC_TGT_CONC<list.length) await uscSleep(USC_TGT_GAP);
+    }
+  };
+  await run(syms);
+  // 일시 차단으로 빠진 종목 재시도 (한 번, 더 느리게)
+  if(retry.length){
+    const again=[...new Set(retry)]; retry.length=0; fails.length=0;
+    await uscSleep(1200);
+    await run(again);
   }
   if(fails.length){
-    // 배열로 찍으면 콘솔에서 접히므로 한 줄 문자열로 남긴다
     console.warn('[미국(체)] 목표가 조회 실패 '+fails.length+'건 → '+fails.join('  |  '));
-    console.warn('[미국(체)] 호출주소 예시: '+SRV_URL+'/?ustarget='+encodeURIComponent(syms[0]||''));
+    console.warn('[미국(체)] 강제 재조회: '+SRV_URL+'/?ustarget='+encodeURIComponent(syms[0]||'')+'&nocache=1');
   }
 }
 function renderUscTable(){
