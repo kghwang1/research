@@ -1352,8 +1352,8 @@ function P(key, idx, def) {
   return def;
 }
 
-// 기본 조합 (일목·DMI·ADXR·엘더레이·RSI·외국인순매수) — 순서 중요
-const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'ELDER', 'RSI', 'FRGN_NET'];
+// 기본 조합 (일목·DMI·ADXR·RSI·OBV·외국인순매수) — 순서 중요
+const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'OBV', 'FRGN_NET'];
 function loadDefaults() {
   try {
     const saved = localStorage.getItem('kgchart_defaults');
@@ -3685,12 +3685,20 @@ function setupMouseEvent() {
     redrawAll();
     if (typeof showMsg === 'function') showMsg('기본 배율로 되돌렸습니다', 1200);
   };
-  canvas.ondblclick = (e) => { e.preventDefault(); resetZoom(); };
-  let lastTapTime = 0;
+  // 두 번 터치 → 기본 배율로. 간격이 길면 스크롤 중 실수로 눌려 화면이 튄다
+  const DBL_TAP_MS = 300;   // 0.3초
+  let lastTapTime = 0, lastTouchAt = 0;
+  canvas.ondblclick = (e) => {
+    // 모바일 브라우저가 만들어내는 dblclick 은 간격 기준이 500ms 안팎이라 우리 기준보다 헐겁다.
+    // 터치에서 온 것이면 무시하고, 아래 touchend 판정만 쓴다.
+    if (Date.now() - lastTouchAt < 900) return;
+    e.preventDefault(); resetZoom();
+  };
   canvas.addEventListener('touchend', (e) => {
     if (e.touches.length > 0) return;
     const now = Date.now();
-    if (now - lastTapTime < 300) { resetZoom(); lastTapTime = 0; }
+    lastTouchAt = now;
+    if (now - lastTapTime < DBL_TAP_MS) { resetZoom(); lastTapTime = 0; }
     else lastTapTime = now;
   });
 
