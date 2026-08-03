@@ -130,6 +130,7 @@ body {
 // 지표 설명 데이터
 // ══════════════════════════════════════
 const CAT = {
+  guide: { label: '활용법', color: '#ffd54f' },
   overlay: { label: '오버레이', color: '#f0a836' },
   trend: { label: '추세', color: '#58a6ff' },
   momentum: { label: '모멘텀', color: '#bc8cff' },
@@ -263,6 +264,19 @@ function resetParam(key) {
 }
 
 const INDICATORS = [
+  // ── 기본조합 활용법 (맨 위) ──
+  { key:'COMBO', name:'기본조합 활용법', alias:'조합 활용 국면 판단 매수 매도 시점 시장 성격', cat:'guide', opt:'일목 · DMI · ADXR · RSI · OBV · 외국인순매수',
+    desc:'기본조합 6개 지표를 어떤 순서로 읽어 국면을 가르고 매매 시점을 정하는지 정리. 핵심은 ADXR 20선으로 추세장인지 횡보장인지 먼저 가르고, 그에 따라 쓰는 지표를 바꾸는 것.',
+    signals:[
+      ['n','① ADXR 20선으로 추세 유무를 먼저 가른다'],
+      ['b','횡보장(20 아래) → RSI 30/70 으로 매매'],
+      ['s','추세장(20 위) → RSI 과매수 무시, DMI 교차로 매매'],
+      ['n','OBV·외국인이 주가와 어긋나면 신호를 낮춰 본다'],
+    ],
+    detail:'<b>■ 1. 상승·하락·횡보 판단</b><br>두 단계로 봅니다. <b>ADXR 20선으로 추세 유무</b>를 먼저 가르고, <b>방향은 일목과 DMI</b>로 봅니다.<br><br><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #30363d;color:#8b949e">ADXR</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #30363d;color:#8b949e">국면</th></tr><tr><td style="padding:4px 6px;border-bottom:1px solid #21262d"><b>20 아래</b></td><td style="padding:4px 6px;border-bottom:1px solid #21262d">횡보 — 방향 판단이 무의미</td></tr><tr><td style="padding:4px 6px;border-bottom:1px solid #21262d"><b>20 위 + 상승 중</b></td><td style="padding:4px 6px;border-bottom:1px solid #21262d">추세 진행</td></tr><tr><td style="padding:4px 6px"><b>20 위 + 하락 전환</b></td><td style="padding:4px 6px">추세 소멸 중</td></tr></table><br>추세가 있다고 나오면 방향을 봅니다. <b>+DI &gt; −DI</b> 이고 <b>주가가 구름 위</b>면 상승, 반대면 하락입니다. 둘이 엇갈리면 아직 전환 중이니 기다리는 편이 낫습니다.<br><br><b>■ 2. 매수·매도 시점</b><br>국면에 따라 <b>쓰는 지표가 완전히 달라집니다.</b> 이것이 핵심입니다.<br><br><b>· 횡보장 (ADXR 20 아래)</b><br>매수 — RSI 30 아래에서 돌아설 때<br>매도 — RSI 70 위에서 꺾일 때<br>구름 상·하단이 박스 경계 역할을 합니다.<br><br><b>· 추세장 (ADXR 20 위)</b><br><b>RSI 과매수를 무시합니다.</b> 70에 붙어 있어도 팔지 않습니다.<br>매수 — +DI가 −DI를 상향 돌파 + 주가가 구름 위<br>매도 — +DI/−DI 재역전, 또는 ADX가 고점에서 꺾일 때<br>눌림 매수는 전환선·기준선 부근에서.<br><br><b>· 공통 확인</b><br>OBV가 주가와 같은 방향인지, 외국인이 같은 편인지. 셋이 어긋나면 신호를 낮춰 봅니다.<br><br><b>■ 3. 변화를 미리 아는 법</b><br>정직하게 말하면 <b>어떤 지표도 예측하지 않습니다.</b> 다만 가격보다 먼저 움직이는 것들이 있습니다. 빠른 순서대로입니다.<br><br>1. <b>OBV 다이버전스</b> — 주가는 신고가인데 OBV가 전 고점 미달. 오르는 데 거래가 안 붙는다는 뜻으로 가장 먼저 나옵니다<br>2. <b>외국인 순매수 방향 전환</b> — 연속 매수가 끊기거나 매도로 돌아섬<br>3. <b>RSI 다이버전스</b><br>4. <b>ADX 고점 꺾임</b> — 추세 강도가 정점을 지남<br>5. <b>전환선이 기준선을 하향 돌파</b> — 여기면 이미 늦은 편<br>6. <b>구름 이탈</b> — 확인 신호이지 예측이 아님<br><br><b>1·2번이 동시에 나오면 경계 단계</b>로 봅니다. 다만 다이버전스는 몇 주씩 이어지다 무효가 되는 일도 흔합니다. <b>포지션을 줄이는 근거는 되어도 반대로 뒤집는 근거로는 약합니다.</b><br><br><b>■ 4. 현재 시장 성격 판단</b><br>네 가지를 순서대로 확인합니다.<br><br>· <b>ADXR 값</b> — 추세장인가 횡보장인가<br>· <b>ADX와 ADXR의 간격</b> — ADX가 위면 강해지는 중, 아래면 식는 중<br>· <b>구름 두께</b> — 두꺼우면 잘 안 뚫리고, 얇으면 쉽게 뚫림<br>· <b>수급 일치도</b> — OBV·외국인이 주가와 같은 방향인가<br><br><table style="width:100%;border-collapse:collapse;font-size:13px"><tr><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #30363d;color:#8b949e">성격</th><th style="text-align:left;padding:4px 6px;border-bottom:1px solid #30363d;color:#8b949e">신호</th></tr><tr><td style="padding:4px 6px;border-bottom:1px solid #21262d"><b>건강한 상승</b></td><td style="padding:4px 6px;border-bottom:1px solid #21262d">ADXR 20↑, +DI 우위, OBV 동반 상승, 외국인 순매수</td></tr><tr><td style="padding:4px 6px;border-bottom:1px solid #21262d"><b>힘 빠진 상승</b></td><td style="padding:4px 6px;border-bottom:1px solid #21262d">주가는 오르나 OBV·외국인 정체 → 다이버전스 경계</td></tr><tr><td style="padding:4px 6px;border-bottom:1px solid #21262d"><b>에너지 응축</b></td><td style="padding:4px 6px;border-bottom:1px solid #21262d">ADXR 20↓ 오래 지속, 구름 얇아짐 → 곧 방향 결정</td></tr><tr><td style="padding:4px 6px"><b>하락 마무리</b></td><td style="padding:4px 6px">ADXR 높은 채로 꺾임, RSI 30↓ 다이버전스, 외국인 매도 감소</td></tr></table>',
+    tip:'<b>■ 가장 흔한 실수</b><br>ADXR 확인 없이 RSI만 보는 것입니다. <b>추세장 초입에 RSI 70에서 팔면 상승분 전체를 놓칩니다.</b> ADXR을 먼저 보는 습관이 이 조합의 핵심입니다.<br><br><b>■ 지표별 역할 분담</b><br>· 일목균형표 — 추세 방향, 지지·저항<br>· DMI — +DI/−DI 교차로 방향<br>· ADXR — 20선으로 국면 구분 (추세장/횡보장)<br>· RSI — 70/30 절대 기준으로 시점<br>· OBV — 거래량 수급, 다이버전스<br>· 외국인 순매수 — 실제 수급 확인<br><br><b>■ 연습 방법</b><br>차트 왼쪽 아래 <b>‹ ›</b> 버튼으로 과거 구간을 하루씩 넘겨보세요. 화살표가 뜨기 <b>직전 봉</b>에서 방향을 예측하고 한 칸 넘겨 결과를 확인하는 식으로 연습하면, 설명을 읽는 것보다 훨씬 빨리 감이 잡힙니다.<br><br><b>■ 한계</b><br>이 조합은 <b>변동성 계열이 비어 있습니다.</b> 시점 판단에는 지장이 없지만, 손절폭을 종목 성격에 맞춰 정하려면 ATR 같은 지표가 필요합니다.',
+    noParam:true },
+
   // ── 오버레이 ──
   { key:'MA', name:'이동평균선 (MA)', cat:'overlay', opt:'MA5 / MA20 / MA60 / MA120 (일)',
     desc:'일정 기간 종가의 평균을 선으로 연결. 추세의 방향과 지지·저항을 파악하는 가장 기본 지표.',
