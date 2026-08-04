@@ -6733,6 +6733,7 @@ const CHART_GUIDE_HTML = `
  .cg h2{font-size:15px;color:var(--accent);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
  .cg h2:first-child{margin-top:0}
  .cg h3{font-size:13.5px;color:#ffd54f;margin:14px 0 6px}
+ .cg h4{font-size:12.5px;color:#8b949e;margin:10px 0 4px}
  .cg p,.cg li{font-size:13px;line-height:1.72;color:var(--ink)}
  .cg ul,.cg ol{margin:6px 0 6px 18px;padding:0}
  .cg li{margin-bottom:4px}
@@ -6760,31 +6761,6 @@ const CHART_GUIDE_HTML = `
 <li>OBV·외국인이 주가와 어긋나면 신호를 낮춰 본다</li>
 </ol>
 </div>
-
-<h2>RSI와 RVI — 같은 틀, 다른 재료</h2>
-<p>두 지표는 <b>계산 틀이 완전히 같습니다.</b> 상승한 날의 값과 하락한 날의 값을 와일더 방식으로 평활해 비율을 내는 구조입니다. 다른 건 <b class="y">그 틀에 무엇을 넣느냐</b>뿐입니다.</p>
-<table>
-<tr><th></th><th>넣는 재료</th><th>답하는 질문</th></tr>
-<tr><td><b class="r">RSI</b></td><td>상승폭·하락폭 (<b>가격 변화의 크기</b>)</td><td>얼마나 <b>많이</b> 올랐나 — 과열인가</td></tr>
-<tr><td><b class="b">RVI</b></td><td>9일 표준편차 (<b>변동성</b>)</td><td>오를 때 <b>흔들림</b>이 컸나 — 힘이 실렸나</td></tr>
-</table>
-<p>그래서 이 앱의 RVI는 <b>상대변동성지수(Relative Volatility Index)</b>입니다. 이름이 같은 상대활력지수(Relative Vigor Index)와는 다른 지표입니다.</p>
-
-<h3>왜 RSI와 짝지어 보나</h3>
-<p>RSI는 <b>방향의 크기</b>만 보고 변동성을 모릅니다. 같은 +3%라도 조용히 오른 것과 크게 출렁이며 오른 것을 구분하지 못합니다. RVI가 그 부분을 채웁니다.</p>
-<table>
-<tr><th>RSI</th><th>RVI</th><th>해석</th></tr>
-<tr><td>70 돌파</td><td><b class="g">60 위</b></td><td>변동성이 실린 상승 — <b>추세로 이어질 가능성</b></td></tr>
-<tr><td>70 돌파</td><td><b class="y">40~60</b></td><td>힘 없는 상승 — 되돌림 경계</td></tr>
-<tr><td>30 이탈</td><td><b class="r">40 아래</b></td><td>변동성 실린 하락 — 하락 지속</td></tr>
-<tr><td>30 이탈</td><td><b class="b">40~60</b></td><td>공포 없는 하락 — 바닥 가능성</td></tr>
-</table>
-<div class="box">
-<b>한 줄로</b><br>
-<b class="r">RSI가 "어디까지 왔나"</b>를 말하면, <b class="b">RVI는 "그게 진짜인가"</b>를 말합니다.
-RSI 신호가 나왔을 때 RVI가 같은 방향이면 신뢰도가 올라가고, 어긋나면 헛신호일 가능성이 큽니다.
-</div>
-<p><b>주의</b> — RVI도 <b>방향을 알려주지 않습니다.</b> 60 위라고 상승이 아니라 "상승한 날의 변동성이 컸다"는 뜻입니다. 방향은 반드시 DMI·일목으로 확인하세요. 또 기준선은 20~80 눈금에 40/60이라 RSI의 30/70과 다릅니다.</p>
 
 <h2>고점·저점 잡기</h2>
 <p>ADXR 최고점은 <b>지나가야 알 수 있습니다.</b> 그래서 "가장 높을 때"가 아니라 <b class="y">높은 수준에서 꺾일 때</b>로 바꿔야 실전에서 쓸 수 있습니다.</p>
@@ -6899,6 +6875,32 @@ RSI가 70을 넘은 순간이 아니라 <b class="y">다시 내려오는 순간<
 <tr><td>OBV</td><td>거래량 수급, 다이버전스</td></tr>
 <tr><td>외국인 순매수</td><td>실제 수급 확인</td></tr>
 </table>
+
+<h3>RSI와 RVI — 같은 틀, 다른 재료</h3>
+<p>두 지표는 <b>계산 틀이 완전히 같습니다.</b> 상승한 날의 값과 하락한 날의 값을 와일더 방식으로 평활해 비율을 내는 구조입니다. 다른 건 <b class="y">그 틀에 무엇을 넣느냐</b>뿐입니다.</p>
+<table>
+<tr><th></th><th>넣는 재료</th><th>답하는 질문</th></tr>
+<tr><td><b class="r">RSI</b></td><td>상승폭·하락폭 (<b>가격 변화의 크기</b>)</td><td>얼마나 <b>많이</b> 올랐나 — 과열인가</td></tr>
+<tr><td><b class="b">RVI</b></td><td>9일 표준편차 (<b>변동성</b>)</td><td>오를 때 <b>흔들림</b>이 컸나 — 힘이 실렸나</td></tr>
+</table>
+<p>그래서 이 앱의 RVI는 <b>상대변동성지수(Relative Volatility Index)</b>입니다. 이름이 같은 상대활력지수(Relative Vigor Index)와는 다른 지표입니다.</p>
+
+<h4>왜 RSI와 짝지어 보나</h4>
+<p>RSI는 <b>방향의 크기</b>만 보고 변동성을 모릅니다. 같은 +3%라도 조용히 오른 것과 크게 출렁이며 오른 것을 구분하지 못합니다. RVI가 그 부분을 채웁니다.</p>
+<table>
+<tr><th>RSI</th><th>RVI</th><th>해석</th></tr>
+<tr><td>70 돌파</td><td><b class="g">60 위</b></td><td>변동성이 실린 상승 — <b>추세로 이어질 가능성</b></td></tr>
+<tr><td>70 돌파</td><td><b class="y">40~60</b></td><td>힘 없는 상승 — 되돌림 경계</td></tr>
+<tr><td>30 이탈</td><td><b class="r">40 아래</b></td><td>변동성 실린 하락 — 하락 지속</td></tr>
+<tr><td>30 이탈</td><td><b class="b">40~60</b></td><td>공포 없는 하락 — 바닥 가능성</td></tr>
+</table>
+<div class="box">
+<b>한 줄로</b><br>
+<b class="r">RSI가 "어디까지 왔나"</b>를 말하면, <b class="b">RVI는 "그게 진짜인가"</b>를 말합니다.
+RSI 신호가 나왔을 때 RVI가 같은 방향이면 신뢰도가 올라가고, 어긋나면 헛신호일 가능성이 큽니다.
+</div>
+<p><b>주의</b> — RVI도 <b>방향을 알려주지 않습니다.</b> 60 위라고 상승이 아니라 "상승한 날의 변동성이 컸다"는 뜻입니다. 방향은 반드시 DMI·일목으로 확인하세요. 또 기준선은 20~80 눈금에 40/60이라 RSI의 30/70과 다릅니다.</p>
+
 
 <div class="box">
 <b>가장 흔한 실수</b><br>
