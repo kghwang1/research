@@ -696,7 +696,7 @@ const CALC = {
 const IND_CFG = {
   MACD:{color:C.accent,lines:[0]},
   ADX:{color:C.green,lines:[20,40]},
-  ADXR:{color:'#e0b341',lines:[20]},
+  ADXR:{color:'#e0b341',lines:[20,40]},
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink,lines:[0]},
@@ -2493,11 +2493,19 @@ function drawSub(canvas, key) {
         ctx.fillRect(PAD.l + i * colW, PAD.t, colW + 0.5, ch);
       }
     }
-    // 기준선 20 — X축 방향 가로 점선
+    // 기준선 20 — 추세장/횡보장 구분. 가로 점선
     const y20 = yOf(20);
     ctx.strokeStyle = '#e0b341aa'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(PAD.l, y20); ctx.lineTo(W - PAD.r, y20); ctx.stroke();
     ctx.setLineDash([]);
+    // 기준선 40 — 추세가 무르익은 구간. 고점·저점 판단에 쓰므로 붉은 실선
+    if (40 >= minV && 40 <= maxV) {
+      const y40 = yOf(40);
+      ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
+      ctx.fillStyle = '#ef5350'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('40', W - PAD.r + 3, y40 + 3);
+    }
     // 기준선 라벨
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = '#e0b341aa'; ctx.fillText('20', PAD.l + 3, y20 - 3);

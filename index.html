@@ -832,6 +832,7 @@
       <option value="us">미국(반)</option>
       <option value="etf">한·미 ETF</option>
       <option value="dividend">배당</option>
+      <option value="guide">📖 해석</option>
     </select>
   </div>
   <div style="display:flex;flex:1;overflow:hidden">
@@ -840,8 +841,9 @@
       <div id="chartStockItems" style="flex:1;overflow-y:auto;font-size:11px"></div>
     </div>
     <div id="chartResizer" style="width:6px;cursor:col-resize;background:var(--line);flex-shrink:0;position:relative" title="드래그하여 크기 조절"></div>
-    <div style="flex:1;overflow:hidden;min-width:0">
+    <div style="flex:1;overflow:hidden;min-width:0;position:relative">
       <iframe id="chartIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
+      <div id="chartGuide" style="display:none;position:absolute;inset:0;overflow-y:auto;background:var(--bg);padding:14px 16px 40px"></div>
     </div>
   </div>
 </div>
@@ -6626,6 +6628,8 @@ function openChartView(initPort, initCode, initName, rowsOverride){
   const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
   // 포트: 지정값 또는 기본(지수)
   chartPort = initPort || 'idx';
+  if(chartPort==='guide') chartPort='idx';        // 해석 화면을 남긴 채 종목을 열지 않도록
+  if(typeof showChartGuide==='function') showChartGuide(false);
   // 표에서 넘어온 목록이 있으면 그 종목만, 없으면(홈→차트 등) 포트 전체
   chartRowsOverride = (rowsOverride && rowsOverride.length) ? { port: chartPort, rows: rowsOverride } : null;
   const ps=$('#chartPortSel'); if(ps) ps.value=chartPort;
@@ -6721,6 +6725,188 @@ function chartPortRows(port){
   }
   return [];
 }
+// ══════════════════════════════════════
+// 차트뷰 '해석' 패널 — 지표 조합으로 시장을 읽는 방법
+// ══════════════════════════════════════
+const CHART_GUIDE_HTML = `
+<style>
+ .cg h2{font-size:15px;color:var(--accent);margin:18px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+ .cg h2:first-child{margin-top:0}
+ .cg h3{font-size:13.5px;color:#ffd54f;margin:14px 0 6px}
+ .cg p,.cg li{font-size:13px;line-height:1.72;color:var(--ink)}
+ .cg ul,.cg ol{margin:6px 0 6px 18px;padding:0}
+ .cg li{margin-bottom:4px}
+ .cg table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12.5px}
+ .cg th{text-align:left;padding:5px 7px;border-bottom:1px solid var(--line);color:#8b949e;font-weight:600}
+ .cg td{padding:5px 7px;border-bottom:1px solid #21262d;vertical-align:top}
+ .cg .box{background:var(--panel);border:1px solid var(--line);border-radius:7px;padding:10px 12px;margin:8px 0}
+ .cg .warn{border-color:#ef535066}
+ .cg b.r{color:#ef5350}.cg b.b{color:#58a6ff}.cg b.g{color:#3fb950}.cg b.y{color:#ffd54f}
+</style>
+<div class="cg">
+
+<h2>기본조합 활용법</h2>
+<p><b class="y">일목균형표 · DMI · ADXR · RSI · OBV · 외국인 순매수</b></p>
+<p>여섯 지표를 어떤 <b>순서로</b> 읽어 국면을 가르고 매매 시점을 정하는지 정리했습니다.
+핵심은 <b class="r">ADXR 20선으로 추세장인지 횡보장인지 먼저 가르고, 그에 따라 쓰는 지표를 바꾸는 것</b>입니다.</p>
+<div class="box">
+<b>읽는 순서 요약</b>
+<ol style="margin-bottom:0">
+<li><b class="y">ADXR 20선</b>으로 추세 유무를 먼저 가른다</li>
+<li><b class="b">횡보장(20 아래)</b> → RSI 30/70 으로 매매</li>
+<li><b class="r">추세장(20 위)</b> → RSI 과매수는 무시, DMI 교차로 매매</li>
+<li><b class="g">ADXR 40 위</b>에서 꺾이면 고점·저점 경계 — 아래 항목 참고</li>
+<li>OBV·외국인이 주가와 어긋나면 신호를 낮춰 본다</li>
+</ol>
+</div>
+
+<h2>고점·저점 잡기</h2>
+<p>ADXR 최고점은 <b>지나가야 알 수 있습니다.</b> 그래서 "가장 높을 때"가 아니라 <b class="y">높은 수준에서 꺾일 때</b>로 바꿔야 실전에서 쓸 수 있습니다.</p>
+
+<h3>고점 — 매도 (네 조건 모두)</h3>
+<ol>
+<li>ADXR이 <b class="r">40 이상</b> (차트의 붉은 실선 위) 또는 최근 60일 최고치의 90% 이상</li>
+<li>ADXR이 <b>2봉 연속 하락</b> — 꺾임 확인</li>
+<li>RSI가 70 위에 있다가 <b class="r">70 아래로 내려옴</b> — 시점 확정</li>
+<li>직전까지 +DI &gt; −DI (상승 추세였음)</li>
+</ol>
+
+<h3>저점 — 매수 (대칭)</h3>
+<ol>
+<li>ADXR 40 이상 또는 최근 최고 부근</li>
+<li>ADXR 2봉 연속 하락</li>
+<li>RSI가 30 아래에서 <b class="b">30 위로 올라옴</b></li>
+<li>직전까지 −DI &gt; +DI</li>
+</ol>
+
+<div class="box">
+<b>왜 이 순서인가</b><br>
+ADXR이 높다는 건 추세가 <b>강하다</b>는 뜻이지 <b>끝났다</b>는 뜻이 아닙니다. 꺾임이 확인돼야 소멸 국면입니다.
+여기에 RSI가 극단에서 <b>되돌아오는 것</b>이 시점을 찍어줍니다.
+RSI가 70을 넘은 순간이 아니라 <b class="y">다시 내려오는 순간</b>을 쓰는 게 핵심입니다 — 강한 추세에서 RSI는 70에 몇 주씩 붙어 있습니다.
+</div>
+
+<h3>신뢰도를 높이는 보조 조건</h3>
+<ul>
+<li>OBV 다이버전스가 함께 나오면 강한 신호</li>
+<li>외국인 순매수 방향이 반대로 돌아섰는가</li>
+<li>일목 전환선을 이탈했는가</li>
+</ul>
+
+<div class="box warn">
+<b class="r">한계</b>
+<ul>
+<li>꺾임 확인에 <b>1~2봉</b>이 듭니다. 정확한 꼭지·바닥은 못 잡습니다</li>
+<li>ADXR이 꺾였다가 <b>재가속</b>하면 헛신호가 납니다</li>
+<li>개별 종목보다 <b>지수에서 더 잘 듣습니다.</b> 개별 종목은 수급 이벤트로 규칙이 깨집니다</li>
+<li>그래서 한 번에 전량이 아니라 <b>분할 대응</b>이 맞습니다</li>
+</ul>
+</div>
+
+<h2>1. 상승·하락·횡보 판단</h2>
+<p>두 단계입니다. <b class="y">ADXR 20선으로 추세 유무</b>를 먼저 가르고, <b>방향은 일목과 DMI</b>로 봅니다.</p>
+<table>
+<tr><th>ADXR</th><th>국면</th></tr>
+<tr><td><b>20 아래</b></td><td>횡보 — 방향 판단이 무의미</td></tr>
+<tr><td><b>20 위 + 상승 중</b></td><td>추세 진행</td></tr>
+<tr><td><b>20 위 + 하락 전환</b></td><td>추세 소멸 중</td></tr>
+<tr><td><b class="r">40 위</b></td><td>추세가 무르익음 — 고점·저점 경계 구간</td></tr>
+</table>
+<p>추세가 있다고 나오면 방향을 봅니다. <b>+DI &gt; −DI</b> 이고 <b>주가가 구름 위</b>면 상승, 반대면 하락입니다. 둘이 엇갈리면 아직 전환 중이니 기다리는 편이 낫습니다.</p>
+
+<h2>2. 매수·매도 시점</h2>
+<p>국면에 따라 <b class="y">쓰는 지표가 완전히 달라집니다.</b> 이것이 핵심입니다.</p>
+
+<h3>횡보장 (ADXR 20 아래)</h3>
+<ul>
+<li>매수 — RSI 30 아래에서 돌아설 때</li>
+<li>매도 — RSI 70 위에서 꺾일 때</li>
+<li>구름 상·하단이 박스 경계 역할</li>
+</ul>
+
+<h3>추세장 (ADXR 20 위)</h3>
+<ul>
+<li><b class="r">RSI 과매수를 무시합니다.</b> 70에 붙어 있어도 팔지 않습니다</li>
+<li>매수 — +DI가 −DI를 상향 돌파 + 주가가 구름 위</li>
+<li>매도 — +DI/−DI 재역전, 또는 ADX가 고점에서 꺾일 때</li>
+<li>눌림 매수는 전환선·기준선 부근에서</li>
+</ul>
+<p><b>공통 확인</b> — OBV가 주가와 같은 방향인지, 외국인이 같은 편인지. 셋이 어긋나면 신호를 낮춰 봅니다.</p>
+
+<h2>3. 변화를 미리 아는 법</h2>
+<p>정직하게 말하면 <b class="r">어떤 지표도 예측하지 않습니다.</b> 다만 가격보다 먼저 움직이는 것들이 있습니다. 빠른 순서대로입니다.</p>
+<ol>
+<li><b>OBV 다이버전스</b> — 주가는 신고가인데 OBV가 전 고점 미달. 오르는 데 거래가 안 붙는다는 뜻으로 가장 먼저 나옵니다</li>
+<li><b>외국인 순매수 방향 전환</b> — 연속 매수가 끊기거나 매도로 돌아섬</li>
+<li><b>RSI 다이버전스</b></li>
+<li><b>ADX 고점 꺾임</b> — 추세 강도가 정점을 지남</li>
+<li><b>전환선이 기준선을 하향 돌파</b> — 여기면 이미 늦은 편</li>
+<li><b>구름 이탈</b> — 확인 신호이지 예측이 아님</li>
+</ol>
+<p><b class="y">1·2번이 동시에 나오면 경계 단계</b>로 봅니다. 다만 다이버전스는 몇 주씩 이어지다 무효가 되는 일도 흔합니다. 포지션을 줄이는 근거는 되어도 <b>반대로 뒤집는 근거로는 약합니다.</b></p>
+
+<h2>4. 현재 시장 성격 판단</h2>
+<p>네 가지를 순서대로 확인합니다.</p>
+<ul>
+<li><b>ADXR 값</b> — 추세장인가 횡보장인가</li>
+<li><b>ADX와 ADXR의 간격</b> — ADX가 위면 강해지는 중, 아래면 식는 중</li>
+<li><b>구름 두께</b> — 두꺼우면 잘 안 뚫리고, 얇으면 쉽게 뚫림</li>
+<li><b>수급 일치도</b> — OBV·외국인이 주가와 같은 방향인가</li>
+</ul>
+<table>
+<tr><th>성격</th><th>신호</th></tr>
+<tr><td><b class="g">건강한 상승</b></td><td>ADXR 20↑, +DI 우위, OBV 동반 상승, 외국인 순매수</td></tr>
+<tr><td><b class="y">힘 빠진 상승</b></td><td>주가는 오르나 OBV·외국인 정체 → 다이버전스 경계</td></tr>
+<tr><td><b class="b">에너지 응축</b></td><td>ADXR 20↓ 오래 지속, 구름 얇아짐 → 곧 방향 결정</td></tr>
+<tr><td><b class="r">하락 마무리</b></td><td>ADXR 높은 채로 꺾임, RSI 30↓ 다이버전스, 외국인 매도 감소</td></tr>
+</table>
+
+<h2>지표별 역할 분담</h2>
+<table>
+<tr><th>지표</th><th>역할</th></tr>
+<tr><td>일목균형표</td><td>추세 방향, 지지·저항</td></tr>
+<tr><td>DMI</td><td>+DI/−DI 교차로 방향</td></tr>
+<tr><td>ADXR</td><td>20선으로 국면 구분, 40선으로 고점·저점 경계</td></tr>
+<tr><td>RSI</td><td>70/30 절대 기준으로 시점</td></tr>
+<tr><td>OBV</td><td>거래량 수급, 다이버전스</td></tr>
+<tr><td>외국인 순매수</td><td>실제 수급 확인</td></tr>
+</table>
+
+<div class="box">
+<b>가장 흔한 실수</b><br>
+ADXR 확인 없이 RSI만 보는 것입니다. <b class="r">추세장 초입에 RSI 70에서 팔면 상승분 전체를 놓칩니다.</b> ADXR을 먼저 보는 습관이 이 조합의 핵심입니다.
+</div>
+
+<div class="box warn">
+<b class="r">이 조합의 빈 자리</b><br>
+<b>변동성 계열이 비어 있습니다.</b> 시점 판단에는 지장이 없지만, 손절폭을 종목 성격에 맞춰 정하려면 ATR 같은 지표가 필요합니다.
+ATR의 1.5~2배를 손절 거리로 잡으면 종목마다 다른 변동성에 자동으로 맞춰집니다.
+</div>
+
+<div class="box">
+<b>연습 방법</b><br>
+차트 왼쪽 아래 <b>‹ ›</b> 버튼으로 과거 구간을 하루씩 넘겨보세요. 화살표가 뜨기 <b>직전 봉</b>에서 방향을 예측하고 한 칸 넘겨 결과를 확인하는 식으로 연습하면, 설명을 읽는 것보다 훨씬 빨리 감이 잡힙니다.
+</div>
+
+<p style="font-size:11px;color:#6e7681;margin-top:16px">※ 이 해설은 지표 조합을 읽는 방법을 정리한 것으로, 특정 종목의 매매를 권하지 않습니다. 투자 판단과 책임은 본인에게 있습니다.</p>
+</div>`;
+
+function showChartGuide(on){
+  const g=$('#chartGuide'), f=$('#chartIframe'), sb=$('#chartSidebar'), rz=$('#chartResizer');
+  if(!g) return;
+  if(on){
+    if(!g.dataset.filled){ g.innerHTML=CHART_GUIDE_HTML; g.dataset.filled='1'; }
+    g.style.display=''; if(f) f.style.visibility='hidden';
+    if(sb) sb.style.display='none';        // 해석은 전체 폭으로
+    if(rz) rz.style.display='none';
+    g.scrollTop=0;
+  }else{
+    g.style.display='none'; if(f) f.style.visibility='';
+    if(sb) sb.style.display='flex';
+    if(rz) rz.style.display='';
+  }
+}
+
 function buildChartStockList(filter){
   const box=$('#chartStockItems'); if(!box) return;
   const f=(filter||'').toLowerCase();
@@ -6847,12 +7033,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     st.style.background=sb.style.display==='none'?'var(--panel)':'var(--accent)';
     st.style.color=sb.style.display==='none'?'var(--ink)':'#0c0e14';
   };
-  // 포트폴리오 드롭다운 → 좌측 종목 목록 갱신
+  // 포트폴리오 드롭다운 → 좌측 종목 목록 갱신 ('해석'이면 우측에 해설 표시)
   const ps=$('#chartPortSel'); if(ps){
     ps.onchange=()=>{
       chartPort=ps.value;
       chartRowsOverride=null;   // 사용자가 포트를 바꾸면 전체 목록으로
-
+      if(chartPort==='guide'){ showChartGuide(true); return; }
+      showChartGuide(false);
       const si2=$('#chartStockSearch'); if(si2) si2.value='';
       buildChartStockList();
       setTimeout(()=>{ const first=$('#chartStockItems .cs-item'); if(first) first.click(); }, 60);
