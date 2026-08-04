@@ -886,11 +886,14 @@ async function fetchReal(stock) {
   const isKrStock = /^\d{6}$/.test(code); // 순수 한국 주식 (지수 제외)
   const range = toYahooRange(state.period, state.interval);
 
-  // ── 한국 종목 일/주/월봉: 네이버 차트 우선 (KRX 공식 데이터, HTS와 일치) ──
+  // ── 한국 종목·지수 일/주/월봉: 네이버 차트 우선 (KRX 공식 데이터, HTS와 일치) ──
+  //   야후의 ^KS11/^KQ11 은 최근 거래일이 빠지는 일이 잦아 지수도 네이버로 받는다
+  const NAVER_IDX = { 'KOSPI':'KOSPI', 'KOSDAQ':'KOSDAQ', '^KS11':'KOSPI', '^KQ11':'KOSDAQ', '^KS200':'KPI200' };
   const naverTF = {'1d':'day','1wk':'week','1mo':'month'}[state.interval];
-  if (isKrStock && naverTF) {
+  const naverCode = isKrStock ? code : NAVER_IDX[String(code).toUpperCase()];
+  if (naverCode && naverTF) {
     try {
-      const nUrl = `${WORKER}/?naverChart=${code}&timeframe=${naverTF}&days=1000&_t=${Date.now()}`;
+      const nUrl = `${WORKER}/?naverChart=${naverCode}&timeframe=${naverTF}&days=1000&_t=${Date.now()}`;
       const nRes = await fetch(nUrl, { cache: 'no-store' });
       const nJson = await nRes.json();
       if (nJson.ok && nJson.data && nJson.data.length >= 5) {
