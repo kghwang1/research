@@ -1355,8 +1355,8 @@ function P(key, idx, def) {
   return def;
 }
 
-// 기본 조합 (일목·DMI·ADXR·RSI·OBV·외국인순매수) — 순서 중요
-const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'OBV', 'FRGN_NET'];
+// 기본 조합 (일목·DMI·ADXR·RSI·RVI·OBV·외국인순매수) — 순서 중요
+const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'RVI', 'OBV', 'FRGN_NET'];
 function loadDefaults() {
   try {
     const saved = localStorage.getItem('kgchart_defaults');
