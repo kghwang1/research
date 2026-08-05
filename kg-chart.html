@@ -167,9 +167,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 #candle-canvas { width: 100%; height: 100%; display: block; cursor: crosshair; }
 
 /* 한 봉씩 넘기기 버튼 — 화면 우측 하단 고정. 화살표 방향으로 캔들이 움직인다 */
-#step-pad { position: fixed; left: 14px; bottom: 18px; z-index: 60; display: flex; gap: 8px; }
-/* 종목 목록(사이드바)이 열려 있으면 가려지지 않게 오른쪽으로 비켜난다 */
-body.sidebar-open #step-pad { left: 170px; }
+#step-pad { position: fixed; right: 14px; bottom: 18px; z-index: 60; display: flex; gap: 8px; }
 #step-pad button {
   width: 52px; height: 52px; border-radius: 50%;
   background: rgba(33,38,45,.92); border: 1px solid #58a6ff; color: #58a6ff;
@@ -179,9 +177,7 @@ body.sidebar-open #step-pad { left: 170px; }
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
   padding: 0 4px 4px 0;
 }
-#step-pad button.rev { border-color: #6e7681; color: #8b949e; padding: 0 0 4px 4px; }
 #step-pad button:active { background: #58a6ff; color: #0d1117; }
-#step-pad button.rev:active { background: #8b949e; color: #0d1117; }
 #step-pad button:disabled { opacity: .3; border-color: #30363d; color: #6e7681; background: rgba(33,38,45,.6); }
 
 /* 보조지표 패널 - 각각 고정 높이 */
@@ -327,9 +323,8 @@ body.sidebar-open #step-pad { left: 170px; }
       <canvas id="candle-canvas"></canvas>
     </div>
   </div>
-  <!-- 한 봉씩 넘기기 (방향예측 연습용) — 화살표 방향으로 캔들이 움직임 -->
+  <!-- 한 봉씩 앞으로 넘기기 (방향예측 연습용) -->
   <div id="step-pad">
-    <button id="step-fwd" class="rev" title="캔들 1개 뒤로 (누르고 있으면 연속)">›</button>
     <button id="step-back" title="캔들 1개 앞으로 (누르고 있으면 연속)">‹</button>
   </div>
 </div>
@@ -3283,8 +3278,8 @@ function updateIframeStockName() {
 }
 function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 // ══════════════════════════════════════
-// 캔들 1개씩 넘기기 버튼 (‹ 앞으로 / › 뒤로)
-//  화살표 방향으로 캔들이 움직인다. chartStep 은 renderAll 안에서 채워진다
+// 캔들 1개씩 앞으로 넘기기 버튼 (‹)
+//  chartStep 은 renderAll 안에서 채워진다
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 let chartStep = null;
@@ -3293,12 +3288,11 @@ const STEP_HOLD_GAP   = 300;   // 연속 진행 간격(ms)
 
 function syncStepBtn(){
   const bk = document.getElementById('step-back');
-  const fw = document.getElementById('step-fwd');
+  if (!bk) return;
   const d = state.data;
-  if (!d || !d.length) { if (bk) bk.disabled = true; if (fw) fw.disabled = true; return; }
+  if (!d || !d.length) { bk.disabled = true; return; }
   const fpad = state.overlays.ICHIMOKU ? 26 : 1;
-  if (bk) bk.disabled = (state.range[1] >= d.length + fpad);   // 더 앞으로 갈 곳 없음
-  if (fw) fw.disabled = (state.range[0] <= 0);                 // 더 뒤로 갈 곳 없음
+  bk.disabled = (state.range[1] >= d.length + fpad);   // 더 앞으로 갈 곳 없음
 }
 
 function bindStepBtn(){
@@ -3326,8 +3320,7 @@ function bindStepBtn(){
     b.addEventListener('pointerdown', start);
     ['pointerup','pointerleave','pointercancel'].forEach(t => b.addEventListener(t, stop));
   };
-  setup('step-back',  1, '마지막 봉입니다');
-  setup('step-fwd',  -1, '첫 봉입니다');
+  setup('step-back', 1, '마지막 봉입니다');
 }
 
 // ══════════════════════════════════════
