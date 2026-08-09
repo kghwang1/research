@@ -3116,6 +3116,7 @@ async function ensureWatchData(force){
       if(s){
         watchLive=s.live||{}; watchRate=s.rate||{}; watchTarget=s.target||{}; watchHigh52=s.high52||{};
         watchRoe=s.roe||{}; watchUsCons=s.usCons||{}; watchUsNews=s.usNews||{};
+        Object.keys(watchUsCons).forEach(k=>consPut(k, watchUsCons[k]));    // 표가 보는 공용 저장소에 반영
         loadFrgnCache(); loadShortCache(); loadReportCache();
         if(s.frgn) Object.assign(FRGN, s.frgn);
         if(s.short) Object.assign(SHORT, s.short);
@@ -4036,8 +4037,11 @@ async function ensureUscTargets(rows, force){
   try{
     if(!force){
       const snap=await snapLoad(SNAP_USC);
-      if(snap && snap.target){
+      // 컨센서스가 없던 시절의 스냅샷이면 다시 수집한다 (사용자가 ↻ 를 누르지 않아도 되도록)
+      const stale = snap && snap.target && Object.keys(snap.target).length && !Object.keys(snap.cons||{}).length;
+      if(snap && snap.target && !stale){
         uscTarget=snap.target||{}; uscCons=snap.cons||{}; uscTgtDone=snap.done||{};
+        Object.keys(uscCons).forEach(sy=>consPut('US:'+sy, uscCons[sy]));   // 표가 보는 공용 저장소에 반영
         uscTgtState='ready';
         renderVal();
         if(await fillUscGaps(rows)) await snapSaveUsc();   // 새로 담긴 종목이 있으면 갱신
