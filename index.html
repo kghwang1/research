@@ -1836,8 +1836,9 @@ const VAL_VIEW=[
  {h:"적정주가<br>(상승여력%)", c:8,  kind:'fairm2', bg:'fff2cc', green:true},
  {h:"PEG",      c:4,  kind:'val',  bg:'ecd6ec', green:true},
  {h:"P/E(F)",   c:3,  kind:'val',  bg:'ecd6ec'},
- {h:"목표주가<br>(상승여력%)", c:6,  kind:'goalm2', bg:'fff2cc', green:true},
  {h:"52주최고가", c:-1, kind:'hi52', bg:'c6e0b4'},
+ {h:"목표주가<br>(상승여력%)", c:6,  kind:'goalm2', bg:'fff2cc', green:true},
+ {h:"컨센서스", c:-1, kind:'cons', bg:'fff'},
 ];
 /* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
 const KR_CODE={'삼성전자':'005930','SK하이닉스':'000660','현대차':'005380','네이버':'035420'};
@@ -2312,6 +2313,9 @@ function renderVal(){
         const v=valDiff(ri,8);  // 적정주가 대비 차이
         const diffHtml = (q && v!=null) ? ` <span class="diffp${v<0?' neg':''}">(${valPct(v)})</span>` : '';
         cell = px + diffHtml;
+      }else if(col.kind==='cons'){
+        const sy=String(valQuoteSym(row[1]??'')||'').trim().toUpperCase();
+        cell = consCell(sy?('US:'+sy):'');
       }else if(col.kind==='fairm2'||col.kind==='goalm2'){
         const base=row[col.kind==='goalm2'?6:8]??'';
         const v=valUpside(ri, base);
@@ -2764,6 +2768,7 @@ async function fetchKrTargets(rows){
         if(!q||!q.ok) return;
         const c=String(q.symbol||'').replace('STK:','');
         if(q.target!=null) krTarget[c]=q.targetStr||String(q.target);
+        if(q.consStr||q.consScore!=null) consPut(c,{str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore});
         if(q.high52!=null) krHigh52[c]=q.high52Str||String(q.high52);
       });
     }catch(e){}
@@ -2833,9 +2838,9 @@ function bindPfTopBar(rerender){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[76,60,28,46,76,92,90,90,90,82,100,200,110];
+  const W=[76,60,28,46,76,92,90,90,90,82,100,84,200,110];
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["종목","분류","점수","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+  const H=["종목","분류","점수","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   let h='<caption class="kr-cap">'+KR_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span>'+pfTopBarHtml()+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
@@ -2895,6 +2900,7 @@ function renderKrTable(){
     h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
+    h+=`<td>${consCell(code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+=`<td class="mp-r">${scoreFormulaCell(code)}</td>`;
     h+='</tr>';
@@ -3028,6 +3034,20 @@ function setWatchPort(p){
 let watchLive={}, watchRate={}, watchTarget={}, watchHigh52={}, watchRoe={};
 let watchUsNews={};  // US:티커 → {title, link, date}
 let watchUsCons={};  // US:티커 → {str, opinion, score, count} — 네이버 컨센서스
+// ══════ 컨센서스 공용 저장소 (국내 6자리 코드 / 해외 'US:티커') ══════
+let CONS={};
+function consPut(key, o){
+  if(!key || !o) return;
+  if(o.str || o.score!=null) CONS[String(key).toUpperCase()]={str:o.str||'', opinion:o.opinion||'', score:o.score};
+}
+// 컨센서스 셀 — 매수 계열 붉은색, 매도 계열 녹색
+function consCell(key){
+  const c=CONS[String(key||'').toUpperCase()];
+  if(!c || (!c.str && c.score==null)) return '<span class="rsub">—</span>';
+  const txt=c.str || ((c.opinion||'')+' '+(c.score!=null?c.score.toFixed(2):'')).trim();
+  const col=(c.score!=null && c.score>=3.5)?'#ef5350':(c.score!=null && c.score<2.5?'#2e9e4f':'#8b949e');
+  return `<span style="color:${col};font-weight:600">${escHtml(txt)}</span>`;
+}
 let watchSortFrgn=false, watchRoeMin=0;
 
 function loadWatchRows(){
@@ -3199,6 +3219,7 @@ async function refreshOneStock(rawCode){
         const q2=((d2&&d2.items)||[])[0];
         if(q2&&q2.ok){
           if(q2.target!=null) watchTarget[c]=q2.targetStr||String(q2.target);
+          if(q2.consStr||q2.consScore!=null) consPut(c,{str:q2.consStr||'',opinion:q2.consOpinion||'',score:q2.consScore});
           if(q2.high52!=null) watchHigh52[c]=q2.high52Str||String(q2.high52);
         }
       }catch(e){}
@@ -3241,7 +3262,7 @@ async function fetchWatchLive(fresh){
     try{
       const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(',')));
       const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol||'').replace('STK:',''); if(q.target!=null) watchTarget[c]=q.targetStr||String(q.target); if(q.high52!=null) watchHigh52[c]=q.high52Str||String(q.high52); } });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol||'').replace('STK:',''); if(q.target!=null) watchTarget[c]=q.targetStr||String(q.target); if(q.high52!=null) watchHigh52[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null) consPut(c,{str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}); } });
     }catch(e){}
   }
   // ROE 조회 (코스피200 포트와 동일 소스: ?roes=)
@@ -3449,11 +3470,11 @@ function renderWatchTable(){
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
-  const W = [96,60,90,92,90,90,90,100,100,200];
+  const W = [96,60,90,92,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
   // 관심·투자 공통: 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서 (점수·합산식 없음)
-  const H = ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)"];
+  const H = ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
   const isSel = (watchPort==='invpf');
@@ -3596,6 +3617,7 @@ function renderWatchTable(){
     h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
+    h+=`<td>${consCell(code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
@@ -3828,9 +3850,9 @@ function renderCautionTable(){
     rows.sort((a,b)=> frgnSellStreak(b.code) - frgnSellStreak(a.code));
   }
 
-  const W=[30,90,90,92,82,90,90,100,100,200];
+  const W=[30,90,90,92,82,90,90,100,100,84,200];
   const hp=Object.values(cautionRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["순서","종목","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+  const H=["순서","종목","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
 
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   let h='<caption class="kr-cap" style="border-left:3px solid #ef5350">⚠️ 주의 — 외국인 연속 순매도 종목 <span style="display:block;font-size:10.5px;color:#ef5350;font-weight:600;margin-top:2px">'+rows.length+'종목 · 최근 2일 이상 연속 외국인 순매도 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
@@ -3879,6 +3901,7 @@ function renderCautionTable(){
     h+='<td class="shortc">'+shortSvgCell(code)+'</td>';
     h+='<td class="mp-r">'+hiStr+hdHtml+'</td>';
     h+='<td class="mp-r">'+tgtStr+upHtml+'</td>';
+    h+='<td>'+consCell(code)+'</td>';
     h+='<td class="mp-l rpt">'+repCell+'</td>';
     h+='<td class="mp-r">'+scoreFormulaCell(code)+'</td>';
     h+='</tr>';
@@ -3917,6 +3940,31 @@ async function fetchUscLive(rows){
 //  검증된 단수 경로(?ustarget=)를 소수 동시 실행으로 부른다.
 // 네이버가 요청이 몰리면 409로 막으므로 2개씩·간격을 두고 부르고,
 // 일시 차단으로 실패한 종목은 잠시 뒤 한 번 더 시도한다.
+// 미국(반) 컨센서스 — 표에 있는 심볼만 순차 조회 (이미 받은 것은 건너뜀)
+let valConsState='idle';
+async function fetchValCons(force){
+  if(!SRV_URL) return;
+  if(valConsState==='loading') return;
+  valConsState='loading';
+  try{
+    const syms=[...new Set((VAL||[]).map(r=>String(valQuoteSym(r[1]??'')||'').trim().toUpperCase()).filter(Boolean))]
+                .filter(sy=>force || !CONS['US:'+sy]);
+    for(let i=0;i<syms.length;i+=2){
+      await Promise.all(syms.slice(i,i+2).map(async sy=>{
+        try{
+          const r=await fetch(SRV_URL+'/?ustarget='+encodeURIComponent(sy));
+          const q=await r.json();
+          if(q&&q.ok&&(q.consStr||q.consScore!=null))
+            consPut('US:'+sy,{str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore});
+        }catch(e){}
+      }));
+      if(valMarket==='us') renderVal();
+      if(i+2<syms.length) await new Promise(r=>setTimeout(r,200));
+    }
+  }catch(e){}
+  valConsState='ready';
+}
+
 const USC_TGT_CONC = 2;    // 동시 실행 수
 const USC_TGT_GAP  = 200;  // 묶음 사이 간격(ms)
 const SNAP_USC     = 'snap_usc';
@@ -3935,7 +3983,7 @@ async function uscFetchOne(sym, fails, retry){
     const q=await r.json();
     if(!q||!q.ok){ retry.push(sym); fails.push(sym+':'+((q&&q.error)||'no-response')); return; }
     if(q.target!=null) uscTarget[sym]=q.targetStr||String(q.target);
-    if(q.consStr||q.consScore!=null) uscCons[sym]={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore};
+    if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore}; uscCons[sym]=o; consPut('US:'+sym, o); }
     if(q.transient){ retry.push(sym); fails.push(sym+':일시차단 '+(q.tried?q.tried.join('/'):'')); return; }
     uscTgtDone[sym]=true;   // 정상 응답 (값이 없으면 컨센서스 미제공 종목)
   }catch(e){ retry.push(sym); fails.push(sym+':'+(e.message||e)); }
@@ -4017,8 +4065,8 @@ async function refreshUscAll(btn){
 }
 function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
-  const W=[150,60,56,84,90,100,80,96];
-  const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","목표가<br>(상승여력%)","52주최고가","변동사항","기록<br><span style=\"font-size:9px;color:#8b949e\">(컨센서스)</span>"];
+  const W=[150,60,56,84,90,100,84,80,96];
+  const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","52주최고가","목표가<br>(상승여력%)","컨센서스","변동사항","기록"];
   let h='<caption class="kr-cap">'+USC_LABEL+' <button id="uscRefresh" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e" title="목표가·컨센서스를 다시 수집해 서버에 저장">↻ 새로고침</button><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다'+(snapStamp(SNAP_USC)?' <span style="color:#6e7681;font-weight:400">· 자료 '+snapStamp(SNAP_USC)+'</span>':'')+'</span>'+pfTopBarHtml()+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   // 관심·투자 체크 시 해당 종목을 위로 (US 심볼은 'US:티커' 로 대조)
@@ -4048,17 +4096,11 @@ function renderUscTable(){
     h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
     const uscLiveStyle = sym && liveQ ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="uslive" data-sym="${sym}" data-name="${r[1]||sym}"${uscLiveStyle}>${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`;
-    h+=`<td>${tgtStr}${upHtml}</td>`;
     h+=`<td>${hiStr}${hdHtml}</td>`;
+    h+=`<td>${tgtStr}${upHtml}</td>`;
+    h+=`<td>${consCell(sym?('US:'+sym):'')}</td>`;
     h+=`<td class="uscchg ${chgCls}">${chg}</td>`;
-    const cs=uscCons[sym];
-    let csHtml='';
-    if(cs && (cs.str || cs.score!=null)){
-      const txt = cs.str || ((cs.opinion||'')+' '+(cs.score!=null?cs.score.toFixed(2):'')).trim();
-      const col = (cs.score!=null && cs.score>=3.5) ? '#ef5350' : (cs.score!=null && cs.score<2.5 ? '#1976d2' : '#8b949e');
-      csHtml = `<div class="usc-cons" style="font-size:10.5px;font-weight:600;color:${col};margin-bottom:2px">${escHtml(txt)}</div>`;
-    }
-    h+=`<td class="usc-rec">${csHtml}<div class="kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</div></td>`;
+    h+=`<td class="usc-rec"><div class="kredit" contenteditable data-r="${ri}" data-f="4">${r[4]==null?'':r[4]}</div></td>`;
     h+='</tr>';
   });
   h+='</tbody>';
@@ -4931,7 +4973,7 @@ function renderInfo(box){
     $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x===s));
     valMarket=s.dataset.m;
     renderVal();
-    if(valMarket==='us'){ fetchValLive().then(renderVal); }
+    if(valMarket==='us'){ fetchValLive().then(renderVal); fetchValCons(); }
     if(valMarket==='usc'){ fetchUscLive(VAL).then(renderVal); ensureUscTargets(VAL, false); }
     if(valMarket==='kr'){ fetchKrLive(VAL).then(renderVal); fetchKrTargets(VAL).then(renderVal); fetchKrRoe(VAL); }
     if(valMarket==='kr'){ ensureServer(valMarket); }
@@ -6310,9 +6352,9 @@ function renderInvestKq(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_KQ_ROWS = rows.slice(0,30);
-  const W=[96,60,28,92,90,90,82,90,100,100,210,110];
+  const W=[96,60,28,92,90,90,82,90,100,100,84,210,110];
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["종목","분류","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+  const H=["종목","분류","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar"><button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">${INVEST_KQ_ROWS.length}종목 (코스닥100)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다 · ROE/외국인 헤더 클릭 시 정렬</span>${pfTopBarHtml()}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -6350,6 +6392,7 @@ function renderInvestKq(){
     h+=`<td class="shortc">${shortSvgCell(r.code)}</td>`;
     h+=`<td class="mp-r">${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
+    h+=`<td>${consCell(r.code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+=`<td class="mp-r">${scoreFormulaCell(r.code)}</td>`;
     h+='</tr>';
@@ -6384,9 +6427,9 @@ function renderInvest(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_ROWS=rows.slice(0,30);
-  const W=[96,60,28,92,90,90,82,90,100,100,210,110];
+  const W=[96,60,28,92,90,90,82,90,100,100,84,210,110];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["종목","분류","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
+  const H=["종목","분류","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar"><button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목 (코스피200)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다 · ROE/외국인 헤더 클릭 시 정렬</span>${pfTopBarHtml()}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -6424,6 +6467,7 @@ function renderInvest(){
     h+=`<td class="shortc">${shortSvgCell(r.code)}</td>`;
     h+=`<td class="mp-r">${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
+    h+=`<td>${consCell(r.code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+=`<td class="mp-r">${scoreFormulaCell(r.code)}</td>`;
     h+='</tr>';
