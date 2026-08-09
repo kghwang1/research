@@ -3041,6 +3041,10 @@ function consPut(key, o){
   if(o.str || o.score!=null) CONS[String(key).toUpperCase()]={str:o.str||'', opinion:o.opinion||'', score:o.score};
 }
 // 컨센서스 셀 — 매수 계열 붉은색, 매도 계열 녹색
+// 풀 자료(캐시 포함)에 담긴 컨센서스를 공용 저장소로 옮긴다
+function consFromRows(rows){
+  (rows||[]).forEach(r=>{ if(r && r.code && r.cons) consPut(r.code, r.cons); });
+}
 function consCell(key){
   const c=CONS[String(key||'').toUpperCase()];
   if(!c || (!c.str && c.score==null)) return '<span class="rsub">—</span>';
@@ -5839,7 +5843,10 @@ function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; tr
 function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), map:REPORT})); }catch(e){} }
 function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.removeItem('inv_reports'); }catch(e){} renderInvest(); }
 function saveInvestCache(){ try{ localStorage.setItem('inv_pool', JSON.stringify({date:invToday(), rows:INVEST_POOL})); }catch(e){} }
-function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_POOL=o.rows; return true; } } }catch(e){} return false; }
+function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){
+  // 컨센서스가 없던 시절의 캐시면 버리고 다시 받는다
+  if(!o.rows.some(r=>r&&r.cons)) return false;
+  INVEST_POOL=o.rows; consFromRows(INVEST_POOL); return true; } } }catch(e){} return false; }
 function refreshInvest(){ try{ localStorage.removeItem('inv_pool'); localStorage.removeItem('inv_reports'); localStorage.removeItem('inv_frgn'); }catch(e){} REPORT={}; reportCacheInit=true; FRGN={}; frgnCacheInit=true; INVEST_POOL=[]; investLoaded=false; loadInvest(); }
 // ═══ 점수 규칙 (수정 가능, 서버 저장/불러오기) ═══
 var SCORE_RULES = {
@@ -6220,20 +6227,20 @@ async function loadInvest(){
   try{ const r=await fetch(SRV_URL+'/?kospi=200'); const d=await r.json(); if(d&&d.items&&d.items.length) uni=d.items.map(x=>({code:String(x.code),name:x.name||''})); }catch(e){}
   if(!uni.length) uni=KOSPI_FALLBACK.map(c=>({code:c,name:''}));
   const codes=[...new Set(uni.map(u=>u.code))];
-  const price={},rate={},tgt={},hi={},nm={};
+  const price={},rate={},tgt={},hi={},cons={},nm={};
   uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
   const CH=40;
   for(let i=0;i<codes.length;i+=CH){
     const part=codes.slice(i,i+CH);
     try{ const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } }); }catch(e){}
-    try{ const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null) consPut(c,{str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}); } }); }catch(e){}
+    try{ const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}; cons[c]=o; consPut(c,o); } } }); }catch(e){}
     if(msg) msg.textContent='시세 조회 중… '+Math.min(i+CH,codes.length)+'/'+codes.length;
   }
   const all=codes.map(c=>{
     const p=parseFloat(String(price[c]||'').replace(/[^0-9.\-]/g,''));
     const h=parseFloat(String(hi[c]||'').replace(/[^0-9.\-]/g,''));
     const drop=(isFinite(p)&&isFinite(h)&&h>0)?((p-h)/h*100):null;
-    return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],drop};
+    return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],cons:cons[c],drop};
   }).filter(x=>x.drop!=null);
   all.sort((a,b)=>a.drop-b.drop);
   const pool=all.slice(0,100);
@@ -6273,7 +6280,10 @@ function refreshInvestKqPricesLive(){
 }
 
 function loadInvestKqCache(){
-  try{ const raw=localStorage.getItem('inv_kq_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){ INVEST_KQ_POOL=o.rows; return true; } } }catch(e){}
+  try{ const raw=localStorage.getItem('inv_kq_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){
+    // 컨센서스가 없던 시절의 캐시면 버리고 다시 받는다
+    if(!o.rows.some(r=>r&&r.cons)) return false;
+    INVEST_KQ_POOL=o.rows; consFromRows(INVEST_KQ_POOL); return true; } } }catch(e){}
   return false;
 }
 function saveInvestKqCache(){ try{ localStorage.setItem('inv_kq_pool', JSON.stringify({date:invToday(),rows:INVEST_KQ_POOL})); }catch(e){} }
@@ -6303,7 +6313,7 @@ async function loadInvestKq(){
   const codes=[...new Set(uni.map(u=>u.code))];
   const nm={}; uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
   // 2) 시세 + 목표가/52주최고가 (병렬)
-  const price={},rate={},tgt={},hi={};
+  const price={},rate={},tgt={},hi={},cons={};
   const CH=40;
   for(let i=0;i<codes.length;i+=CH){
     const part=codes.slice(i,i+CH);
@@ -6313,14 +6323,14 @@ async function loadInvestKq(){
       fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))).then(r=>r.json()).catch(()=>null),
     ]);
     if(pRes&&pRes.items) pRes.items.forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } });
-    if(tRes&&tRes.items) tRes.items.forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null) consPut(c,{str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}); } });
+    if(tRes&&tRes.items) tRes.items.forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}; cons[c]=o; consPut(c,o); } } });
   }
   // 3) 낙폭 계산 → 큰 순 30개
   const all=codes.map(c=>{
     const p=parseFloat(String(price[c]||'').replace(/[^0-9.\-]/g,''));
     const h=parseFloat(String(hi[c]||'').replace(/[^0-9.\-]/g,''));
     const drop=(isFinite(p)&&isFinite(h)&&h>0)?((p-h)/h*100):null;
-    return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],drop};
+    return {code:c,name:nm[c]||c,price:price[c],rate:rate[c],hi:hi[c],tgt:tgt[c],cons:cons[c],drop};
   }).filter(x=>x.price && x.drop!=null);
   all.sort((a,b)=>a.drop-b.drop);
   const pool=all.slice(0,30);
