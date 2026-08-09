@@ -5314,22 +5314,26 @@ function drawFtrend(canvasId, investor){
         ctx.fillStyle = '#ef5350';
         ctx.fillRect(x - bw/2, y0 - barH, bw, barH);
       } else {
-        ctx.fillStyle = '#1976d2';
+        ctx.fillStyle = '#2e9e4f';
         ctx.fillRect(x - bw/2, y0, bw, barH);
       }
     });
   } else {
-    // 누적 순매수 (면적/선)
-    ctx.beginPath();
+    // 누적 순매수 — 순매수와 같은 막대그래프 (0선 기준 위=플러스 / 아래=마이너스)
     cumul.forEach((v, i) => {
       const x = PAD.l + (i + 0.5) * (cw / n);
-      const y = y0 - v * scale;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      const barH = Math.abs(v) * scale;
+      if(v >= 0){
+        ctx.fillStyle = '#ef5350';
+        ctx.fillRect(x - bw/2, y0 - barH, bw, Math.max(1, barH));
+      } else {
+        ctx.fillStyle = '#2e9e4f';
+        ctx.fillRect(x - bw/2, y0, bw, Math.max(1, barH));
+      }
     });
-    ctx.strokeStyle = '#f0a836'; ctx.lineWidth = 1.5; ctx.stroke();
     // 마지막 값 강조
     const lastV = cumul[cumul.length-1];
-    ctx.fillStyle = lastV >= 0 ? '#ef5350' : '#1976d2';
+    ctx.fillStyle = lastV >= 0 ? '#ef5350' : '#2e9e4f';
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'right';
     ctx.fillText((lastV>=0?'+':'') + lastV.toLocaleString() + '억', W - PAD.r - 2, PAD.t + 12);
   }
