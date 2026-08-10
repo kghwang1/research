@@ -5300,7 +5300,7 @@ function updateFtrendNote(){
 //  외국인 2배 굵기 실선 / 지수 1배 실선 / 기관·개인 점선
 //  좌축: 매매금액(억), 우축: 지수
 const FT_LINES = [
-  { k:'foreign',     n:'외국인', c:'#ef5350', w:3.2 },
+  { k:'foreign',     n:'외국인', c:'#4dc4ff', w:3.2 },
   { k:'institution', n:'기관',   c:'#ffd54f', w:1.6, dash:[4,3] },
 ];
 const FT_IDX_COLOR = '#58a6ff';   // 지수: 푸른색 점선
@@ -5683,8 +5683,8 @@ function pnlUpdateVerdictOnly(){
 // ══════════════════════════════════════
 // src: 'naver'(국내 일별) | 'yahoo'(해외 일별)
 const IDX3 = [
-  { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ffd54f' },
-  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#ffd54f', dash:true },
+  { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ef5350' },
+  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#ef5350', dash:true },
   { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff' },
   { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#58a6ff', dash:true },
 ];
@@ -5853,7 +5853,7 @@ window.addEventListener('resize', ()=>{ if(IDX3_DATA) drawIdx3(); });
 // dash: true 면 점선 (고객예탁금·신용잔고만 실선으로 강조)
 const DEP_SERIES = [
   { k:'deposit', n:'고객예탁금', c:'#ffd54f' },
-  { k:'credit',  n:'신용잔고',   c:'#ef5350' },
+  { k:'credit',  n:'신용잔고',   c:'#ef5350', w:2.7 },
   { k:'stock',   n:'주식형',     c:'#ef5350', dash:true },
   { k:'mixed',   n:'혼합형',     c:'#58a6ff', dash:true },
   { k:'bond',    n:'채권형',     c:'#bc8cff', dash:true },
@@ -5924,7 +5924,7 @@ function drawDeposit(){
   }
   // 각 계열 선
   DEP_SERIES.forEach(se=>{
-    ctx.strokeStyle=se.c; ctx.lineWidth=se.dash?1.3:1.8; ctx.lineJoin='round';
+    ctx.strokeStyle=se.c; ctx.lineWidth=se.w || (se.dash?1.3:1.8); ctx.lineJoin='round';
     ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let started=false;
     DEP_VIEW.forEach((x,i)=>{
