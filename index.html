@@ -675,6 +675,16 @@
   .ftrend-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 4px;font-size:11px}
   .ftrend-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
   .ftrend-legend i{width:14px;height:0;display:inline-block;border-top-style:solid}
+
+  /* 코스피·코스닥·선물 비교 그래프 (시황 상단) */
+  .idx3-wrap{margin-bottom:8px}
+  .idx3-legend{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 4px;font-size:11px}
+  .idx3-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink);font-weight:600}
+  .idx3-legend i{width:14px;height:0;display:inline-block;border-top:2.5px solid}
+  #idx3Canvas{width:100%;height:150px;display:block;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
+  .idx3-tip{margin-top:5px;padding:6px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
+    font-size:12px;line-height:1.55;color:var(--ink);font-family:monospace;white-space:pre;min-height:60px}
   /* 증시자금동향 */
   .dep-wrap{margin-top:14px}
   .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin-left:6px}
@@ -755,6 +765,14 @@
 
  <!-- ===== MARKET (시황) ===== -->
  <section class="on" id="market">
+
+  <!-- 코스피·코스닥·선물 흐름 비교 -->
+  <div class="idx3-wrap">
+    <div class="idx3-legend" id="idx3Legend"></div>
+    <canvas id="idx3Canvas"></canvas>
+    <div class="idx3-tip" id="idx3Tip"></div>
+  </div>
+
   <div class="card-grid mk-pinned" id="gridPin"></div>
 
   <div class="sec-title">미리보기</div>
@@ -5447,6 +5465,7 @@ function drawFtrend(canvasId){
 
 // 토글 버튼
 document.addEventListener('DOMContentLoaded', () => {
+  loadIdx3();   // 시황 상단 코스피·코스닥·선물 비교 그래프
   // 분류 열 체크박스 (모든 포트 표 공통, 이벤트 위임)
   document.addEventListener('change', (e)=>{
     const cb=e.target;
@@ -5651,6 +5670,147 @@ function pnlUpdateVerdictOnly(){
   const nf=$('#pnlNfCell'); if(nf) nf.innerHTML=pnlNfCellHtml();
   const note=box.querySelector('.pd-note'); if(note) note.innerHTML=pnlInterpret(V,{futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
 }
+
+// ══════════════════════════════════════
+// 코스피·코스닥·선물 흐름 비교 (시황 상단)
+//  세 지수는 절대 수준이 달라 각자 자기 축(최소~최대)에 맞춰 그린다.
+//  축은 감추고, 값은 아래 카드에 실제 숫자와 현재 대비 비율로 보여준다.
+// ══════════════════════════════════════
+const IDX3 = [
+  { k:'kospi',  n:'코스피',  code:'KOSPI',  c:'#ef5350' },
+  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', c:'#58a6ff' },
+  { k:'fut',    n:'선물',    code:'FUT',    c:'#ffd54f' },
+];
+let IDX3_DATA = null;   // { dates:[], kospi:[], kosdaq:[], fut:[] }
+let idx3Hover = -1;
+
+async function loadIdx3(){
+  const tip=$('#idx3Tip');
+  if(!SRV_URL){ if(tip) tip.textContent='서버 설정이 필요합니다'; return; }
+  try{
+    const got = await Promise.all(IDX3.map(async se=>{
+      try{
+        const r=await fetch(SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=120&_t='+Date.now());
+        const d=await r.json();
+        return (d&&d.ok&&Array.isArray(d.rows)) ? d.rows : null;
+      }catch(e){ return null; }
+    }));
+    // 날짜 교집합으로 맞춘다 (선물은 휴장일이 다를 수 있음)
+    const maps = got.map(rows => {
+      const m={}; (rows||[]).forEach(x=>{ if(x && x.date && x.close!=null) m[x.date]=x.close; }); return m;
+    });
+    const base = maps[0];
+    const dates = Object.keys(base).sort().slice(-70);
+    const out = { dates:[], kospi:[], kosdaq:[], fut:[] };
+    dates.forEach(dt=>{
+      out.dates.push(dt);
+      IDX3.forEach((se,i)=>{ const v=maps[i][dt]; out[se.k].push(v!=null?v:null); });
+    });
+    IDX3_DATA = out;
+    renderIdx3Legend();
+    idx3Bind();
+    drawIdx3();
+    idx3ShowTip(out.dates.length-1);
+  }catch(e){ if(tip) tip.textContent='불러오기 실패: '+(e.message||e); }
+}
+
+function renderIdx3Legend(){
+  const el=$('#idx3Legend'); if(!el) return;
+  el.innerHTML = IDX3.map(se=>`<span><i style="border-top-color:${se.c}"></i>${se.n}</span>`).join('');
+}
+
+function drawIdx3(){
+  const cv=$('#idx3Canvas'); if(!cv||!IDX3_DATA) return;
+  const d=IDX3_DATA, n=d.dates.length; if(!n) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const PAD={l:6,r:6,t:8,b:14};
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const xOf=i=> PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+
+  // 계열마다 자기 축 (최소~최대) — 축은 그리지 않는다
+  const scale={};
+  IDX3.forEach(se=>{
+    const v=d[se.k].filter(x=>x!=null);
+    if(!v.length){ scale[se.k]=null; return; }
+    let mn=Math.min(...v), mx=Math.max(...v);
+    if(mx===mn){ mn-=1; mx+=1; }
+    const pad=(mx-mn)*0.12;
+    scale[se.k]={mn:mn-pad, mx:mx+pad};
+  });
+  const yOf=(v,k)=>{ const s=scale[k]; return PAD.t+ch-((v-s.mn)/(s.mx-s.mn))*ch; };
+
+  IDX3.forEach(se=>{
+    if(!scale[se.k]) return;
+    ctx.strokeStyle=se.c; ctx.lineWidth=1.8; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.beginPath(); let st=false;
+    d[se.k].forEach((v,i)=>{ if(v==null){ st=false; return; }
+      const x=xOf(i), y=yOf(v,se.k); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); });
+    ctx.stroke();
+  });
+
+  // 날짜 (양끝)
+  ctx.fillStyle='#6e7681'; ctx.font='9px monospace';
+  const lab=i=>String(d.dates[i]).slice(5).replace('-','/');
+  ctx.textAlign='left';  ctx.fillText(lab(0), PAD.l, H-4);
+  ctx.textAlign='right'; ctx.fillText(lab(n-1), W-PAD.r, H-4);
+
+  // 선택 지점
+  if(idx3Hover>=0 && idx3Hover<n){
+    const x=xOf(idx3Hover);
+    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
+    IDX3.forEach(se=>{ const v=d[se.k][idx3Hover]; if(v==null||!scale[se.k]) return;
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(v,se.k),2.8,0,Math.PI*2); ctx.fill(); });
+    const dtxt=String(d.dates[idx3Hover]).slice(2);
+    ctx.font='bold 9px monospace'; ctx.textAlign='center';
+    const tw=ctx.measureText(dtxt).width+8;
+    const bx=Math.min(Math.max(x-tw/2,PAD.l), W-PAD.r-tw);
+    ctx.fillStyle='#0d1117ee'; ctx.fillRect(bx,H-13,tw,12);
+    ctx.strokeStyle='#30363d'; ctx.strokeRect(bx,H-13,tw,12);
+    ctx.fillStyle='#e6edf3'; ctx.fillText(dtxt,bx+tw/2,H-4);
+  }
+}
+
+// 값 카드 — 실제 값 + 현재(마지막) 대비 비율
+function idx3ShowTip(i){
+  const el=$('#idx3Tip'); if(!el||!IDX3_DATA) return;
+  const d=IDX3_DATA, n=d.dates.length;
+  idx3Hover=Math.max(0,Math.min(n-1,i));
+  const fmt=v=> v==null?'—':v.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+  let t=d.dates[idx3Hover]+'\n';
+  IDX3.forEach(se=>{
+    const v=d[se.k][idx3Hover];
+    const cur=[...d[se.k]].reverse().find(x=>x!=null);
+    let rel='';
+    if(v!=null && cur!=null && v!==0){
+      const p=((cur-v)/v)*100;
+      rel='  현재 대비 '+(p>=0?'+':'')+p.toFixed(2)+'%';
+    }
+    t += se.n.padEnd(4,' ')+': '+String(fmt(v)).padStart(11,' ')+rel+'\n';
+  });
+  el.textContent=t.trimEnd();
+  drawIdx3();
+}
+function idx3Bind(){
+  const cv=$('#idx3Canvas'); if(!cv||cv._bound) return; cv._bound=true;
+  const idxFrom=ev=>{
+    const rc=cv.getBoundingClientRect();
+    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
+    const n=IDX3_DATA?IDX3_DATA.dates.length:0; if(n<=1) return 0;
+    const PADl=6, PADr=6, cw=rc.width-PADl-PADr;
+    return Math.max(0, Math.min(n-1, Math.round(((cx-PADl)/cw)*(n-1))));
+  };
+  const on=ev=>{ if(!IDX3_DATA) return; idx3ShowTip(idxFrom(ev)); };
+  cv.addEventListener('mousemove', on);
+  cv.addEventListener('touchstart', on, {passive:true});
+  cv.addEventListener('touchmove',  on, {passive:true});
+}
+window.addEventListener('resize', ()=>{ if(IDX3_DATA) drawIdx3(); });
+
 // ══════════════════════════════════════
 // 증시자금동향 — 고객예탁금·신용잔고·펀드(주식형/혼합형/채권형)
 //  세로축: 1년 최고값 대비 % (단위가 제각각이라 %로 맞춰야 한 화면에 그릴 수 있음)
