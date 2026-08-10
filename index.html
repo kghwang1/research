@@ -5677,12 +5677,16 @@ function pnlUpdateVerdictOnly(){
 //  세 지수는 절대 수준이 달라 각자 자기 축(최소~최대)에 맞춰 그린다.
 //  축은 감추고, 값은 아래 카드에 실제 숫자와 현재 대비 비율로 보여준다.
 // ══════════════════════════════════════
+// src: 'naver'(국내 일별) | 'yahoo'(해외 일별)
 const IDX3 = [
-  { k:'kospi',  n:'코스피',  code:'KOSPI',  c:'#ef5350' },
-  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', c:'#58a6ff' },
-  { k:'fut',    n:'선물',    code:'FUT',    c:'#ffd54f' },
+  { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ffd54f' },
+  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#ffd54f', dash:true },
+  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff' },
+  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#58a6ff', dash:true },
 ];
-let IDX3_DATA = null;   // { dates:[], kospi:[], kosdaq:[], fut:[] }
+const IDX3_DAYS = 100;
+let IDX3_DATA = null;   // { dates:[], 계열별 종가 배열 }
+let IDX3_MAX = {};      // 계열별 100일 최고가 (비율 기준)
 let idx3Hover = -1;
 
 async function loadIdx3(){
@@ -5690,11 +5694,13 @@ async function loadIdx3(){
   if(!SRV_URL){ if(tip) tip.textContent='서버 설정이 필요합니다'; return; }
   // ① 기기에 남은 자료를 먼저 그려 화면이 비지 않게 (10분 이내면 그대로 사용)
   try{
-    const raw=localStorage.getItem('kg_idx3');
+    const raw=localStorage.getItem('kg_idx3_v2');
     if(raw){
       const o=JSON.parse(raw);
       if(o && o.data && o.data.dates && o.data.dates.length){
-        IDX3_DATA=o.data; idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
+        IDX3_DATA=o.data;
+        IDX3_MAX={}; IDX3.forEach(se=>{ let m=0; (IDX3_DATA[se.k]||[]).forEach(v=>{ if(v!=null&&v>m) m=v; }); IDX3_MAX[se.k]=m||1; });
+        idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
         if(Date.now()-(o.ts||0) < 10*60*1000) return;   // 아직 신선하면 조회 생략
       }
     }
@@ -5702,31 +5708,46 @@ async function loadIdx3(){
   try{
     const got = await Promise.all(IDX3.map(async se=>{
       try{
-        const r=await fetch(SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=90');
+        const u = se.src==='yahoo'
+          ? SRV_URL+'/?yahooChart='+encodeURIComponent(se.code)+'&range=6mo&interval=1d'
+          : SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=140';
+        const r=await fetch(u);
         const d=await r.json();
-        // 네이버 차트 응답의 배열 이름은 data (rows 아님)
-        const arr = d && d.ok ? (Array.isArray(d.data) ? d.data : (Array.isArray(d.rows) ? d.rows : null)) : null;
-        return arr;
+        if(!d||!d.ok) return null;
+        // 응답 배열 이름이 경로마다 다름: 네이버 data / 야후 ohlcv
+        return Array.isArray(d.data) ? d.data
+             : Array.isArray(d.ohlcv) ? d.ohlcv
+             : Array.isArray(d.rows)  ? d.rows : null;
       }catch(e){ return null; }
     }));
     // 날짜 교집합으로 맞춘다 (선물은 휴장일이 다를 수 있음)
     const maps = got.map(rows => {
       const m={}; (rows||[]).forEach(x=>{ if(x && x.date && x.close!=null) m[x.date]=x.close; }); return m;
     });
-    const base = maps[0];
-    const dates = Object.keys(base).sort().slice(-70);
-    const out = { dates:[], kospi:[], kosdaq:[], fut:[] };
+    // 국내·해외 휴장일이 달라 날짜 합집합을 쓰고, 빠진 날은 직전 값으로 채운다
+    const all = new Set();
+    maps.forEach(m=>Object.keys(m).forEach(d=>all.add(d)));
+    const dates = [...all].sort().slice(-IDX3_DAYS);
+    const out = { dates:[] };
+    IDX3.forEach(se=>out[se.k]=[]);
+    const prev = {};
     dates.forEach(dt=>{
       out.dates.push(dt);
-      IDX3.forEach((se,i)=>{ const v=maps[i][dt]; out[se.k].push(v!=null?v:null); });
+      IDX3.forEach((se,i)=>{
+        const v=maps[i][dt];
+        if(v!=null) prev[se.k]=v;
+        out[se.k].push(prev[se.k]!=null?prev[se.k]:null);
+      });
     });
     if(!dates.length){
       const el=$('#idx3Tip');
       if(el) el.textContent='지수 자료를 불러오지 못했습니다 (worker 배포 확인)';
       return;
     }
+    IDX3_MAX = {};
+    IDX3.forEach(se=>{ let m=0; out[se.k].forEach(v=>{ if(v!=null&&v>m) m=v; }); IDX3_MAX[se.k]=m||1; });
     IDX3_DATA = out;
-    try{ localStorage.setItem('kg_idx3', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
+    try{ localStorage.setItem('kg_idx3_v2', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
     idx3Bind();
     drawIdx3();
     idx3ShowTip(out.dates.length-1);
@@ -5745,25 +5766,26 @@ function drawIdx3(){
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const xOf=i=> PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
 
-  // 계열마다 자기 축 (최소~최대) — 축은 그리지 않는다
-  const scale={};
-  IDX3.forEach(se=>{
-    const v=d[se.k].filter(x=>x!=null);
-    if(!v.length){ scale[se.k]=null; return; }
-    let mn=Math.min(...v), mx=Math.max(...v);
-    if(mx===mn){ mn-=1; mx+=1; }
-    const pad=(mx-mn)*0.12;
-    scale[se.k]={mn:mn-pad, mx:mx+pad};
-  });
-  const yOf=(v,k)=>{ const s=scale[k]; return PAD.t+ch-((v-s.mn)/(s.mx-s.mn))*ch; };
+  // 100일 중 최고가를 100으로 놓고 비율(%)로 그린다 → 네 지수가 한 축을 공유
+  const pct=(v,k)=> (v==null||!IDX3_MAX[k])?null:(v/IDX3_MAX[k])*100;
+  let mn=100, mx=100;
+  IDX3.forEach(se=>d[se.k].forEach(v=>{ const p=pct(v,se.k); if(p==null) return; if(p<mn)mn=p; if(p>mx)mx=p; }));
+  mn=Math.floor((mn-1)/5)*5; if(mx<100) mx=100; mx=Math.ceil((mx+1)/5)*5;
+  if(mx<=mn) mx=mn+10;
+  const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
+
+  // 100% 기준선 (최고가 자리)
+  ctx.strokeStyle='#ffffff22'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(PAD.l,yOf(100)); ctx.lineTo(W-PAD.r,yOf(100)); ctx.stroke();
+  ctx.setLineDash([]);
 
   IDX3.forEach(se=>{
-    if(!scale[se.k]) return;
-    ctx.strokeStyle=se.c; ctx.lineWidth=1.8; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.strokeStyle=se.c; ctx.lineWidth=se.dash?1.4:1.9; ctx.lineJoin='round';
+    ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let st=false;
-    d[se.k].forEach((v,i)=>{ if(v==null){ st=false; return; }
-      const x=xOf(i), y=yOf(v,se.k); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); });
-    ctx.stroke();
+    d[se.k].forEach((v,i)=>{ const p=pct(v,se.k); if(p==null){ st=false; return; }
+      const x=xOf(i), y=yOf(p); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); });
+    ctx.stroke(); ctx.setLineDash([]);
   });
 
   // 날짜 (양끝)
@@ -5777,8 +5799,8 @@ function drawIdx3(){
     const x=xOf(idx3Hover);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
-    IDX3.forEach(se=>{ const v=d[se.k][idx3Hover]; if(v==null||!scale[se.k]) return;
-      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(v,se.k),2.8,0,Math.PI*2); ctx.fill(); });
+    IDX3.forEach(se=>{ const p=pct(d[se.k][idx3Hover],se.k); if(p==null) return;
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(p),2.8,0,Math.PI*2); ctx.fill(); });
     const dtxt=String(d.dates[idx3Hover]).slice(2);
     ctx.font='bold 9px monospace'; ctx.textAlign='center';
     const tw=ctx.measureText(dtxt).width+8;
@@ -5794,16 +5816,11 @@ function idx3ShowTip(i){
   const el=$('#idx3Tip'); if(!el||!IDX3_DATA) return;
   const d=IDX3_DATA, n=d.dates.length;
   idx3Hover=Math.max(0,Math.min(n-1,i));
-  const fmt=v=> v==null?'—':v.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+  const fmt=v=> v==null?'—':Math.round(v).toLocaleString();
   el.innerHTML = IDX3.map(se=>{
     const v=d[se.k][idx3Hover];
-    const cur=[...d[se.k]].reverse().find(x=>x!=null);
-    let rel='';
-    if(v!=null && cur!=null && v!==0){
-      const p=((cur-v)/v)*100;
-      rel=' ('+(p>=0?'+':'')+p.toFixed(2)+'%)';
-    }
-    return `<div class="tipline"><i style="border-top-color:${se.c}"></i>`
+    const rel = (v!=null && IDX3_MAX[se.k]) ? ' ('+Math.round((v/IDX3_MAX[se.k])*100)+'%)' : '';
+    return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
          + `<b>${se.n}</b>: ${fmt(v)}${rel}</div>`;
   }).join('');
   drawIdx3();
@@ -5947,7 +5964,7 @@ function depShowTip(i){
   depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
   const r=DEP_VIEW[depHover];
   const num=v=> v==null?'—':Math.round(v).toLocaleString();
-  const rate=(v,k)=> v==null?'':' ('+((v/DEP_MAX[k])*100).toFixed(1)+'%)';
+  const rate=(v,k)=> v==null?'':' ('+Math.round((v/DEP_MAX[k])*100)+'%)';
   el.innerHTML = DEP_SERIES.map(se=>
     `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
     + `<b>${se.n}</b>: ${num(r[se.k])}${rate(r[se.k],se.k)}</div>`).join('');
