@@ -262,7 +262,8 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
   <div id="sidebar">
     <div class="sidebar-help">
       <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
-      아래 <b>기본 조합</b> 버튼으로 추천 지표를 한 번에 표시
+      아래 <b>기본 조합</b> 버튼으로 추천 지표를 한 번에 표시<br>
+      <span style="color:#6e7681;font-size:10px">버전 <b id="buildTag">-</b></span>
     </div>
     <button id="defaultComboBtn" style="width:calc(100% - 12px);margin:6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#1f6feb;color:#fff;font-weight:700;font-size:12px;cursor:pointer">📊 기본 조합 표시</button>
     <div class="group-title">▶ 오버레이</div>
@@ -509,9 +510,32 @@ const CALC = {
     }
     const smooth=(arr)=>{const r=new Array(d.length).fill(null);let s=arr.slice(0,period).reduce((a,b)=>a+b,0);r[period]=s;for(let i=period;i<arr.length;i++){s=s-s/period+arr[i];r[i+1]=s;}return r;};
     const str=smooth(tr),sp=smooth(pdm),sn=smooth(ndm);
-    const pdi=str.map((v,i)=>v?(sp[i]/v)*100:null),ndi=str.map((v,i)=>v?(sn[i]/v)*100:null);
-    const dx=pdi.map((v,i)=>v&&ndi[i]?(Math.abs(v-ndi[i])/((v+ndi[i])||1))*100:null);
-    return{adx:ema(dx,period),pdi,ndi};
+    const pdi=str.map((v,i)=>(v!=null&&v>0)?(sp[i]/v)*100:null),ndi=str.map((v,i)=>(v!=null&&v>0)?(sn[i]/v)*100:null);
+    // +DI 나 -DI 가 0 이어도 DX 는 유효한 값(100)이다.
+    //  예전에는 0을 falsy 로 걸러 버려서, 한 방향 추세가 길어지면 DX 가 통째로 비고
+    //  평활이 끊겨 ADX 가 실제보다 낮게 나왔다.
+    const dx=pdi.map((v,i)=>(v!=null&&ndi[i]!=null)?(Math.abs(v-ndi[i])/((v+ndi[i])||1))*100:null);
+    // ADX = DX 를 와일더 방식(RMA, 계수 1/n)으로 평활.
+    //  EMA(계수 2/(n+1))를 쓰면 계수가 약 2배라 값이 달라지고 HTS 와 어긋난다.
+    //  첫 값은 유효 DX 14개의 단순평균으로 시작한다 (와일더 원식)
+    const rma=(arr,n)=>{
+      const r=new Array(arr.length).fill(null);
+      let avg=null, buf=[];
+      for(let i=0;i<arr.length;i++){
+        const v=arr[i];
+        if(v==null) continue;
+        if(avg==null){
+          buf.push(v);
+          if(buf.length<n) continue;
+          avg=buf.reduce((a,b)=>a+b,0)/n;
+        } else {
+          avg=(avg*(n-1)+v)/n;
+        }
+        r[i]=avg;
+      }
+      return r;
+    };
+    return{adx:rma(dx,period),pdi,ndi};
   },
   ADXR:(d)=>{
     // ADXR = (오늘의 ADX + n일 전의 ADX) / 2  (n=14, 웰리스 와일더)
@@ -3282,6 +3306,11 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  chartStep 은 renderAll 안에서 채워진다
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
+// 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
+const KG_CHART_BUILD = '2026-08-10 ADX-와일더';
+try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
+document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
+
 let chartStep = null;
 const STEP_HOLD_DELAY = 450;   // 길게 누름을 인식하기까지(ms)
 const STEP_HOLD_GAP   = 300;   // 연속 진행 간격(ms)
