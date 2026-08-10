@@ -344,7 +344,7 @@
   .ftrend-title{flex-shrink:0}
   #ftrendInvestor{flex-shrink:0}
   .ftrend-toggle{margin-left:auto}
-  .ftrend-title{font-size:13px;font-weight:700;color:#e6edf3}
+  .ftrend-title{font-size:14.7px;font-weight:700;color:#d4af00;margin-bottom:5px}
   .ftrend-toggle{display:flex;gap:4px}
   .ft-btn{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
   .ft-btn.active{background:#1f6feb;border-color:#1f6feb;color:#fff}
@@ -684,19 +684,22 @@
   #idx3Canvas{width:100%;height:150px;display:block;background:var(--panel);
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
   .idx3-tip{margin-top:5px;padding:6px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
-    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:60px}
+    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:52px;
+    display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
   .tipline{display:flex;align-items:center;gap:6px;white-space:nowrap}
   .tipline i{width:16px;height:0;flex:none;border-top-width:2.5px;border-top-style:solid;display:inline-block}
-  .tipline b{font-weight:700;min-width:72px}
+  .tipline b{font-weight:700;min-width:60px}
   /* 증시자금동향 */
   .dep-wrap{margin-top:14px}
-  .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin-left:6px}
+  .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin:-3px 0 5px}
+  .pnl-dir .pd-h2{font-size:12.5px;font-weight:600;color:var(--ink);margin:-3px 0 7px}
   .dep-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 6px;font-size:11px}
   .dep-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
   .dep-legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
   #depCanvas{width:100%;height:210px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
-  .dep-tip{min-height:74px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
-    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace}
+  .dep-tip{min-height:62px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
+    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
+    display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
   .dep-note{font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.5}
 </style>
 </head>
@@ -822,8 +825,8 @@
 
   <!-- 투자자별 매매 추이 막대그래프 -->
   <div class="ftrend-box">
+    <div class="ftrend-title">매매추이</div>
     <div class="ftrend-head">
-      <span class="ftrend-title">매매추이</span>
       <select id="ftrendPeriod" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
         <option value="7">1주일</option>
         <option value="30" selected>1개월</option>
@@ -847,7 +850,8 @@
 
   <!-- 증시자금동향 -->
   <div class="dep-wrap">
-    <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">1년 최고값 대비 %</span></div>
+    <div class="pnl-chart-title">증시자금동향</div>
+    <div class="dep-sub">1년 최고값 대비 %</div>
     <canvas id="depCanvas"></canvas>
     <div class="dep-tip" id="depTip"></div>
     <div class="dep-note" id="depNote">불러오는 중…</div>
@@ -5297,7 +5301,7 @@ function updateFtrendNote(){
 //  좌축: 매매금액(억), 우축: 지수
 const FT_LINES = [
   { k:'foreign',     n:'외국인', c:'#ef5350', w:3.2 },
-  { k:'institution', n:'기관',   c:'#ffd54f', w:1.6 },
+  { k:'institution', n:'기관',   c:'#ffd54f', w:1.6, dash:[4,3] },
 ];
 const FT_IDX_COLOR = '#58a6ff';   // 지수: 푸른색 점선
 let ftHover = -1;
@@ -5667,7 +5671,7 @@ function onNightFut(){
 function pnlUpdateVerdictOnly(){
   const box=$('#pnlDir'); const D=PNL._dir; if(!box||!D) return;
   const V=pnlVerdict({futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
-  const h=box.querySelector('.pd-h'); if(h) h.innerHTML=`외국인 투자심리 : ${V.label}`;
+  const h2=box.querySelector('.pd-h2'); if(h2) h2.innerHTML=V.label;
   const nf=$('#pnlNfCell'); if(nf) nf.innerHTML=pnlNfCellHtml();
   const note=box.querySelector('.pd-note'); if(note) note.innerHTML=pnlInterpret(V,{futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
 }
@@ -5850,7 +5854,7 @@ window.addEventListener('resize', ()=>{ if(IDX3_DATA) drawIdx3(); });
 const DEP_SERIES = [
   { k:'deposit', n:'고객예탁금', c:'#ffd54f' },
   { k:'credit',  n:'신용잔고',   c:'#ef5350' },
-  { k:'stock',   n:'주식형',     c:'#3fb950', dash:true },
+  { k:'stock',   n:'주식형',     c:'#ef5350', dash:true },
   { k:'mixed',   n:'혼합형',     c:'#58a6ff', dash:true },
   { k:'bond',    n:'채권형',     c:'#bc8cff', dash:true },
 ];
@@ -6107,7 +6111,7 @@ function pnlRenderDir(){
   const sesF=pnlSessionFixed();
   const ewyL=pnlEwyLabel(prevBiz);
   const nightL=pnlNightLabel(prevBiz);
-  let h=`<div class="pd-h">외국인 투자심리 : ${V.label}</div>`;
+  let h=`<div class="pd-h">외국인 투자심리</div><div class="pd-h2">${V.label}</div>`;
   h+=`<div class="pd-nf-in">`+
        `<input id="pnlNfPrice" type="text" inputmode="decimal" placeholder="가격" value="${PNL.nfPrice!=null?PNL.nfPrice:''}">`+
        `<input id="pnlNfRate" type="text" inputmode="decimal" placeholder="등락률%" value="${PNL.nfRate!=null?PNL.nfRate:''}">`+
