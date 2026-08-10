@@ -5354,11 +5354,19 @@ function drawFtrend(canvasId){
   });
 
   // 좌축 범위 (0 중심 대칭)
-  let maxAbs=0;
-  FT_LINES.forEach(l=>series[l.k].forEach(v=>{ const a=Math.abs(v); if(a>maxAbs) maxAbs=a; }));
-  if(maxAbs===0) maxAbs=1;
+  //  기관·개인이 외국인보다 훨씬 크면 외국인 선이 0선에 눌려 보인다.
+  //  외국인 기준으로 축을 잡되(최소 2.5배까지 여유), 넘치는 값은 위아래로 잘라 그린다.
+  const absMax = a => { let m=0; a.forEach(v=>{ const x=Math.abs(v); if(x>m) m=x; }); return m; };
+  const fMax = absMax(series['foreign']);
+  let allMax = 0; FT_LINES.forEach(l=>{ const m=absMax(series[l.k]); if(m>allMax) allMax=m; });
+  let maxAbs = fMax>0 ? Math.min(allMax, fMax*2.5) : allMax;
+  if(!maxAbs) maxAbs=1;
+  const clipped = allMax > maxAbs*1.02;
   const y0 = PAD.t + ch/2;
-  const yAmt = v => y0 - (v/maxAbs)*(ch/2);
+  const yAmt = v => {
+    const t = Math.max(-1, Math.min(1, v/maxAbs));   // 축 밖은 가장자리에 붙임
+    return y0 - t*(ch/2);
+  };
   const xOf  = i => PAD.l + (n<=1 ? cw/2 : (i/(n-1))*cw);
 
   // 우축(지수) 범위
@@ -5397,6 +5405,10 @@ function drawFtrend(canvasId){
     ctx.fillStyle = v>0?'#ef5350':(v<0?'#2e9e4f':'#6e7681');
     ctx.fillText(fmtAmt(v), PAD.l-3, yAmt(v)+3);
   });
+  if(clipped){
+    ctx.font='9px monospace'; ctx.textAlign='left'; ctx.fillStyle='#8b949e';
+    ctx.fillText('※ 외국인 기준 축 (기관·개인 일부는 축 밖)', PAD.l+2, PAD.t+ch-3);
+  }
   // 우축 눈금 (지수)
   if(iv.length){
     ctx.textAlign='left'; ctx.fillStyle = FT_IDX_COLOR;
