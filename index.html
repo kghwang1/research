@@ -671,7 +671,7 @@
   .dep-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
   .dep-legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
   #depCanvas{width:100%;height:210px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
-  .dep-tip{min-height:74px;margin-top:6px;padding:7px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  .dep-tip{min-height:74px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.6;color:var(--ink);font-family:monospace;white-space:pre}
   .dep-note{font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.5}
 </style>
@@ -5619,12 +5619,13 @@ function pnlUpdateVerdictOnly(){
 //  세로축: 1년 최고값 대비 % (단위가 제각각이라 %로 맞춰야 한 화면에 그릴 수 있음)
 //  표시 구간: 최근 3개월
 // ══════════════════════════════════════
+// dash: true 면 점선 (고객예탁금·신용잔고만 실선으로 강조)
 const DEP_SERIES = [
   { k:'deposit', n:'고객예탁금', c:'#ef5350' },
   { k:'credit',  n:'신용잔고',   c:'#f0a836' },
-  { k:'stock',   n:'주식형',     c:'#3fb950' },
-  { k:'mixed',   n:'혼합형',     c:'#58a6ff' },
-  { k:'bond',    n:'채권형',     c:'#bc8cff' },
+  { k:'stock',   n:'주식형',     c:'#3fb950', dash:true },
+  { k:'mixed',   n:'혼합형',     c:'#58a6ff', dash:true },
+  { k:'bond',    n:'채권형',     c:'#bc8cff', dash:true },
 ];
 let DEP_ROWS = [];      // 1년치 원자료
 let DEP_VIEW = [];      // 최근 3개월
@@ -5662,7 +5663,12 @@ async function loadDeposit(){
 
 function renderDepLegend(){
   const el=$('#depLegend'); if(!el) return;
-  el.innerHTML = DEP_SERIES.map(se=>`<span><i style="background:${se.c}"></i>${se.n}</span>`).join('');
+  el.innerHTML = DEP_SERIES.map(se=>{
+    const bar = se.dash
+      ? `background:repeating-linear-gradient(90deg,${se.c} 0 4px,transparent 4px 7px)`
+      : `background:${se.c}`;
+    return `<span><i style="${bar}"></i>${se.n}</span>`;
+  }).join('');
 }
 
 function drawDeposit(){
@@ -5698,7 +5704,8 @@ function drawDeposit(){
   }
   // 각 계열 선
   DEP_SERIES.forEach(se=>{
-    ctx.strokeStyle=se.c; ctx.lineWidth=1.6; ctx.lineJoin='round';
+    ctx.strokeStyle=se.c; ctx.lineWidth=se.dash?1.3:1.8; ctx.lineJoin='round';
+    ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let started=false;
     DEP_VIEW.forEach((x,i)=>{
       const p=pct(x[se.k],se.k);
@@ -5707,6 +5714,7 @@ function drawDeposit(){
       started?ctx.lineTo(px,py):(ctx.moveTo(px,py),started=true);
     });
     ctx.stroke();
+    ctx.setLineDash([]);
   });
   // 날짜 라벨 (양끝 + 가운데)
   ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace';
