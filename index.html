@@ -5692,7 +5692,9 @@ async function loadIdx3(){
       try{
         const r=await fetch(SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=120&_t='+Date.now());
         const d=await r.json();
-        return (d&&d.ok&&Array.isArray(d.rows)) ? d.rows : null;
+        // 네이버 차트 응답의 배열 이름은 data (rows 아님)
+        const arr = d && d.ok ? (Array.isArray(d.data) ? d.data : (Array.isArray(d.rows) ? d.rows : null)) : null;
+        return arr;
       }catch(e){ return null; }
     }));
     // 날짜 교집합으로 맞춘다 (선물은 휴장일이 다를 수 있음)
@@ -5706,6 +5708,11 @@ async function loadIdx3(){
       out.dates.push(dt);
       IDX3.forEach((se,i)=>{ const v=maps[i][dt]; out[se.k].push(v!=null?v:null); });
     });
+    if(!dates.length){
+      const el=$('#idx3Tip');
+      if(el) el.textContent='지수 자료를 불러오지 못했습니다 (worker 배포 확인)';
+      return;
+    }
     IDX3_DATA = out;
     renderIdx3Legend();
     idx3Bind();
