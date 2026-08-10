@@ -666,9 +666,12 @@
 
 
   .ft-grp{font-size:11px;color:var(--mut);font-weight:700;margin:0 2px 0 6px}
-  .ft-b{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid var(--line);
-    background:var(--panel);color:var(--mut);cursor:pointer;font-weight:600}
-  .ft-b.active{background:var(--accent2);border-color:var(--accent2);color:#0a0a0a}
+  .ft-b{font-size:11px;padding:3px 9px;border-radius:6px;border:1px solid #30363d;
+    color:#c9d1d9;cursor:pointer;font-weight:600}
+  .ft-b[data-mode="net"]{background:#1b3a5c}
+  .ft-b[data-mode="cumul"]{background:#3d2a5c}
+  .ft-b[data-mode="net"].active{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  .ft-b[data-mode="cumul"].active{background:#8957e5;border-color:#8957e5;color:#fff}
   .ftrend-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 4px;font-size:11px}
   .ftrend-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
   .ftrend-legend i{width:14px;height:0;display:inline-block;border-top-style:solid}
@@ -5274,17 +5277,35 @@ function updateFtrendNote(){
 //  좌축: 매매금액(억), 우축: 지수
 const FT_LINES = [
   { k:'foreign',     n:'외국인', c:'#ef5350', w:3.2 },
-  { k:'institution', n:'기관',   c:'#58a6ff', w:1.4, dash:[4,3] },
+  { k:'institution', n:'기관',   c:'#58a6ff', w:1.6 },
   { k:'individual',  n:'개인',   c:'#3fb950', w:1.4, dash:[4,3] },
 ];
+const FT_IDX_COLOR = '#bc8cff';   // 코스피·코스닥 지수 모두 보라
+let ftHover = -1;
+function ftrendBind(){
+  const cv=document.getElementById('ftrendCanvas'); if(!cv||cv._bound) return; cv._bound=true;
+  const idxFrom=ev=>{
+    const rc=cv.getBoundingClientRect();
+    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
+    const n=(FTREND_DATA||[]).slice(-ftrendPeriod).length; if(n<=1) return 0;
+    const PADl=46, PADr=52, cw=rc.width-PADl-PADr;
+    return Math.max(0, Math.min(n-1, Math.round(((cx-PADl)/cw)*(n-1))));
+  };
+  const on=ev=>{ if(!FTREND_DATA) return; ftHover=idxFrom(ev); drawFtrend('ftrendCanvas'); };
+  cv.addEventListener('mousemove', on);
+  cv.addEventListener('mouseleave', ()=>{ ftHover=-1; drawFtrend('ftrendCanvas'); });
+  cv.addEventListener('touchstart', on, {passive:true});
+  cv.addEventListener('touchmove',  on, {passive:true});
+}
 function drawFtrendAll(){
+  ftrendBind();
   renderFtrendLegend();
   drawFtrend('ftrendCanvas');
 }
 function renderFtrendLegend(){
   const el=document.getElementById('ftrendLegend'); if(!el) return;
   const idxName = ftrendIdx==='kospi' ? '코스피' : '코스닥';
-  const idxCol  = ftrendIdx==='kospi' ? '#ffd54f' : '#bc8cff';
+  const idxCol  = FT_IDX_COLOR;
   const item=(nm,col,w,dash)=>`<span><i style="border-top-width:${w}px;border-top-color:${col};${dash?'border-top-style:dashed':''}"></i>${nm}</span>`;
   el.innerHTML = FT_LINES.map(l=>item(l.n,l.c,Math.min(3,l.w),!!l.dash)).join('')
                + item(idxName+' 지수', idxCol, 1.6, false);
@@ -5313,8 +5334,14 @@ function drawFtrend(canvasId){
       v = ftrendIdx==='kosdaq' ? r.foreignKosdaq
         : (r.foreignKospi != null ? r.foreignKospi : (r.foreign != null ? r.foreign : r.net));
     }
-    else if(key==='institution') v = (r.institution != null ? r.institution : r.inst);
-    else                         v = (r.individual  != null ? r.individual  : r.person);
+    else if(key==='institution'){
+      v = ftrendIdx==='kosdaq' ? r.instKosdaq
+        : (r.instKospi != null ? r.instKospi : (r.institution != null ? r.institution : r.inst));
+    }
+    else {
+      v = ftrendIdx==='kosdaq' ? r.personKosdaq
+        : (r.personKospi != null ? r.personKospi : (r.individual != null ? r.individual : r.person));
+    }
     return (v!=null) ? v : 0;
   };
   // 누적 모드면 누적값으로 변환
@@ -5345,7 +5372,7 @@ function drawFtrend(canvasId){
 
   // 지수 선 (뒤에 깔리도록 먼저)
   if(iv.length>1){
-    ctx.strokeStyle = ftrendIdx==='kospi' ? '#ffd54f' : '#bc8cff';
+    ctx.strokeStyle = FT_IDX_COLOR;
     ctx.lineWidth = 1.6; ctx.setLineDash([]); ctx.lineJoin='round';
     ctx.beginPath(); let st=false;
     idxVals.forEach((v,i)=>{ if(v==null){ st=false; return; }
@@ -5370,7 +5397,7 @@ function drawFtrend(canvasId){
   });
   // 우축 눈금 (지수)
   if(iv.length){
-    ctx.textAlign='left'; ctx.fillStyle = ftrendIdx==='kospi'?'#ffd54f':'#bc8cff';
+    ctx.textAlign='left'; ctx.fillStyle = FT_IDX_COLOR;
     ctx.fillText(Math.round(iMax).toLocaleString(), W-PAD.r+3, yIdx(iMax)+3);
     ctx.fillText(Math.round(iMin).toLocaleString(), W-PAD.r+3, yIdx(iMin)+3);
   }
@@ -5379,6 +5406,21 @@ function drawFtrend(canvasId){
   const lab=i=>String(rows[i].date||'').slice(5).replace('-','/');
   ctx.textAlign='left';   ctx.fillText(lab(0), PAD.l, H-5);
   ctx.textAlign='right';  ctx.fillText(lab(n-1), W-PAD.r, H-5);
+  // 선택 지점 세로선 + 날짜
+  if(ftHover>=0 && ftHover<n){
+    const hx=xOf(ftHover);
+    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(hx,PAD.t); ctx.lineTo(hx,PAD.t+ch); ctx.stroke();
+    FT_LINES.forEach(l=>{ ctx.fillStyle=l.c; ctx.beginPath(); ctx.arc(hx,yAmt(series[l.k][ftHover]),2.8,0,Math.PI*2); ctx.fill(); });
+    const dtxt=String(rows[ftHover].date||'').slice(2);   // 26-08-06
+    ctx.font='bold 9.5px monospace';
+    const tw=ctx.measureText(dtxt).width+8;
+    let bx=Math.min(Math.max(hx-tw/2, PAD.l), W-PAD.r-tw);
+    ctx.fillStyle='#0d1117ee'; ctx.fillRect(bx, H-16, tw, 13);
+    ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(bx, H-16, tw, 13);
+    ctx.fillStyle='#e6edf3'; ctx.textAlign='center';
+    ctx.fillText(dtxt, bx+tw/2, H-6);
+  }
   // 마지막 값
   ctx.textAlign='left'; ctx.font='bold 10px monospace';
   let tx=PAD.l+4;
@@ -5603,8 +5645,8 @@ function pnlUpdateVerdictOnly(){
 // ══════════════════════════════════════
 // dash: true 면 점선 (고객예탁금·신용잔고만 실선으로 강조)
 const DEP_SERIES = [
-  { k:'deposit', n:'고객예탁금', c:'#ef5350' },
-  { k:'credit',  n:'신용잔고',   c:'#f0a836' },
+  { k:'deposit', n:'고객예탁금', c:'#ffd54f' },
+  { k:'credit',  n:'신용잔고',   c:'#ef5350' },
   { k:'stock',   n:'주식형',     c:'#3fb950', dash:true },
   { k:'mixed',   n:'혼합형',     c:'#58a6ff', dash:true },
   { k:'bond',    n:'채권형',     c:'#bc8cff', dash:true },
@@ -5707,12 +5749,20 @@ function drawDeposit(){
   // 선택 지점 세로선
   if(depHover>=0 && depHover<n){
     const x=xOf(depHover);
-    ctx.strokeStyle='#ffffff44'; ctx.lineWidth=1;
+    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
     DEP_SERIES.forEach(se=>{
       const p=pct(DEP_VIEW[depHover][se.k],se.k); if(p==null) return;
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(p),2.6,0,Math.PI*2); ctx.fill();
     });
+    // X축에 날짜 표시
+    const dtxt=String(DEP_VIEW[depHover].date||'').slice(2);
+    ctx.font='bold 9.5px monospace'; ctx.textAlign='center';
+    const tw=ctx.measureText(dtxt).width+8;
+    let bx=Math.min(Math.max(x-tw/2, PAD.l), W-PAD.r-tw);
+    ctx.fillStyle='#0d1117ee'; ctx.fillRect(bx, H-15, tw, 13);
+    ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(bx, H-15, tw, 13);
+    ctx.fillStyle='#e6edf3'; ctx.fillText(dtxt, bx+tw/2, H-5);
   }
 }
 
