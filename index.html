@@ -684,7 +684,10 @@
   #idx3Canvas{width:100%;height:150px;display:block;background:var(--panel);
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
   .idx3-tip{margin-top:5px;padding:6px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
-    font-size:12px;line-height:1.55;color:var(--ink);font-family:monospace;white-space:pre;min-height:60px}
+    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:60px}
+  .tipline{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .tipline i{width:16px;height:0;flex:none;border-top-width:2.5px;border-top-style:solid;display:inline-block}
+  .tipline b{font-weight:700;min-width:72px}
   /* 증시자금동향 */
   .dep-wrap{margin-top:14px}
   .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin-left:6px}
@@ -693,7 +696,7 @@
   .dep-legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
   #depCanvas{width:100%;height:210px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
   .dep-tip{min-height:74px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
-    font-size:12px;line-height:1.6;color:var(--ink);font-family:monospace;white-space:pre}
+    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace}
   .dep-note{font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.5}
 </style>
 </head>
@@ -768,7 +771,6 @@
 
   <!-- 코스피·코스닥·선물 흐름 비교 -->
   <div class="idx3-wrap">
-    <div class="idx3-legend" id="idx3Legend"></div>
     <canvas id="idx3Canvas"></canvas>
     <div class="idx3-tip" id="idx3Tip"></div>
   </div>
@@ -846,7 +848,6 @@
   <!-- 증시자금동향 -->
   <div class="dep-wrap">
     <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">1년 최고값 대비 %</span></div>
-    <div class="dep-legend" id="depLegend"></div>
     <canvas id="depCanvas"></canvas>
     <div class="dep-tip" id="depTip"></div>
     <div class="dep-note" id="depNote">불러오는 중…</div>
@@ -5687,10 +5688,21 @@ let idx3Hover = -1;
 async function loadIdx3(){
   const tip=$('#idx3Tip');
   if(!SRV_URL){ if(tip) tip.textContent='서버 설정이 필요합니다'; return; }
+  // ① 기기에 남은 자료를 먼저 그려 화면이 비지 않게 (10분 이내면 그대로 사용)
+  try{
+    const raw=localStorage.getItem('kg_idx3');
+    if(raw){
+      const o=JSON.parse(raw);
+      if(o && o.data && o.data.dates && o.data.dates.length){
+        IDX3_DATA=o.data; idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
+        if(Date.now()-(o.ts||0) < 10*60*1000) return;   // 아직 신선하면 조회 생략
+      }
+    }
+  }catch(e){}
   try{
     const got = await Promise.all(IDX3.map(async se=>{
       try{
-        const r=await fetch(SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=120&_t='+Date.now());
+        const r=await fetch(SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=90');
         const d=await r.json();
         // 네이버 차트 응답의 배열 이름은 data (rows 아님)
         const arr = d && d.ok ? (Array.isArray(d.data) ? d.data : (Array.isArray(d.rows) ? d.rows : null)) : null;
@@ -5714,16 +5726,11 @@ async function loadIdx3(){
       return;
     }
     IDX3_DATA = out;
-    renderIdx3Legend();
+    try{ localStorage.setItem('kg_idx3', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
     idx3Bind();
     drawIdx3();
     idx3ShowTip(out.dates.length-1);
   }catch(e){ if(tip) tip.textContent='불러오기 실패: '+(e.message||e); }
-}
-
-function renderIdx3Legend(){
-  const el=$('#idx3Legend'); if(!el) return;
-  el.innerHTML = IDX3.map(se=>`<span><i style="border-top-color:${se.c}"></i>${se.n}</span>`).join('');
 }
 
 function drawIdx3(){
@@ -5788,18 +5795,17 @@ function idx3ShowTip(i){
   const d=IDX3_DATA, n=d.dates.length;
   idx3Hover=Math.max(0,Math.min(n-1,i));
   const fmt=v=> v==null?'—':v.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
-  let t=d.dates[idx3Hover]+'\n';
-  IDX3.forEach(se=>{
+  el.innerHTML = IDX3.map(se=>{
     const v=d[se.k][idx3Hover];
     const cur=[...d[se.k]].reverse().find(x=>x!=null);
     let rel='';
     if(v!=null && cur!=null && v!==0){
       const p=((cur-v)/v)*100;
-      rel='  현재 대비 '+(p>=0?'+':'')+p.toFixed(2)+'%';
+      rel=' ('+(p>=0?'+':'')+p.toFixed(2)+'%)';
     }
-    t += se.n.padEnd(4,' ')+': '+String(fmt(v)).padStart(11,' ')+rel+'\n';
-  });
-  el.textContent=t.trimEnd();
+    return `<div class="tipline"><i style="border-top-color:${se.c}"></i>`
+         + `<b>${se.n}</b>: ${fmt(v)}${rel}</div>`;
+  }).join('');
   drawIdx3();
 }
 function idx3Bind(){
@@ -5858,21 +5864,10 @@ async function loadDeposit(){
     const cutS=cut.toISOString().slice(0,10);
     DEP_VIEW=DEP_ROWS.filter(x=>x.date>=cutS);
     if(DEP_VIEW.length<5) DEP_VIEW=DEP_ROWS.slice(-60);
-    renderDepLegend();
     drawDeposit();
     depShowTip(DEP_VIEW.length-1);
     if(note) note.textContent='단위 억원 · 세로축은 1년 최고값 대비 % · 최근 3개월 ('+DEP_VIEW.length+'영업일, 1년 자료 '+DEP_ROWS.length+'일) · 네이버 금융';
   }catch(e){ if(note) note.textContent='불러오기 실패: '+(e.message||e); }
-}
-
-function renderDepLegend(){
-  const el=$('#depLegend'); if(!el) return;
-  el.innerHTML = DEP_SERIES.map(se=>{
-    const bar = se.dash
-      ? `background:repeating-linear-gradient(90deg,${se.c} 0 4px,transparent 4px 7px)`
-      : `background:${se.c}`;
-    return `<span><i style="${bar}"></i>${se.n}</span>`;
-  }).join('');
 }
 
 function drawDeposit(){
@@ -5952,12 +5947,10 @@ function depShowTip(i){
   depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
   const r=DEP_VIEW[depHover];
   const num=v=> v==null?'—':Math.round(v).toLocaleString();
-  const rate=(v,k)=> v==null?'':'  ('+((v/DEP_MAX[k])*100).toFixed(1)+'%)';
-  let t=r.date+'\n';
-  DEP_SERIES.forEach(se=>{
-    t += se.n.padEnd(6,' ')+': '+String(num(r[se.k])).padStart(10,' ')+rate(r[se.k],se.k)+'\n';
-  });
-  el.textContent=t.trimEnd();
+  const rate=(v,k)=> v==null?'':' ('+((v/DEP_MAX[k])*100).toFixed(1)+'%)';
+  el.innerHTML = DEP_SERIES.map(se=>
+    `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
+    + `<b>${se.n}</b>: ${num(r[se.k])}${rate(r[se.k],se.k)}</div>`).join('');
   drawDeposit();
 }
 function depBind(){
