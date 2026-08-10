@@ -339,7 +339,7 @@
 
   /* 적정주가 표 */
   #valuation{padding:0}
-  .ftrend-box{background:#12151c;border:1px solid #1e2430;border-radius:12px;padding:12px;margin:10px 12px}
+  .ftrend-box{background:#12151c;border:1px solid #1e2430;border-radius:12px;padding:10px 0;margin:10px 0}
   .ftrend-head{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
   .ftrend-title{flex-shrink:0}
   #ftrendInvestor{flex-shrink:0}
@@ -5297,9 +5297,9 @@ function updateFtrendNote(){
 //  좌축: 매매금액(억), 우축: 지수
 const FT_LINES = [
   { k:'foreign',     n:'외국인', c:'#ef5350', w:3.2 },
-  { k:'institution', n:'기관',   c:'#58a6ff', w:1.6 },
+  { k:'institution', n:'기관',   c:'#ffd54f', w:1.6 },
 ];
-const FT_IDX_COLOR = '#bc8cff';   // 코스피·코스닥 지수 모두 보라
+const FT_IDX_COLOR = '#58a6ff';   // 지수: 푸른색 점선
 let ftHover = -1;
 function ftrendBind(){
   const cv=document.getElementById('ftrendCanvas'); if(!cv||cv._bound) return; cv._bound=true;
@@ -5307,7 +5307,7 @@ function ftrendBind(){
     const rc=cv.getBoundingClientRect();
     const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
     const n=(FTREND_DATA||[]).slice(-ftrendPeriod).length; if(n<=1) return 0;
-    const PADl=46, PADr=52, cw=rc.width-PADl-PADr;
+    const PADl=40, PADr=44, cw=rc.width-PADl-PADr;
     return Math.max(0, Math.min(n-1, Math.round(((cx-PADl)/cw)*(n-1))));
   };
   const on=ev=>{ if(!FTREND_DATA) return; ftHover=idxFrom(ev); drawFtrend('ftrendCanvas'); };
@@ -5328,7 +5328,7 @@ function renderFtrendLegend(){
   const idxCol  = FT_IDX_COLOR;
   const item=(nm,col,w,dash)=>`<span><i style="border-top-width:${w}px;border-top-color:${col};${dash?'border-top-style:dashed':''}"></i>${nm}</span>`;
   el.innerHTML = FT_LINES.map(l=>item(l.n,l.c,Math.min(3,l.w),!!l.dash)).join('')
-               + item(idxName+' 지수', idxCol, 1.6, false);
+               + item(idxName+' 지수', idxCol, 1.6, true);
 }
 
 function drawFtrend(canvasId){
@@ -5342,7 +5342,7 @@ function drawFtrend(canvasId){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,W,H);
 
-  const PAD = {l:46, r:52, t:12, b:20};
+  const PAD = {l:40, r:44, t:12, b:20};
   const cw = W-PAD.l-PAD.r, ch = H-PAD.t-PAD.b;
   const n = rows.length;
   if(!n) return;
@@ -5401,11 +5401,11 @@ function drawFtrend(canvasId){
   // 지수 선 (뒤에 깔리도록 먼저)
   if(iv.length>1){
     ctx.strokeStyle = FT_IDX_COLOR;
-    ctx.lineWidth = 1.6; ctx.setLineDash([]); ctx.lineJoin='round';
+    ctx.lineWidth = 1.6; ctx.setLineDash([4,3]); ctx.lineJoin='round';
     ctx.beginPath(); let st=false;
     idxVals.forEach((v,i)=>{ if(v==null){ st=false; return; }
       const x=xOf(i), y=yIdx(v); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); });
-    ctx.stroke();
+    ctx.stroke(); ctx.setLineDash([]);
   }
   // 투자자 선
   FT_LINES.forEach(l=>{
