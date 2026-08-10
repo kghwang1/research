@@ -663,6 +663,17 @@
   /* fab + bottom nav already covered; loading */
   .ld{text-align:center;padding:40px;color:var(--dim);font-size:13px}
   .count{font-size:11.5px;color:var(--dim);margin-bottom:10px}
+
+  /* 증시자금동향 */
+  .dep-wrap{margin-top:14px}
+  .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin-left:6px}
+  .dep-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 6px;font-size:11px}
+  .dep-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
+  .dep-legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+  #depCanvas{width:100%;height:210px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
+  .dep-tip{min-height:74px;margin-top:6px;padding:7px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;
+    font-size:12px;line-height:1.6;color:var(--ink);font-family:monospace;white-space:pre}
+  .dep-note{font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -809,6 +820,15 @@
   <div id="pnlChart" class="pnl-chart"></div>
   <div id="pnlSummary" class="pnl-sum"></div>
   <div class="pnl-note" id="pnlNote"></div>
+  <!-- 증시자금동향 -->
+  <div class="dep-wrap">
+    <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">1년 최고값 대비 %</span></div>
+    <div class="dep-legend" id="depLegend"></div>
+    <canvas id="depCanvas"></canvas>
+    <div class="dep-tip" id="depTip"></div>
+    <div class="dep-note" id="depNote">불러오는 중…</div>
+  </div>
+
   <div class="pnl-flow">
    <div class="pnl-flow-h"><span>외국인 선물 투자자별 매매동향 (실시간)</span><span class="pnl-flow-open" onclick="pnlFlowOpen()">네이버에서 열기 ↗</span></div>
    <div class="pnl-flow-crop"><iframe id="pnlFlowFrame" referrerpolicy="no-referrer"></iframe></div>
@@ -5177,6 +5197,7 @@ function openPnl(){
   pnlAutoFetch(true); // 현재 K200·외국인 선물/코스피 순매수 자동
   const ff=$('#pnlFlowFrame'); if(ff && (!ff.src || ff.src==='about:blank')) ff.src=FLOW_URL;
   loadFtrend(); // 외국인 매매 추이 막대그래프
+  loadDeposit_init(); // 증시자금동향
 }
 
 // ── 투자자별 매매 추이 막대그래프 ──
@@ -5593,6 +5614,150 @@ function pnlUpdateVerdictOnly(){
   const nf=$('#pnlNfCell'); if(nf) nf.innerHTML=pnlNfCellHtml();
   const note=box.querySelector('.pd-note'); if(note) note.innerHTML=pnlInterpret(V,{futN:PNL.futN, spotV:PNL.spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate});
 }
+// ══════════════════════════════════════
+// 증시자금동향 — 고객예탁금·신용잔고·펀드(주식형/혼합형/채권형)
+//  세로축: 1년 최고값 대비 % (단위가 제각각이라 %로 맞춰야 한 화면에 그릴 수 있음)
+//  표시 구간: 최근 3개월
+// ══════════════════════════════════════
+const DEP_SERIES = [
+  { k:'deposit', n:'고객예탁금', c:'#ef5350' },
+  { k:'credit',  n:'신용잔고',   c:'#f0a836' },
+  { k:'stock',   n:'주식형',     c:'#3fb950' },
+  { k:'mixed',   n:'혼합형',     c:'#58a6ff' },
+  { k:'bond',    n:'채권형',     c:'#bc8cff' },
+];
+let DEP_ROWS = [];      // 1년치 원자료
+let DEP_VIEW = [];      // 최근 3개월
+let DEP_MAX  = {};      // 계열별 1년 최고값
+let depHover = -1;
+
+async function loadDeposit(){
+  const note=$('#depNote');
+  if(!SRV_URL){ if(note) note.textContent='서버 설정이 필요합니다'; return; }
+  try{
+    const r=await fetch(SRV_URL+'/?deposit=1&pages=9');
+    const d=await r.json();
+    if(!d||!d.ok||!Array.isArray(d.rows)||!d.rows.length){
+      if(note) note.textContent='자료를 불러오지 못했습니다'; return;
+    }
+    DEP_ROWS=d.rows;
+    // 1년 최고값 (비율 기준)
+    DEP_MAX={};
+    DEP_SERIES.forEach(se=>{
+      let m=0; DEP_ROWS.forEach(x=>{ const v=x[se.k]; if(v!=null&&v>m) m=v; });
+      DEP_MAX[se.k]=m||1;
+    });
+    // 최근 3개월만 표시
+    const last=DEP_ROWS[DEP_ROWS.length-1].date;
+    const cut=new Date(last); cut.setMonth(cut.getMonth()-3);
+    const cutS=cut.toISOString().slice(0,10);
+    DEP_VIEW=DEP_ROWS.filter(x=>x.date>=cutS);
+    if(DEP_VIEW.length<5) DEP_VIEW=DEP_ROWS.slice(-60);
+    renderDepLegend();
+    drawDeposit();
+    depShowTip(DEP_VIEW.length-1);
+    if(note) note.textContent='단위 억원 · 세로축은 1년 최고값 대비 % · 최근 3개월 ('+DEP_VIEW.length+'영업일, 1년 자료 '+DEP_ROWS.length+'일) · 네이버 금융';
+  }catch(e){ if(note) note.textContent='불러오기 실패: '+(e.message||e); }
+}
+
+function renderDepLegend(){
+  const el=$('#depLegend'); if(!el) return;
+  el.innerHTML = DEP_SERIES.map(se=>`<span><i style="background:${se.c}"></i>${se.n}</span>`).join('');
+}
+
+function drawDeposit(){
+  const cv=$('#depCanvas'); if(!cv||!DEP_VIEW.length) return;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const PAD={l:8,r:40,t:10,b:18};
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const n=DEP_VIEW.length;
+  const pct=(v,k)=> v==null?null:(v/DEP_MAX[k])*100;
+
+  // 세로 범위 (표시 구간의 최소~100%)
+  let mn=100, mx=0;
+  DEP_VIEW.forEach(x=>DEP_SERIES.forEach(se=>{const p=pct(x[se.k],se.k); if(p!=null){ if(p<mn)mn=p; if(p>mx)mx=p; }}));
+  mn=Math.floor((mn-2)/5)*5; mx=Math.ceil((mx+2)/5)*5;
+  if(mx<=mn) mx=mn+10;
+  const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
+  const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+
+  // 가로 눈금
+  ctx.font='10px monospace'; ctx.textAlign='left';
+  for(let g=mn; g<=mx; g+=Math.max(5,Math.round((mx-mn)/4/5)*5)){
+    const y=yOf(g);
+    ctx.strokeStyle= g===100?'#ffd54f66':'#30363d'; ctx.lineWidth=1;
+    ctx.setLineDash(g===100?[]:[3,3]);
+    ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(W-PAD.r,y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle= g===100?'#ffd54f':'#6e7681';
+    ctx.fillText(g+'%', W-PAD.r+3, y+3);
+  }
+  // 각 계열 선
+  DEP_SERIES.forEach(se=>{
+    ctx.strokeStyle=se.c; ctx.lineWidth=1.6; ctx.lineJoin='round';
+    ctx.beginPath(); let started=false;
+    DEP_VIEW.forEach((x,i)=>{
+      const p=pct(x[se.k],se.k);
+      if(p==null){ started=false; return; }
+      const px=xOf(i), py=yOf(p);
+      started?ctx.lineTo(px,py):(ctx.moveTo(px,py),started=true);
+    });
+    ctx.stroke();
+  });
+  // 날짜 라벨 (양끝 + 가운데)
+  ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace';
+  const lab=i=>DEP_VIEW[i].date.slice(5).replace('-','/');
+  ctx.textAlign='left';   ctx.fillText(lab(0), PAD.l, H-5);
+  ctx.textAlign='center'; ctx.fillText(lab(Math.floor(n/2)), PAD.l+cw/2, H-5);
+  ctx.textAlign='right';  ctx.fillText(lab(n-1), W-PAD.r, H-5);
+  // 선택 지점 세로선
+  if(depHover>=0 && depHover<n){
+    const x=xOf(depHover);
+    ctx.strokeStyle='#ffffff44'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
+    DEP_SERIES.forEach(se=>{
+      const p=pct(DEP_VIEW[depHover][se.k],se.k); if(p==null) return;
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(p),2.6,0,Math.PI*2); ctx.fill();
+    });
+  }
+}
+
+// 터치·마우스로 값 보기
+function depShowTip(i){
+  const el=$('#depTip'); if(!el||!DEP_VIEW.length) return;
+  depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
+  const r=DEP_VIEW[depHover];
+  const num=v=> v==null?'—':Math.round(v).toLocaleString();
+  const rate=(v,k)=> v==null?'':'  ('+((v/DEP_MAX[k])*100).toFixed(1)+'%)';
+  let t=r.date+'\n';
+  DEP_SERIES.forEach(se=>{
+    t += se.n.padEnd(6,' ')+': '+String(num(r[se.k])).padStart(10,' ')+rate(r[se.k],se.k)+'\n';
+  });
+  el.textContent=t.trimEnd();
+  drawDeposit();
+}
+function depBind(){
+  const cv=$('#depCanvas'); if(!cv||cv._bound) return; cv._bound=true;
+  const idxFrom=ev=>{
+    const rc=cv.getBoundingClientRect();
+    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
+    const PADl=8, PADr=40, cw=rc.width-PADl-PADr;
+    const n=DEP_VIEW.length; if(n<=1) return 0;
+    return Math.round(((cx-PADl)/cw)*(n-1));
+  };
+  const on=ev=>{ if(!DEP_VIEW.length) return; depShowTip(idxFrom(ev)); };
+  cv.addEventListener('mousemove', on);
+  cv.addEventListener('touchstart', e=>{ on(e); }, {passive:true});
+  cv.addEventListener('touchmove',  e=>{ on(e); }, {passive:true});
+}
+window.addEventListener('resize', ()=>{ if(DEP_VIEW.length) drawDeposit(); });
+
+function loadDeposit_init(){ depBind(); loadDeposit(); }
+
 async function loadPnlDir(){
   const box=$('#pnlDir'); if(!box) return;
   if(!SRV_URL){ box.style.display='none'; return; }
