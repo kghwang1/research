@@ -5268,7 +5268,8 @@ function updateFtrendNote(){
   const note = document.getElementById('ftrendNote');
   if(!note) return;
   const idxL = ftrendIdx === 'kospi' ? '코스피' : '코스닥';
-  note.textContent = '외국인·기관·개인 ' + idxL + ' 순매수 (억원) · 네이버 · 빨강=순매수, 파랑=순매도';
+  const modeL = ftrendMode === 'cumul' ? '누적 순매수' : '순매수';
+  note.textContent = idxL + ' ' + modeL + ' (억원) · 좌축 금액 / 우축 지수 · 그래프를 누르면 날짜가 표시됩니다 · 네이버';
 }
 
 // 3개 캔버스 모두 그리기
@@ -5299,6 +5300,7 @@ function ftrendBind(){
 }
 function drawFtrendAll(){
   ftrendBind();
+  updateFtrendNote();
   renderFtrendLegend();
   drawFtrend('ftrendCanvas');
 }
@@ -5335,12 +5337,12 @@ function drawFtrend(canvasId){
         : (r.foreignKospi != null ? r.foreignKospi : (r.foreign != null ? r.foreign : r.net));
     }
     else if(key==='institution'){
-      v = ftrendIdx==='kosdaq' ? r.instKosdaq
-        : (r.instKospi != null ? r.instKospi : (r.institution != null ? r.institution : r.inst));
+      const kq = r.instKosdaq, ks = (r.instKospi != null ? r.instKospi : (r.institution != null ? r.institution : r.inst));
+      v = ftrendIdx==='kosdaq' ? (kq != null ? kq : ks) : ks;   // 코스닥 값이 없으면 전체 값으로
     }
     else {
-      v = ftrendIdx==='kosdaq' ? r.personKosdaq
-        : (r.personKospi != null ? r.personKospi : (r.individual != null ? r.individual : r.person));
+      const kq = r.personKosdaq, ks = (r.personKospi != null ? r.personKospi : (r.individual != null ? r.individual : r.person));
+      v = ftrendIdx==='kosdaq' ? (kq != null ? kq : ks) : ks;
     }
     return (v!=null) ? v : 0;
   };
@@ -5660,7 +5662,7 @@ async function loadDeposit(){
   const note=$('#depNote');
   if(!SRV_URL){ if(note) note.textContent='서버 설정이 필요합니다'; return; }
   try{
-    const r=await fetch(SRV_URL+'/?deposit=1&pages=9');
+    const r=await fetch(SRV_URL+'/?deposit=1&pages=13');
     const d=await r.json();
     if(!d||!d.ok||!Array.isArray(d.rows)||!d.rows.length){
       if(note) note.textContent='자료를 불러오지 못했습니다'; return;
