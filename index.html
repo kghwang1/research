@@ -783,7 +783,7 @@
   <!-- 코스피·코스닥·선물 흐름 비교 -->
   <div class="idx3-wrap">
     <canvas id="idx3Canvas"></canvas>
-    <div class="idx3-note">100일 최고가 기준 비율</div>
+    <div class="idx3-note">52주 최고가 기준 비율</div>
     <div class="idx3-tip" id="idx3Tip"></div>
   </div>
 
@@ -4449,7 +4449,7 @@ function renderSelect(box){
       }
       const roeCell = (d.roe!=null) ? d.roe.toFixed(1)+'%' : '<span style="color:#6e7681">—</span>';
       const rfmt = v => { if(v==null) return '<span style="color:#6e7681">—</span>'; const c=v>=0?'#ef5350':'#2e9e4f'; return `<span style="color:${c}">${(v>=0?'+':'')+v.toFixed(1)}</span>`; };
-      const retCell = `<span style="font-size:10.5px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
+      const retCell = `<span style="font-size:12.6px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
       const chartCell = d.chart ? divMiniChart(d.chart) : (SRV_URL?'<span style="color:#6e7681;font-size:10px">…</span>':'—');
       const rptCell = `<a href="#" class="sel-rpt" data-code="${escHtml(rawCode)}" data-us="${it.isUS?1:''}" style="color:#58a6ff;font-size:10px">네이버▶</a>`;
       h += `<tr>`
@@ -4760,7 +4760,7 @@ function renderDividend(box){
 
   // 표
   const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','연 배당','주가 수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
-  const W=[64,210,84,100,66,150,96,58];
+  const W=[64,196,84,100,74,178,90,58];
   h+='<table class="val-tbl mp div-tbl"><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
 
@@ -4795,7 +4795,7 @@ function renderDividend(box){
                    : (SRV_URL?'…':'—');
       // 수익률 (1/3/6/12개월)
       const rfmt=v=>{ if(v==null) return '<span style="color:#6e7681">—</span>'; const c=v>=0?'#ef5350':'#2e9e4f'; return `<span style="color:${c}">${(v>=0?'+':'')+v.toFixed(1)}</span>`; };
-      const retCell = `<span style="font-size:10.5px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
+      const retCell = `<span style="font-size:12.6px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
       // 미니차트
       const chartCell = d.chart ? divMiniChart(d.chart) : (SRV_URL?'<span style="color:#6e7681;font-size:10px">…</span>':'—');
       // 보고서 (네이버 링크)
@@ -4811,7 +4811,7 @@ function renderDividend(box){
         +`<td class="mp-l div-name">${nameCell}</td>`
         +`<td class="cls-cell">${divClsHtml(it.code, it.name, it.isUS)}</td>`
         +`<td class="mp-r div-price" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" data-name="${escHtml(it.name)}" style="cursor:pointer;text-decoration:underline dotted">${priceCell}</td>`
-        +`<td class="mp-r" style="color:#3fb950;font-weight:600">${divYld}</td>`
+        +`<td class="mp-r" style="color:#3fb950;font-weight:600;font-size:14px">${divYld}</td>`
         +`<td class="mp-c">${retCell}</td>`
         +`<td class="mp-c">${chartCell}</td>`
         +`<td class="mp-c">${rptCell}</td>`
@@ -5809,11 +5809,21 @@ const IDX3 = [
   { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff' },
   { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#58a6ff', dash:true },
 ];
-const IDX3_DAYS = 100;   // 받아오는 총 일수
+const IDX3_DAYS = 260;   // 받아오는 총 일수 (약 52주)
 const IDX3_VIEW = 22;    // 한 화면에 보이는 일수 (약 1개월)
 let idx3Off = 0;         // 오른쪽 끝에서 몇 봉 왼쪽으로 밀었는지
 let IDX3_DATA = null;   // { dates:[], 계열별 종가 배열 }
-let IDX3_MAX = {};      // 계열별 100일 최고가 (비율 기준)
+let IDX3_MAX = {};      // 계열별 52주 최고가 (비율 기준)
+// 최근 52주(약 260영업일) 구간의 최고가
+function idx3CalcMax(data){
+  const out={};
+  IDX3.forEach(se=>{
+    const a=(data[se.k]||[]).slice(-260);
+    let m=0; a.forEach(v=>{ if(v!=null&&v>m) m=v; });
+    out[se.k]=m||1;
+  });
+  return out;
+}
 let idx3Hover = -1;
 
 async function loadIdx3(){
@@ -5821,12 +5831,12 @@ async function loadIdx3(){
   if(!SRV_URL){ if(tip) tip.textContent='서버 설정이 필요합니다'; return; }
   // ① 기기에 남은 자료를 먼저 그려 화면이 비지 않게 (10분 이내면 그대로 사용)
   try{
-    const raw=localStorage.getItem('kg_idx3_v2');
+    const raw=localStorage.getItem('kg_idx3_v3');
     if(raw){
       const o=JSON.parse(raw);
       if(o && o.data && o.data.dates && o.data.dates.length){
         IDX3_DATA=o.data;
-        IDX3_MAX={}; IDX3.forEach(se=>{ let m=0; (IDX3_DATA[se.k]||[]).forEach(v=>{ if(v!=null&&v>m) m=v; }); IDX3_MAX[se.k]=m||1; });
+        IDX3_MAX=idx3CalcMax(IDX3_DATA);
         idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
         if(Date.now()-(o.ts||0) < 10*60*1000) return;   // 아직 신선하면 조회 생략
       }
@@ -5836,8 +5846,8 @@ async function loadIdx3(){
     const got = await Promise.all(IDX3.map(async se=>{
       try{
         const u = se.src==='yahoo'
-          ? SRV_URL+'/?yahooChart='+encodeURIComponent(se.code)+'&range=6mo&interval=1d'
-          : SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=140';
+          ? SRV_URL+'/?yahooChart='+encodeURIComponent(se.code)+'&range=1y&interval=1d'
+          : SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=400';
         const r=await fetch(u);
         const d=await r.json();
         if(!d||!d.ok) return null;
@@ -5872,9 +5882,9 @@ async function loadIdx3(){
       return;
     }
     IDX3_MAX = {};
-    IDX3.forEach(se=>{ let m=0; out[se.k].forEach(v=>{ if(v!=null&&v>m) m=v; }); IDX3_MAX[se.k]=m||1; });
+    IDX3_MAX=idx3CalcMax(out);
     IDX3_DATA = out;
-    try{ localStorage.setItem('kg_idx3_v2', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
+    try{ localStorage.setItem('kg_idx3_v3', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
     idx3Bind();
     drawIdx3();
     idx3ShowTip(out.dates.length-1);
