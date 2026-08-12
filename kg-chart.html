@@ -182,7 +182,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 
 /* 보조지표 패널 - 각각 고정 높이 */
 .sub-wrap {
-  flex: 0 0 98px; height: 98px;
+  flex: 0 0 110px; height: 110px;
   border: 1px solid #30363d;
   border-top: 2px solid #388bfd44;
   border-radius: 4px;
@@ -2522,14 +2522,17 @@ function drawSub(canvas, key) {
     }
     // 기준선 20 — 추세장/횡보장 구분. 가로 점선
     const y20 = yOf(20);
-    ctx.strokeStyle = '#e0b341aa'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
     ctx.beginPath(); ctx.moveTo(PAD.l, y20); ctx.lineTo(W - PAD.r, y20); ctx.stroke();
     ctx.setLineDash([]);
-    // 기준선 40 — 추세가 무르익은 구간. 고점·저점 판단에 쓰므로 붉은 실선
+    ctx.fillStyle = '#3fb950'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText('20', W - PAD.r + 3, y20 + 3);
+    // 기준선 40 — 추세가 무르익은 구간. 고점·저점 판단에 쓴다
     if (40 >= minV && 40 <= maxV) {
       const y40 = yOf(40);
-      ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
       ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
+      ctx.setLineDash([]);
       ctx.fillStyle = '#ef5350'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
       ctx.fillText('40', W - PAD.r + 3, y40 + 3);
     }
@@ -2616,9 +2619,9 @@ function drawSub(canvas, key) {
       arr.forEach((v,i) => { if (v==null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
       ctx.stroke();
     };
-    // +DI 빨강, -DI 파랑
-    drawLine(pdi, '#ffd54f', 1.6);
-    drawLine(ndi, '#ef5350', 1.6);
+    // +DI 빨강, -DI 초록
+    drawLine(pdi, '#ef5350', 1.6);
+    drawLine(ndi, '#3fb950', 1.6);
     // 교차 신호: +DI가 -DI 상향돌파=매수(▲), 하향돌파=매도(▼)
     for (let i = 1; i < n; i++) {
       if (pdi[i]==null||ndi[i]==null||pdi[i-1]==null||ndi[i-1]==null) continue;
@@ -2626,14 +2629,14 @@ function drawSub(canvas, key) {
       if (prevDiff<=0 && curDiff>0) {
         // 매수 ▲ (빨강, 교차점 아래)
         const y = yOf(pdi[i]);
-        ctx.fillStyle = '#ffd54f';
+        ctx.fillStyle = '#ef5350';
         ctx.beginPath();
         ctx.moveTo(xOf(i), y+13); ctx.lineTo(xOf(i)-4, y+20); ctx.lineTo(xOf(i)+4, y+20); ctx.closePath(); ctx.fill();
       }
       if (prevDiff>=0 && curDiff<0) {
-        // 매도 ▼ (파랑, 교차점 위)
+        // 매도 ▼ (초록, 교차점 위)
         const y = yOf(pdi[i]);
-        ctx.fillStyle = '#1976d2';
+        ctx.fillStyle = '#3fb950';
         ctx.beginPath();
         ctx.moveTo(xOf(i), y-13); ctx.lineTo(xOf(i)-4, y-20); ctx.lineTo(xOf(i)+4, y-20); ctx.closePath(); ctx.fill();
       }
