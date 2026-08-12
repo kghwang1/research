@@ -722,16 +722,16 @@ const CALC = {
 // 지표 설정
 const IND_CFG = {
   MACD:{color:C.accent,lines:[0]},
-  ADX:{color:C.green,lines:[20,40]},
-  ADXR:{color:'#e0b341',lines:[20,40]},
+  ADX:{color:C.green},
+  ADXR:{color:'#e0b341'},
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
-  FORCE:{color:C.pink,lines:[0]},
+  FORCE:{color:C.pink},
   FRGN_NET:{color:C.cyan,lines:[0]},
   INST_NET:{color:'#ff9800',lines:[0]},
   SHORT_SELL:{color:'#ef5350',lines:[0]},
-  ELDER:{color:'#ef5350',lines:[0]},
-  RSI:{color:'#d32f2f',range:[0,100],lines:[70,50,30]},
+  ELDER:{color:'#ef5350'},
+  RSI:{color:'#d32f2f',range:[20,80]},
   SMI:{color:C.yellow,range:[-100,100],lines:[40,0,-40]},
   STOCHRSI:{color:C.purple,range:[0,100],lines:[80,50,20]},
   STOCH:{color:C.cyan,range:[0,100],lines:[80,50,20]},
@@ -744,13 +744,13 @@ const IND_CFG = {
   MOM:{color:C.green,lines:[0]},
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
   ATR:{color:C.orange},
-  RVI:{color:C.purple,range:[20,80],lines:[40,60]},
-  INERTIA:{color:C.lime,range:[30,80],lines:[40,60]},
+  RVI:{color:C.purple,range:[20,80]},
+  INERTIA:{color:C.lime,range:[30,80]},
   CHAIKIN_VOL:{color:C.teal,lines:[0]},
   VOLUME:{color:C.muted},
   OBV:{color:C.cyan},
   CMF:{color:C.pink,lines:[0]},
-  MFI:{color:C.lime,range:[0,100],lines:[80,50,20]},
+  MFI:{color:C.lime,range:[0,100]},
   PVT:{color:C.teal},
   WILLIAMS_AD:{color:C.accent},
 };
@@ -2079,6 +2079,12 @@ function drawSub(canvas, key) {
   let minV = cfg.range ? cfg.range[0] : Math.min(...allVals);
   let maxV = cfg.range ? cfg.range[1] : Math.max(...allVals);
   if (!cfg.range) { const p = (maxV - minV) * 0.1; minV -= p; maxV += p; }
+  else if (allVals.length) {
+    // 고정 범위여도 값이 벗어나면 그만큼 넓힌다 (잘려서 안 보이는 일 방지)
+    const lo = Math.min(...allVals), hi = Math.max(...allVals);
+    if (lo < minV) minV = Math.floor((lo - 2) / 5) * 5;
+    if (hi > maxV) maxV = Math.ceil((hi + 2) / 5) * 5;
+  }
   if (minV === maxV) { minV -= 1; maxV += 1; }
 
   const xOf = i => PAD.l + (i + 0.5) * (cw / n);
@@ -2090,7 +2096,7 @@ function drawSub(canvas, key) {
     // 보조선은 RSI 70선 기준으로 통일 (주황 실선, 굵기 1)
     ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(PAD.l, yOf(lv)); ctx.lineTo(W - PAD.r, yOf(lv)); ctx.stroke();
-    ctx.fillStyle = C.muted; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText(lv, W - PAD.r + 3, yOf(lv) + 3);
   });
 
@@ -2306,12 +2312,16 @@ function drawSub(canvas, key) {
     ctx.setLineDash([]); ctx.lineWidth = REF_LINE_WIDTH;
     ctx.strokeStyle = REF_LINE_COLOR;
     ctx.beginPath(); ctx.moveTo(PAD.l, y60); ctx.lineTo(W - PAD.r, y60); ctx.stroke();
-    ctx.strokeStyle = '#2979ff88';
+    ctx.strokeStyle = REF_LINE_COLOR;
     ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
     ctx.setLineDash([]);
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = '#ef535088'; ctx.fillText('60', PAD.l + 3, y60 - 3);
-    ctx.fillStyle = '#2979ff88'; ctx.fillText('40', PAD.l + 3, y40 + 10);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('60', PAD.l + 3, y60 - 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('40', PAD.l + 3, y40 + 10);
+    // 우측 y축 숫자
+    ctx.font = '10px monospace';
+    ctx.fillText('60', W - PAD.r + 3, y60 + 3);
+    ctx.fillText('40', W - PAD.r + 3, y40 + 3);
 
     // Inertia와 시그널 사이 간격을 색으로 채움 — 위=파랑(강세) / 아래=빨강(약세)
     if (sig) {
@@ -2444,13 +2454,18 @@ function drawSub(canvas, key) {
     ctx.setLineDash([]); ctx.lineWidth = REF_LINE_WIDTH;
     ctx.strokeStyle = REF_LINE_COLOR;
     ctx.beginPath(); ctx.moveTo(PAD.l, y60); ctx.lineTo(W - PAD.r, y60); ctx.stroke();
-    ctx.strokeStyle = '#2979ffaa';
+    ctx.strokeStyle = REF_LINE_COLOR;
     ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
     ctx.setLineDash([]);
-    // 기준선 라벨
+    // 기준선 설명 (차트 안쪽)
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = '#ef5350aa'; ctx.fillText('60 과열 · 이탈 시 매도', PAD.l + 3, y60 - 3);
-    ctx.fillStyle = '#2979ffaa'; ctx.fillText('40 과매도 · 돌파 시 매입', PAD.l + 3, y40 + 10);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('60 과열 · 이탈 시 매도', PAD.l + 3, y60 - 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('40 과매도 · 돌파 시 매입', PAD.l + 3, y40 + 10);
+    // 우측 y축 숫자 (다른 지표와 동일)
+    ctx.font = '10px monospace';
+    ctx.fillStyle = REF_LABEL_COLOR;
+    ctx.fillText('60', W - PAD.r + 3, y60 + 3);
+    ctx.fillText('40', W - PAD.r + 3, y40 + 3);
 
     // RVI 본선
     ctx.strokeStyle = '#bc8cff'; ctx.lineWidth = 1.8;
@@ -2535,7 +2550,7 @@ function drawSub(canvas, key) {
     }
     // 기준선 라벨
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = '#e0b341aa'; ctx.fillText('20', PAD.l + 3, y20 - 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('20', PAD.l + 3, y20 - 3);
     // ADX (녹색 점선, ADXR 본선과 같은 굵기)
     if (adxLine) {
       ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
@@ -2680,8 +2695,8 @@ function drawSub(canvas, key) {
     // 50 (중심) - 회색 점선
     ctx.strokeStyle = '#6e7681aa'; ctx.lineWidth = 0.8;
     ctx.beginPath(); ctx.moveTo(PAD.l, y50); ctx.lineTo(W - PAD.r, y50); ctx.stroke();
-    // 40 - 회색 점선
-    ctx.strokeStyle = '#6e768188';
+    // 40 - 보조선 (공통 규격)
+    ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(PAD.l, y40); ctx.lineTo(W - PAD.r, y40); ctx.stroke();
     ctx.setLineDash([]);
     // 20 (과매도) - 청록 실선
@@ -2689,11 +2704,11 @@ function drawSub(canvas, key) {
     ctx.beginPath(); ctx.moveTo(PAD.l, y20); ctx.lineTo(W - PAD.r, y20); ctx.stroke();
     // 기준선 숫자 라벨 (우측)
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = '#f0a836'; ctx.fillText('80', W - PAD.r + 3, y80 + 3);
-    ctx.fillStyle = '#8b949e'; ctx.fillText('60', W - PAD.r + 3, y60 + 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('80', W - PAD.r + 3, y80 + 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('60', W - PAD.r + 3, y60 + 3);
     ctx.fillStyle = '#6e7681'; ctx.fillText('50', W - PAD.r + 3, y50 + 3);
-    ctx.fillStyle = '#8b949e'; ctx.fillText('40', W - PAD.r + 3, y40 + 3);
-    ctx.fillStyle = '#3fb950'; ctx.fillText('20', W - PAD.r + 3, y20 + 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('40', W - PAD.r + 3, y40 + 3);
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.fillText('20', W - PAD.r + 3, y20 + 3);
     // 80 위(과매수) 영역 채움 - 주황
     ctx.fillStyle = '#f0a83633';
     for (let i = 0; i < arr.length - 1; i++) {
@@ -2772,7 +2787,7 @@ function drawSub(canvas, key) {
     const y70 = yOf(70), y30 = yOf(30), y50 = yOf(50);
     // ── 기준선 70/50/30 ──
     // 70 (과매수) - 주황 실선
-    ctx.strokeStyle = '#f0a836aa'; ctx.lineWidth = 1; ctx.setLineDash([]);
+    ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(PAD.l, y70); ctx.lineTo(W - PAD.r, y70); ctx.stroke();
     // 30 (과매도) - 청록 실선
     ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH;
@@ -2782,9 +2797,9 @@ function drawSub(canvas, key) {
     ctx.beginPath(); ctx.moveTo(PAD.l, y50); ctx.lineTo(W - PAD.r, y50); ctx.stroke();
     ctx.setLineDash([]);
     // 기준선 숫자 라벨 (우측)
-    ctx.fillStyle = '#f0a836'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = REF_LABEL_COLOR; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText('70', W - PAD.r + 3, y70 + 3);
-    ctx.fillStyle = '#f0a836';
+    ctx.fillStyle = REF_LABEL_COLOR;
     ctx.fillText('30', W - PAD.r + 3, y30 + 3);
     ctx.fillStyle = '#6e7681';
     ctx.fillText('50', W - PAD.r + 3, y50 + 3);
@@ -3354,6 +3369,7 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementB
 // 보조차트 보조선 공통 규격 (RSI 70선 기준)
 const REF_LINE_COLOR = '#f0a836aa';
 const REF_LINE_WIDTH = 1;
+const REF_LABEL_COLOR = '#f0a836';   // 보조선 숫자 라벨
 
 let chartStep = null;
 const STEP_HOLD_DELAY = 450;   // 길게 누름을 인식하기까지(ms)
