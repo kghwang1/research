@@ -486,7 +486,8 @@
   .inv-bar{caption-side:top;text-align:left;padding:8px 10px;font-size:12px;color:var(--dim);background:var(--bg);white-space:nowrap;overflow-x:auto}
   .inv-bar button{margin:0 3px;padding:4px 10px;border:1px solid #555;border-radius:14px;background:transparent;color:var(--ink,#ddd);font-size:12px;font-weight:600}
   .inv-bar button.on{background:#7c83ff;border-color:#7c83ff;color:#fff}
-  .inv-bar button.rfr{margin-left:8px;border-radius:50%;width:28px;height:28px;padding:0;font-size:14px}
+  /* 상단메뉴 버튼은 다른 표와 같은 알약 모양 (원형 강제 해제) */
+  .inv-bar button.rfr{margin:0 4px 0 0;border-radius:6px;width:auto;height:auto;padding:3px 10px;font-size:11.5px}
   .inv-bar button.frgn-sort{margin-left:8px;border-color:#e05252;color:#e08585}
   .inv-bar button.frgn-sort.on{background:#e05252;border-color:#e05252;color:#fff}
   .wac-item:hover{background:#1f2733}
@@ -676,6 +677,12 @@
   .ftrend-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
   .ftrend-legend i{width:14px;height:0;display:inline-block;border-top-style:solid}
 
+
+  /* ETF 통합 표 */
+  .val-tbl td.etf-mk{font-size:11px;font-weight:700;color:#8b949e}
+  .val-tbl tr.etf-sub td{background:#1b2029;font-weight:700;color:#e6edf3;border-top:1px solid #30363d}
+  .val-tbl td.kredit2{cursor:text}
+  .val-tbl td.kredit2.neg{color:#2e9e4f}
   /* 코스피·코스닥·선물 비교 그래프 (시황 상단) */
   .idx3-wrap{margin-bottom:8px}
   .idx3-legend{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 4px;font-size:11px}
@@ -683,6 +690,7 @@
   .idx3-legend i{width:14px;height:0;display:inline-block;border-top:2.5px solid}
   #idx3Canvas{width:100%;height:150px;display:block;background:var(--panel);
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
+  .idx3-note{font-size:11px;color:var(--mut);font-weight:500;margin:5px 0 -1px}
   .idx3-tip{margin-top:5px;padding:6px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:52px;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
@@ -775,6 +783,7 @@
   <!-- 코스피·코스닥·선물 흐름 비교 -->
   <div class="idx3-wrap">
     <canvas id="idx3Canvas"></canvas>
+    <div class="idx3-note">100일 최고가 기준 비율</div>
     <div class="idx3-tip" id="idx3Tip"></div>
   </div>
 
@@ -918,8 +927,6 @@
  <div id="valMulti" style="display:none"></div>
  <div class="valfull-foot" id="valFoot">
   <span class="val-note">자료배포는 금지합니다</span>
-  <button class="val-reset" id="valSave">서버 저장</button>
-  <button class="val-reset" id="valReset">초기화</button>
  </div>
 
  <!-- ===== 점수표 편집 오버레이 ===== -->
@@ -2299,10 +2306,10 @@ function renderVal(){
   t.className='val-tbl';
   if(!VAL.length){ sc.style.display='none'; em.style.display='block'; t.innerHTML=''; return; }
   sc.style.display=''; em.style.display='none';
-  let html='<caption class="kr-cap">'+US_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span>'+pfTopBarHtml()+'</caption><thead><tr>';
+  let html='<caption class="kr-cap">'+US_LABEL+pfMenuHtml({save:'valSave', load:'valReset'})+'</caption><thead><tr>';
   VAL_VIEW.forEach(col=>{
     if(col.kind==='namelink'){
-      html+=`<th class="syhdr-th"><div class="syhdr"><span>${col.h}</span><button type="button" class="usinv-btn${usInvest?' on':''}">투자</button></div></th>`;
+      html+=`<th class="syhdr-th"><div class="syhdr"><span>${col.h}</span><button type="button" class="usinv-btn${usInvest?' on':''}">보유</button></div></th>`;
       return;
     }
     const sortable = (col.kind==='fairm2' || col.kind==='goalm2');
@@ -2751,7 +2758,7 @@ function sortValOf(kind, code, row){
 }
 // 헤더 텍스트 → 정렬키 (해당 열이 없으면 정렬 없음)
 function sortKindOf(x){
-  if(x==='투자') return 'invchk';
+  if(x==='보유') return 'invchk';
   if(x.indexOf('점수')>=0) return 'score';
   if(x.indexOf('현재가')>=0) return 'rate';
   if(x.indexOf('ROE')>=0) return 'roe';
@@ -2853,9 +2860,30 @@ function pfTopSave(){ try{ localStorage.setItem('kg_pf_top', JSON.stringify(PF_T
 function pfTopBarHtml(){
   const ck=(id,lbl,on,col)=>`<label class="pf-top-chk" style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:11px;font-weight:500;color:${col};cursor:pointer"><input type="checkbox" id="${id}"${on?' checked':''} style="cursor:pointer"><span>${lbl}</span></label>`;
   return '<span style="display:block;margin-top:3px">'
-       + '<span style="font-size:10.5px;color:#6e7681;margin-right:6px">위로 모으기</span>'
        + ck('pfTopWatch','관심', PF_TOP.watch, '#58a6ff')
-       + ck('pfTopInvest','투자', PF_TOP.invest, '#f0883e')
+       + ck('pfTopInvest','보유', PF_TOP.invest, '#f0883e')
+       + '</span>';
+}
+
+// ══════════════════════════════════════
+// 표 상단 공용 메뉴 (배당 페이지와 같은 형식)
+//   1줄: 체크박스   2줄: 새로 · 저장 · 불러 · 초기화
+//   btns 로 필요한 버튼만 켠다 {refresh:'id', save:'id', load:'id', reset:'id'}
+// ══════════════════════════════════════
+// 체크박스와 버튼을 한 줄에 (줄이 넘치면 자동 줄바꿈)
+//  opts.checks 가 있으면 그것으로, 없으면 기본 관심·투자 체크박스
+function pfMenuHtml(btns, opts){
+  const o = opts || {};
+  const b=(id,txt,col)=> id ? `<button id="${id}" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:${col};margin-right:5px">${txt}</button>` : '';
+  const checks = (o.checks !== undefined)
+    ? o.checks
+    : pfTopBarHtml().replace('<span style="display:block;margin-top:3px">','').replace(/<\/span>$/,'');
+  return '<span style="display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;margin-top:4px">'
+       + checks
+       + b(btns&&btns.save,    '💾 저장', '#3fb950')
+       + b(btns&&btns.load,    '📥 불러', '#58a6ff')
+       + b(btns&&btns.refresh, '↻ 새로', '#f0883e')
+       + b(btns&&btns.reset,   '🗑 초기화','#ef5350')
        + '</span>';
 }
 
@@ -2889,7 +2917,7 @@ function renderKrTable(){
   const W=[76,60,28,46,76,92,90,90,90,82,100,84,200,110];
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const H=["종목","분류","점수","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
-  let h='<caption class="kr-cap">'+KR_LABEL+'<span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다</span>'+pfTopBarHtml()+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+KR_LABEL+pfMenuHtml({save:'valSave', load:'valReset'})+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
   const krExtraCodes=new Set(krExtraLoad().map(e=>String(e[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
@@ -3014,7 +3042,7 @@ function clsCellHtmlUS(ticker, name){
   const code='US:'+t;
   const inW=inPort('kg_watch_rows', code), inI=inPort('kg_invpf_rows', code);
   const box=(key,lbl,on)=>`<label class="cls-chk"><input type="checkbox" data-cls="${key}" data-clscode="${escHtml(code)}" data-clsname="${escHtml(name||t)}"${on?' checked':''}><span>${lbl}</span></label>`;
-  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','투자',inI)}</div>`;
+  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','보유',inI)}</div>`;
 }
 function invCheckCellHtml(code){
   if(!code) return '';
@@ -3066,7 +3094,7 @@ function clsCellHtml(code, name){
   if(!code) return '';
   const inW=inPort('kg_watch_rows', code), inI=inPort('kg_invpf_rows', code);
   const box=(key,lbl,on)=>`<label class="cls-chk"><input type="checkbox" data-cls="${key}" data-clscode="${escHtml(code)}" data-clsname="${escHtml(name||'')}"${on?' checked':''}><span>${lbl}</span></label>`;
-  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','투자',inI)}</div>`;
+  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','보유',inI)}</div>`;
 }
 function watchKeySrv(){ return watchPort==='invpf' ? 'invpf_portfolio' : 'watch'; }
 function setWatchPort(p){
@@ -3537,13 +3565,10 @@ function renderWatchTable(){
     const cw = selReadRows('kg_watch_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
     const ci = selReadRows('kg_invpf_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
     const ck=(id,lbl,on)=>`<label class="div-chk" style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-weight:500"><input type="checkbox" id="${id}"${on?' checked':''}><span>${lbl}</span></label>`;
-    capFilter = '<div class="sel-filter" style="display:block;font-size:11px;color:#8b949e;font-weight:500;margin-top:4px">'
-      + '<span style="color:#6e7681;margin-right:6px">시장</span>' + ck('selKr','국내',selFilter.kr) + ck('selUs','국외',selFilter.us)
-      + '<span style="color:#6e7681;margin:0 6px 0 4px">보기</span>' + ck('selWatch','관심',selFilter.watch) + ck('selInvest','투자',selFilter.invest)
-      + `<span style="color:#3fb950">관심 ${cw} · 투자 ${ci}</span>`
-      + '</div>';
+    capFilter = ck('selKr','국내',selFilter.kr) + ck('selUs','국외',selFilter.us)
+              + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest);
   }
-  let h='<caption class="kr-cap">'+capTitle+' <button id="watchResetBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#ef5350" title="모든 종목 삭제">🗑 초기화</button> <button id="watchSaveBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에 저장">💾 저장</button> <button id="watchLoadBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff" title="서버에서 불러오기">📥 불러오기</button> <button id="watchDataBtn" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e" title="표 자료를 다시 수집해 서버에 저장">↻ 새로고침</button> <span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">'+sorted.length+'종목'+(snapStamp(SNAP_SEL)?' <span style="color:#6e7681;font-weight:400">· 자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</span>'+capFilter+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+capTitle+pfMenuHtml({refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'}, {checks:capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -3684,7 +3709,7 @@ function renderWatchTable(){
     if(!bar){
       bar=document.createElement('div');
       bar.id='wSearchWrap';
-      bar.innerHTML='<div class="wsearch-bar"><input id="wSearchInput" type="text" placeholder="＋ 종목명·코드 입력 후 선택하면 목록에 추가" autocomplete="off"><div id="wSearchAc" class="wsearch-ac"></div></div>';
+      bar.innerHTML='<div class="wsearch-bar"><input id="wSearchInput" type="text" placeholder="종목명·코드 검색" autocomplete="off"><div id="wSearchAc" class="wsearch-ac"></div></div>';
       sc.parentNode.insertBefore(bar, sc);
     }
   })();
@@ -4123,7 +4148,7 @@ function renderUscTable(){
   const t=$('#valTbl'); if(!t) return;
   const W=[150,60,56,84,90,100,84,80,96];
   const H=["Symbol","분류","비중(%)","현재가<br>(전일대비%)","52주최고가","목표가<br>(상승여력%)","컨센서스","변동사항","기록"];
-  let h='<caption class="kr-cap">'+USC_LABEL+' <button id="uscRefresh" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e" title="목표가·컨센서스를 다시 수집해 서버에 저장">↻ 새로고침</button><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:2px">📈 현재가를 누르면 차트가 열립니다'+(snapStamp(SNAP_USC)?' <span style="color:#6e7681;font-weight:400">· 자료 '+snapStamp(SNAP_USC)+'</span>':'')+'</span>'+pfTopBarHtml()+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+USC_LABEL+pfMenuHtml({refresh:'uscRefresh'})+(snapStamp(SNAP_USC)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_USC)+'</span>':'')+'</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   // 관심·투자 체크 시 해당 종목을 위로 (US 심볼은 'US:티커' 로 대조)
   const uscDisp = pfTopSort(VAL.map((r,ri)=>({r,ri})), o=>{
@@ -4227,9 +4252,14 @@ function renderEtfTable(tableEl, market, cfg, arr){
     td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
   });
 }
-function ensureServerEtf(market, tableEl, cfg){
+function ensureServerEtf(market, tableEl, cfg, onDone){
   if(hasLocalVal(market)) return;
-  serverGet(market).then(arr=>{ if(arr&&arr.length){ etfSave(market,arr); renderEtfTable(tableEl,market,cfg,arr); } });
+  serverGet(market).then(arr=>{
+    if(!arr||!arr.length) return;
+    etfSave(market,arr);
+    if(typeof onDone==='function') onDone();          // 통합 표는 전체를 다시 그린다
+    else if(tableEl) renderEtfTable(tableEl,market,cfg,arr);
+  });
 }
 function etfResetMarket(market, tableEl, cfg, btn){
   if(!confirm('이 표를 서버 자료와 일치시킬까요?\n이 기기에서 고친 내용은 사라집니다.')) return;
@@ -4353,7 +4383,7 @@ function selInStore(storeKey, code){
 function selClsHtml(code, name){
   const inW = selInStore('kg_watch_rows', code), inI = selInStore('kg_invpf_rows', code);
   const box = (key,lbl,on) => `<label class="cls-chk"><input type="checkbox" data-selcls="${key}" data-selcode="${escHtml(code)}" data-selname="${escHtml(name||'')}"${on?' checked':''}><span>${lbl}</span></label>`;
-  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','투자',inI)}</div>`;
+  return `<div class="cls-wrap">${box('kg_watch_rows','관심',inW)}${box('kg_invpf_rows','보유',inI)}</div>`;
 }
 
 function renderSelect(box){
@@ -4369,7 +4399,7 @@ function renderSelect(box){
      + `<label class="div-chk"><input type="checkbox" id="selUs"${f.us?' checked':''}><span>국외</span></label></div>`;
   h += '<div class="div-filter-row"><span class="div-fl-label">보기</span>'
      + `<label class="div-chk"><input type="checkbox" id="selWatch"${f.watch?' checked':''}><span>관심</span></label>`
-     + `<label class="div-chk"><input type="checkbox" id="selInvest"${f.invest?' checked':''}><span>투자</span></label></div>`;
+     + `<label class="div-chk"><input type="checkbox" id="selInvest"${f.invest?' checked':''}><span>보유</span></label></div>`;
   h += '<button id="selRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">🔄 시세 조회</button>';
   h += '</div>';
 
@@ -4690,7 +4720,7 @@ function divClsHtml(code, name, isUS){
   const saveCode = isUS ? ('US:'+String(code).toUpperCase()) : code;
   const inR=_divInSet('kg_div_rec', saveCode), inH=_divInSet('kg_div_hold', saveCode);
   const box=(key,lbl,on)=>`<label class="cls-chk"><input type="checkbox" data-divcls="${key}" data-divcode="${escHtml(saveCode)}"${on?' checked':''}><span>${lbl}</span></label>`;
-  return `<div class="cls-wrap">${box('kg_div_rec','추천',inR)}${box('kg_div_hold','보유',inH)}</div>`;
+  return `<div class="cls-wrap">${box('kg_div_rec','관심',inR)}${box('kg_div_hold','보유',inH)}</div>`;
 }
 
 // 미니 6개월 차트 SVG
@@ -4712,16 +4742,15 @@ function renderDividend(box){
   // 상단 필터 UI
   let h='<div class="div-wrap">';
   h+='<div class="div-filter">';
-  h+='<div class="div-filter-row"><span class="div-fl-label">시장</span>'
+  h+='<div class="div-filter-row">'
     +`<label class="div-chk"><input type="checkbox" id="divKr"${f.kr?' checked':''}><span>국내</span></label>`
-    +`<label class="div-chk"><input type="checkbox" id="divUs"${f.us?' checked':''}><span>해외</span></label></div>`;
-  h+='<div class="div-filter-row"><span class="div-fl-label">보기</span>'
-    +`<label class="div-chk"><input type="checkbox" id="divRec"${f.rec?' checked':''}><span>추천</span></label>`
+    +`<label class="div-chk"><input type="checkbox" id="divUs"${f.us?' checked':''}><span>해외</span></label>`
+    +`<label class="div-chk"><input type="checkbox" id="divRec"${f.rec?' checked':''}><span>관심</span></label>`
     +`<label class="div-chk"><input type="checkbox" id="divHold"${f.hold?' checked':''}><span>보유</span></label></div>`;
-  h+='<button id="divRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">🔄 시세 조회</button>';
+  h+='<button id="divRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#f0883e">↻ 새로</button>';
   h+='<button id="divSrvSave" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#3fb950">💾 저장</button>';
-  h+='<button id="divSrvLoad" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">📥 불러오기</button>';
-  h+=`<span style="font-size:11px;color:#8b949e;margin-left:4px">추천 ${_divRows('kg_div_rec').length} · 보유 ${_divRows('kg_div_hold').length}</span>`;
+  h+='<button id="divSrvLoad" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">📥 불러</button>';
+
   h+='</div>';
 
   // 안내: 연 수익률 정의
@@ -4793,7 +4822,6 @@ function renderDividend(box){
     h+='<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
   }
   h+='</tbody></table>';
-  h+='<div style="font-size:10.5px;color:#6e7681;margin-top:8px;line-height:1.5">※ 연 배당·주가 수익률·차트는 네이버 자료 기준이며, 종목에 따라 값이 없을 수 있습니다(—). 네이버의 주가 수익률은 배당을 뺀 가격 기준이므로, 연 수익률은 위 식대로 연 배당을 더해 보셔야 합니다. 커버드콜 ETF는 연 배당이 높아도 연 수익률은 다를 수 있습니다. 투자 판단·책임은 본인에게 있습니다.</div>';
   h+='</div>';
   box.innerHTML=h;
 
@@ -4957,23 +4985,113 @@ async function refreshDivPrices(list){
 }
 
 
+// ══════════════════════════════════════
+// ETF 통합 표 — 한국·미국을 한 표에, 시장 열로 구분
+//  열: 시장 · 종목 · 명칭 · 분류 · 비중(한 7월/미 5월) · 증감
+//  각 시장 끝에 소계 행
+// ══════════════════════════════════════
+// 자료 형식: [코드, 명칭, 최신비중, 이전비중, 증감]
+//   한국 → 2:26.7월 3:26.6월 / 미국 → 2:6월 3:5월
+const ETF_ALL = [
+  { mk:'kretf', label:'한국', cfg:()=>KRETF_CFG, wCol:2, dCol:4, link:'domestic' },
+  { mk:'usetf', label:'미국', cfg:()=>USETF_CFG, wCol:2, dCol:4, link:'world'    },
+];
+function etfNum(v){ const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:null; }
+
 function renderEtfCombined(box){
   box.innerHTML =
-    '<div class="etf-sec"><div class="etf-cap">한국 ETF</div>'
-    +'<div class="val-scroll"><table id="etfKr"></table></div>'
-    +'<div class="etf-acts"><button class="val-reset" id="saveKr">서버 저장</button><button class="val-reset" id="resetKr">초기화</button></div></div>'
-    +'<div class="etf-sec"><div class="etf-cap">미국 ETF</div>'
-    +'<div class="val-scroll"><table id="etfUs"></table></div>'
-    +'<div class="etf-acts"><button class="val-reset" id="saveUs">서버 저장</button><button class="val-reset" id="resetUs">초기화</button></div></div>';
-  renderEtfTable($('#etfKr'),'kretf',KRETF_CFG,etfLoad('kretf'));
-  renderEtfTable($('#etfUs'),'usetf',USETF_CFG,etfLoad('usetf'));
-  ensureServerEtf('kretf',$('#etfKr'),KRETF_CFG);
-  ensureServerEtf('usetf',$('#etfUs'),USETF_CFG);
-  const sk=$('#saveKr'); if(sk) sk.onclick=()=>{ sk.textContent='저장 중…'; serverPut('kretf',etfLoad('kretf')).then(ok=>{ sk.textContent='서버 저장'; toast(ok?'한국 ETF를 서버에 저장했습니다':'저장 실패'); }); };
-  const su=$('#saveUs'); if(su) su.onclick=()=>{ su.textContent='저장 중…'; serverPut('usetf',etfLoad('usetf')).then(ok=>{ su.textContent='서버 저장'; toast(ok?'미국 ETF를 서버에 저장했습니다':'저장 실패'); }); };
-  const rk=$('#resetKr'); if(rk) rk.onclick=()=>etfResetMarket('kretf',$('#etfKr'),KRETF_CFG,rk);
-  const ru=$('#resetUs'); if(ru) ru.onclick=()=>etfResetMarket('usetf',$('#etfUs'),USETF_CFG,ru);
+    '<div class="etf-sec">'
+    + '<div class="val-scroll"><table id="etfAll" class="val-tbl mp mpfix"></table></div>'
+    + '</div>';
+  renderEtfAll();
+  ETF_ALL.forEach(m=>ensureServerEtf(m.mk, null, m.cfg(), renderEtfAll));
+  etfBindMenu();
 }
+
+// ETF 상단 버튼 — 캡션 안에 있어 표를 다시 그릴 때마다 새로 생기므로 위임으로 연결
+let _etfMenuBound=false;
+function etfBindMenu(){
+  if(_etfMenuBound) return; _etfMenuBound=true;
+  document.addEventListener('click', async (e)=>{
+    const t=e.target; if(!t||!t.id) return;
+    if(t.id==='etfSave'){
+      const o=t.textContent; t.textContent='저장 중…'; t.disabled=true;
+      let ok=true;
+      for(const m of ETF_ALL){ if(!(await serverPut(m.mk, etfLoad(m.mk)))) ok=false; }
+      t.textContent=o; t.disabled=false;
+      toast(ok?'서버에 저장했습니다':'저장 실패');
+    }
+    if(t.id==='etfLoadBtn'){
+      if(!confirm('서버 자료로 교체합니다. 계속할까요?')) return;
+      for(const m of ETF_ALL){
+        try{
+          const r=await fetch(SRV_URL+'/?data=val_'+m.mk.replace('etf',''));
+          const d=await r.json();
+          if(d&&d.ok&&d.value){ const a=JSON.parse(d.value); if(Array.isArray(a)) etfSave(m.mk,a); }
+        }catch(err){}
+      }
+      renderEtfAll(); toast('서버에서 불러왔습니다');
+    }
+    if(t.id==='etfReset'){
+      if(!confirm('편집 내용을 지우고 기본자료로 되돌립니다. 계속할까요?')) return;
+      ETF_ALL.forEach(m=>{ try{ localStorage.removeItem('kg_val_'+m.mk); }catch(err){} });
+      renderEtfAll(); toast('기본자료로 되돌렸습니다');
+    }
+  });
+}
+
+function renderEtfAll(){
+  const t=$('#etfAll'); if(!t) return;
+  const W=[52,88,190,60,104,84];
+  const H=['시장','종목','명칭','분류','비중(%)<br><span class="hdr-sub">한 26.7월 · 미 6월</span>','증감'];
+  let h='<caption class="kr-cap">ETF 포트폴리오'
+      + pfMenuHtml({save:'etfSave', load:'etfLoadBtn', reset:'etfReset'}, {checks:''})
+      + '</caption><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
+  h+='<thead><tr>'+H.map(x=>`<th>${x}</th>`).join('')+'</tr></thead><tbody>';
+
+  ETF_ALL.forEach(m=>{
+    const rows=etfLoad(m.mk)||[];
+    let sum=0, cnt=0;
+    rows.forEach((r,ri)=>{
+      const code=String(r[0]||'').trim();
+      const name=String(r[1]||'').trim();
+      if(!code && !name) return;
+      const wv=etfNum(r[m.wCol]); if(wv!=null){ sum+=wv; cnt++; }
+      const dv=r[m.dCol]==null?'':String(r[m.dCol]);
+      const dn=etfNum(dv);
+      const dCls=dn==null?'':(dn>=0?'':' neg');
+      h+='<tr>'
+        + `<td class="etf-mk">${m.label}</td>`
+        + `<td class="mp-l"><a href="#" class="etf-lnk" data-code="${escHtml(code)}" data-link="${m.link}">${escHtml(code)}</a></td>`
+        + `<td class="mp-l"><a href="#" class="etf-lnk" data-code="${escHtml(code)}" data-link="${m.link}">${escHtml(name)}</a></td>`
+        + `<td class="cls-cell">${m.mk==='kretf'?clsCellHtml(code,name):clsCellHtmlUS(code,name)}</td>`
+        + `<td class="mp-r kredit2" contenteditable data-mk="${m.mk}" data-r="${ri}" data-f="${m.wCol}">${r[m.wCol]==null?'':r[m.wCol]}</td>`
+        + `<td class="mp-r kredit2${dCls}" contenteditable data-mk="${m.mk}" data-r="${ri}" data-f="${m.dCol}">${dv}</td>`
+        + '</tr>';
+    });
+    // 소계
+    h+= `<tr class="etf-sub"><td>${m.label}</td><td colspan="3" class="mp-l">소계 (${cnt}종목)</td>`
+      + `<td class="mp-r">${sum.toFixed(2)}</td><td></td></tr>`;
+  });
+  h+='</tbody>';
+  t.innerHTML=h;
+
+  // 편집 저장
+  t.querySelectorAll('.kredit2').forEach(td=>{
+    td.onblur=()=>{
+      const mk=td.dataset.mk, ri=+td.dataset.r, f=+td.dataset.f;
+      const rows=etfLoad(mk)||[];
+      if(rows[ri]){ rows[ri][f]=td.textContent.trim(); etfSave(mk,rows); renderEtfAll(); }
+    };
+    td.onkeydown=e=>{ if(e.key==='Enter'){ e.preventDefault(); td.blur(); } };
+  });
+  // 링크
+  t.querySelectorAll('a.etf-lnk').forEach(a=>{
+    a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(!c) return;
+      a.dataset.link==='domestic' ? openNaverDomestic(c) : openNaverWorld(c); };
+  });
+}
+
 /* ===== 기업정보: FnGuide 컨센서스 ===== */
 function openConsensus(code){
   const c=String(code).replace(/[^0-9]/g,''); if(!c) return;
@@ -5035,26 +5153,29 @@ function renderInfo(box){
     if(valMarket==='kr'){ ensureServer(valMarket); }
     if(valMarket==='watch'||valMarket==='invpf'){ fetchWatchLive(); }
   });
-  // 서버 저장 / 초기화(서버와 일치)
-  const sb=$('#valSave');
-  if(sb) sb.onclick=()=>{
-    loadVal();
-    sb.textContent='저장 중…';
-    serverPut(valMarket, VAL).then(ok=>{
-      sb.textContent='서버 저장';
-      toast(ok?'서버에 저장했습니다 (모든 기기 공유)':'저장 실패 — 설정의 시세서버 주소를 확인하세요');
-    });
-  };
-  const rb=$('#valReset');
-  if(rb) rb.onclick=()=>{
-    if(!confirm('이 자료를 서버 자료와 일치시킬까요?\n이 기기에서 고친 내용은 사라집니다.')) return;
-    rb.textContent='동기화 중…';
-    serverGet(valMarket).then(arr=>{
-      if(arr && arr.length){ store.set(lsKey(valMarket), JSON.stringify(arr)); toast('서버 자료로 맞췄습니다'); }
-      else { store.set(lsKey(valMarket), JSON.stringify(VAL_DEFAULT[valMarket])); toast('서버에 자료가 없어 기본값으로 복원했습니다'); }
-      rb.textContent='초기화'; renderVal();
-    });
-  };
+  // 서버 저장 / 초기화 — 버튼이 표 캡션 안에 있어 다시 그려지므로 이벤트 위임으로 연결
+  document.addEventListener('click', (e)=>{
+    const t=e.target;
+    if(!t || !t.id) return;
+    if(t.id==='valSave'){
+      loadVal();
+      const o=t.textContent; t.textContent='저장 중…'; t.disabled=true;
+      serverPut(valMarket, VAL).then(ok=>{
+        t.textContent=o; t.disabled=false;
+        toast(ok?'서버에 저장했습니다 (모든 기기 공유)':'저장 실패 — 설정의 시세서버 주소를 확인하세요');
+      });
+    }
+    if(t.id==='valReset'){   // 버튼 이름은 '불러' — 서버 자료를 받아온다
+      if(!confirm('서버 자료로 교체합니다.\n이 기기에서 고친 내용은 사라집니다. 계속할까요?')) return;
+      const o=t.textContent; t.textContent='불러오는 중…'; t.disabled=true;
+      serverGet(valMarket).then(arr=>{
+        if(arr && arr.length){ store.set(lsKey(valMarket), JSON.stringify(arr)); toast('서버에서 불러왔습니다'); }
+        else { store.set(lsKey(valMarket), JSON.stringify(VAL_DEFAULT[valMarket])); toast('서버에 자료가 없어 기본값으로 복원했습니다'); }
+        t.textContent=o; t.disabled=false;
+        renderVal();
+      });
+    }
+  });
 })();
 // 외국인 포트폴리오 (valFull 영역에 표시)
 async function renderFrgnPort(){
@@ -6827,7 +6948,7 @@ function renderInvestKq(){
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   const H=["종목","분류","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar=`<caption class="inv-bar"><button class="rfr" title="코스닥 새로고침">↻</button><span class="cnt">${INVEST_KQ_ROWS.length}종목 (코스닥100)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다 · ROE/외국인 헤더 클릭 시 정렬</span>${pfTopBarHtml()}</caption>`;
+  const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invKqRefresh'})}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다. ↻ 새로고침 해주세요.</td></tr>`; }
@@ -6874,7 +6995,7 @@ function renderInvestKq(){
   bindInvestAddInput(t);
   t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMinKq(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
-  const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshInvestKq;
+  const rfb=t.querySelector('#invKqRefresh'); if(rfb) rfb.onclick=refreshInvestKq;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); ensureShort(INVEST_KQ_ROWS.map(r=>r.code)); }
 }
@@ -6902,7 +7023,7 @@ function renderInvest(){
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   const H=["종목","분류","점수","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","합산식<br>(R+외인+매수+공매)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar=`<caption class="inv-bar"><button class="rfr" title="투자종목 새로고침">↻</button><span class="cnt">${INVEST_ROWS.length}종목 (코스피200)</span><span style="display:block;font-size:10.5px;color:#3fb950;font-weight:600;margin-top:3px">📈 현재가를 누르면 차트가 열립니다 · ROE/외국인 헤더 클릭 시 정렬</span>${pfTopBarHtml()}</caption>`;
+  const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invRefresh'})}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   if(!INVEST_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
@@ -6955,7 +7076,7 @@ function renderInvest(){
     };
   });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
-  const rfb=t.querySelector('caption.inv-bar button.rfr'); if(rfb) rfb.onclick=refreshInvest;
+  const rfb=t.querySelector('#invRefresh'); if(rfb) rfb.onclick=refreshInvest;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
   if(INVEST_ROWS.length){ ensureReports(INVEST_ROWS.map(r=>r.code)); ensureForeign(INVEST_ROWS.map(r=>r.code)); ensureShort(INVEST_ROWS.map(r=>r.code)); }
 }
