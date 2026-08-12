@@ -2539,9 +2539,9 @@ function drawSub(canvas, key) {
     // 기준선 라벨
     ctx.font = '9px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = '#e0b341aa'; ctx.fillText('20', PAD.l + 3, y20 - 3);
-    // 참고선: ADX(옅은 초록)
+    // ADX (녹색 점선, ADXR 본선과 같은 굵기)
     if (adxLine) {
-      ctx.strokeStyle = 'rgba(63,185,80,0.45)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 2; ctx.setLineDash([4, 3]);
       ctx.beginPath(); let s0 = false;
       adxLine.forEach((v, i) => { if (v == null) return; s0 ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s0 = true); });
       ctx.stroke(); ctx.setLineDash([]);
@@ -2820,13 +2820,13 @@ function drawSub(canvas, key) {
     // 시그널선 (RSI 이동평균) — RSI 뒤에 깔리도록 먼저
     const sig = vals[1];
     if (sig) {
-      ctx.strokeStyle = '#f0a836'; ctx.lineWidth = 1.1; ctx.setLineDash([]);
+      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 2.1; ctx.setLineDash([4, 3]);
       ctx.beginPath(); let ss = false;
       sig.forEach((v,i) => { if (v==null) return; ss ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), ss=true); });
-      ctx.stroke();
+      ctx.stroke(); ctx.setLineDash([]);
     }
     // RSI 빨간 선
-    ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 1.4;
+    ctx.strokeStyle = '#d32f2f'; ctx.lineWidth = 2.1;
     ctx.beginPath(); let s = false;
     arr.forEach((v,i) => { if (v==null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
     ctx.stroke();
@@ -2874,7 +2874,7 @@ function drawSub(canvas, key) {
       const sg = vals[1], lastS = sg ? [...sg].reverse().find(v=>v!=null) : null;
       if (lastS != null) {
         const tw = ctx.measureText('RSI 상대강도지수(' + P('RSI',0,14) + ')  ' + (lastV != null ? lastV.toFixed(1) : '')).width;
-        ctx.fillStyle = '#f0a836';
+        ctx.fillStyle = '#3fb950';
         ctx.fillText('시그널(' + P('RSI',1,6) + ') ' + lastS.toFixed(1), PAD.l + 28 + tw, PAD.t + 11);
       }
     }
@@ -3400,10 +3400,10 @@ function bindStepBtn(){
 //  · 메인 캔들과 보조칸을 화면 높이에 맞춰 나눠 갖는다
 //  · 칸이 너무 얇아지면(최소 높이) 그때부터는 스크롤로 넘긴다
 // ══════════════════════════════════════
-const FIT_MAIN_MIN = 150;   // 메인 캔들 최소 높이
-const FIT_MAIN_MAX = 320;   // 메인 캔들 최대 높이
-const FIT_SUB_MIN  = 56;    // 보조칸 최소 높이
-const FIT_SUB_MAX  = 98;    // 보조칸 최대 높이
+const FIT_MAIN_MIN = 130;   // 메인 캔들 최소 높이
+const FIT_MAIN_MAX = 300;   // 메인 캔들 최대 높이
+const FIT_SUB_MIN  = 76;    // 보조칸 최소 높이 (선 변화가 보이도록 확대)
+const FIT_SUB_MAX  = 130;   // 보조칸 최대 높이
 
 function fitPanels() {
   const area = document.getElementById('chart-area');
@@ -3422,7 +3422,7 @@ function fitPanels() {
     subH = FIT_SUB_MAX;
   } else {
     // 메인은 화면의 약 42%를 갖되 최소·최대 범위 안에서
-    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.42)));
+    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.36)));
     subH = Math.floor((avail - mainH) / k);
     if (subH > FIT_SUB_MAX) {
       subH = FIT_SUB_MAX;                                  // 남으면 메인을 키운다
