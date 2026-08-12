@@ -5688,7 +5688,9 @@ const IDX3 = [
   { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff' },
   { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#58a6ff', dash:true },
 ];
-const IDX3_DAYS = 100;
+const IDX3_DAYS = 100;   // 받아오는 총 일수
+const IDX3_VIEW = 22;    // 한 화면에 보이는 일수 (약 1개월)
+let idx3Off = 0;         // 오른쪽 끝에서 몇 봉 왼쪽으로 밀었는지
 let IDX3_DATA = null;   // { dates:[], 계열별 종가 배열 }
 let IDX3_MAX = {};      // 계열별 100일 최고가 (비율 기준)
 let idx3Hover = -1;
@@ -5760,7 +5762,15 @@ async function loadIdx3(){
 
 function drawIdx3(){
   const cv=$('#idx3Canvas'); if(!cv||!IDX3_DATA) return;
-  const d=IDX3_DATA, n=d.dates.length; if(!n) return;
+  const d=IDX3_DATA, total=d.dates.length; if(!total) return;
+  // 최근 1개월만 보이고, 옆으로 밀면 과거로 이동
+  const span=Math.min(IDX3_VIEW, total);
+  const maxOff=Math.max(0, total-span);
+  if(idx3Off>maxOff) idx3Off=maxOff;
+  if(idx3Off<0) idx3Off=0;
+  const from=total-span-idx3Off, to=total-idx3Off;   // [from, to)
+  const n=span;
+  const at=i=>from+i;
   const dpr=window.devicePixelRatio||1;
   const W=cv.clientWidth, H=cv.clientHeight;
   cv.width=W*dpr; cv.height=H*dpr;
@@ -5773,8 +5783,8 @@ function drawIdx3(){
   // 100일 중 최고가를 100으로 놓고 비율(%)로 그린다 → 네 지수가 한 축을 공유
   const pct=(v,k)=> (v==null||!IDX3_MAX[k])?null:(v/IDX3_MAX[k])*100;
   let mn=100, mx=100;
-  IDX3.forEach(se=>d[se.k].forEach(v=>{ const p=pct(v,se.k); if(p==null) return; if(p<mn)mn=p; if(p>mx)mx=p; }));
-  mn=Math.floor((mn-1)/5)*5; if(mx<100) mx=100; mx=Math.ceil((mx+1)/5)*5;
+  IDX3.forEach(se=>{ for(let i=from;i<to;i++){ const p=pct(d[se.k][i],se.k); if(p==null) continue; if(p<mn)mn=p; if(p>mx)mx=p; } });
+  mn=Math.floor((mn-1)/5)*5; mx=Math.ceil((mx+1)/5)*5;
   if(mx<=mn) mx=mn+10;
   const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
 
@@ -5787,20 +5797,25 @@ function drawIdx3(){
     ctx.strokeStyle=se.c; ctx.lineWidth=se.dash?1.4:1.9; ctx.lineJoin='round';
     ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let st=false;
-    d[se.k].forEach((v,i)=>{ const p=pct(v,se.k); if(p==null){ st=false; return; }
-      const x=xOf(i), y=yOf(p); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); });
+    for(let i=0;i<n;i++){ const p=pct(d[se.k][at(i)],se.k); if(p==null){ st=false; continue; }
+      const x=xOf(i), y=yOf(p); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); }
     ctx.stroke(); ctx.setLineDash([]);
   });
 
   // 날짜 (양끝)
   ctx.fillStyle='#6e7681'; ctx.font='9px monospace';
-  const lab=i=>String(d.dates[i]).slice(5).replace('-','/');
+  const lab=i=>String(d.dates[at(i)]).slice(5).replace('-','/');
   ctx.textAlign='left';  ctx.fillText(lab(0), PAD.l, H-4);
   ctx.textAlign='right'; ctx.fillText(lab(n-1), W-PAD.r, H-4);
+  // 과거로 밀었을 때 남은 구간 표시
+  if(idx3Off>0){
+    ctx.textAlign='center'; ctx.fillStyle='#8b949e';
+    ctx.fillText('← '+idx3Off+'일 전  (밀어서 이동)', PAD.l+cw/2, H-4);
+  }
 
   // 선택 지점
-  if(idx3Hover>=0 && idx3Hover<n){
-    const x=xOf(idx3Hover);
+  if(idx3Hover>=from && idx3Hover<to){
+    const x=xOf(idx3Hover-from);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
     IDX3.forEach(se=>{ const p=pct(d[se.k][idx3Hover],se.k); if(p==null) return;
@@ -5831,17 +5846,54 @@ function idx3ShowTip(i){
 }
 function idx3Bind(){
   const cv=$('#idx3Canvas'); if(!cv||cv._bound) return; cv._bound=true;
+  const clientX=ev=>(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX);
+  // 화면 좌표 → 전체 배열의 위치 (보이는 구간 기준)
   const idxFrom=ev=>{
     const rc=cv.getBoundingClientRect();
-    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
-    const n=IDX3_DATA?IDX3_DATA.dates.length:0; if(n<=1) return 0;
+    const cx=clientX(ev)-rc.left;
+    const total=IDX3_DATA?IDX3_DATA.dates.length:0; if(total<=1) return 0;
+    const span=Math.min(IDX3_VIEW,total), from=total-span-idx3Off;
     const PADl=6, PADr=6, cw=rc.width-PADl-PADr;
-    return Math.max(0, Math.min(n-1, Math.round(((cx-PADl)/cw)*(n-1))));
+    const k=Math.round(((cx-PADl)/cw)*(span-1));
+    return Math.max(0, Math.min(total-1, from+Math.max(0,Math.min(span-1,k))));
   };
-  const on=ev=>{ if(!IDX3_DATA) return; idx3ShowTip(idxFrom(ev)); };
-  cv.addEventListener('mousemove', on);
-  cv.addEventListener('touchstart', on, {passive:true});
-  cv.addEventListener('touchmove',  on, {passive:true});
+
+  // ── 옆으로 밀어 과거·현재 이동 ──
+  let dragX=null, dragOff=0, moved=false;
+  const start=ev=>{ dragX=clientX(ev); dragOff=idx3Off; moved=false; };
+  const move=ev=>{
+    if(!IDX3_DATA) return;
+    if(dragX==null){ idx3ShowTip(idxFrom(ev)); return; }   // 누르지 않은 채 움직이면 값만 표시
+    const rc=cv.getBoundingClientRect();
+    const total=IDX3_DATA.dates.length, span=Math.min(IDX3_VIEW,total);
+    const cw=rc.width-12;
+    const dx=clientX(ev)-dragX;
+    const shift=Math.round(dx/(cw/(span-1)));              // 오른쪽으로 끌면 과거로
+    if(shift!==0) moved=true;
+    const maxOff=Math.max(0,total-span);
+    idx3Off=Math.max(0, Math.min(maxOff, dragOff+shift));
+    drawIdx3();
+  };
+  const end=ev=>{
+    if(dragX!=null && !moved) idx3ShowTip(idxFrom(ev));     // 밀지 않고 탭했으면 값 표시
+    dragX=null;
+  };
+  cv.addEventListener('mousedown', start);
+  cv.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  cv.addEventListener('touchstart', e=>{ start(e); }, {passive:true});
+  cv.addEventListener('touchmove',  e=>{ move(e); },  {passive:true});
+  cv.addEventListener('touchend',   e=>{ dragX=null; }, {passive:true});
+  cv.style.cursor='grab';
+  // 마우스 휠로도 이동
+  cv.addEventListener('wheel', e=>{
+    if(!IDX3_DATA) return;
+    e.preventDefault();
+    const total=IDX3_DATA.dates.length, span=Math.min(IDX3_VIEW,total);
+    const maxOff=Math.max(0,total-span);
+    idx3Off=Math.max(0, Math.min(maxOff, idx3Off + (e.deltaY>0?1:-1)*2));
+    drawIdx3();
+  }, {passive:false});
 }
 window.addEventListener('resize', ()=>{ if(IDX3_DATA) drawIdx3(); });
 
