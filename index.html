@@ -5505,11 +5505,21 @@ function drawFtrend(canvasId){
   let maxAbs = fMax>0 ? Math.min(allMax, fMax*2.5) : allMax;
   if(!maxAbs) maxAbs=1;
   const clipped = allMax > maxAbs*1.02;
-  const y0 = PAD.t + ch/2;
+
+  // 값의 실제 범위 (누적은 한쪽으로 쏠리는 일이 많다)
+  let vLo=0, vHi=0;
+  FT_LINES.forEach(l=>series[l.k].forEach(v=>{ if(v<vLo) vLo=v; if(v>vHi) vHi=v; }));
+  vLo=Math.max(vLo, -maxAbs); vHi=Math.min(vHi, maxAbs);
+  // 한쪽으로만 쏠렸으면 0선을 가장자리에 두고 값 범위를 화면 가득 쓴다
+  const oneSide = (vLo>=0) || (vHi<=0);
+  const lo = oneSide ? (vLo>=0 ? 0 : vLo) : -maxAbs;
+  const hi = oneSide ? (vLo>=0 ? vHi : 0) :  maxAbs;
+  const span = (hi-lo) || 1;
   const yAmt = v => {
-    const t = Math.max(-1, Math.min(1, v/maxAbs));   // 축 밖은 가장자리에 붙임
-    return y0 - t*(ch/2);
+    const t = Math.max(lo, Math.min(hi, v));         // 축 밖은 가장자리에 붙임
+    return PAD.t + ch - ((t-lo)/span)*ch;
   };
+  const y0 = yAmt(0);
   const xOf  = i => PAD.l + (n<=1 ? cw/2 : (i/(n-1))*cw);
 
   // 우축(지수) 범위
@@ -5519,9 +5529,11 @@ function drawFtrend(canvasId){
   const iPad = (iMax-iMin)*0.12 || 1;
   const yIdx = v => PAD.t + ch - ((v-(iMin-iPad))/((iMax+iPad)-(iMin-iPad)))*ch;
 
-  // 0선
-  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.setLineDash([]);
+  // 0선 — 순매수(위)와 순매도(아래)를 가르는 기준. 분홍색
+  ctx.strokeStyle='#ff7eb6'; ctx.lineWidth=1.2; ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(PAD.l,y0); ctx.lineTo(W-PAD.r,y0); ctx.stroke();
+  ctx.fillStyle='#ff7eb6'; ctx.font='9px monospace'; ctx.textAlign='right';
+  ctx.fillText('0', PAD.l-3, y0+3);
 
   // 지수 선 (뒤에 깔리도록 먼저)
   if(iv.length>1){
@@ -5544,8 +5556,9 @@ function drawFtrend(canvasId){
   // 좌축 눈금 (억원)
   ctx.font='9.5px monospace'; ctx.textAlign='right';
   const fmtAmt=v=>{ const a=Math.abs(v); return (v<0?'-':'')+(a>=10000?(a/10000).toFixed(1)+'조':Math.round(a).toLocaleString()); };
-  [maxAbs,0,-maxAbs].forEach(v=>{
-    ctx.fillStyle = v>0?'#ef5350':(v<0?'#2e9e4f':'#6e7681');
+  [hi,0,lo].forEach(v=>{
+    if(v===0) return;                     // 0 은 아래에서 따로 표시
+    ctx.fillStyle = v>0?'#ef5350':'#2e9e4f';
     ctx.fillText(fmtAmt(v), PAD.l-3, yAmt(v)+3);
   });
   if(clipped){
