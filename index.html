@@ -6685,7 +6685,7 @@ function anlDraw(){
     ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
   const per=(d.periods||[]);
   const n=per.length; if(!n) return;
-  const PAD={l:10,r:10,t:14,b:20};
+  const PAD={l:10,r:10,t:26,b:20};   // 위쪽은 범례 자리
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
   FIN3_SERIES.forEach(se=>{
@@ -6712,14 +6712,38 @@ function anlDraw(){
     if(n>6 && i%2===1) return;
     ctx.fillText(lab, xOf(i), H-5);
   });
-  // 선택 지점
+  // 범례 — 그래프 안 좌상단
+  ctx.font='10px sans-serif'; ctx.textAlign='left';
+  let lx=PAD.l+2;
+  FIN3_SERIES.forEach(se=>{
+    ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(lx, PAD.t-5); ctx.lineTo(lx+11, PAD.t-5); ctx.stroke();
+    ctx.fillStyle=se.c;
+    ctx.fillText(se.n, lx+14, PAD.t-2);
+    lx += 14 + ctx.measureText(se.n).width + 12;
+  });
+  // 선택 지점 — 세로선 + 각 선 위에 값 표기
   if(ANL_HOVER>=0 && ANL_HOVER<n){
     const x=xOf(ANL_HOVER);
-    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
+    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
+    ctx.font='bold 10px monospace';
+    const used=[];                       // 값 표시가 겹치지 않게
     FIN3_SERIES.forEach(se=>{
       const v=(d[se.k]||[])[ANL_HOVER]; if(v==null||!se._yOf) return;
-      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,se._yOf(v),4,0,Math.PI*2); ctx.fill();
+      const py=se._yOf(v);
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
+      const txt=v.toFixed(1);
+      const tw=ctx.measureText(txt).width;
+      let ty=py-7;
+      while(used.some(u=>Math.abs(u-ty)<11)) ty-=11;   // 겹치면 위로 밀기
+      ty=Math.max(PAD.t+9, Math.min(PAD.t+ch-2, ty));
+      used.push(ty);
+      let tx=x+7;
+      if(tx+tw+4 > W-PAD.r) tx = x-7-tw-4;             // 오른쪽 끝이면 왼쪽에
+      ctx.fillStyle='#0d1117dd'; ctx.fillRect(tx-3, ty-9, tw+6, 12);
+      ctx.fillStyle=se.c; ctx.textAlign='left';
+      ctx.fillText(txt, tx, ty);
     });
   }
 }
