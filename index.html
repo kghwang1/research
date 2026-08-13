@@ -680,6 +680,32 @@
 
 
 
+
+  /* 분석 페이지 */
+  .anl-wrap{padding:10px 2px 20px}
+  .anl-search{position:relative;margin-bottom:10px}
+  .anl-search input{width:100%;padding:10px 12px;font-size:14px;border-radius:8px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink);outline:none}
+  .anl-search input:focus{border-color:var(--accent)}
+  .anl-sug{position:absolute;left:0;right:0;top:100%;z-index:40;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;margin-top:3px;overflow:hidden;display:none}
+  .anl-sug.on{display:block}
+  .anl-sug div{padding:8px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid #21262d}
+  .anl-sug div:last-child{border-bottom:none}
+  .anl-sug div:active,.anl-sug div:hover{background:#21262d}
+  .anl-sug .sc{color:var(--mut);font-size:11px;margin-left:6px}
+  .anl-title{font-size:15px;font-weight:700;color:var(--ink);margin:4px 0 6px}
+  .anl-title .sub{font-size:11.5px;color:var(--mut);font-weight:500;margin-left:6px}
+  #anlCanvas{width:100%;height:200px;display:block;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
+  .anl-tip{margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
+    font-size:12.5px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:56px}
+  .anl-comment{margin-top:10px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;font-size:13px;line-height:1.75;color:var(--ink)}
+  .anl-comment h5{font-size:13.5px;font-weight:700;color:#d4af00;margin:0 0 7px}
+  .anl-comment p{margin:0 0 7px}
+  .anl-comment p:last-child{margin-bottom:0}
+  .anl-comment b{color:#e6edf3}
   /* 기업 평가 지표 설명 카드 */
   .fin-guide{margin:12px 2px 0;padding:0}
   .fin-guide .fg-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -688,8 +714,8 @@
   .fin-guide .fg-item:last-child{margin-bottom:0}
   .fin-guide .fg-t{font-size:13.8px;font-weight:700;margin-bottom:3px;display:flex;align-items:center;gap:5px}
   .fin-guide .fg-t i{width:12px;height:0;border-top:2.5px solid;display:inline-block;flex:none}
-  .fin-guide .fg-r{font-size:12.7px;line-height:1.6;color:var(--ink)}
-  .fin-guide .fg-r b{color:#8b949e;font-weight:600;margin-right:3px}
+  .fin-guide .fg-r{font-size:14px;line-height:1.6;color:var(--ink)}
+  .fin-guide .fg-r b{color:#d4af00;font-weight:700;margin-right:4px}
   .fin-guide .fg-f{font-family:monospace;color:#e6edf3}
   /* 재무 3지표 미니 그래프 */
   .fin3{display:flex;flex-direction:column;align-items:center;gap:1px}
@@ -745,8 +771,8 @@
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
    <div class="tab" id="chartTabBtn">챠트</div>
+   <div class="tab" data-t="hub">분석</div>
    <div class="tab" data-t="watch">방송</div>
-   <div class="tab" data-t="hub">리포트</div>
   </div>
  </div>
 </header>
@@ -755,8 +781,17 @@
 
  <!-- ===== HUB (리포트: 네이버 종목분석 임베드) ===== -->
  <section id="hub">
-  <div class="rpt-embed"><div class="rpt-crop"><iframe id="rptFrame" referrerpolicy="no-referrer"></iframe></div></div>
-  <div class="rpt-note">네이버 금융 종목분석(무료). 안 보이면 <a href="#" onclick="window.open(REPORT_URL,'_blank','noopener');return false;">네이버에서 열기 ↗</a></div>
+  <div class="anl-wrap">
+   <div class="anl-search">
+    <input id="anlInput" type="text" placeholder="종목명 또는 코드 입력" autocomplete="off">
+    <div id="anlSuggest" class="anl-sug"></div>
+   </div>
+   <div id="anlTitle" class="anl-title"></div>
+   <canvas id="anlCanvas"></canvas>
+   <div id="anlTip" class="anl-tip"></div>
+   <div id="anlComment" class="anl-comment"></div>
+   <div class="fin-guide" id="finGuide"></div>
+  </div>
  </section>
 
  <!-- ===== PORT (포트폴리오 허브) ===== -->
@@ -779,7 +814,6 @@
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('etf');return false;"><span class="ic">🧺</span><span class="tx"><span class="tt">한·미 ETF</span></span></a>
    </div>
   </div>
-  <div class="fin-guide on" id="finGuide"></div>
  </section>
 
  <!-- ===== INFO (정보) ===== -->
@@ -1138,7 +1172,7 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
   if(t.dataset.t==='market'){ renderMarket(); }
   if(t.dataset.t==='valuation'){ openPnl(); }
-  if(t.dataset.t==='hub'){ loadReportEmbed(); }
+  if(t.dataset.t==='hub'){ anlInit(); }   // 분석 탭
   if(t.dataset.t==='info'){ renderInfoCards(); }
 });
 const REPORT_URL='https://finance.naver.com/research/company_list.naver';
@@ -5626,7 +5660,7 @@ function drawFtrend(canvasId){
 // 토글 버튼
 document.addEventListener('DOMContentLoaded', () => {
   loadIdx3();   // 시황 상단 코스피·코스닥·선물 비교 그래프
-  finGuideInit();  // 포트 페이지 하단 기업 평가 지표 카드
+  anlInit();    // 분석 페이지 (종목 검색·재무 그래프·해석)
   // 분류 열 체크박스 (모든 포트 표 공통, 이벤트 위임)
   document.addEventListener('change', (e)=>{
     const cb=e.target;
@@ -6590,6 +6624,202 @@ function calcScoreDetail(code){
   return {r,a,f,s,total:r+a+f+s,shortDbg};
 }
 
+
+
+// ══════════════════════════════════════
+// 분석 페이지 — 종목 검색 → 재무 3지표 그래프 + 해석
+// ══════════════════════════════════════
+let ANL_CODE=null, ANL_NAME='', ANL_HOVER=-1;
+
+function anlInit(){
+  finGuideInit();                       // 하단 평가 지표 설명 카드
+  const inp=$('#anlInput'); if(!inp || inp._bound) return; inp._bound=true;
+  const sug=$('#anlSuggest');
+  let timer=null;
+  inp.oninput=()=>{
+    const q=inp.value.trim();
+    if(timer) clearTimeout(timer);
+    if(!q){ if(sug){ sug.innerHTML=''; sug.classList.remove('on'); } return; }
+    // 6자리 숫자면 바로 조회
+    if(/^\d{6}$/.test(q)){ anlPick(q, q); return; }
+    timer=setTimeout(async()=>{
+      if(!SRV_URL || !sug) return;
+      try{
+        const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q));
+        const d=await r.json();
+        const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d{6}$/.test(it.code)).slice(0,8);
+        if(!items.length){ sug.innerHTML='<div style="color:#8b949e">국내 종목만 조회됩니다</div>'; sug.classList.add('on'); return; }
+        sug.innerHTML=items.map(it=>`<div data-code="${it.code}" data-name="${escHtml(it.name)}">${escHtml(it.name)}<span class="sc">${it.code}</span></div>`).join('');
+        sug.classList.add('on');
+        sug.querySelectorAll('div[data-code]').forEach(el=>{
+          el.onclick=()=>anlPick(el.dataset.code, el.dataset.name);
+        });
+      }catch(e){}
+    }, 250);
+  };
+  inp.onkeydown=e=>{ if(e.key==='Enter'){ const q=inp.value.trim(); if(/^\d{6}$/.test(q)) anlPick(q,q); } };
+  anlBindCanvas();
+}
+
+async function anlPick(code, name){
+  ANL_CODE=code; ANL_NAME=name||code; ANL_HOVER=-1;
+  const sug=$('#anlSuggest'); if(sug){ sug.innerHTML=''; sug.classList.remove('on'); }
+  const inp=$('#anlInput'); if(inp) inp.value=ANL_NAME;
+  const t=$('#anlTitle'); if(t) t.innerHTML=escHtml(ANL_NAME)+`<span class="sub">${code}</span>`;
+  const tip=$('#anlTip'); if(tip) tip.textContent='자료를 불러오는 중…';
+  const cm=$('#anlComment'); if(cm) cm.innerHTML='';
+  await ensureFin3([code]);
+  anlDraw(); anlShowTip(-1); anlComment();
+}
+
+// 그래프 — 계열마다 자기 축 (단위가 달라 한 축에 못 올림)
+function anlDraw(){
+  const cv=$('#anlCanvas'); if(!cv) return;
+  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  if(!d){ ctx.fillStyle='#6e7681'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
+  const per=(d.periods||[]);
+  const n=per.length; if(!n) return;
+  const PAD={l:10,r:10,t:14,b:20};
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+  FIN3_SERIES.forEach(se=>{
+    const a=d[se.k]||[];
+    const v=a.filter(x=>x!=null);
+    if(v.length<2) return;
+    let mn=Math.min(...v), mx=Math.max(...v);
+    if(mx===mn){ mn-=1; mx+=1; }
+    const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
+    const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
+    ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.beginPath(); let st=false;
+    a.forEach((x,i)=>{ if(x==null){ st=false; return; }
+      const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
+    ctx.stroke();
+    a.forEach((x,i)=>{ if(x==null) return;
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(xOf(i),yOf(x),2.4,0,Math.PI*2); ctx.fill(); });
+    se._yOf=yOf;
+  });
+  // X축 분기
+  ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace'; ctx.textAlign='center';
+  per.forEach((p,i)=>{
+    const s=String(p); const lab=s.length>=6 ? s.slice(2,4)+'.'+s.slice(4,6) : s;
+    if(n>6 && i%2===1) return;
+    ctx.fillText(lab, xOf(i), H-5);
+  });
+  // 선택 지점
+  if(ANL_HOVER>=0 && ANL_HOVER<n){
+    const x=xOf(ANL_HOVER);
+    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
+    FIN3_SERIES.forEach(se=>{
+      const v=(d[se.k]||[])[ANL_HOVER]; if(v==null||!se._yOf) return;
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,se._yOf(v),4,0,Math.PI*2); ctx.fill();
+    });
+  }
+}
+
+function anlShowTip(i){
+  const el=$('#anlTip'); if(!el) return;
+  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  if(!d){ el.textContent=''; return; }
+  const per=d.periods||[];
+  const idx = (i>=0 && i<per.length) ? i : (per.length-1);
+  ANL_HOVER=idx;
+  const p=String(per[idx]||'');
+  const lab=p.length>=6 ? p.slice(0,4)+'.'+p.slice(4,6) : p;
+  el.innerHTML = `<div style="color:#8b949e;margin-bottom:2px">${lab}</div>`
+    + FIN3_SERIES.map(se=>{
+        const v=(d[se.k]||[])[idx];
+        return `<div class="tipline"><i style="border-top-color:${se.c}"></i><b>${se.n}</b>: `
+             + (v==null?'<span style="color:#6e7681">미공시</span>':v.toFixed(2)+'%')+'</div>';
+      }).join('');
+  anlDraw();
+}
+
+function anlBindCanvas(){
+  const cv=$('#anlCanvas'); if(!cv||cv._bound) return; cv._bound=true;
+  const idxFrom=ev=>{
+    const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return -1;
+    const n=(d.periods||[]).length; if(n<=1) return 0;
+    const rc=cv.getBoundingClientRect();
+    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
+    const cw=rc.width-20;
+    return Math.max(0, Math.min(n-1, Math.round(((cx-10)/cw)*(n-1))));
+  };
+  const on=ev=>{ const i=idxFrom(ev); if(i>=0) anlShowTip(i); };
+  cv.addEventListener('mousemove', on);
+  cv.addEventListener('touchstart', on, {passive:true});
+  cv.addEventListener('touchmove',  on, {passive:true});
+}
+window.addEventListener('resize', ()=>{ if(ANL_CODE) anlDraw(); });
+
+
+// 3지표를 규칙에 따라 읽어 해석문을 만든다 (판단 근거를 함께 보여준다)
+function anlComment(){
+  const el=$('#anlComment'); if(!el) return;
+  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  if(!d){ el.innerHTML=''; return; }
+  const last=a=>{ const v=(a||[]).filter(x=>x!=null); return v.length?v[v.length-1]:null; };
+  const trend=a=>{ const v=(a||[]).filter(x=>x!=null).slice(-3);
+    if(v.length<2) return null;
+    return v[v.length-1]-v[0]; };
+  const g=last(d.salesGrowth), r=last(d.roe), b=last(d.debt);
+  const gt=trend(d.salesGrowth), rt=trend(d.roe), bt=trend(d.debt);
+  const P=[];
+
+  // 성장성
+  if(g==null) P.push('<p><b>성장성</b> — 매출 자료가 없어 판단할 수 없습니다.</p>');
+  else{
+    let s=`<p><b>성장성</b> — 최근 분기 매출증가율은 <b>${g.toFixed(1)}%</b>입니다. `;
+    if(g>=20) s+='높은 성장 국면입니다. 다만 직전 분기가 낮았던 기저효과가 섞였을 수 있어, 이 수준이 이어지는지 다음 분기를 확인해야 합니다.';
+    else if(g>=5) s+='꾸준한 성장 구간입니다.';
+    else if(g>=0) s+='성장이 거의 멈춘 상태입니다.';
+    else s+='매출이 줄었습니다. 일시적인지 추세인지 이전 분기들과 함께 봐야 합니다.';
+    if(gt!=null) s+= gt>0 ? ' 최근 흐름은 <b>개선</b> 쪽입니다.' : (gt<0 ? ' 최근 흐름은 <b>둔화</b> 쪽입니다.' : '');
+    P.push(s+'</p>');
+  }
+  // 수익성
+  if(r==null) P.push('<p><b>수익성</b> — ROE가 아직 공시되지 않았습니다.</p>');
+  else{
+    let s=`<p><b>수익성</b> — ROE는 <b>${r.toFixed(2)}%</b>입니다. `;
+    if(r>=15) s+='기준으로 삼는 15%를 넘어 자본을 효율적으로 쓰고 있습니다.';
+    else if(r>=8) s+='보통 수준입니다.';
+    else if(r>=0) s+='낮은 편입니다. 자본 대비 벌어들이는 힘이 약합니다.';
+    else s+='적자 상태입니다.';
+    if(rt!=null && Math.abs(rt)>0.5) s+= rt>0 ? ' 최근 <b>오르는</b> 추세입니다.' : ' 최근 <b>내리는</b> 추세입니다.';
+    P.push(s+'</p>');
+  }
+  // 재무구조
+  if(b==null) P.push('<p><b>재무구조</b> — 부채비율이 아직 공시되지 않았습니다.</p>');
+  else{
+    let s=`<p><b>재무구조</b> — 부채비율은 <b>${b.toFixed(1)}%</b>입니다. `;
+    if(b<=100) s+='100% 이하로 안정적입니다.';
+    else if(b<=200) s+='부담이 크지는 않으나 낮은 편도 아닙니다. 업종 평균과 비교해 보세요.';
+    else s+='200%를 넘어 부담이 있습니다. 금리 변화에 민감할 수 있습니다.';
+    if(bt!=null && Math.abs(bt)>1) s+= bt>0 ? ' 최근 <b>늘고</b> 있습니다.' : ' 최근 <b>줄고</b> 있습니다.';
+    P.push(s+'</p>');
+  }
+  // 종합
+  if(g!=null && r!=null && b!=null){
+    const pass=(g>0)+(r>=15)+(b<=100);
+    let s='<p style="border-top:1px solid var(--line);padding-top:8px;margin-top:9px"><b>종합</b> — ';
+    if(pass===3) s+='매출 성장·ROE 15%↑·부채비율 100%↓ <b>세 조건을 모두</b> 충족합니다. 재무적으로 건실합니다.';
+    else if(pass===2) s+='세 조건 중 <b>둘</b>을 충족합니다.';
+    else if(pass===1) s+='세 조건 중 <b>하나</b>만 충족합니다.';
+    else s+='세 조건을 모두 밑돕니다.';
+    if(r>=15 && b>200) s+=' 특히 ROE가 높지만 부채비율도 높아, <b>빚으로 만든 수익성</b>일 수 있습니다.';
+    if(r<8 && b<=50) s+=' 부채는 적지만 ROE가 낮아 <b>자산을 충분히 활용하지 못하는</b> 모습입니다.';
+    P.push(s+'</p>');
+  }
+  P.push('<p style="color:#8b949e;font-size:12px;margin-top:8px">※ 위 내용은 공시된 수치를 정해진 기준에 대입해 정리한 것으로, 투자 판단이나 매매 권유가 아닙니다. 재무제표는 과거 실적이며 주가는 미래를 반영합니다.</p>');
+  el.innerHTML='<h5>기업 분석</h5>'+P.join('');
+}
 
 // ══════════════════════════════════════
 // 기업 평가 지표 설명 카드 (재무 열이 있는 표 하단)
