@@ -698,8 +698,6 @@
   .anl-title .sub{font-size:11.5px;color:var(--mut);font-weight:500;margin-left:6px}
   #anlCanvas{width:100%;height:200px;display:block;background:var(--panel);
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
-  .anl-tip{margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
-    font-size:12.5px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:56px}
   .anl-comment{margin-top:10px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;font-size:13px;line-height:1.75;color:var(--ink)}
   .anl-comment h5{font-size:13.5px;font-weight:700;color:#d4af00;margin:0 0 7px}
@@ -788,7 +786,6 @@
    </div>
    <div id="anlTitle" class="anl-title"></div>
    <canvas id="anlCanvas"></canvas>
-   <div id="anlTip" class="anl-tip"></div>
    <div id="anlComment" class="anl-comment"></div>
    <div class="fin-guide" id="finGuide"></div>
   </div>
@@ -6666,8 +6663,7 @@ async function anlPick(code, name){
   const sug=$('#anlSuggest'); if(sug){ sug.innerHTML=''; sug.classList.remove('on'); }
   const inp=$('#anlInput'); if(inp) inp.value=ANL_NAME;
   const t=$('#anlTitle'); if(t) t.innerHTML=escHtml(ANL_NAME)+`<span class="sub">${code}</span>`;
-  const tip=$('#anlTip'); if(tip) tip.textContent='자료를 불러오는 중…';
-  const cm=$('#anlComment'); if(cm) cm.innerHTML='';
+  const cm=$('#anlComment'); if(cm) cm.innerHTML='<p style="color:#8b949e">자료를 불러오는 중…</p>';
   await ensureFin3([code]);
   anlDraw(); anlShowTip(-1); anlComment();
 }
@@ -6706,14 +6702,14 @@ function anlDraw(){
     se._yOf=yOf;
   });
   // X축 분기
-  ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace'; ctx.textAlign='center';
+  ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
   per.forEach((p,i)=>{
     const s=String(p); const lab=s.length>=6 ? s.slice(2,4)+'.'+s.slice(4,6) : s;
     if(n>6 && i%2===1) return;
     ctx.fillText(lab, xOf(i), H-5);
   });
   // 범례 — 그래프 안 좌상단
-  ctx.font='10px sans-serif'; ctx.textAlign='left';
+  ctx.font='11px sans-serif'; ctx.textAlign='left';
   let lx=PAD.l+2;
   FIN3_SERIES.forEach(se=>{
     ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash([]);
@@ -6727,7 +6723,7 @@ function anlDraw(){
     const x=xOf(ANL_HOVER);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
-    ctx.font='bold 10px monospace';
+    ctx.font='bold 11px monospace';
     const used=[];                       // 값 표시가 겹치지 않게
     FIN3_SERIES.forEach(se=>{
       const v=(d[se.k]||[])[ANL_HOVER]; if(v==null||!se._yOf) return;
@@ -6748,21 +6744,11 @@ function anlDraw(){
   }
 }
 
+// 값은 그래프 안에 직접 표시하므로 선택 위치만 기억하고 다시 그린다
 function anlShowTip(i){
-  const el=$('#anlTip'); if(!el) return;
-  const d=ANL_CODE?FIN3[ANL_CODE]:null;
-  if(!d){ el.textContent=''; return; }
+  const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return;
   const per=d.periods||[];
-  const idx = (i>=0 && i<per.length) ? i : (per.length-1);
-  ANL_HOVER=idx;
-  const p=String(per[idx]||'');
-  const lab=p.length>=6 ? p.slice(0,4)+'.'+p.slice(4,6) : p;
-  el.innerHTML = `<div style="color:#8b949e;margin-bottom:2px">${lab}</div>`
-    + FIN3_SERIES.map(se=>{
-        const v=(d[se.k]||[])[idx];
-        return `<div class="tipline"><i style="border-top-color:${se.c}"></i><b>${se.n}</b>: `
-             + (v==null?'<span style="color:#6e7681">미공시</span>':v.toFixed(2)+'%')+'</div>';
-      }).join('');
+  ANL_HOVER = (i>=0 && i<per.length) ? i : (per.length-1);
   anlDraw();
 }
 
@@ -6864,7 +6850,7 @@ const FIN_GUIDE_HTML = `
   </div>
 
   <div class="fg-item">
-    <div class="fg-t"><i style="border-color:#3fb950"></i>2. ROE (자기자본이익률)</div>
+    <div class="fg-t"><i style="border-color:#ffd54f"></i>2. ROE (자기자본이익률)</div>
     <div class="fg-r">
       <b>산출식</b><span class="fg-f">당기순이익 ÷ 자기자본 × 100</span><br>
       <b>의미</b>주주 돈으로 얼마를 벌었는지입니다. <b style="color:#e6edf3">15% 이상이 꾸준히 유지되면</b> 좋은 사업으로 봅니다.
@@ -6907,7 +6893,7 @@ let FIN3 = {};              // code → {periods, salesGrowth, roe, debt}
 let fin3Busy = false;
 const FIN3_SERIES = [
   { k:'salesGrowth', n:'매출증가율', c:'#ef5350' },
-  { k:'roe',         n:'ROE',       c:'#3fb950' },
+  { k:'roe',         n:'ROE',       c:'#ffd54f' },
   { k:'debt',        n:'부채비율',   c:'#58a6ff' },
 ];
 const FIN3_N = 4;           // 최근 몇 분기
