@@ -682,15 +682,23 @@
 
 
 
+
+  /* 분석 페이지 상단 바 (챠트 페이지와 동일) */
+  /* 분석 탭에서는 앱 헤더(제목·탭)를 숨겨 화면을 넓게 쓴다 */
+  body.anl-mode header{display:none}
+  body.anl-mode #hub{padding-top:0}
+  .anl-top{display:flex;align-items:center;gap:8px;padding:6px 10px;
+    background:var(--panel);border-bottom:1px solid var(--line)}
+  .anl-ttl{font-size:14px;font-weight:700;color:#d4af00;flex:none}
+  .anl-backbtn{padding:4px 12px;border-radius:6px;border:1px solid #6e7681;
+    background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
+  .anl-backbtn:active{opacity:.6}
+  #anlPortSel,#chartPortSel{padding:4px 10px;border-radius:6px;border:1px solid #6e7681;
+    background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
   /* 분석 페이지 — 좌측 종목 목록 + 우측 내용 */
   .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
   .anl-side{width:132px;min-width:96px;flex:none;border-right:1px solid var(--line);
     display:flex;flex-direction:column;background:var(--panel)}
-  .anl-back{margin:5px;padding:5px 8px;font-size:12px;font-weight:700;border-radius:6px;
-    border:1px solid var(--line);background:var(--panel2,#161b22);color:var(--ink);cursor:pointer;text-align:left}
-  .anl-back:active{opacity:.6}
-  .anl-side input{margin:0 5px 5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);
-    background:var(--bg);color:var(--ink);font-size:11.5px;outline:none}
   .anl-list{flex:1;overflow-y:auto;font-size:11.5px}
   .anl-list .ai{padding:7px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -699,6 +707,12 @@
   .anl-list .ai .c{color:var(--mut);font-size:10px;margin-left:4px}
   .anl-list .ai.on .c{color:#0a0a0a}
   .anl-main{flex:1;min-width:0;overflow-y:auto;padding:8px 10px 24px}
+  .anl-sect{font-size:12.5px;font-weight:700;color:#d4af00;margin:12px 0 4px}
+  .anl-sect span{font-size:10.5px;color:var(--mut);font-weight:500;margin-left:6px}
+  #anlCanvas2{width:100%;height:170px;display:block;background:#21262d;
+    border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
+  #anlPeg{width:100%;height:110px;display:block;background:#21262d;
+    border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
   /* 분석 페이지 */
   .anl-search{position:relative;margin-bottom:10px}
   .anl-search input{width:100%;padding:10px 12px;font-size:14px;border-radius:8px;
@@ -798,10 +812,20 @@
 
  <!-- ===== HUB (리포트: 네이버 종목분석 임베드) ===== -->
  <section id="hub">
+  <!-- 상단 바 (챠트 페이지와 동일 형식) -->
+  <div class="anl-top">
+   <span class="anl-ttl">기업분석</span>
+   <button id="anlBack" class="anl-backbtn">‹ 이전</button>
+   <select id="anlPortSel">
+    <option value="">포트폴리오 선택</option>
+    <option value="invpf">선정주</option>
+    <option value="kr">한국(체)</option>
+    <option value="invest">코스피200</option>
+    <option value="investkq">코스닥100</option>
+   </select>
+  </div>
   <div class="anl-layout">
    <div class="anl-side" id="anlSide">
-    <button class="anl-back" id="anlBack">‹ 이전</button>
-    <input id="anlSideSearch" type="text" placeholder="종목 검색" autocomplete="off">
     <div class="anl-list" id="anlList"></div>
    </div>
    <div class="anl-main">
@@ -811,6 +835,10 @@
     </div>
     <div id="anlTitle" class="anl-title"></div>
     <canvas id="anlCanvas"></canvas>
+    <div class="anl-sect">저평가·현금여력</div>
+    <canvas id="anlCanvas2"></canvas>
+    <div class="anl-sect">PEG <span>PER ÷ 순이익 증가율 · 1 미만이면 성장 대비 저평가</span></div>
+    <canvas id="anlPeg"></canvas>
     <div id="anlComment" class="anl-comment"></div>
     <div class="fin-guide" id="finGuide"></div>
    </div>
@@ -953,9 +981,9 @@
 <!-- 챠트 전체화면 오버레이 -->
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
-    <button id="chartHomeBtn" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--accent);color:#0c0e14;font-weight:700;font-size:12px;cursor:pointer">홈</button>
-    <button id="chartSideToggle" style="padding:4px 12px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer;display:none">종목</button>
-    <select id="chartPortSel" style="padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:700;font-size:12px;cursor:pointer">
+    <span class="anl-ttl">챠트</span><button id="chartHomeBtn" class="anl-backbtn">‹ 이전</button>
+    <button id="chartSideToggle" class="anl-backbtn">종목</button>
+    <select id="chartPortSel">
       <option value="idx">(지수)</option>
       <option value="invpf">선정주</option>
       <option value="kr">한국(체)</option>
@@ -1195,6 +1223,7 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
   if(t.dataset.t==='market'){ renderMarket(); }
   if(t.dataset.t==='valuation'){ openPnl(); }
+  document.body.classList.toggle('anl-mode', t.dataset.t==='hub');
   if(t.dataset.t==='hub'){ anlInit(); }   // 분석 탭
   if(t.dataset.t==='info'){ renderInfoCards(); }
 });
@@ -6672,7 +6701,12 @@ let ANL_CODE=null, ANL_NAME='', ANL_HOVER=-1;
 function anlInit(){
   finGuideInit();                       // 하단 평가 지표 설명 카드
   const bk=$('#anlBack'); if(bk && !bk._bound){ bk._bound=true; bk.onclick=anlBack; }
-  const ss=$('#anlSideSearch'); if(ss && !ss._bound){ ss._bound=true; ss.oninput=()=>anlRenderList(ss.value); }
+  // 포트폴리오 선택 → 좌측 목록 교체
+  const psel=$('#anlPortSel');
+  if(psel && !psel._bound){
+    psel._bound=true;
+    psel.onchange=()=>{ if(psel.value) anlLoadPort(psel.value); };
+  }
   const inp=$('#anlInput'); if(!inp || inp._bound) return; inp._bound=true;
   const sug=$('#anlSuggest');
   let timer=null;
@@ -6709,7 +6743,10 @@ async function anlPick(code, name){
   anlRenderList($('#anlSideSearch') ? $('#anlSideSearch').value : '');   // 선택 표시 갱신
   const cm=$('#anlComment'); if(cm) cm.innerHTML='<p style="color:#8b949e">자료를 불러오는 중…</p>';
   await ensureFin3([code]);
-  anlDraw(); anlShowTip(-1); anlComment();
+  anlDraw(); anlShowTip(-1);
+  anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2);
+  anlDrawPeg();
+  anlComment();
 }
 
 // 그래프 — 계열마다 자기 축 (단위가 달라 한 축에 못 올림)
@@ -6810,7 +6847,34 @@ function anlShowTip(i){
   anlDraw();
 }
 
+// 두 번째 그래프·PEG 막대에도 터치 연결
+function anlBindCanvas2(){
+  const idxFrom=(cv,ev,padl,padr)=>{
+    const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return -1;
+    const n=(d.periods||[]).length; if(n<=1) return 0;
+    const rc=cv.getBoundingClientRect();
+    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
+    const cw=rc.width-padl-padr;
+    return Math.max(0, Math.min(n-1, Math.round(((cx-padl)/cw)*(n-1))));
+  };
+  const c2=$('#anlCanvas2');
+  if(c2 && !c2._bound){ c2._bound=true;
+    const on=ev=>{ const i=idxFrom(c2,ev,10,10); if(i>=0){ ANL_HOVER2=i; anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); } };
+    c2.addEventListener('mousemove', on);
+    c2.addEventListener('touchstart', on, {passive:true});
+    c2.addEventListener('touchmove',  on, {passive:true});
+  }
+  const cp=$('#anlPeg');
+  if(cp && !cp._bound){ cp._bound=true;
+    const on=ev=>{ const i=idxFrom(cp,ev,10,32); if(i>=0){ ANL_HOVERP=i; anlDrawPeg(); } };
+    cp.addEventListener('mousemove', on);
+    cp.addEventListener('touchstart', on, {passive:true});
+    cp.addEventListener('touchmove',  on, {passive:true});
+  }
+}
+
 function anlBindCanvas(){
+  anlBindCanvas2();
   const cv=$('#anlCanvas'); if(!cv||cv._bound) return; cv._bound=true;
   const idxFrom=ev=>{
     const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return -1;
@@ -6825,8 +6889,159 @@ function anlBindCanvas(){
   cv.addEventListener('touchstart', on, {passive:true});
   cv.addEventListener('touchmove',  on, {passive:true});
 }
-window.addEventListener('resize', ()=>{ if(ANL_CODE) anlDraw(); });
+window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); anlDrawPeg(); });
 
+
+
+// ══════════════════════════════════════
+// 두 번째 그래프 (ROE·PBR·당좌비율) + PEG 막대
+// ══════════════════════════════════════
+const FIN2_SERIES = [
+  { k:'roe',   n:'ROE',    c:'#ffd54f' },
+  { k:'pbr',   n:'PBR',    c:'#ef5350' },
+  { k:'quick', n:'당좌비율', c:'#58a6ff' },
+];
+let ANL_HOVER2=-1, ANL_HOVERP=-1;
+
+// 계열마다 자기 축으로 그리는 공용 선그래프 (첫 그래프와 같은 방식)
+function anlDrawLines(cvId, series, hoverIdx, H0){
+  const cv=$('#'+cvId); if(!cv) return;
+  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=H0||cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  if(!d){ ctx.fillStyle='#6e7681'; ctx.font='12px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
+  const per=d.periods||[]; const n=per.length; if(!n) return;
+  const PAD={l:10,r:10,t:26,b:20};
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+  series.forEach(se=>{
+    const a=d[se.k]||[]; const v=a.filter(x=>x!=null);
+    if(v.length<2){ se._yOf=null; return; }
+    let mn=Math.min(...v), mx=Math.max(...v);
+    if(mx===mn){ mn-=1; mx+=1; }
+    const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
+    const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
+    ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash([]);
+    ctx.beginPath(); let st=false;
+    a.forEach((x,i)=>{ if(x==null){ st=false; return; }
+      const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
+    ctx.stroke();
+    a.forEach((x,i)=>{ if(x==null) return;
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(xOf(i),yOf(x),2.4,0,Math.PI*2); ctx.fill(); });
+    se._yOf=yOf;
+  });
+  // X축 분기
+  ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
+  per.forEach((p,i)=>{ const s=String(p); const lab=s.length>=6?s.slice(2,4)+'.'+s.slice(4,6):s;
+    if(n>6 && i%2===1) return; ctx.fillText(lab, xOf(i), H-5); });
+  // 범례
+  ctx.font='11px sans-serif'; ctx.textAlign='left';
+  let lx=PAD.l+2;
+  series.forEach(se=>{
+    ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(lx, PAD.t-5); ctx.lineTo(lx+11, PAD.t-5); ctx.stroke();
+    ctx.fillStyle=se.c; ctx.fillText(se.n, lx+14, PAD.t-2);
+    lx += 14 + ctx.measureText(se.n).width + 12;
+  });
+  // 선택 지점 + 값 표시 (첫 그래프와 동일)
+  if(hoverIdx>=0 && hoverIdx<n){
+    const x=xOf(hoverIdx);
+    ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
+    ctx.font='bold 11px monospace';
+    const marks=[];
+    series.forEach(se=>{
+      const v=(d[se.k]||[])[hoverIdx]; if(v==null||!se._yOf) return;
+      const py=se._yOf(v);
+      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
+      marks.push({se,v,py});
+    });
+    const GAP=13, TOP=PAD.t+10, BOT=PAD.t+ch-3;
+    marks.sort((a,b)=>a.py-b.py);
+    let prev=-Infinity;
+    marks.forEach(m=>{ let ty=Math.max(m.py-6, prev+GAP); ty=Math.max(TOP,ty); prev=ty; m.ty=ty; });
+    const over = marks.length ? (marks[marks.length-1].ty - BOT) : 0;
+    if(over>0) marks.forEach(m=>{ m.ty=Math.max(TOP, m.ty-over); });
+    marks.forEach(m=>{
+      const txt=m.v.toFixed(m.se.k==='pbr'?2:1);
+      const tw=ctx.measureText(txt).width;
+      let tx=x+8; if(tx+tw+4 > W-PAD.r) tx=x-8-tw-4;
+      ctx.fillStyle='#0d1117ee'; ctx.fillRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.strokeStyle=m.se.c; ctx.lineWidth=1; ctx.strokeRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.fillStyle=m.se.c; ctx.textAlign='left'; ctx.fillText(txt, tx, m.ty);
+    });
+  }
+}
+
+// PEG = PER ÷ 순이익 전년동기 증가율 (분기 자료라 4분기 전과 비교)
+function anlPegSeries(){
+  const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return null;
+  const per=d.per||[], pf=d.profit||[];
+  return (d.periods||[]).map((_,i)=>{
+    if(i<4) return null;
+    const p=per[i], a=pf[i], b=pf[i-4];
+    if(p==null||a==null||b==null||b===0) return null;
+    const g=((a-b)/Math.abs(b))*100;
+    if(!(g>0)) return null;                 // 감익이면 PEG 무의미
+    return p/g;
+  });
+}
+function anlDrawPeg(){
+  const cv=$('#anlPeg'); if(!cv) return;
+  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  const dpr=window.devicePixelRatio||1;
+  const W=cv.clientWidth, H=cv.clientHeight;
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const peg=anlPegSeries();
+  if(!d||!peg||!peg.some(v=>v!=null)){
+    ctx.fillStyle='#6e7681'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('PEG 를 계산할 자료가 부족합니다 (전년 동기 순이익 필요)', W/2, H/2); return;
+  }
+  const per=d.periods||[], n=per.length;
+  const PAD={l:10,r:32,t:12,b:20};
+  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const vals=peg.filter(v=>v!=null);
+  let mx=Math.max(...vals, 1.2);            // 1선이 항상 보이게
+  const yOf=v=>PAD.t+ch-(Math.min(v,mx)/mx)*ch;
+  const bw=Math.max(6, Math.min(26, cw/n*0.55));
+  // 1선 (기준)
+  ctx.strokeStyle='#8b949e'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, yOf(1)); ctx.lineTo(W-PAD.r, yOf(1)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#8b949e'; ctx.font='9.5px monospace'; ctx.textAlign='left';
+  ctx.fillText('1.0', W-PAD.r+3, yOf(1)+3);
+  // 막대 — 1 초과 빨강 / 1 이하 파랑
+  peg.forEach((v,i)=>{
+    if(v==null) return;
+    const x=PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+    const y=yOf(v), h=PAD.t+ch-y;
+    ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
+    ctx.fillRect(x-bw/2, y, bw, Math.max(2,h));
+    if(i===ANL_HOVERP){
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.strokeRect(x-bw/2, y, bw, Math.max(2,h));
+      const txt=v.toFixed(2);
+      ctx.font='bold 11px monospace'; ctx.textAlign='center';
+      const tw=ctx.measureText(txt).width;
+      let ty=Math.max(PAD.t+10, y-6);
+      ctx.fillStyle='#0d1117ee'; ctx.fillRect(x-tw/2-3, ty-9, tw+6, 12);
+      ctx.strokeStyle = v>1 ? '#ef5350' : '#58a6ff'; ctx.lineWidth=1;
+      ctx.strokeRect(x-tw/2-3, ty-9, tw+6, 12);
+      ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
+      ctx.fillText(txt, x, ty);
+    }
+  });
+  // X축
+  ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
+  per.forEach((p,i)=>{ const s=String(p); const lab=s.length>=6?s.slice(2,4)+'.'+s.slice(4,6):s;
+    if(n>6 && i%2===1) return;
+    ctx.fillText(lab, PAD.l+(n<=1?cw/2:(i/(n-1))*cw), H-5); });
+}
 
 // 3지표를 규칙에 따라 읽어 해석문을 만든다 (판단 근거를 함께 보여준다)
 function anlComment(){
@@ -6903,6 +7118,53 @@ function anlComment(){
     }
     P.push(s+'</p>');
   }
+
+  // ── 저평가·현금여력·PEG ──
+  const pbr=last(d.pbr), per=last(d.per), qk=last(d.quick), opm=last(d.opm), npm=last(d.npm);
+  const P2=[];
+  if(pbr!=null && r!=null){
+    const rp=r/pbr;
+    // PBR 밴드 위치 (자료 구간 안에서 지금이 어디쯤인가)
+    const pv=(d.pbr||[]).filter(x=>x!=null);
+    let band='';
+    if(pv.length>=3){
+      const lo=Math.min(...pv), hi=Math.max(...pv);
+      const pos=hi>lo ? ((pbr-lo)/(hi-lo)*100) : 50;
+      band = ` 자료 구간(${lo.toFixed(2)}~${hi.toFixed(2)}) 안에서 <b>${Math.round(pos)}% 위치</b>입니다.`;
+    }
+    let s=`<p><b>저평가 판단</b> — PBR <b>${pbr.toFixed(2)}배</b>, ROE ${r.toFixed(1)}% 로 <b>ROE÷PBR ${rp.toFixed(1)}</b> 입니다.${band} `;
+    if(rp>=10) s+='자기자본 수익성 대비 주가가 <b>싼 편</b>입니다.';
+    else if(rp>=5) s+='보통 수준입니다.';
+    else s+='수익성 대비 주가가 <b>비싼 편</b>입니다.';
+    P2.push(s+'</p>');
+  }
+  if(qk!=null){
+    let s=`<p><b>현금여력</b> — 당좌비율 <b>${qk.toFixed(0)}%</b>. `;
+    if(qk>=100) s+='재고를 빼고도 단기 빚을 갚을 수 있어 안정적입니다.';
+    else if(qk>=70) s+='보통 수준입니다.';
+    else s+='단기 지급 여력이 넉넉하지 않습니다.';
+    P2.push(s+'</p>');
+  }
+  if(opm!=null && npm!=null && npm-opm>5){
+    P2.push(`<p><b>이익의 질</b> — 순이익률(${npm.toFixed(1)}%)이 영업이익률(${opm.toFixed(1)}%)보다 높습니다. `
+      +'본업 밖(자산 매각·평가이익 등)에서 나온 이익이 섞였을 수 있어 <b>지속성을 확인</b>해야 합니다.</p>');
+  }
+  {
+    const pg=anlPegSeries();
+    const v=pg ? [...pg].reverse().find(x=>x!=null) : null;
+    if(v!=null){
+      let s=`<p><b>PEG</b> — <b>${v.toFixed(2)}</b> 입니다. `;
+      if(v<1) s+='성장률 대비 PER이 낮아 <b>저평가</b> 구간으로 봅니다.';
+      else s+='성장률 대비 PER이 높습니다.';
+      s+=' 다만 이익이 급증한 직후에는 값이 매우 작게 나오므로 <b>기저효과</b>를 함께 봐야 합니다.';
+      P2.push(s+'</p>');
+    }
+  }
+  if(P2.length){
+    P.push('<p style="border-top:1px solid var(--line);padding-top:8px;margin-top:9px;color:#d4af00;font-weight:700">저평가·현금여력</p>');
+    P2.forEach(x=>P.push(x));
+  }
+
   P.push('<p style="color:#8b949e;font-size:12px;margin-top:8px">※ 위 내용은 공시된 수치를 정해진 기준에 대입해 정리한 것으로, 투자 판단이나 매매 권유가 아닙니다. 재무제표는 과거 실적이며 주가는 미래를 반영합니다.</p>');
   el.innerHTML='<h5>기업 분석</h5>'+P.join('');
 }
@@ -6959,6 +7221,31 @@ const FIN_GUIDE_HTML = `
 </div>`;
 
 
+
+// 포트폴리오 선택 → 그 표의 종목으로 좌측 목록 채우기
+function anlLoadPort(mk){
+  let rows=[];
+  try{
+    if(mk==='kr'){
+      rows=(typeof KR_PF!=='undefined' ? KR_PF.rows : []).map(r=>({code:String(r[0]||''), name:r[1]||''}));
+    } else if(mk==='invpf'){
+      const w=_portRows('kg_watch_rows')||[], v=_portRows('kg_invpf_rows')||[];
+      rows=[...w,...v].map(r=>({code:String(r[0]||''), name:r[1]||''}));
+    } else if(mk==='invest'){
+      rows=(typeof INVEST_ROWS!=='undefined'?INVEST_ROWS:[]).map(r=>({code:r.code, name:r.name}));
+    } else if(mk==='investkq'){
+      rows=(typeof INVEST_KQ_ROWS!=='undefined'?INVEST_KQ_ROWS:[]).map(r=>({code:r.code, name:r.name}));
+    }
+  }catch(e){}
+  // 코드 중복 제거
+  const seen=new Set(); const uniq=[];
+  rows.forEach(r=>{ const c=String(r.code||'').replace(/[^0-9]/g,'');
+    if(c.length===6 && !seen.has(c)){ seen.add(c); uniq.push({code:c, name:r.name||c}); } });
+  anlSetList(uniq, mk);
+  if(uniq.length && !ANL_CODE) anlPick(uniq[0].code, uniq[0].name);
+  ensureFin3(uniq.slice(0,40).map(r=>r.code));
+}
+
 // 분석 페이지 좌측 목록 — 어느 표에서 왔는지, 어떤 필터였는지 기억한다
 let ANL_LIST=[];        // [{code,name}]
 let ANL_FROM=null;      // 돌아갈 표 (valMarket 값)
@@ -6986,6 +7273,7 @@ function anlRenderList(filter){
 }
 // 이전 버튼 — 왔던 표로 되돌아간다
 function anlBack(){
+  document.body.classList.remove('anl-mode');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   const pt=document.querySelector('.tab[data-t="port"]'); if(pt) pt.classList.add('on');
   document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
@@ -7007,6 +7295,7 @@ document.addEventListener('click', (e)=>{
   const tb=document.querySelector('.tab[data-t="hub"]'); if(tb) tb.classList.add('on');
   document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
   const sec=document.getElementById('hub'); if(sec) sec.classList.add('on');
+  document.body.classList.add('anl-mode');
   window.scrollTo(0,0);
   anlInit();
   // 지금 표에 보이는 종목들을 좌측 목록으로 넘긴다 (정렬·필터 상태 그대로)
@@ -7019,6 +7308,8 @@ document.addEventListener('click', (e)=>{
     });
   }
   anlSetList(rows, (typeof valMarket!=='undefined') ? valMarket : null);
+  const psel=document.getElementById('anlPortSel');
+  if(psel && typeof valMarket!=='undefined') psel.value = ['kr','invpf','invest','investkq'].includes(valMarket)?valMarket:'';
   const nm = el.getAttribute('data-name') || code;
   anlPick(code, nm);
 }, true);
