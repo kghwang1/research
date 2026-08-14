@@ -162,7 +162,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds';
-const BUILD='KG_LONG 2026-08-15c';
+const BUILD='KG_LONG 2026-08-15d';
 console.log(BUILD);
 
 let saved = jload(K_ROWS,[]);        // [{code,name,manual}]
@@ -220,12 +220,19 @@ function domesticOnly(rows){
 }
 
 /* ---------- 재무 ---------- */
+/* worker 의 ?fin3= 응답은 index.html 과 같은 평평한 구조다
+   {ok, periods, roe, debt, pbr, per, profit, opm, npm, quick, salesGrowth} */
 const FIELDS={
-  roe:['ROE','roe','자기자본이익률'], debt:['부채비율','debtRatio','debt'],
-  quick:['당좌비율','quickRatio','quick'], opm:['영업이익률','opMargin','operatingMargin'],
-  npm:['순이익률','netMargin'], per:['PER','per'], pbr:['PBR','pbr'],
-  sales:['매출액','매출','sales','revenue'], op:['영업이익','operatingProfit','opProfit'],
-  period:['기간','period','date','yymm','분기','label']
+  roe:['roe','ROE','자기자본이익률'],
+  debt:['debt','부채비율','debtRatio'],
+  quick:['quick','당좌비율','quickRatio'],
+  opm:['opm','영업이익률','opMargin','operatingMargin'],
+  npm:['npm','순이익률','netMargin'],
+  per:['per','PER'], pbr:['pbr','PBR'],
+  profit:['profit','순이익','당기순이익'],
+  salesGrowth:['salesGrowth','매출증가율'],
+  sales:['sales','매출액','매출','revenue'], op:['op','영업이익','operatingProfit'],
+  period:['periods','period','기간','date','yymm','분기','label']
 };
 function num(v){
   if(v===null||v===undefined||v==='') return null;
@@ -248,6 +255,21 @@ function findArray(o,d){
   return null;
 }
 function normalize(raw){
+  // 1) 알려진 평평한 구조 먼저
+  const flat0=(raw&&raw.data&&typeof raw.data==='object')?raw.data:raw;
+  if(flat0&&typeof flat0==='object'&&(Array.isArray(flat0.roe)||Array.isArray(flat0.per))){
+    const o={}; let n=0;
+    for(const f in FIELDS){
+      let ser=null;
+      for(const nm of FIELDS[f]) if(Array.isArray(flat0[nm])){
+        ser = (f==='period') ? flat0[nm].map(v=>String(v??'')) : flat0[nm].map(num);
+        break;
+      }
+      o[f]=ser; if(ser) n=Math.max(n,ser.length);
+    }
+    o._n=n; return o;
+  }
+  // 2) 객체 배열 구조
   const arr=findArray(raw,0), out={};
   if(arr){
     for(const f in FIELDS){
@@ -270,6 +292,14 @@ function fillDerived(f){
     f.opm = f.op.map((v,i)=>{ const s=f.sales[i]; return (v==null||s==null||!s)?null:v/s*100 });
   }
   return f;
+}
+// 부모창이 이미 받아둔 FIN3 캐시가 있으면 그대로 쓴다 (호출 절약)
+function parentFin3(code){
+  try{
+    const F=window.parent&&window.parent!==window?window.parent.FIN3:null;
+    if(F&&F[code]&&(F[code].roe||F[code].per)) return F[code];
+  }catch(e){}
+  return null;
 }
 const tail=(a,k)=>a?a.filter(v=>v!==null&&v!==undefined).slice(-k):[];
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
@@ -359,9 +389,12 @@ async function loadOne(code,name){
   c=cache[code]={loading:true,name:name||''};
   renderList(); if(cur===code) renderMain();
   try{
-    const r=await fetch(WORKER+'?fin3='+encodeURIComponent(code));
-    if(!r.ok) throw new Error('worker '+r.status);
-    const raw=await r.json();
+    let raw=parentFin3(code);
+    if(!raw){
+      const r=await fetch(WORKER+'?fin3='+encodeURIComponent(code));
+      if(!r.ok) throw new Error('worker '+r.status);
+      raw=await r.json();
+    }
     c.raw=raw;
     c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||code;
     c.fin=fillDerived(normalize(raw));
