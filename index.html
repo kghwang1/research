@@ -709,9 +709,7 @@
   .anl-main{flex:1;min-width:0;overflow-y:auto;padding:8px 10px 24px}
   .anl-sect{font-size:12.5px;font-weight:700;color:#d4af00;margin:12px 0 4px}
   .anl-sect span{font-size:10.5px;color:var(--mut);font-weight:500;margin-left:6px}
-  #anlCanvas2{width:100%;height:170px;display:block;background:#21262d;
-    border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
-  #anlPeg{width:100%;height:110px;display:block;background:#21262d;
+  #anlCanvas2{width:100%;height:210px;display:block;background:#21262d;
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
   /* 분석 페이지 */
   .anl-search{position:relative;margin-bottom:10px}
@@ -835,10 +833,8 @@
     </div>
     <div id="anlTitle" class="anl-title"></div>
     <canvas id="anlCanvas"></canvas>
-    <div class="anl-sect">저평가·현금여력</div>
+    <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 1 미만(파랑)이면 성장 대비 저평가</span></div>
     <canvas id="anlCanvas2"></canvas>
-    <div class="anl-sect">PEG <span>PER ÷ 순이익 증가율 · 1 미만이면 성장 대비 저평가</span></div>
-    <canvas id="anlPeg"></canvas>
     <div id="anlComment" class="anl-comment"></div>
     <div class="fin-guide" id="finGuide"></div>
    </div>
@@ -6745,7 +6741,6 @@ async function anlPick(code, name){
   await ensureFin3([code]);
   anlDraw(); anlShowTip(-1);
   anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2);
-  anlDrawPeg();
   anlComment();
 }
 
@@ -6859,17 +6854,10 @@ function anlBindCanvas2(){
   };
   const c2=$('#anlCanvas2');
   if(c2 && !c2._bound){ c2._bound=true;
-    const on=ev=>{ const i=idxFrom(c2,ev,10,10); if(i>=0){ ANL_HOVER2=i; anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); } };
+    const on=ev=>{ const i=idxFrom(c2,ev,10,32); if(i>=0){ ANL_HOVER2=i; anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); } };
     c2.addEventListener('mousemove', on);
     c2.addEventListener('touchstart', on, {passive:true});
     c2.addEventListener('touchmove',  on, {passive:true});
-  }
-  const cp=$('#anlPeg');
-  if(cp && !cp._bound){ cp._bound=true;
-    const on=ev=>{ const i=idxFrom(cp,ev,10,32); if(i>=0){ ANL_HOVERP=i; anlDrawPeg(); } };
-    cp.addEventListener('mousemove', on);
-    cp.addEventListener('touchstart', on, {passive:true});
-    cp.addEventListener('touchmove',  on, {passive:true});
   }
 }
 
@@ -6889,7 +6877,7 @@ function anlBindCanvas(){
   cv.addEventListener('touchstart', on, {passive:true});
   cv.addEventListener('touchmove',  on, {passive:true});
 }
-window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); anlDrawPeg(); });
+window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); });
 
 
 
@@ -6901,7 +6889,7 @@ const FIN2_SERIES = [
   { k:'pbr',   n:'PBR',    c:'#ef5350' },
   { k:'quick', n:'당좌비율', c:'#58a6ff' },
 ];
-let ANL_HOVER2=-1, ANL_HOVERP=-1;
+let ANL_HOVER2=-1;
 
 // 계열마다 자기 축으로 그리는 공용 선그래프 (첫 그래프와 같은 방식)
 function anlDrawLines(cvId, series, hoverIdx, H0){
@@ -6915,8 +6903,10 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   if(!d){ ctx.fillStyle='#6e7681'; ctx.font='12px sans-serif'; ctx.textAlign='center';
     ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
   const per=d.periods||[]; const n=per.length; if(!n) return;
-  const PAD={l:10,r:10,t:26,b:20};
-  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
+  const withPeg = (cvId==='anlCanvas2');
+  const PAD={l:10,r:withPeg?32:10,t:26,b:20};
+  const cw=W-PAD.l-PAD.r;
+  const ch=(H-PAD.t-PAD.b) * (withPeg?0.66:1);      // PEG 막대를 아래 34% 에 그린다
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
   series.forEach(se=>{
     const a=d[se.k]||[]; const v=a.filter(x=>x!=null);
@@ -6975,6 +6965,53 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
       ctx.fillStyle=m.se.c; ctx.textAlign='left'; ctx.fillText(txt, tx, m.ty);
     });
   }
+  // ── 아래쪽에 PEG 막대 ──
+  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx);
+}
+
+// PEG 막대 — 선그래프 아래 영역에 그린다 (1 초과 빨강 / 1 이하 파랑)
+function anlDrawPegBars(ctx, W, H, PAD, lineH, xOf, n, hoverIdx){
+  const peg=anlPegSeries();
+  const top=PAD.t+lineH+6;                 // 막대 영역 시작
+  const bot=H-PAD.b;                       // 막대 바닥
+  const bh=bot-top;
+  if(bh<14) return;
+  // 구분선
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, top-3); ctx.lineTo(W-PAD.r, top-3); ctx.stroke();
+  if(!peg || !peg.some(v=>v!=null)){
+    ctx.fillStyle='#6e7681'; ctx.font='10px sans-serif'; ctx.textAlign='center';
+    ctx.fillText('PEG 자료 없음', PAD.l+(W-PAD.l-PAD.r)/2, top+bh/2+3);
+    return;
+  }
+  const vals=peg.filter(v=>v!=null);
+  const mx=Math.max(...vals, 1.2);         // 1선이 항상 보이게
+  const yOf=v=>bot-(Math.min(v,mx)/mx)*bh;
+  const bw=Math.max(5, Math.min(22, (W-PAD.l-PAD.r)/n*0.5));
+  // 1 기준선
+  ctx.strokeStyle='#8b949e'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(PAD.l, yOf(1)); ctx.lineTo(W-PAD.r, yOf(1)); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#8b949e'; ctx.font='9px monospace'; ctx.textAlign='left';
+  ctx.fillText('PEG 1.0', W-PAD.r+2, yOf(1)+3);
+  peg.forEach((v,i)=>{
+    if(v==null) return;
+    const x=xOf(i), y=yOf(v);
+    ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
+    ctx.fillRect(x-bw/2, y, bw, Math.max(2, bot-y));
+    if(i===hoverIdx){
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.strokeRect(x-bw/2, y, bw, Math.max(2, bot-y));
+      const txt=v.toFixed(2);
+      ctx.font='bold 10px monospace'; ctx.textAlign='center';
+      const tw=ctx.measureText(txt).width;
+      const ty=Math.max(top+9, y-5);
+      ctx.fillStyle='#0d1117ee'; ctx.fillRect(x-tw/2-3, ty-9, tw+6, 11);
+      ctx.strokeStyle = v>1 ? '#ef5350' : '#58a6ff'; ctx.lineWidth=1;
+      ctx.strokeRect(x-tw/2-3, ty-9, tw+6, 11);
+      ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
+      ctx.fillText(txt, x, ty);
+    }
+  });
 }
 
 // PEG = PER ÷ 순이익 전년동기 증가율 (분기 자료라 4분기 전과 비교)
@@ -6990,69 +7027,6 @@ function anlPegSeries(){
     return p/g;
   });
 }
-function anlDrawPeg(){
-  const cv=$('#anlPeg'); if(!cv) return;
-  const d=ANL_CODE?FIN3[ANL_CODE]:null;
-  const dpr=window.devicePixelRatio||1;
-  const W=cv.clientWidth, H=cv.clientHeight;
-  cv.width=W*dpr; cv.height=H*dpr;
-  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,W,H);
-  const peg=anlPegSeries();
-  if(!d||!peg||!peg.some(v=>v!=null)){
-    ctx.fillStyle='#6e7681'; ctx.font='11px sans-serif'; ctx.textAlign='center';
-    // 왜 못 그리는지 구분해 알려준다
-    let msg='PEG 를 계산할 자료가 부족합니다';
-    if(d){
-      const hasPer=(d.per||[]).some(v=>v!=null), hasPf=(d.profit||[]).some(v=>v!=null);
-      const nq=(d.periods||[]).length;
-      if(!hasPer) msg='PER 자료가 없습니다';
-      else if(!hasPf) msg='순이익 자료가 없습니다';
-      else if(nq<5) msg='전년 동기 비교를 위해 5개 분기 이상 필요합니다 (현재 '+nq+'개)';
-      else msg='최근 순이익이 전년보다 줄어 PEG 를 계산하지 않습니다';
-    }
-    ctx.fillText(msg, W/2, H/2); return;
-  }
-  const per=d.periods||[], n=per.length;
-  const PAD={l:10,r:32,t:12,b:20};
-  const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
-  const vals=peg.filter(v=>v!=null);
-  let mx=Math.max(...vals, 1.2);            // 1선이 항상 보이게
-  const yOf=v=>PAD.t+ch-(Math.min(v,mx)/mx)*ch;
-  const bw=Math.max(6, Math.min(26, cw/n*0.55));
-  // 1선 (기준)
-  ctx.strokeStyle='#8b949e'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
-  ctx.beginPath(); ctx.moveTo(PAD.l, yOf(1)); ctx.lineTo(W-PAD.r, yOf(1)); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='#8b949e'; ctx.font='9.5px monospace'; ctx.textAlign='left';
-  ctx.fillText('1.0', W-PAD.r+3, yOf(1)+3);
-  // 막대 — 1 초과 빨강 / 1 이하 파랑
-  peg.forEach((v,i)=>{
-    if(v==null) return;
-    const x=PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
-    const y=yOf(v), h=PAD.t+ch-y;
-    ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
-    ctx.fillRect(x-bw/2, y, bw, Math.max(2,h));
-    if(i===ANL_HOVERP){
-      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.strokeRect(x-bw/2, y, bw, Math.max(2,h));
-      const txt=v.toFixed(2);
-      ctx.font='bold 11px monospace'; ctx.textAlign='center';
-      const tw=ctx.measureText(txt).width;
-      let ty=Math.max(PAD.t+10, y-6);
-      ctx.fillStyle='#0d1117ee'; ctx.fillRect(x-tw/2-3, ty-9, tw+6, 12);
-      ctx.strokeStyle = v>1 ? '#ef5350' : '#58a6ff'; ctx.lineWidth=1;
-      ctx.strokeRect(x-tw/2-3, ty-9, tw+6, 12);
-      ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
-      ctx.fillText(txt, x, ty);
-    }
-  });
-  // X축
-  ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
-  per.forEach((p,i)=>{ const s=String(p); const lab=s.length>=6?s.slice(2,4)+'.'+s.slice(4,6):s;
-    if(n>6 && i%2===1) return;
-    ctx.fillText(lab, PAD.l+(n<=1?cw/2:(i/(n-1))*cw), H-5); });
-}
-
 // 3지표를 규칙에 따라 읽어 해석문을 만든다 (판단 근거를 함께 보여준다)
 function anlComment(){
   const el=$('#anlComment'); if(!el) return;
