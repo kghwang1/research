@@ -8,59 +8,56 @@
 :root{
   --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#2a2f3a;
   --tx:#e6e9ef; --tx2:#9aa3b2; --tx3:#6b7385;
-  --up:#e0453e; --dn:#2f7de0; --ok:#28a06a; --warn:#d9a221; --bad:#c8453f;
-  --acc:#5b8def;
+  --ok:#28a06a; --warn:#d9a221; --bad:#c8453f; --acc:#5b8def;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--tx);
-  font:13px/1.5 -apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif;}
-button,input,select{font:inherit}
-a{color:var(--acc)}
-
+  font:13px/1.5 -apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif}
+button,input,select,textarea{font:inherit}
 .wrap{display:flex;height:100vh;overflow:hidden}
-.side{width:210px;flex:0 0 210px;border-right:1px solid var(--line);
-  background:var(--panel);display:flex;flex-direction:column}
-.side h2{margin:0;padding:9px 10px;font-size:12px;letter-spacing:.5px;
-  color:var(--tx2);border-bottom:1px solid var(--line);font-weight:600}
-.addbox{display:flex;gap:4px;padding:8px}
-.addbox input{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);
+
+/* ---- 사이드 ---- */
+.side{width:222px;flex:0 0 222px;border-right:1px solid var(--line);
+  background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.sbox{padding:8px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.sbox .r{display:flex;gap:5px}
+.sbox input,.sbox select{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);
   color:var(--tx);border-radius:4px;padding:5px 7px}
-.addbox button{background:var(--acc);border:0;color:#fff;border-radius:4px;padding:5px 9px;cursor:pointer}
-.list{flex:1;overflow:auto}
-.item{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid #21252e;cursor:pointer}
+.sbox button{background:var(--acc);border:0;color:#fff;border-radius:4px;padding:5px 10px;cursor:pointer}
+.srcnote{color:var(--tx3);font-size:11px}
+.list{flex:1;overflow:auto;min-height:0}
+.item{display:flex;align-items:center;gap:6px;padding:7px 9px;border-bottom:1px solid #21252e;cursor:pointer}
 .item:hover{background:var(--panel2)}
-.item.on{background:#243049;border-left:3px solid var(--acc);padding-left:7px}
-.item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item.on{background:#243049;border-left:3px solid var(--acc);padding-left:6px}
+.item .nm{flex:1;min-width:0;overflow:hidden}
+.item .nm b{font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .cd{color:var(--tx3);font-size:11px}
-.item .sc{font-weight:700;font-size:12px;min-width:26px;text-align:right}
-.item .x{color:var(--tx3);padding:0 2px}
+.item .sc{font-weight:700;font-size:12px;min-width:24px;text-align:right}
+.item .x{color:var(--tx3);padding:0 3px}
 .item .x:hover{color:var(--bad)}
-.sidefoot{padding:8px;border-top:1px solid var(--line);display:flex;gap:5px;flex-wrap:wrap}
+.sidefoot{padding:7px;border-top:1px solid var(--line);display:flex;gap:5px}
 .sidefoot button{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--tx2);
   border-radius:4px;padding:5px 0;cursor:pointer;font-size:11px}
 .sidefoot button:hover{color:var(--tx);border-color:#3a4150}
 
-.main{flex:1;overflow:auto;padding:14px 16px 40px}
-.hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+/* ---- 본문 ---- */
+.main{flex:1;overflow:auto;padding:14px 16px 40px;min-width:0}
+.hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .hd .t{font-size:19px;font-weight:700}
 .hd .c{color:var(--tx3)}
 .hd .q{margin-left:auto;color:var(--tx3);font-size:11px}
-
 .verdict{display:flex;align-items:center;gap:14px;background:var(--panel);
   border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:10px 0 14px}
 .verdict .big{font-size:38px;font-weight:800;line-height:1;letter-spacing:-1px}
 .verdict .big small{font-size:14px;color:var(--tx3);font-weight:600}
 .verdict .lab{font-size:16px;font-weight:700}
 .verdict .sub{color:var(--tx2);font-size:12px;margin-top:3px}
-.bar{flex:1;min-width:120px;height:8px;background:#232833;border-radius:99px;overflow:hidden}
+.bar{flex:1;min-width:100px;height:8px;background:#232833;border-radius:99px;overflow:hidden}
 .bar i{display:block;height:100%;border-radius:99px}
-
-.flags{margin:0 0 14px;padding:10px 12px;border-radius:6px;
-  background:#2a1c1c;border:1px solid #4a2a28;color:#f0b3af}
+.flags{margin:0 0 14px;padding:10px 12px;border-radius:6px;background:#2a1c1c;border:1px solid #4a2a28;color:#f0b3af}
 .flags b{color:#ff8b84}
 .flags ul{margin:5px 0 0;padding-left:18px}
-
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .card h3{margin:0;padding:9px 12px;font-size:12px;border-bottom:1px solid var(--line);
@@ -71,91 +68,162 @@ a{color:var(--acc)}
 .row .k{flex:1;color:var(--tx2)}
 .row .v{font-variant-numeric:tabular-nums;font-weight:600}
 .row .p{width:42px;text-align:right;font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
-.row .note{width:100%;color:var(--tx3);font-size:11px;padding:0 12px 6px;margin-top:-4px}
-
+.note{width:100%;color:var(--tx3);font-size:11px;padding:0 12px 6px;margin-top:-4px}
 .manual{padding:8px 12px 12px}
 .mrow{display:flex;align-items:center;gap:8px;margin-bottom:7px}
 .mrow label{flex:1;color:var(--tx2)}
-.mrow select,.mrow input[type=number]{background:var(--panel2);border:1px solid var(--line);
-  color:var(--tx);border-radius:4px;padding:4px 6px;min-width:120px}
+.mrow select{background:var(--panel2);border:1px solid var(--line);color:var(--tx);border-radius:4px;padding:4px 6px;min-width:130px}
 .hint{color:var(--tx3);font-size:11px;padding:0 12px 10px;line-height:1.6}
-
+.pill{display:inline-block;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:600}
 table.fin{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.fin th,table.fin td{padding:5px 8px;border-bottom:1px solid #21252e;text-align:right;white-space:nowrap}
 table.fin th:first-child,table.fin td:first-child{text-align:left;color:var(--tx2)}
 table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 .scroll{overflow-x:auto}
-
-.good{color:var(--ok)} .mid{color:var(--warn)} .poor{color:var(--bad)}
-.msg{padding:30px 10px;color:var(--tx3);text-align:center}
+.msg{padding:30px 10px;color:var(--tx3);text-align:center;line-height:1.8}
 .dbg{margin-top:14px}
-.dbg pre{background:#0b0d11;border:1px solid var(--line);border-radius:6px;padding:10px;
-  overflow:auto;max-height:280px;color:var(--tx2);font-size:11px}
+.dbg pre{background:#0b0d11;border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;max-height:280px;color:var(--tx2);font-size:11px}
 .dbg summary{cursor:pointer;color:var(--tx3)}
+
+/* ---- 명부 등록 ---- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;z-index:50;padding:20px;overflow:auto}
+.modal.on{display:block}
+.mbox{max-width:720px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.mbox h3{margin:0 0 6px;font-size:15px}
+.mbox p{margin:0 0 12px;color:var(--tx2);font-size:12px;line-height:1.7}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two label{display:block;color:var(--tx2);font-size:12px;margin-bottom:4px}
+.two textarea{width:100%;height:190px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--tx);border-radius:6px;padding:8px;font:12px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
+.mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}
+.mfoot button{border:1px solid var(--line);background:var(--panel2);color:var(--tx2);border-radius:5px;padding:7px 14px;cursor:pointer}
+.mfoot button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 @media(max-width:640px){
   .wrap{flex-direction:column}
-  .side{width:100%;flex:0 0 auto;max-height:38vh;border-right:0;border-bottom:1px solid var(--line)}
+  .side{width:100%;flex:0 0 auto;max-height:44vh;border-right:0;border-bottom:1px solid var(--line)}
+  .two{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
   <aside class="side">
-    <h2>장기 후보</h2>
-    <div class="addbox">
-      <input id="add" placeholder="종목코드 6자리" maxlength="6" inputmode="numeric">
-      <button id="addBtn">추가</button>
+    <div class="sbox">
+      <div class="r">
+        <input id="add" placeholder="종목코드 6자리" maxlength="6" inputmode="numeric">
+        <button id="addBtn">추가</button>
+      </div>
+      <select id="src">
+        <option value="_saved">장기 후보 (저장됨)</option>
+        <option value="_funds">펀드 명부 — 지분 증가</option>
+        <option value="invpf">선정주</option>
+        <option value="watch">관심</option>
+        <option value="kr">한국(체)</option>
+        <option value="invest">코스피200</option>
+        <option value="investkq">코스닥100</option>
+      </select>
+      <input id="q" placeholder="검색">
+      <div class="srcnote" id="srcnote"></div>
     </div>
     <div class="list" id="list"></div>
     <div class="sidefoot">
+      <button id="fundBtn">펀드 명부</button>
       <button id="reload">↻ 다시 계산</button>
-      <button id="exp">내보내기</button>
-      <button id="imp">불러오기</button>
     </div>
   </aside>
+  <main class="main" id="main"></main>
+</div>
 
-  <main class="main" id="main">
-    <div class="msg">왼쪽에 종목코드를 넣으면 6개월 이상 보유 관점으로 채점합니다.</div>
-  </main>
+<!-- 펀드 명부 등록 -->
+<div class="modal" id="fundModal">
+  <div class="mbox">
+    <h3>펀드 명부 등록</h3>
+    <p>NBIM 등 장기펀드의 보유 명부를 <b>직전 스냅샷</b>과 <b>최신 스냅샷</b> 두 개로 넣으면,
+       종목별 지분율을 비교해 <b>늘린 종목</b>만 추려냅니다.
+       한 줄에 6자리 종목코드와 지분율이 함께 있으면 형식은 자유입니다 —
+       예: <code>005930 삼성전자 1.88</code> 또는 <code>005930,1.88</code>.
+       NBIM 은 6/30·12/31 기준으로 연 2회만 공개되므로, 갱신도 연 2회면 충분합니다.</p>
+    <div class="two">
+      <div><label>직전 스냅샷 (예: 2025-12-31)</label><textarea id="fPrev" placeholder="005930 삼성전자 1.94"></textarea></div>
+      <div><label>최신 스냅샷 (예: 2026-06-30)</label><textarea id="fCur" placeholder="005930 삼성전자 1.88"></textarea></div>
+    </div>
+    <div class="mfoot">
+      <button id="fClear">명부 지우기</button>
+      <button id="fCancel">닫기</button>
+      <button id="fSave" class="pri">명부 만들기</button>
+    </div>
+  </div>
 </div>
 
 <script>
-/* ===== KG 장기투자 v1 =====
-   자료: worker ?fin3= (분석 탭과 동일한 네이버 분기 재무 6분기)
-   자동 85점(사업의질 40 · 재무안전 30 · 밸류 15) + 수동 15점(장기자금)
+/* ===== KG 장기투자 v2 =====
+   자동 85점(사업의질 40·재무안전 30·밸류 15) + 장기자금 15
+   자료: worker ?fin3=  ·  포트 목록: 부모창 chartPortRows()
 */
-const WORKER = 'https://quote.kghwang1.workers.dev/';
-const KEY    = 'kg_long_rows';
-const BUILD  = 'KG_LONG 2026-08-14a';
+const WORKER='https://quote.kghwang1.workers.dev/';
+const K_ROWS='kg_long_rows', K_FUND='kg_long_funds';
+const BUILD='KG_LONG 2026-08-14b';
 console.log(BUILD);
 
-let rows = load();      // [{code,name,manual:{nbim,active,nps},score,fin}]
-let cur  = null;
+let saved = jload(K_ROWS,[]);        // [{code,name,manual}]
+let funds = jload(K_FUND,{});        // {code:{name,prev,cur,dif}}
+const cache = {};                    // code -> {name,fin,raw,score,error,loading}
+let src='_saved', cur=null;
 
-function load(){ try{ return JSON.parse(localStorage.getItem(KEY)) || [] }catch(e){ return [] } }
-function save(){ localStorage.setItem(KEY, JSON.stringify(rows.map(r=>({code:r.code,name:r.name,manual:r.manual})))) }
-
-/* ---------- 자료 받기 ---------- */
-async function fetchFin(code){
-  const r = await fetch(WORKER+'?fin3='+encodeURIComponent(code));
-  if(!r.ok) throw new Error('worker '+r.status);
-  return await r.json();
+function jload(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } }
+function jsave(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
+function saveRows(){ jsave(K_ROWS, saved) }
+function manualOf(code){
+  const s=saved.find(r=>r.code===code);
+  if(s) return s.manual;
+  const f=funds[code];
+  return { nbim: f&&f.dif>0?1:0, active:'', nps:false };   // 명부에서 온 종목은 1회 증가로 시작
+}
+function setManual(code,m){
+  let s=saved.find(r=>r.code===code);
+  if(!s){ s={code,name:(cache[code]&&cache[code].name)||'',manual:m}; saved.push(s) }
+  else s.manual=m;
+  saveRows();
 }
 
-/* 응답 형태를 모르므로 넓게 훑는다.
-   지원: [{ROE:..},..] / {ROE:[..]} / {rows:[..]} / {list:[..]} / {data:{..}} */
-const FIELDS = {
-  roe   : ['ROE','roe','자기자본이익률'],
-  debt  : ['부채비율','debtRatio','debt'],
-  quick : ['당좌비율','quickRatio','quick'],
-  opm   : ['영업이익률','opMargin','operatingMargin'],
-  npm   : ['순이익률','netMargin'],
-  per   : ['PER','per'],
-  pbr   : ['PBR','pbr'],
-  sales : ['매출액','매출','sales','revenue'],
-  op    : ['영업이익','operatingProfit'],
-  net   : ['순이익','당기순이익','netProfit','netIncome'],
-  period: ['기간','period','date','yymm','분기','label']
+/* ---------- 목록 출처 ---------- */
+function parentRows(port){
+  try{
+    if(window.parent && window.parent!==window && typeof window.parent.chartPortRows==='function')
+      return window.parent.chartPortRows(port)||[];
+  }catch(e){}
+  // 부모창에 못 닿을 때(파일 단독 실행) localStorage 로 대체
+  const map={invpf:['kg_watch_rows','kg_invpf_rows'], watch:['kg_watch_rows']};
+  if(map[port]){
+    const out=[],seen=new Set();
+    map[port].forEach(k=>{ const a=jload(k,[]); if(Array.isArray(a)) a.forEach(r=>{
+      const c=String((Array.isArray(r)?r[0]:r&&r.code)||'').trim(); if(!c||seen.has(c))return;
+      seen.add(c); out.push([c,(Array.isArray(r)?r[1]:r&&r.name)||'']); }); });
+    return out;
+  }
+  return [];
+}
+function srcRows(){
+  if(src==='_saved') return saved.map(r=>[r.code, r.name||(cache[r.code]&&cache[r.code].name)||'']);
+  if(src==='_funds') return Object.keys(funds).filter(c=>funds[c].dif>0)
+      .sort((a,b)=>funds[b].dif-funds[a].dif).map(c=>[c,funds[c].name||'']);
+  return parentRows(src);
+}
+function domesticOnly(rows){
+  const out=[],skip=[];
+  rows.forEach(r=>{
+    const c=String(r[0]||'').trim();
+    if(/^\d{6}$/.test(c)) out.push([c, r[1]||'']); else if(c) skip.push(c);
+  });
+  return {out, skipped:skip.length};
+}
+
+/* ---------- 재무 ---------- */
+const FIELDS={
+  roe:['ROE','roe','자기자본이익률'], debt:['부채비율','debtRatio','debt'],
+  quick:['당좌비율','quickRatio','quick'], opm:['영업이익률','opMargin','operatingMargin'],
+  npm:['순이익률','netMargin'], per:['PER','per'], pbr:['PBR','pbr'],
+  period:['기간','period','date','yymm','분기','label']
 };
 function num(v){
   if(v===null||v===undefined||v==='') return null;
@@ -164,288 +232,284 @@ function num(v){
   if(s===''||s==='-') return null;
   const n=parseFloat(s); return isFinite(n)?n:null;
 }
-function findArray(o,depth){
-  // 객체 배열 중 가장 그럴듯한 것(길이 3~12, ROE/부채비율 같은 키 보유)을 찾는다
-  if(depth>5||!o||typeof o!=='object') return null;
+function findArray(o,d){
+  if(d>5||!o||typeof o!=='object') return null;
   if(Array.isArray(o)){
-    if(o.length>=2&&o.length<=16&&typeof o[0]==='object'&&o[0]){
+    if(o.length>=2&&o.length<=16&&o[0]&&typeof o[0]==='object'){
       const ks=Object.keys(o[0]).join('|');
       if(/ROE|roe|부채|PER|per|매출|sales/.test(ks)) return o;
     }
-    for(const it of o){ const f=findArray(it,depth+1); if(f) return f }
+    for(const it of o){ const f=findArray(it,d+1); if(f) return f }
     return null;
   }
-  for(const k in o){ const f=findArray(o[k],depth+1); if(f) return f }
-  return null;
-}
-function seriesFromObj(o,names){
-  // {ROE:[..]} 형태
-  for(const n of names){
-    if(Array.isArray(o[n])) return o[n].map(num);
-  }
+  for(const k in o){ const f=findArray(o[k],d+1); if(f) return f }
   return null;
 }
 function normalize(raw){
-  const arr = findArray(raw,0);
-  const out = {};
+  const arr=findArray(raw,0), out={};
   if(arr){
     for(const f in FIELDS){
-      const key = FIELDS[f].find(n=>arr.some(r=>r&&r[n]!==undefined));
-      out[f] = key ? arr.map(r=>f==='period'?String(r[key]??''):num(r[key])) : null;
+      const key=FIELDS[f].find(n=>arr.some(r=>r&&r[n]!==undefined));
+      out[f]=key?arr.map(r=>f==='period'?String(r[key]??''):num(r[key])):null;
     }
-    out._n = arr.length;
-    return out;
+    out._n=arr.length; return out;
   }
-  const flat = raw && raw.data && typeof raw.data==='object' ? raw.data : raw;
-  let n=0;
+  const flat=(raw&&raw.data&&typeof raw.data==='object')?raw.data:raw; let n=0;
   for(const f in FIELDS){
-    const s = flat && typeof flat==='object' ? seriesFromObj(flat,FIELDS[f]) : null;
+    let s=null;
+    if(flat&&typeof flat==='object') for(const nm of FIELDS[f]) if(Array.isArray(flat[nm])){ s=flat[nm].map(num); break }
     out[f]=s; if(s) n=Math.max(n,s.length);
   }
-  out._n=n;
-  return out;
+  out._n=n; return out;
 }
-function tail(a,k){ return a? a.filter(v=>v!==null&&v!==undefined).slice(-k) : [] }
-function avg(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : null }
-function last(a){ const t=tail(a,1); return t.length?t[0]:null }
+const tail=(a,k)=>a?a.filter(v=>v!==null&&v!==undefined).slice(-k):[];
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const last=a=>{ const t=tail(a,1); return t.length?t[0]:null };
+const fmt=(v,u)=>v===null||v===undefined?'—':(Math.round(v*100)/100)+(u||'');
 
 /* ---------- 채점 ---------- */
-function band(v,steps){          // steps: [[임계, 점수], ...] 큰 값이 좋을 때
-  if(v===null) return {p:0,why:'자료없음'};
-  for(const [th,p,lab] of steps) if(v>=th) return {p,why:lab};
-  return {p:0,why:'미달'};
-}
-function bandLow(v,steps){       // 작은 값이 좋을 때
-  if(v===null) return {p:0,why:'자료없음'};
-  for(const [th,p,lab] of steps) if(v<=th) return {p,why:lab};
-  return {p:0,why:'미달'};
-}
+function band(v,st){ if(v===null) return{p:0,why:'자료없음'}; for(const[t,p,l]of st) if(v>=t) return{p,why:l}; return{p:0,why:'미달'} }
+function bandLow(v,st){ if(v===null) return{p:0,why:'자료없음'}; for(const[t,p,l]of st) if(v<=t) return{p,why:l}; return{p:0,why:'미달'} }
 
-function score(fin,manual){
-  const roeAll = tail(fin.roe,6), roe6 = roeAll;
-  const roeAvg = avg(roe6);
+function score(fin,m){
+  const roe6=tail(fin.roe,6), roeAvg=avg(roe6);
   let cv=null;
-  if(roe6.length>=3 && roeAvg && Math.abs(roeAvg)>0.01){
-    const v = roe6.reduce((s,x)=>s+(x-roeAvg)**2,0)/roe6.length;
-    cv = Math.sqrt(v)/Math.abs(roeAvg);
+  if(roe6.length>=3&&roeAvg&&Math.abs(roeAvg)>0.01){
+    const v=roe6.reduce((s,x)=>s+(x-roeAvg)**2,0)/roe6.length; cv=Math.sqrt(v)/Math.abs(roeAvg);
   }
-  const lossQ = roe6.filter(v=>v<0).length;
+  const lossQ=roe6.filter(v=>v<0).length;
+  const opm=tail(fin.opm,6); let trend=null;
+  if(opm.length>=4){ const h=Math.ceil(opm.length/2); trend=avg(opm.slice(-h))-avg(opm.slice(0,opm.length-h)) }
+  const debt=last(fin.debt), quick=last(fin.quick), per=last(fin.per), pbr=last(fin.pbr);
 
-  const opm = tail(fin.opm,6);
-  let opmTrend=null;
-  if(opm.length>=4){
-    const h=Math.ceil(opm.length/2);
-    opmTrend = avg(opm.slice(-h)) - avg(opm.slice(0,opm.length-h));
-  }
+  const A1=band(roeAvg,[[15,15,'우수'],[10,12,'양호'],[7,8,'보통'],[4,4,'낮음']]);
+  const A2= lossQ>0 ? {p:0,why:'적자분기 '+lossQ+'회'}
+          : cv===null ? {p:0,why:'자료부족'}
+          : bandLow(cv,[[0.15,15,'매우 안정'],[0.30,11,'안정'],[0.50,6,'변동 큼']]);
+  const A3= trend===null?{p:0,why:'자료부족'}:band(trend,[[1,10,'개선'],[0,7,'유지'],[-1,4,'소폭 악화']]);
+  const B1=bandLow(debt,[[50,15,'매우 낮음'],[100,12,'낮음'],[150,8,'보통'],[200,4,'높음']]);
+  const B2=band(quick,[[150,15,'풍부'],[100,12,'양호'],[70,8,'보통'],[50,4,'빠듯']]);
+  const C1=(per===null||per<=0)?{p:0,why:per===null?'자료없음':'적자/이상치'}
+          :bandLow(per,[[10,8,'저평가'],[15,6,'적정'],[25,4,'다소 비쌈'],[40,2,'비쌈']]);
+  const C2=bandLow(pbr,[[1,7,'저평가'],[1.5,5,'적정'],[2.5,3,'다소 비쌈'],[4,1,'비쌈']]);
 
-  const debt  = last(fin.debt);
-  const quick = last(fin.quick);
-  const per   = last(fin.per);
-  const pbr   = last(fin.pbr);
-
-  const A1 = band(roeAvg,[[15,15,'우수'],[10,12,'양호'],[7,8,'보통'],[4,4,'낮음']]);
-  let A2;
-  if(lossQ>0)        A2={p:0,  why:'적자분기 '+lossQ+'회'};
-  else if(cv===null) A2={p:0,  why:'자료부족'};
-  else               A2=bandLow(cv,[[0.15,15,'매우 안정'],[0.30,11,'안정'],[0.50,6,'변동 큼']]);
-  const A3 = opmTrend===null ? {p:0,why:'자료부족'}
-           : band(opmTrend,[[1,10,'개선'],[0,7,'유지'],[-1,4,'소폭 악화']]);
-
-  const B1 = bandLow(debt, [[50,15,'매우 낮음'],[100,12,'낮음'],[150,8,'보통'],[200,4,'높음']]);
-  const B2 = band(quick,   [[150,15,'풍부'],[100,12,'양호'],[70,8,'보통'],[50,4,'빠듯']]);
-
-  const C1 = (per===null||per<=0) ? {p:0,why:per===null?'자료없음':'적자/이상치'}
-           : bandLow(per,[[10,8,'저평가'],[15,6,'적정'],[25,4,'다소 비쌈'],[40,2,'비쌈']]);
-  const C2 = bandLow(pbr,[[1,7,'저평가'],[1.5,5,'적정'],[2.5,3,'다소 비쌈'],[4,1,'비쌈']]);
-
-  const D1 = [0,2,4,6][Math.min(3, manual.nbim|0)];
-  const D2 = manual.active==='act'?6 : manual.active==='pas'?2 : 0;
-  const D3 = manual.nps?3:0;
-
+  const D1=[0,2,4,6][Math.min(3,m.nbim|0)];
+  const D2=m.active==='act'?6:m.active==='pas'?2:0;
+  const D3=m.nps?3:0;
   const A=A1.p+A2.p+A3.p, B=B1.p+B2.p, C=C1.p+C2.p, D=D1+D2+D3;
-  const total=A+B+C+D;
 
   const flags=[];
-  if(debt!==null && debt>200)  flags.push('부채비율 '+debt.toFixed(0)+'% — 장기 보유 중 금리·업황 충격에 취약합니다.');
-  if(lossQ>=2)                 flags.push('최근 6분기 중 적자 '+lossQ+'회 — 이익 창출이 아직 구조화되지 않았습니다.');
-  if(quick!==null && quick<50) flags.push('당좌비율 '+quick.toFixed(0)+'% — 단기 유동성이 빠듯합니다.');
-  if(cv!==null && cv>0.6)      flags.push('ROE 변동계수 '+cv.toFixed(2)+' — 실적이 사이클에 크게 흔들립니다.');
+  if(debt!==null&&debt>200) flags.push('부채비율 '+debt.toFixed(0)+'% — 장기 보유 중 금리·업황 충격에 취약합니다.');
+  if(lossQ>=2) flags.push('최근 6분기 중 적자 '+lossQ+'회 — 이익이 아직 구조화되지 않았습니다.');
+  if(quick!==null&&quick<50) flags.push('당좌비율 '+quick.toFixed(0)+'% — 단기 유동성이 빠듯합니다.');
+  if(cv!==null&&cv>0.6) flags.push('ROE 변동계수 '+cv.toFixed(2)+' — 실적이 사이클에 크게 흔들립니다.');
 
-  return {
-    total, A,B,C,D, flags,
+  return {total:A+B+C+D, A,B,C,D, flags, D1,D2,D3,
     detail:{
       A:[['ROE 6분기 평균',fmt(roeAvg,'%'),A1,15],
-         ['ROE 안정성', cv===null?'—':'CV '+cv.toFixed(2), A2,15],
-         ['영업이익률 추세', opmTrend===null?'—':(opmTrend>0?'+':'')+opmTrend.toFixed(1)+'%p', A3,10]],
-      B:[['부채비율',fmt(debt,'%'),B1,15],
-         ['당좌비율',fmt(quick,'%'),B2,15]],
-      C:[['PER',fmt(per,'배'),C1,8],
-         ['PBR',fmt(pbr,'배'),C2,7]],
-    },
-    manualPts:{D1,D2,D3}
-  };
+         ['ROE 안정성',cv===null?'—':'CV '+cv.toFixed(2),A2,15],
+         ['영업이익률 추세',trend===null?'—':(trend>0?'+':'')+trend.toFixed(1)+'%p',A3,10]],
+      B:[['부채비율',fmt(debt,'%'),B1,15],['당좌비율',fmt(quick,'%'),B2,15]],
+      C:[['PER',fmt(per,'배'),C1,8],['PBR',fmt(pbr,'배'),C2,7]]
+    }};
 }
-function fmt(v,u){ return v===null||v===undefined?'—':(Math.round(v*100)/100)+(u||'') }
-
 function verdictOf(t,flags){
-  if(flags.length)  return ['보류',  'var(--bad)',  '결격 항목을 먼저 확인하세요.'];
-  if(t>=80)         return ['장기보유 후보','var(--ok)','6개월 이상 들고 갈 근거가 있습니다.'];
-  if(t>=65)         return ['관찰',  'var(--warn)', '한두 분기 더 지켜보세요.'];
-  return             ['제외',  'var(--tx3)', '장기 보유 근거가 약합니다.'];
+  if(flags.length) return ['보류','var(--bad)','결격 항목을 먼저 확인하세요.'];
+  if(t>=80) return ['장기보유 후보','var(--ok)','6개월 이상 들고 갈 근거가 있습니다.'];
+  if(t>=65) return ['관찰','var(--warn)','한두 분기 더 지켜보세요.'];
+  return ['제외','var(--tx3)','장기 보유 근거가 약합니다.'];
+}
+
+/* ---------- 조회 ---------- */
+async function loadOne(code,name){
+  let c=cache[code];
+  if(c&&(c.loading||c.fin)) return c;
+  c=cache[code]={loading:true,name:name||''};
+  renderList(); if(cur===code) renderMain();
+  try{
+    const r=await fetch(WORKER+'?fin3='+encodeURIComponent(code));
+    if(!r.ok) throw new Error('worker '+r.status);
+    const raw=await r.json();
+    c.raw=raw;
+    c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||code;
+    c.fin=normalize(raw);
+    if(!c.fin.roe&&!c.fin.debt&&!c.fin.per) throw new Error('재무 항목을 못 찾음');
+    c.score=score(c.fin,manualOf(code));
+  }catch(e){ c.error=e.message }
+  c.loading=false;
+  const s=saved.find(r=>r.code===code); if(s&&!s.name&&c.name){ s.name=c.name; saveRows() }
+  renderList(); if(cur===code) renderMain();
+  return c;
+}
+function rescore(code){
+  const c=cache[code]; if(c&&c.fin) c.score=score(c.fin,manualOf(code));
 }
 
 /* ---------- 그리기 ---------- */
+const esc=s=>String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 function renderList(){
-  const el=document.getElementById('list');
-  if(!rows.length){ el.innerHTML='<div class="msg">비어 있습니다</div>'; return }
-  el.innerHTML = rows.map((r,i)=>{
-    const s=r.score, c = !s?'var(--tx3)' : s.flags.length?'var(--bad)' : s.total>=80?'var(--ok)' : s.total>=65?'var(--warn)':'var(--tx3)';
-    return `<div class="item ${cur===i?'on':''}" data-i="${i}">
-      <span class="nm">${r.name||r.code}<br><span class="cd">${r.code}</span></span>
-      <span class="sc" style="color:${c}">${s?s.total:'…'}</span>
-      <span class="x" data-del="${i}">✕</span></div>`;
+  const box=document.getElementById('list'), note=document.getElementById('srcnote');
+  const q=(document.getElementById('q').value||'').trim().toLowerCase();
+  const {out,skipped}=domesticOnly(srcRows());
+  note.textContent = out.length
+    ? out.length+'개 종목'+(skipped?' · 해외 '+skipped+'개 제외(국내 분기재무만 지원)':'')
+    : (src==='_saved'?'후보를 추가하세요'
+      :src==='_funds'?'펀드 명부가 비어 있습니다'
+      :'먼저 그 탭을 한 번 열어 자료를 불러오세요');
+  const rows=out.filter(r=>!q||r[0].includes(q)||(r[1]||'').toLowerCase().includes(q));
+  if(!rows.length){ box.innerHTML='<div class="msg">'+(q?'검색 결과 없음':'목록이 비어 있습니다')+'</div>'; return }
+  box.innerHTML=rows.map(([code,name])=>{
+    const c=cache[code], s=c&&c.score;
+    const col=!s?'var(--tx3)':s.flags.length?'var(--bad)':s.total>=80?'var(--ok)':s.total>=65?'var(--warn)':'var(--tx3)';
+    const f=funds[code];
+    const sub=(src==='_funds'&&f)? f.prev.toFixed(2)+'% → '+f.cur.toFixed(2)+'%' : code;
+    return `<div class="item ${cur===code?'on':''}" data-code="${esc(code)}" data-name="${esc(name)}">
+      <span class="nm"><b>${esc(name||code)}</b><span class="cd">${esc(sub)}</span></span>
+      <span class="sc" style="color:${col}">${c&&c.loading?'…':s?s.total:''}</span>
+      ${src==='_saved'?`<span class="x" data-del="${esc(code)}">✕</span>`:''}</div>`;
   }).join('');
 }
-
 function renderMain(){
   const m=document.getElementById('main');
-  if(cur===null||!rows[cur]){ m.innerHTML='<div class="msg">왼쪽에서 종목을 고르세요.</div>'; return }
-  const r=rows[cur];
-  if(r.loading){ m.innerHTML='<div class="msg">'+r.code+' 재무 받는 중…</div>'; return }
-  if(r.error){ m.innerHTML='<div class="msg">자료를 받지 못했습니다 — '+r.error+'<br><br>worker 의 ?fin3= 응답을 확인하세요.</div>'; return }
-
-  const s=r.score, [lab,col,sub]=verdictOf(s.total,s.flags);
-  const sec=(title,pts,max,list)=>`
-    <div class="card"><h3>${title}<em>${pts} / ${max}</em></h3><div class="rows">
-    ${list.map(([k,v,o,mx])=>`<div class="row"><span class="k">${k}</span>
-      <span class="v">${v}</span><span class="p">${o.p}/${mx}</span></div>
-      <div class="row note">${o.why}</div>`).join('')}
+  if(!cur){ m.innerHTML='<div class="msg">왼쪽에서 종목을 고르세요.<br>포트폴리오를 바꾸면 그 목록이 그대로 나옵니다.</div>'; return }
+  const c=cache[cur];
+  if(!c||c.loading){ m.innerHTML='<div class="msg">'+cur+' 재무 받는 중…</div>'; return }
+  if(c.error){ m.innerHTML='<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'; return }
+  const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags), m0=manualOf(cur), f=funds[cur];
+  const inSaved=saved.some(r=>r.code===cur);
+  const sec=(t,p,mx,list)=>`<div class="card"><h3>${t}<em>${p} / ${mx}</em></h3><div class="rows">
+    ${list.map(([k,v,o,x])=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span><span class="p">${o.p}/${x}</span></div><div class="note">${o.why}</div>`).join('')}
     </div></div>`;
-
-  const fin=r.fin, n=(fin.period&&fin.period.length)||fin._n||0;
-  const cols=[]; for(let i=0;i<n;i++) cols.push(fin.period? (fin.period[i]||('Q'+(i+1))) : ('Q'+(i+1)));
-  const finRow=(lab,key,u)=> fin[key] ? `<tr><td>${lab}</td>${fin[key].map(v=>`<td>${fmt(v,u)}</td>`).join('')}</tr>`:'';
+  const fin=c.fin, n=(fin.period&&fin.period.length)||fin._n||0;
+  const cols=[]; for(let i=0;i<n;i++) cols.push(fin.period?(fin.period[i]||('Q'+(i+1))):('Q'+(i+1)));
+  const fr=(l,k,u)=>fin[k]?`<tr><td>${l}</td>${fin[k].map(v=>`<td>${fmt(v,u)}</td>`).join('')}</tr>`:'';
 
   m.innerHTML=`
-  <div class="hd"><span class="t">${r.name||r.code}</span><span class="c">${r.code}</span>
+  <div class="hd"><span class="t">${esc(c.name||cur)}</span><span class="c">${cur}</span>
     <span class="q">${BUILD}</span></div>
-
   <div class="verdict">
     <div class="big" style="color:${col}">${s.total}<small>/100</small></div>
-    <div>
-      <div class="lab" style="color:${col}">${lab}</div>
-      <div class="sub">${sub}</div>
-    </div>
+    <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}</div></div>
     <div class="bar"><i style="width:${s.total}%;background:${col}"></i></div>
+    <button id="keepBtn" style="border:1px solid var(--line);background:${inSaved?'var(--panel2)':'var(--acc)'};
+      color:${inSaved?'var(--tx2)':'#fff'};border-radius:5px;padding:7px 12px;cursor:pointer">
+      ${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>
   </div>
-
-  ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(f=>'<li>'+f+'</li>').join('')}</ul></div>`:''}
-
+  ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:''}
   <div class="grid">
     ${sec('사업의 질',s.A,40,s.detail.A)}
     ${sec('재무 안전성',s.B,30,s.detail.B)}
     ${sec('밸류에이션',s.C,15,s.detail.C)}
     <div class="card"><h3>장기자금 <em>${s.D} / 15</em></h3>
+      ${f?`<div class="row"><span class="k">명부 지분율</span>
+        <span class="v">${f.prev.toFixed(2)}% → ${f.cur.toFixed(2)}%</span>
+        <span class="pill" style="background:${f.dif>0?'#1d4634':'#3a2020'};color:${f.dif>0?'#5fd39b':'#f0a09a'}">
+        ${f.dif>0?'+':''}${f.dif.toFixed(2)}%p</span></div>`:''}
       <div class="manual">
-        <div class="mrow"><label>NBIM 지분율 연속 증가</label>
-          <select id="m_nbim">
-            <option value="0">없음 (0점)</option>
-            <option value="1">1회 (2점)</option>
-            <option value="2">2회 연속 (4점)</option>
-            <option value="3">3회 이상 연속 (6점)</option>
-          </select></div>
+        <div class="mrow"><label>지분율 연속 증가</label>
+          <select id="m_nbim"><option value="0">없음 (0점)</option><option value="1">1회 (2점)</option>
+          <option value="2">2회 연속 (4점)</option><option value="3">3회 이상 (6점)</option></select></div>
         <div class="mrow"><label>액티브 운용사 5% 공시</label>
-          <select id="m_act">
-            <option value="">없음 (0점)</option>
-            <option value="pas">단순투자 목적만 (2점)</option>
-            <option value="act">일반투자·경영참여 (6점)</option>
-          </select></div>
+          <select id="m_act"><option value="">없음 (0점)</option><option value="pas">단순투자 목적 (2점)</option>
+          <option value="act">일반투자·경영참여 (6점)</option></select></div>
         <div class="mrow"><label>국민연금 5% 이상</label>
           <select id="m_nps"><option value="">아니오 (0점)</option><option value="1">예 (3점)</option></select></div>
       </div>
-      <div class="hint">NBIM 은 반기 한 번(6/30·12/31 기준)만 공개됩니다. 한 번의 급증이 아니라
-        <b>연속 증가</b>를 세세요. 액티브 여부는 DART 대량보유상황보고서의 <b>보유목적</b>으로 판정합니다 —
+      <div class="hint">NBIM 은 6/30·12/31 기준으로 연 2회만 공개됩니다. 한 번의 급증은 지수 리밸런싱일 수 있으니
+        <b>연속 증가</b>를 세세요. 액티브 여부는 DART 대량보유상황보고서의 <b>보유목적</b>으로 봅니다 —
         단순투자는 대부분 인덱스, 일반투자·경영참여가 실제 판단입니다.</div>
     </div>
   </div>
-
   <div class="card" style="margin-top:12px"><h3>분기 재무 <em>최근 ${n}분기</em></h3>
-    <div class="scroll"><table class="fin">
-      <thead><tr><th>항목</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
-      <tbody>
-        ${finRow('ROE','roe','%')}
-        ${finRow('영업이익률','opm','%')}
-        ${finRow('순이익률','npm','%')}
-        ${finRow('부채비율','debt','%')}
-        ${finRow('당좌비율','quick','%')}
-        ${finRow('PER','per','')}
-        ${finRow('PBR','pbr','')}
-      </tbody></table></div></div>
+    <div class="scroll"><table class="fin"><thead><tr><th>항목</th>${cols.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead>
+    <tbody>${fr('ROE','roe','%')}${fr('영업이익률','opm','%')}${fr('순이익률','npm','%')}
+    ${fr('부채비율','debt','%')}${fr('당좌비율','quick','%')}${fr('PER','per','')}${fr('PBR','pbr','')}</tbody></table></div></div>
+  <details class="dbg"><summary>원자료 보기</summary><pre>${esc(JSON.stringify(c.raw,null,1)).slice(0,20000)}</pre></details>`;
 
-  <details class="dbg"><summary>원자료 보기</summary><pre>${
-    esc(JSON.stringify(r.raw,null,1)).slice(0,20000)}</pre></details>`;
-
-  const set=(id,v)=>{ const e=document.getElementById(id); if(e) e.value=v };
-  set('m_nbim', String(r.manual.nbim||0));
-  set('m_act',  r.manual.active||'');
-  set('m_nps',  r.manual.nps?'1':'');
-  ['m_nbim','m_act','m_nps'].forEach(id=>{
-    const e=document.getElementById(id); if(!e) return;
-    e.onchange=()=>{
-      r.manual={ nbim:+document.getElementById('m_nbim').value,
-                 active:document.getElementById('m_act').value,
-                 nps:!!document.getElementById('m_nps').value };
-      r.score=score(r.fin,r.manual); save(); renderList(); renderMain();
-    };
+  document.getElementById('m_nbim').value=String(m0.nbim||0);
+  document.getElementById('m_act').value=m0.active||'';
+  document.getElementById('m_nps').value=m0.nps?'1':'';
+  ['m_nbim','m_act','m_nps'].forEach(id=>document.getElementById(id).onchange=()=>{
+    setManual(cur,{ nbim:+document.getElementById('m_nbim').value,
+                    active:document.getElementById('m_act').value,
+                    nps:!!document.getElementById('m_nps').value });
+    rescore(cur); renderList(); renderMain();
   });
-}
-function esc(s){ return String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) }
-
-/* ---------- 동작 ---------- */
-async function loadOne(i){
-  const r=rows[i]; r.loading=true; r.error=null; if(cur===i) renderMain();
-  try{
-    const raw=await fetchFin(r.code);
-    r.raw=raw;
-    r.name = raw && (raw.name||raw.종목명||raw.stockName) || r.name || r.code;
-    r.fin  = normalize(raw);
-    if(!r.fin.roe && !r.fin.debt && !r.fin.per) throw new Error('재무 항목을 못 찾음');
-    r.score= score(r.fin,r.manual);
-  }catch(e){ r.error=e.message }
-  r.loading=false; renderList(); if(cur===i) renderMain();
-}
-function add(code){
-  code=(code||'').trim();
-  if(!/^\d{6}$/.test(code)){ alert('6자리 종목코드를 넣으세요.'); return }
-  if(rows.some(r=>r.code===code)){ alert('이미 있습니다.'); return }
-  rows.push({code,name:'',manual:{nbim:0,active:'',nps:false}});
-  save(); cur=rows.length-1; renderList(); loadOne(cur);
+  document.getElementById('keepBtn').onclick=()=>{
+    if(inSaved) saved=saved.filter(r=>r.code!==cur);
+    else saved.push({code:cur,name:c.name||'',manual:manualOf(cur)});
+    saveRows(); renderList(); renderMain();
+  };
 }
 
+/* ---------- 펀드 명부 ---------- */
+function parseSnap(txt){
+  const out={};
+  (txt||'').split(/\r?\n/).forEach(line=>{
+    const code=(line.match(/\b(\d{6})\b/)||[])[1]; if(!code) return;
+    const rest=line.replace(code,' ');
+    const nums=rest.match(/-?\d+(?:\.\d+)?/g)||[];
+    const rate=nums.length?parseFloat(nums[nums.length-1]):null;
+    const name=(rest.match(/[가-힣A-Za-z][가-힣A-Za-z0-9&\.\- ]{0,20}/)||[''])[0].trim();
+    if(rate===null||!isFinite(rate)) return;
+    out[code]={rate,name};
+  });
+  return out;
+}
+function buildFunds(){
+  const p=parseSnap(document.getElementById('fPrev').value);
+  const c=parseSnap(document.getElementById('fCur').value);
+  const f={};
+  Object.keys(c).forEach(code=>{
+    const prev=p[code]?p[code].rate:0, cur=c[code].rate;
+    f[code]={name:c[code].name||(p[code]&&p[code].name)||'',prev,cur,dif:cur-prev};
+  });
+  funds=f; jsave(K_FUND,funds);
+  const up=Object.values(f).filter(x=>x.dif>0).length;
+  document.getElementById('fundModal').classList.remove('on');
+  src='_funds'; document.getElementById('src').value='_funds'; cur=null;
+  renderList(); renderMain();
+  alert('명부 '+Object.keys(f).length+'종목 중 지분을 늘린 '+up+'종목을 추렸습니다.');
+}
+
+/* ---------- 이벤트 ---------- */
+function pick(code,name){
+  cur=code; renderList();
+  const c=cache[code];
+  if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
+}
 document.getElementById('addBtn').onclick=()=>{
-  const el=document.getElementById('add'); add(el.value); el.value='';
+  const el=document.getElementById('add'), code=el.value.trim();
+  if(!/^\d{6}$/.test(code)) return alert('6자리 종목코드를 넣으세요.');
+  if(!saved.some(r=>r.code===code)) saved.push({code,name:'',manual:{nbim:0,active:'',nps:false}});
+  saveRows(); el.value=''; src='_saved'; document.getElementById('src').value='_saved';
+  pick(code,'');
 };
 document.getElementById('add').onkeydown=e=>{ if(e.key==='Enter') document.getElementById('addBtn').click() };
+document.getElementById('src').onchange=e=>{ src=e.target.value; cur=null; renderList(); renderMain() };
+document.getElementById('q').oninput=()=>renderList();
 document.getElementById('list').onclick=e=>{
   const d=e.target.dataset.del;
-  if(d!==undefined){ rows.splice(+d,1); cur=null; save(); renderList(); renderMain(); return }
+  if(d){ saved=saved.filter(r=>r.code!==d); saveRows(); if(cur===d) cur=null; renderList(); renderMain(); return }
   const it=e.target.closest('.item'); if(!it) return;
-  cur=+it.dataset.i; renderList();
-  if(!rows[cur].fin) loadOne(cur); else renderMain();
+  pick(it.dataset.code, it.dataset.name);
 };
-document.getElementById('reload').onclick=()=>{ rows.forEach((r,i)=>loadOne(i)) };
-document.getElementById('exp').onclick=()=>{
-  prompt('복사해서 보관하세요', JSON.stringify(rows.map(r=>({code:r.code,name:r.name,manual:r.manual}))));
+document.getElementById('reload').onclick=()=>{
+  const {out}=domesticOnly(srcRows());
+  out.forEach(([c,n])=>{ delete cache[c]; });
+  out.slice(0,40).forEach(([c,n])=>loadOne(c,n));
+  renderList();
 };
-document.getElementById('imp').onclick=()=>{
-  const s=prompt('붙여넣기'); if(!s) return;
-  try{ rows=JSON.parse(s).map(r=>({...r,manual:r.manual||{nbim:0,active:'',nps:false}}));
-       save(); cur=null; renderList(); renderMain(); rows.forEach((r,i)=>loadOne(i)); }
-  catch(e){ alert('형식이 맞지 않습니다.') }
+document.getElementById('fundBtn').onclick=()=>document.getElementById('fundModal').classList.add('on');
+document.getElementById('fCancel').onclick=()=>document.getElementById('fundModal').classList.remove('on');
+document.getElementById('fSave').onclick=buildFunds;
+document.getElementById('fClear').onclick=()=>{
+  if(!confirm('펀드 명부를 지울까요?')) return;
+  funds={}; jsave(K_FUND,funds); renderList(); renderMain();
 };
 
 renderList(); renderMain();
-rows.forEach((r,i)=>loadOne(i));
+saved.slice(0,20).forEach(r=>loadOne(r.code,r.name));
 </script>
 </body>
 </html>
