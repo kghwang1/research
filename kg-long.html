@@ -162,7 +162,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds';
-const BUILD='KG_LONG 2026-08-14b';
+const BUILD='KG_LONG 2026-08-15c';
 console.log(BUILD);
 
 let saved = jload(K_ROWS,[]);        // [{code,name,manual}]
@@ -177,7 +177,8 @@ function manualOf(code){
   const s=saved.find(r=>r.code===code);
   if(s) return s.manual;
   const f=funds[code];
-  return { nbim: f&&f.dif>0?1:0, active:'', nps:false };   // 명부에서 온 종목은 1회 증가로 시작
+  // null = 미확인(채점에서 제외) · 명부에서 온 종목만 1회 증가로 시작
+  return { nbim: f&&f.dif>0?1:null, active:null, nps:null };
 }
 function setManual(code,m){
   let s=saved.find(r=>r.code===code);
@@ -223,6 +224,7 @@ const FIELDS={
   roe:['ROE','roe','자기자본이익률'], debt:['부채비율','debtRatio','debt'],
   quick:['당좌비율','quickRatio','quick'], opm:['영업이익률','opMargin','operatingMargin'],
   npm:['순이익률','netMargin'], per:['PER','per'], pbr:['PBR','pbr'],
+  sales:['매출액','매출','sales','revenue'], op:['영업이익','operatingProfit','opProfit'],
   period:['기간','period','date','yymm','분기','label']
 };
 function num(v){
@@ -262,14 +264,35 @@ function normalize(raw){
   }
   out._n=n; return out;
 }
+// 영업이익률이 없으면 영업이익÷매출액 으로 만들어 쓴다
+function fillDerived(f){
+  if((!f.opm||!f.opm.some(v=>v!=null)) && f.op && f.sales){
+    f.opm = f.op.map((v,i)=>{ const s=f.sales[i]; return (v==null||s==null||!s)?null:v/s*100 });
+  }
+  return f;
+}
 const tail=(a,k)=>a?a.filter(v=>v!==null&&v!==undefined).slice(-k):[];
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const last=a=>{ const t=tail(a,1); return t.length?t[0]:null };
 const fmt=(v,u)=>v===null||v===undefined?'—':(Math.round(v*100)/100)+(u||'');
 
 /* ---------- 채점 ---------- */
-function band(v,st){ if(v===null) return{p:0,why:'자료없음'}; for(const[t,p,l]of st) if(v>=t) return{p,why:l}; return{p:0,why:'미달'} }
-function bandLow(v,st){ if(v===null) return{p:0,why:'자료없음'}; for(const[t,p,l]of st) if(v<=t) return{p,why:l}; return{p:0,why:'미달'} }
+function band(v,st){
+  if(v===null||v===undefined) return{p:0,why:'자료없음',avail:false};
+  for(const[t,p,l]of st) if(v>=t) return{p,why:l,avail:true};
+  return{p:0,why:'미달',avail:true};
+}
+function bandLow(v,st){
+  if(v===null||v===undefined) return{p:0,why:'자료없음',avail:false};
+  for(const[t,p,l]of st) if(v<=t) return{p,why:l,avail:true};
+  return{p:0,why:'미달',avail:true};
+}
+// 자료가 없는 항목은 만점에서 빼고 100점으로 환산한다
+function tally(items){
+  let got=0, max=0, miss=0;
+  items.forEach(it=>{ if(it.o.avail){ got+=it.o.p; max+=it.max } else miss++ });
+  return {got,max,miss};
+}
 
 function score(fin,m){
   const roe6=tail(fin.roe,6), roeAvg=avg(roe6);
@@ -283,20 +306,36 @@ function score(fin,m){
   const debt=last(fin.debt), quick=last(fin.quick), per=last(fin.per), pbr=last(fin.pbr);
 
   const A1=band(roeAvg,[[15,15,'우수'],[10,12,'양호'],[7,8,'보통'],[4,4,'낮음']]);
-  const A2= lossQ>0 ? {p:0,why:'적자분기 '+lossQ+'회'}
-          : cv===null ? {p:0,why:'자료부족'}
+  const A2= lossQ>0 ? {p:0,why:'적자분기 '+lossQ+'회',avail:true}
+          : cv===null ? {p:0,why:'자료부족',avail:false}
           : bandLow(cv,[[0.15,15,'매우 안정'],[0.30,11,'안정'],[0.50,6,'변동 큼']]);
-  const A3= trend===null?{p:0,why:'자료부족'}:band(trend,[[1,10,'개선'],[0,7,'유지'],[-1,4,'소폭 악화']]);
+  const A3= trend===null?{p:0,why:'자료부족',avail:false}
+          : band(trend,[[1,10,'개선'],[0,7,'유지'],[-1,4,'소폭 악화']]);
   const B1=bandLow(debt,[[50,15,'매우 낮음'],[100,12,'낮음'],[150,8,'보통'],[200,4,'높음']]);
   const B2=band(quick,[[150,15,'풍부'],[100,12,'양호'],[70,8,'보통'],[50,4,'빠듯']]);
-  const C1=(per===null||per<=0)?{p:0,why:per===null?'자료없음':'적자/이상치'}
-          :bandLow(per,[[10,8,'저평가'],[15,6,'적정'],[25,4,'다소 비쌈'],[40,2,'비쌈']]);
+  const C1= per===null?{p:0,why:'자료없음',avail:false}
+          : per<=0 ?{p:0,why:'적자/이상치',avail:true}
+          : bandLow(per,[[10,8,'저평가'],[15,6,'적정'],[25,4,'다소 비쌈'],[40,2,'비쌈']]);
   const C2=bandLow(pbr,[[1,7,'저평가'],[1.5,5,'적정'],[2.5,3,'다소 비쌈'],[4,1,'비쌈']]);
 
-  const D1=[0,2,4,6][Math.min(3,m.nbim|0)];
-  const D2=m.active==='act'?6:m.active==='pas'?2:0;
-  const D3=m.nps?3:0;
-  const A=A1.p+A2.p+A3.p, B=B1.p+B2.p, C=C1.p+C2.p, D=D1+D2+D3;
+  const A=[{k:'ROE 6분기 평균',v:fmt(roeAvg,'%'),o:A1,max:15},
+           {k:'ROE 안정성',v:cv===null?'—':'CV '+cv.toFixed(2),o:A2,max:15},
+           {k:'영업이익률 추세',v:trend===null?'—':(trend>0?'+':'')+trend.toFixed(1)+'%p',o:A3,max:10}];
+  const B=[{k:'부채비율',v:fmt(debt,'%'),o:B1,max:15},{k:'당좌비율',v:fmt(quick,'%'),o:B2,max:15}];
+  const C=[{k:'PER',v:fmt(per,'배'),o:C1,max:8},{k:'PBR',v:fmt(pbr,'배'),o:C2,max:7}];
+
+  // 장기자금 — 미확인(null)은 채점에서 제외
+  const dOne=(val,tbl,max)=> val===null||val===undefined
+      ? {o:{p:0,why:'미확인',avail:false},max}
+      : {o:{p:tbl,why:'',avail:true},max};
+  const D=[ dOne(m.nbim, [0,2,4,6][Math.min(3,m.nbim|0)], 6),
+            dOne(m.active, m.active==='act'?6:m.active==='pas'?2:0, 6),
+            dOne(m.nps, m.nps?3:0, 3) ];
+
+  const tA=tally(A), tB=tally(B), tC=tally(C), tD=tally(D);
+  const got=tA.got+tB.got+tC.got+tD.got, max=tA.max+tB.max+tC.max+tD.max;
+  const total = max>0 ? Math.round(got/max*100) : 0;
+  const missing = tA.miss+tB.miss+tC.miss+tD.miss;
 
   const flags=[];
   if(debt!==null&&debt>200) flags.push('부채비율 '+debt.toFixed(0)+'% — 장기 보유 중 금리·업황 충격에 취약합니다.');
@@ -304,14 +343,7 @@ function score(fin,m){
   if(quick!==null&&quick<50) flags.push('당좌비율 '+quick.toFixed(0)+'% — 단기 유동성이 빠듯합니다.');
   if(cv!==null&&cv>0.6) flags.push('ROE 변동계수 '+cv.toFixed(2)+' — 실적이 사이클에 크게 흔들립니다.');
 
-  return {total:A+B+C+D, A,B,C,D, flags, D1,D2,D3,
-    detail:{
-      A:[['ROE 6분기 평균',fmt(roeAvg,'%'),A1,15],
-         ['ROE 안정성',cv===null?'—':'CV '+cv.toFixed(2),A2,15],
-         ['영업이익률 추세',trend===null?'—':(trend>0?'+':'')+trend.toFixed(1)+'%p',A3,10]],
-      B:[['부채비율',fmt(debt,'%'),B1,15],['당좌비율',fmt(quick,'%'),B2,15]],
-      C:[['PER',fmt(per,'배'),C1,8],['PBR',fmt(pbr,'배'),C2,7]]
-    }};
+  return {total, got, max, missing, flags, tA,tB,tC,tD, detail:{A,B,C}};
 }
 function verdictOf(t,flags){
   if(flags.length) return ['보류','var(--bad)','결격 항목을 먼저 확인하세요.'];
@@ -332,7 +364,7 @@ async function loadOne(code,name){
     const raw=await r.json();
     c.raw=raw;
     c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||code;
-    c.fin=normalize(raw);
+    c.fin=fillDerived(normalize(raw));
     if(!c.fin.roe&&!c.fin.debt&&!c.fin.per) throw new Error('재무 항목을 못 찾음');
     c.score=score(c.fin,manualOf(code));
   }catch(e){ c.error=e.message }
@@ -377,8 +409,10 @@ function renderMain(){
   if(c.error){ m.innerHTML='<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'; return }
   const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags), m0=manualOf(cur), f=funds[cur];
   const inSaved=saved.some(r=>r.code===cur);
-  const sec=(t,p,mx,list)=>`<div class="card"><h3>${t}<em>${p} / ${mx}</em></h3><div class="rows">
-    ${list.map(([k,v,o,x])=>`<div class="row"><span class="k">${k}</span><span class="v">${v}</span><span class="p">${o.p}/${x}</span></div><div class="note">${o.why}</div>`).join('')}
+  const sec=(t,tl,list)=>`<div class="card"><h3>${t}<em>${tl.got} / ${tl.max||0}</em></h3><div class="rows">
+    ${list.map(it=>`<div class="row"><span class="k">${it.k}</span><span class="v">${it.v}</span>
+      <span class="p">${it.o.avail?it.o.p+'/'+it.max:'제외'}</span></div>
+      <div class="note">${it.o.why}</div>`).join('')}
     </div></div>`;
   const fin=c.fin, n=(fin.period&&fin.period.length)||fin._n||0;
   const cols=[]; for(let i=0;i<n;i++) cols.push(fin.period?(fin.period[i]||('Q'+(i+1))):('Q'+(i+1)));
@@ -389,7 +423,8 @@ function renderMain(){
     <span class="q">${BUILD}</span></div>
   <div class="verdict">
     <div class="big" style="color:${col}">${s.total}<small>/100</small></div>
-    <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}</div></div>
+    <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}
+      <br><span style="color:var(--tx3)">획득 ${s.got} / 가능 ${s.max}점 → 100점 환산${s.missing?' · 자료없는 '+s.missing+'개 항목 제외':''}</span></div></div>
     <div class="bar"><i style="width:${s.total}%;background:${col}"></i></div>
     <button id="keepBtn" style="border:1px solid var(--line);background:${inSaved?'var(--panel2)':'var(--acc)'};
       color:${inSaved?'var(--tx2)':'#fff'};border-radius:5px;padding:7px 12px;cursor:pointer">
@@ -397,25 +432,29 @@ function renderMain(){
   </div>
   ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:''}
   <div class="grid">
-    ${sec('사업의 질',s.A,40,s.detail.A)}
-    ${sec('재무 안전성',s.B,30,s.detail.B)}
-    ${sec('밸류에이션',s.C,15,s.detail.C)}
-    <div class="card"><h3>장기자금 <em>${s.D} / 15</em></h3>
+    ${sec('사업의 질',s.tA,s.detail.A)}
+    ${sec('재무 안전성',s.tB,s.detail.B)}
+    ${sec('밸류에이션',s.tC,s.detail.C)}
+    <div class="card"><h3>장기자금 <em>${s.tD.max?s.tD.got+' / '+s.tD.max:'미확인'}</em></h3>
       ${f?`<div class="row"><span class="k">명부 지분율</span>
         <span class="v">${f.prev.toFixed(2)}% → ${f.cur.toFixed(2)}%</span>
         <span class="pill" style="background:${f.dif>0?'#1d4634':'#3a2020'};color:${f.dif>0?'#5fd39b':'#f0a09a'}">
         ${f.dif>0?'+':''}${f.dif.toFixed(2)}%p</span></div>`:''}
       <div class="manual">
         <div class="mrow"><label>지분율 연속 증가</label>
-          <select id="m_nbim"><option value="0">없음 (0점)</option><option value="1">1회 (2점)</option>
+          <select id="m_nbim"><option value="">— 미확인 (채점 제외)</option>
+          <option value="0">없음 (0점)</option><option value="1">1회 (2점)</option>
           <option value="2">2회 연속 (4점)</option><option value="3">3회 이상 (6점)</option></select></div>
         <div class="mrow"><label>액티브 운용사 5% 공시</label>
-          <select id="m_act"><option value="">없음 (0점)</option><option value="pas">단순투자 목적 (2점)</option>
+          <select id="m_act"><option value="_">— 미확인 (채점 제외)</option>
+          <option value="">없음 (0점)</option><option value="pas">단순투자 목적 (2점)</option>
           <option value="act">일반투자·경영참여 (6점)</option></select></div>
         <div class="mrow"><label>국민연금 5% 이상</label>
-          <select id="m_nps"><option value="">아니오 (0점)</option><option value="1">예 (3점)</option></select></div>
+          <select id="m_nps"><option value="_">— 미확인 (채점 제외)</option>
+          <option value="">아니오 (0점)</option><option value="1">예 (3점)</option></select></div>
       </div>
-      <div class="hint">NBIM 은 6/30·12/31 기준으로 연 2회만 공개됩니다. 한 번의 급증은 지수 리밸런싱일 수 있으니
+      <div class="hint">확인하지 않은 항목은 <b>미확인</b>으로 두세요 — 0점이 아니라 만점에서 아예 빠집니다.
+        NBIM 은 6/30·12/31 기준으로 연 2회만 공개됩니다. 한 번의 급증은 지수 리밸런싱일 수 있으니
         <b>연속 증가</b>를 세세요. 액티브 여부는 DART 대량보유상황보고서의 <b>보유목적</b>으로 봅니다 —
         단순투자는 대부분 인덱스, 일반투자·경영참여가 실제 판단입니다.</div>
     </div>
@@ -426,13 +465,15 @@ function renderMain(){
     ${fr('부채비율','debt','%')}${fr('당좌비율','quick','%')}${fr('PER','per','')}${fr('PBR','pbr','')}</tbody></table></div></div>
   <details class="dbg"><summary>원자료 보기</summary><pre>${esc(JSON.stringify(c.raw,null,1)).slice(0,20000)}</pre></details>`;
 
-  document.getElementById('m_nbim').value=String(m0.nbim||0);
-  document.getElementById('m_act').value=m0.active||'';
-  document.getElementById('m_nps').value=m0.nps?'1':'';
+  document.getElementById('m_nbim').value=(m0.nbim===null||m0.nbim===undefined)?'':String(m0.nbim);
+  document.getElementById('m_act').value=(m0.active===null||m0.active===undefined)?'_':m0.active;
+  document.getElementById('m_nps').value=(m0.nps===null||m0.nps===undefined)?'_':(m0.nps?'1':'');
   ['m_nbim','m_act','m_nps'].forEach(id=>document.getElementById(id).onchange=()=>{
-    setManual(cur,{ nbim:+document.getElementById('m_nbim').value,
-                    active:document.getElementById('m_act').value,
-                    nps:!!document.getElementById('m_nps').value });
+    const nb=document.getElementById('m_nbim').value, ac=document.getElementById('m_act').value,
+          np=document.getElementById('m_nps').value;
+    setManual(cur,{ nbim: nb===''?null:+nb,
+                    active: ac==='_'?null:ac,
+                    nps: np==='_'?null:(np==='1') });
     rescore(cur); renderList(); renderMain();
   });
   document.getElementById('keepBtn').onclick=()=>{
@@ -481,7 +522,7 @@ function pick(code,name){
 document.getElementById('addBtn').onclick=()=>{
   const el=document.getElementById('add'), code=el.value.trim();
   if(!/^\d{6}$/.test(code)) return alert('6자리 종목코드를 넣으세요.');
-  if(!saved.some(r=>r.code===code)) saved.push({code,name:'',manual:{nbim:0,active:'',nps:false}});
+  if(!saved.some(r=>r.code===code)) saved.push({code,name:'',manual:{nbim:null,active:null,nps:null}});
   saveRows(); el.value=''; src='_saved'; document.getElementById('src').value='_saved';
   pick(code,'');
 };
