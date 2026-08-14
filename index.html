@@ -799,6 +799,7 @@
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
+   <div class="tab" id="longTabBtn">장기투자</div>
    <div class="tab" id="chartTabBtn">챠트</div>
    <div class="tab" data-t="hub">분석</div>
    <div class="tab" data-t="watch">방송</div>
@@ -1002,6 +1003,18 @@
       <iframe id="chartIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
       <div id="chartGuide" style="display:none;position:absolute;inset:0;overflow-y:auto;background:var(--bg);padding:14px 16px 40px"></div>
     </div>
+  </div>
+</div>
+
+<!-- 장기투자 전체화면 오버레이 -->
+<div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
+  <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
+    <span class="anl-ttl">장기투자</span>
+    <button id="longHomeBtn" class="anl-backbtn">‹ 이전</button>
+    <span style="margin-left:auto;font-size:11px;color:#8b93a1">6개월 이상 보유 관점 채점</span>
+  </div>
+  <div style="flex:1;overflow:hidden;min-width:0">
+    <iframe id="longIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
   </div>
 </div>
 
@@ -1210,10 +1223,13 @@ async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));
 /* ---------- tabs ---------- */
 $$('.tab').forEach(t=>t.onclick=()=>{
   // 챠트 전체화면
-  if(t.id==='chartTabBtn'){ openChartView(); return; }
+  if(t.id==='chartTabBtn'){ closeLongView(true); openChartView(); return; }
+  // 장기투자 전체화면
+  if(t.id==='longTabBtn'){ closeChartView(true); openLongView(); return; }
   // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
-  closeChartView(); // 다른 탭 클릭 시 챠트 닫기
+  closeChartView(true); // 다른 탭 클릭 시 챠트 닫기
+  closeLongView(true);  // 장기투자도 함께 닫기
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
@@ -8211,11 +8227,36 @@ function openChartView(initPort, initCode, initName, rowsOverride){
     if(target) target.scrollIntoView({block:'nearest'});
   }, 120);
 }
-function closeChartView(){
+function closeChartView(keepTab){
   const ov=$('#chartFullScreen'); if(ov) ov.style.display='none';
   document.body.style.overflow='';
   const ifr=$('#chartIframe'); if(ifr) ifr.src='about:blank';
+  if(keepTab) return;            // 다른 탭으로 넘어가는 중이면 탭 선택을 건드리지 않는다
   // 포트 탭 선택
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
+  const ps=$('#port'); if(ps) ps.classList.add('on');
+}
+
+/* ===== 장기투자 전체화면 (kg-long.html) ===== */
+const LONG_URL='kg-long.html';
+function openLongView(){
+  const ov=$('#longFullScreen'); if(!ov) return;
+  ov.style.display='flex';
+  document.body.style.overflow='hidden';
+  document.body.classList.remove('anl-mode');
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const btn=$('#longTabBtn'); if(btn) btn.classList.add('on');
+  const ifr=$('#longIframe');
+  if(ifr && (!ifr.src || ifr.src==='about:blank')) ifr.src=LONG_URL;
+}
+function closeLongView(keepTab){
+  const ov=$('#longFullScreen'); if(!ov || ov.style.display==='none') return;
+  ov.style.display='none';
+  document.body.style.overflow='';
+  if(keepTab) return;
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
@@ -8638,6 +8679,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 document.addEventListener('DOMContentLoaded',()=>{
   const hb=$('#chartHomeBtn'); if(hb) hb.onclick=()=>closeChartView();
+  const lb=$('#longHomeBtn'); if(lb) lb.onclick=()=>closeLongView();
   const si=$('#chartStockSearch'); if(si){
     si.oninput=()=>{
       const v=si.value.trim();
