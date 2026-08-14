@@ -845,7 +845,7 @@
    <div class="anl-main">
     <div id="anlTitle" class="anl-title"></div>
     <canvas id="anlCanvas"></canvas>
-    <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 중간이 1 · 파랑이면 성장 대비 저평가</span></div>
+    <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 1 미만이면 성장 대비 저평가(녹색) · 1 이상은 빨강</span></div>
     <canvas id="anlCanvas2"></canvas>
     <div id="anlComment" class="anl-comment"></div>
     <div class="fin-guide" id="finGuide"></div>
@@ -6940,7 +6940,7 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   const ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
   // PEG 막대는 선 뒤에 깔리도록 먼저 그린다
-  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx);
+  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx, 'bars');
   series.forEach(se=>{
     const a=d[se.k]||[]; const v=a.filter(x=>x!=null);
     if(v.length<2){ se._yOf=null; return; }
@@ -6970,9 +6970,12 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     ctx.fillStyle=se.c; ctx.fillText(se.n, lx+14, PAD.t-2);
     lx += 14 + ctx.measureText(se.n).width + 12;
   });
+  // PEG 값은 선에 가리지 않도록 마지막에 얹는다
+  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx, 'labels');
   if(withPeg){                       // PEG 는 막대라 네모로 표시
-    ctx.fillStyle='#8b949e88'; ctx.fillRect(lx, PAD.t-9, 9, 7);
-    ctx.fillStyle='#8b949e'; ctx.fillText('PEG', lx+12, PAD.t-2);
+    ctx.fillStyle='rgba(27,122,62,.60)'; ctx.fillRect(lx, PAD.t-9, 9, 7);
+    ctx.fillStyle='rgba(239,83,80,.45)'; ctx.fillRect(lx+10, PAD.t-9, 9, 7);
+    ctx.fillStyle='#8b949e'; ctx.fillText('PEG', lx+22, PAD.t-2);
   }
   // 선택 지점 + 값 표시 (첫 그래프와 동일)
   if(hoverIdx>=0 && hoverIdx<n){
@@ -6987,15 +6990,7 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
       marks.push({se,v,py});
     });
-    // PEG 값도 함께 표시
-    if(withPeg){
-      const pg=anlPegSeries();
-      const pv=pg ? pg[hoverIdx] : null;
-      if(pv!=null){
-        const col = pv>1 ? '#ef5350' : '#58a6ff';
-        marks.push({ se:{c:col, k:'peg', n:'PEG'}, v:pv, py:PAD.t+ch-6 });
-      }
-    }
+    // PEG 값은 막대 위에 이미 글자로 표시하므로 상자에는 넣지 않는다
     const GAP=13, TOP=PAD.t+10, BOT=PAD.t+ch-3;
     marks.sort((a,b)=>a.py-b.py);
     let prev=-Infinity;
@@ -7014,25 +7009,37 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   // ── 아래쪽에 PEG 막대 ──
 }
 
-// PEG 막대 — 선그래프 아래 영역에 그린다 (1 초과 빨강 / 1 이하 파랑)
-function anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx){
+// PEG 막대 — 높이 고정(1 미만 10% · 1 이상 20%), 값은 막대 위에 글자로
+//  mode 'bars'  : 선 뒤에 깔리는 막대
+//  mode 'labels': 선 위에 얹는 값 (선에 가리지 않도록 나중에 그린다)
+const PEG_HI='#ef5350', PEG_LO='#1b7a3e';
+function anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx, mode){
   const peg=anlPegSeries();
   if(!peg || !peg.some(v=>v!=null)) return;
-  const vals=peg.filter(v=>v!=null);
-  // 자기 축: 1 이 화면 중간에 오도록 위아래 대칭 범위를 잡는다
-  const far=Math.max(...vals.map(v=>Math.abs(v-1)), 0.5);
-  const mn=1-far, mx=1+far;          // 1 이 정확히 중간
   const bot=PAD.t+ch;
-  const yOf=v=>bot-((Math.max(mn,Math.min(mx,v))-mn)/(mx-mn))*ch;
   const bw=Math.max(5, Math.min(24, (W-PAD.l-PAD.r)/n*0.5));
+  const hOf=v=>ch*(v>=1?0.20:0.10);          // 값 크기와 무관하게 두 단계 고정
+  if(mode==='labels'){
+    ctx.save();
+    ctx.font='bold 16px monospace'; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+    peg.forEach((v,i)=>{
+      if(v==null) return;
+      ctx.fillStyle = v>=1 ? PEG_HI : PEG_LO;
+      let ty=bot-hOf(v)-5;
+      if(ty < PAD.t+12) ty = PAD.t+12;
+      ctx.fillText(v.toFixed(2), xOf(i), ty);   // 배경 상자 없이 글자만
+    });
+    ctx.restore();
+    return;
+  }
   peg.forEach((v,i)=>{
     if(v==null) return;
-    const x=xOf(i), y=yOf(v);
-    ctx.fillStyle = v>1 ? '#ef535055' : '#58a6ff55';   // 선 뒤에 깔리므로 반투명
-    ctx.fillRect(x-bw/2, y, bw, Math.max(2, bot-y));
+    const x=xOf(i), bh=hOf(v);
+    ctx.fillStyle = v>=1 ? 'rgba(239,83,80,.45)' : 'rgba(27,122,62,.60)';
+    ctx.fillRect(x-bw/2, bot-bh, bw, bh);
     if(i===hoverIdx){
-      ctx.strokeStyle = v>1 ? '#ef5350' : '#58a6ff'; ctx.lineWidth=1.4;
-      ctx.strokeRect(x-bw/2, y, bw, Math.max(2, bot-y));
+      ctx.strokeStyle = v>=1 ? PEG_HI : PEG_LO; ctx.lineWidth=1.6;
+      ctx.strokeRect(x-bw/2, bot-bh, bw, bh);
     }
   });
 }
@@ -7251,7 +7258,7 @@ const FIN_GUIDE_HTML = `
       <b>산출식</b><span class="fg-f">PER ÷ 순이익 증가율(전년 동기 대비, %)</span><br>
       <b>의미</b>PER만으로는 비싼지 알 수 없습니다. 많이 성장하는 기업은 PER이 높아도 정당하니까요.
       성장률로 나눠 <b style="color:#e6edf3">성장 대비 주가</b>를 봅니다.
-      <b style="color:#e6edf3">1 미만이면 저평가</b>(그래프에서 파랑), 1을 넘으면 성장에 비해 비싸다고 봅니다.
+      <b style="color:#e6edf3">1 미만이면 저평가</b>(그래프에서 진녹색·낮은 막대), 1 이상이면 성장에 비해 비싸다고 봅니다(빨강·높은 막대).
       그래프는 <b style="color:#e6edf3">가운데가 1</b>이라, 막대가 중앙보다 아래면 저평가입니다.<br>
       분기 자료라 <b style="color:#e6edf3">4분기 전과 비교</b>하므로 5번째 분기부터 값이 나오고,
       이익이 줄어든 분기는 계산하지 않습니다.
