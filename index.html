@@ -681,8 +681,25 @@
 
 
 
+
+  /* 분석 페이지 — 좌측 종목 목록 + 우측 내용 */
+  .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
+  .anl-side{width:132px;min-width:96px;flex:none;border-right:1px solid var(--line);
+    display:flex;flex-direction:column;background:var(--panel)}
+  .anl-back{margin:5px;padding:5px 8px;font-size:12px;font-weight:700;border-radius:6px;
+    border:1px solid var(--line);background:var(--panel2,#161b22);color:var(--ink);cursor:pointer;text-align:left}
+  .anl-back:active{opacity:.6}
+  .anl-side input{margin:0 5px 5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);
+    background:var(--bg);color:var(--ink);font-size:11.5px;outline:none}
+  .anl-list{flex:1;overflow-y:auto;font-size:11.5px}
+  .anl-list .ai{padding:7px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .anl-list .ai:hover{background:var(--bg)}
+  .anl-list .ai.on{background:var(--accent2);color:#0a0a0a;font-weight:700}
+  .anl-list .ai .c{color:var(--mut);font-size:10px;margin-left:4px}
+  .anl-list .ai.on .c{color:#0a0a0a}
+  .anl-main{flex:1;min-width:0;overflow-y:auto;padding:8px 10px 24px}
   /* 분석 페이지 */
-  .anl-wrap{padding:10px 2px 20px}
   .anl-search{position:relative;margin-bottom:10px}
   .anl-search input{width:100%;padding:10px 12px;font-size:14px;border-radius:8px;
     border:1px solid var(--line);background:var(--panel);color:var(--ink);outline:none}
@@ -781,15 +798,22 @@
 
  <!-- ===== HUB (리포트: 네이버 종목분석 임베드) ===== -->
  <section id="hub">
-  <div class="anl-wrap">
-   <div class="anl-search">
-    <input id="anlInput" type="text" placeholder="종목명 또는 코드 입력" autocomplete="off">
-    <div id="anlSuggest" class="anl-sug"></div>
+  <div class="anl-layout">
+   <div class="anl-side" id="anlSide">
+    <button class="anl-back" id="anlBack">‹ 이전</button>
+    <input id="anlSideSearch" type="text" placeholder="종목 검색" autocomplete="off">
+    <div class="anl-list" id="anlList"></div>
    </div>
-   <div id="anlTitle" class="anl-title"></div>
-   <canvas id="anlCanvas"></canvas>
-   <div id="anlComment" class="anl-comment"></div>
-   <div class="fin-guide" id="finGuide"></div>
+   <div class="anl-main">
+    <div class="anl-search">
+     <input id="anlInput" type="text" placeholder="종목명 또는 코드 입력" autocomplete="off">
+     <div id="anlSuggest" class="anl-sug"></div>
+    </div>
+    <div id="anlTitle" class="anl-title"></div>
+    <canvas id="anlCanvas"></canvas>
+    <div id="anlComment" class="anl-comment"></div>
+    <div class="fin-guide" id="finGuide"></div>
+   </div>
   </div>
  </section>
 
@@ -6647,6 +6671,8 @@ let ANL_CODE=null, ANL_NAME='', ANL_HOVER=-1;
 
 function anlInit(){
   finGuideInit();                       // 하단 평가 지표 설명 카드
+  const bk=$('#anlBack'); if(bk && !bk._bound){ bk._bound=true; bk.onclick=anlBack; }
+  const ss=$('#anlSideSearch'); if(ss && !ss._bound){ ss._bound=true; ss.oninput=()=>anlRenderList(ss.value); }
   const inp=$('#anlInput'); if(!inp || inp._bound) return; inp._bound=true;
   const sug=$('#anlSuggest');
   let timer=null;
@@ -6680,6 +6706,7 @@ async function anlPick(code, name){
   const sug=$('#anlSuggest'); if(sug){ sug.innerHTML=''; sug.classList.remove('on'); }
   const inp=$('#anlInput'); if(inp) inp.value=ANL_NAME;
   const t=$('#anlTitle'); if(t) t.innerHTML=escHtml(ANL_NAME)+`<span class="sub">${code}</span>`;
+  anlRenderList($('#anlSideSearch') ? $('#anlSideSearch').value : '');   // 선택 표시 갱신
   const cm=$('#anlComment'); if(cm) cm.innerHTML='<p style="color:#8b949e">자료를 불러오는 중…</p>';
   await ensureFin3([code]);
   anlDraw(); anlShowTip(-1); anlComment();
@@ -6931,6 +6958,41 @@ const FIN_GUIDE_HTML = `
   </div>
 </div>`;
 
+
+// 분석 페이지 좌측 목록 — 어느 표에서 왔는지, 어떤 필터였는지 기억한다
+let ANL_LIST=[];        // [{code,name}]
+let ANL_FROM=null;      // 돌아갈 표 (valMarket 값)
+
+// ETF 는 재무제표가 없으므로 목록에서 제외한다
+const ETF_NAME=/(KODEX|TIGER|KBSTAR|ARIRANG|HANARO|SOL |ACE |PLUS |RISE |WOORI|KOSEF|TIMEFOLIO|파워|마이다스|ETN)/i;
+function anlSetList(rows, fromMarket){
+  ANL_LIST=(rows||[])
+    .filter(r=>r && /^\d{6}$/.test(String(r.code||'')))
+    .filter(r=>!ETF_NAME.test(String(r.name||'')));
+  ANL_FROM=fromMarket||null;
+  anlRenderList();
+}
+function anlRenderList(filter){
+  const el=$('#anlList'); if(!el) return;
+  const q=String(filter||'').trim().toLowerCase();
+  const rows=q ? ANL_LIST.filter(r=>(r.name||'').toLowerCase().includes(q)||String(r.code).includes(q)) : ANL_LIST;
+  if(!rows.length){ el.innerHTML='<div style="padding:10px;color:#6e7681;font-size:11px">목록이 없습니다</div>'; return; }
+  el.innerHTML=rows.map(r=>
+    `<div class="ai${r.code===ANL_CODE?' on':''}" data-code="${r.code}" data-name="${escHtml(r.name||'')}">`
+    + `${escHtml(r.name||r.code)}<span class="c">${r.code}</span></div>`).join('');
+  el.querySelectorAll('.ai').forEach(d=>{
+    d.onclick=()=>anlPick(d.dataset.code, d.dataset.name);
+  });
+}
+// 이전 버튼 — 왔던 표로 되돌아간다
+function anlBack(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  const pt=document.querySelector('.tab[data-t="port"]'); if(pt) pt.classList.add('on');
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
+  const sec=document.getElementById('port'); if(sec) sec.classList.add('on');
+  if(ANL_FROM && typeof openPort==='function'){ openPort(ANL_FROM); }
+}
+
 // 재무 그래프를 누르면 분석 페이지로 이동해 그 종목을 자동 조회
 document.addEventListener('click', (e)=>{
   const el = e.target && e.target.closest ? e.target.closest('.fin3-go') : null;
@@ -6947,7 +7009,16 @@ document.addEventListener('click', (e)=>{
   const sec=document.getElementById('hub'); if(sec) sec.classList.add('on');
   window.scrollTo(0,0);
   anlInit();
-  // 종목명을 알면 함께 넘긴다
+  // 지금 표에 보이는 종목들을 좌측 목록으로 넘긴다 (정렬·필터 상태 그대로)
+  const rows=[];
+  const tbl = el.closest('table');
+  if(tbl){
+    tbl.querySelectorAll('td.fin3-go').forEach(td=>{
+      const c=td.dataset.code, n=td.dataset.name;
+      if(c && /^\d{6}$/.test(c)) rows.push({code:c, name:n||c});
+    });
+  }
+  anlSetList(rows, (typeof valMarket!=='undefined') ? valMarket : null);
   const nm = el.getAttribute('data-name') || code;
   anlPick(code, nm);
 }, true);
