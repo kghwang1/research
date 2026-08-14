@@ -833,7 +833,7 @@
     </div>
     <div id="anlTitle" class="anl-title"></div>
     <canvas id="anlCanvas"></canvas>
-    <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 1 미만(파랑)이면 성장 대비 저평가</span></div>
+    <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 중간이 1 · 파랑이면 성장 대비 저평가</span></div>
     <canvas id="anlCanvas2"></canvas>
     <div id="anlComment" class="anl-comment"></div>
     <div class="fin-guide" id="finGuide"></div>
@@ -5940,6 +5940,7 @@ const IDX3 = [
   { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#ef5350', dash:true },
   { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff' },
   { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#58a6ff', dash:true },
+  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#ffd54f' },
 ];
 const IDX3_DAYS = 260;   // 받아오는 총 일수 (약 52주)
 const IDX3_VIEW = 22;    // 한 화면에 보이는 일수 (약 1개월)
@@ -5963,7 +5964,7 @@ async function loadIdx3(){
   if(!SRV_URL){ if(tip) tip.textContent='서버 설정이 필요합니다'; return; }
   // ① 기기에 남은 자료를 먼저 그려 화면이 비지 않게 (10분 이내면 그대로 사용)
   try{
-    const raw=localStorage.getItem('kg_idx3_v3');
+    const raw=localStorage.getItem('kg_idx3_v4');
     if(raw){
       const o=JSON.parse(raw);
       if(o && o.data && o.data.dates && o.data.dates.length){
@@ -6016,7 +6017,7 @@ async function loadIdx3(){
     IDX3_MAX = {};
     IDX3_MAX=idx3CalcMax(out);
     IDX3_DATA = out;
-    try{ localStorage.setItem('kg_idx3_v3', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
+    try{ localStorage.setItem('kg_idx3_v4', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
     idx3Bind();
     drawIdx3();
     idx3ShowTip(out.dates.length-1);
@@ -6904,10 +6905,12 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
   const per=d.periods||[]; const n=per.length; if(!n) return;
   const withPeg = (cvId==='anlCanvas2');
-  const PAD={l:10,r:withPeg?32:10,t:26,b:20};
+  const PAD={l:10,r:10,t:26,b:20};
   const cw=W-PAD.l-PAD.r;
-  const ch=(H-PAD.t-PAD.b) * (withPeg?0.66:1);      // PEG 막대를 아래 34% 에 그린다
+  const ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+  // PEG 막대는 선 뒤에 깔리도록 먼저 그린다
+  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx);
   series.forEach(se=>{
     const a=d[se.k]||[]; const v=a.filter(x=>x!=null);
     if(v.length<2){ se._yOf=null; return; }
@@ -6937,6 +6940,10 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     ctx.fillStyle=se.c; ctx.fillText(se.n, lx+14, PAD.t-2);
     lx += 14 + ctx.measureText(se.n).width + 12;
   });
+  if(withPeg){                       // PEG 는 막대라 네모로 표시
+    ctx.fillStyle='#8b949e88'; ctx.fillRect(lx, PAD.t-9, 9, 7);
+    ctx.fillStyle='#8b949e'; ctx.fillText('PEG', lx+12, PAD.t-2);
+  }
   // 선택 지점 + 값 표시 (첫 그래프와 동일)
   if(hoverIdx>=0 && hoverIdx<n){
     const x=xOf(hoverIdx);
@@ -6950,6 +6957,15 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
       marks.push({se,v,py});
     });
+    // PEG 값도 함께 표시
+    if(withPeg){
+      const pg=anlPegSeries();
+      const pv=pg ? pg[hoverIdx] : null;
+      if(pv!=null){
+        const col = pv>1 ? '#ef5350' : '#58a6ff';
+        marks.push({ se:{c:col, k:'peg', n:'PEG'}, v:pv, py:PAD.t+ch-6 });
+      }
+    }
     const GAP=13, TOP=PAD.t+10, BOT=PAD.t+ch-3;
     marks.sort((a,b)=>a.py-b.py);
     let prev=-Infinity;
@@ -6957,7 +6973,7 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     const over = marks.length ? (marks[marks.length-1].ty - BOT) : 0;
     if(over>0) marks.forEach(m=>{ m.ty=Math.max(TOP, m.ty-over); });
     marks.forEach(m=>{
-      const txt=m.v.toFixed(m.se.k==='pbr'?2:1);
+      const txt=m.v.toFixed((m.se.k==='pbr'||m.se.k==='peg')?2:1);
       const tw=ctx.measureText(txt).width;
       let tx=x+8; if(tx+tw+4 > W-PAD.r) tx=x-8-tw-4;
       ctx.fillStyle='#0d1117ee'; ctx.fillRect(tx-3, m.ty-9, tw+6, 12);
@@ -6966,50 +6982,27 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     });
   }
   // ── 아래쪽에 PEG 막대 ──
-  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx);
 }
 
 // PEG 막대 — 선그래프 아래 영역에 그린다 (1 초과 빨강 / 1 이하 파랑)
-function anlDrawPegBars(ctx, W, H, PAD, lineH, xOf, n, hoverIdx){
+function anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx){
   const peg=anlPegSeries();
-  const top=PAD.t+lineH+6;                 // 막대 영역 시작
-  const bot=H-PAD.b;                       // 막대 바닥
-  const bh=bot-top;
-  if(bh<14) return;
-  // 구분선
-  ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(PAD.l, top-3); ctx.lineTo(W-PAD.r, top-3); ctx.stroke();
-  if(!peg || !peg.some(v=>v!=null)){
-    ctx.fillStyle='#6e7681'; ctx.font='10px sans-serif'; ctx.textAlign='center';
-    ctx.fillText('PEG 자료 없음', PAD.l+(W-PAD.l-PAD.r)/2, top+bh/2+3);
-    return;
-  }
+  if(!peg || !peg.some(v=>v!=null)) return;
   const vals=peg.filter(v=>v!=null);
-  const mx=Math.max(...vals, 1.2);         // 1선이 항상 보이게
-  const yOf=v=>bot-(Math.min(v,mx)/mx)*bh;
-  const bw=Math.max(5, Math.min(22, (W-PAD.l-PAD.r)/n*0.5));
-  // 1 기준선
-  ctx.strokeStyle='#8b949e'; ctx.lineWidth=1; ctx.setLineDash([4,3]);
-  ctx.beginPath(); ctx.moveTo(PAD.l, yOf(1)); ctx.lineTo(W-PAD.r, yOf(1)); ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle='#8b949e'; ctx.font='9px monospace'; ctx.textAlign='left';
-  ctx.fillText('PEG 1.0', W-PAD.r+2, yOf(1)+3);
+  // 자기 축: 1 이 화면 중간에 오도록 위아래 대칭 범위를 잡는다
+  const far=Math.max(...vals.map(v=>Math.abs(v-1)), 0.5);
+  const mn=1-far, mx=1+far;          // 1 이 정확히 중간
+  const bot=PAD.t+ch;
+  const yOf=v=>bot-((Math.max(mn,Math.min(mx,v))-mn)/(mx-mn))*ch;
+  const bw=Math.max(5, Math.min(24, (W-PAD.l-PAD.r)/n*0.5));
   peg.forEach((v,i)=>{
     if(v==null) return;
     const x=xOf(i), y=yOf(v);
-    ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
+    ctx.fillStyle = v>1 ? '#ef535055' : '#58a6ff55';   // 선 뒤에 깔리므로 반투명
     ctx.fillRect(x-bw/2, y, bw, Math.max(2, bot-y));
     if(i===hoverIdx){
-      ctx.strokeStyle='#fff'; ctx.lineWidth=1.2; ctx.strokeRect(x-bw/2, y, bw, Math.max(2, bot-y));
-      const txt=v.toFixed(2);
-      ctx.font='bold 10px monospace'; ctx.textAlign='center';
-      const tw=ctx.measureText(txt).width;
-      const ty=Math.max(top+9, y-5);
-      ctx.fillStyle='#0d1117ee'; ctx.fillRect(x-tw/2-3, ty-9, tw+6, 11);
-      ctx.strokeStyle = v>1 ? '#ef5350' : '#58a6ff'; ctx.lineWidth=1;
-      ctx.strokeRect(x-tw/2-3, ty-9, tw+6, 11);
-      ctx.fillStyle = v>1 ? '#ef5350' : '#58a6ff';
-      ctx.fillText(txt, x, ty);
+      ctx.strokeStyle = v>1 ? '#ef5350' : '#58a6ff'; ctx.lineWidth=1.4;
+      ctx.strokeRect(x-bw/2, y, bw, Math.max(2, bot-y));
     }
   });
 }
