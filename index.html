@@ -697,8 +697,17 @@
     background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
   /* 분석 페이지 — 좌측 종목 목록 + 우측 내용 */
   .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
-  .anl-side{width:132px;min-width:96px;flex:none;border-right:1px solid var(--line);
+  .anl-side{width:132px;min-width:60px;flex:none;border-right:1px solid var(--line);
     display:flex;flex-direction:column;background:var(--panel)}
+  /* 종목 칸 경계 — 끌어서 폭 조절 */
+  .anl-resize{flex:none;width:7px;cursor:col-resize;background:var(--panel);
+    border-right:1px solid var(--line);position:relative;touch-action:none;user-select:none}
+  .anl-resize::before{content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
+    width:3px;height:44px;border-radius:2px;background:#4a525e}
+  .anl-resize:hover::before,.anl-resize.on::before{background:var(--accent)}
+  .anl-side .anl-search{margin:0;padding:6px;border-bottom:1px solid var(--line)}
+  .anl-side .anl-search input{padding:6px 8px;font-size:12px;border-radius:6px}
+  .anl-side .anl-sug{left:6px;right:auto;min-width:210px;max-height:280px;overflow-y:auto;z-index:60}
   .anl-list{flex:1;overflow-y:auto;font-size:11.5px}
   .anl-list .ai{padding:7px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -813,8 +822,8 @@
  <section id="hub">
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
-   <span class="anl-ttl">기업분석</span>
    <button id="anlBack" class="anl-backbtn">‹ 이전</button>
+   <button id="anlSideToggle" class="anl-backbtn">종목</button>
    <select id="anlPortSel">
     <option value="">포트폴리오 선택</option>
     <option value="invpf">선정주</option>
@@ -822,16 +831,18 @@
     <option value="invest">코스피200</option>
     <option value="investkq">코스닥100</option>
    </select>
+   <span class="anl-ttl" style="margin-left:auto">기업분석</span>
   </div>
   <div class="anl-layout">
    <div class="anl-side" id="anlSide">
-    <div class="anl-list" id="anlList"></div>
-   </div>
-   <div class="anl-main">
     <div class="anl-search">
-     <input id="anlInput" type="text" placeholder="종목명 또는 코드 입력" autocomplete="off">
+     <input id="anlInput" type="text" placeholder="종목명 · 코드" autocomplete="off">
      <div id="anlSuggest" class="anl-sug"></div>
     </div>
+    <div class="anl-list" id="anlList"></div>
+   </div>
+   <div class="anl-resize" id="anlResize" title="드래그해서 폭 조절"></div>
+   <div class="anl-main">
     <div id="anlTitle" class="anl-title"></div>
     <canvas id="anlCanvas"></canvas>
     <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 중간이 1 · 파랑이면 성장 대비 저평가</span></div>
@@ -6720,8 +6731,11 @@ function anlInit(){
     psel._bound=true;
     psel.onchange=()=>{ if(psel.value) anlLoadPort(psel.value); };
   }
+  anlSideInit();
   const inp=$('#anlInput'); if(!inp || inp._bound) return; inp._bound=true;
   const sug=$('#anlSuggest');
+  // 입력하는 동안 좌측 종목 목록도 함께 걸러준다
+  inp.addEventListener('input', ()=>anlRenderList(inp.value));
   let timer=null;
   inp.oninput=()=>{
     const q=inp.value.trim();
@@ -7311,6 +7325,56 @@ function anlRenderList(filter){
     d.onclick=()=>anlPick(d.dataset.code, d.dataset.name);
   });
 }
+// 종목 칸 — 접기/펴기 + 경계 끌어서 폭 조절
+const ANL_W_KEY='kg_anl_side_w';
+function anlSideInit(){
+  const side=$('#anlSide'), rz=$('#anlResize'), tg=$('#anlSideToggle');
+  if(!side) return;
+  const w=parseInt(localStorage.getItem(ANL_W_KEY)||'',10);
+  if(w>=60 && w<=520) side.style.width=w+'px';
+  if(tg && !tg._bound){
+    tg._bound=true;
+    const paint=()=>{
+      const off=side.style.display==='none';
+      if(rz) rz.style.display=off?'none':'block';
+      tg.style.background=off?'#8b949e':'var(--accent)';
+      tg.style.color='#0d1117';
+    };
+    tg.onclick=()=>{ side.style.display=(side.style.display==='none')?'flex':'none'; paint(); };
+    paint();
+  }
+  if(!rz || rz._bound) return; rz._bound=true;
+  let dragging=false;
+  const move=x=>{
+    const left=side.getBoundingClientRect().left;
+    let nw=Math.round(x-left);
+    nw=Math.max(60, Math.min(520, nw));
+    side.style.width=nw+'px';
+  };
+  const stop=()=>{
+    if(!dragging) return;
+    dragging=false; rz.classList.remove('on'); document.body.style.userSelect='';
+    localStorage.setItem(ANL_W_KEY, parseInt(side.style.width,10)||132);
+  };
+  rz.addEventListener('mousedown', e=>{
+    dragging=true; rz.classList.add('on'); document.body.style.userSelect='none'; e.preventDefault();
+  });
+  document.addEventListener('mousemove', e=>{ if(dragging) move(e.clientX); });
+  document.addEventListener('mouseup', stop);
+  rz.addEventListener('touchstart', e=>{
+    dragging=true; rz.classList.add('on');
+    if(e.touches[0]) move(e.touches[0].clientX);
+    e.preventDefault();
+  }, {passive:false});
+  rz.addEventListener('touchmove', e=>{
+    if(dragging && e.touches[0]){ move(e.touches[0].clientX); e.preventDefault(); }
+  }, {passive:false});
+  rz.addEventListener('touchend', stop);
+  rz.addEventListener('touchcancel', stop);
+  // 두 번 누르면 기본 폭으로
+  rz.addEventListener('dblclick', ()=>{ side.style.width='132px'; localStorage.setItem(ANL_W_KEY,'132'); });
+}
+
 // 이전 버튼 — 왔던 표로 되돌아간다
 function anlBack(){
   document.body.classList.remove('anl-mode');
