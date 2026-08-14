@@ -7001,7 +7001,17 @@ function anlDrawPeg(){
   const peg=anlPegSeries();
   if(!d||!peg||!peg.some(v=>v!=null)){
     ctx.fillStyle='#6e7681'; ctx.font='11px sans-serif'; ctx.textAlign='center';
-    ctx.fillText('PEG 를 계산할 자료가 부족합니다 (전년 동기 순이익 필요)', W/2, H/2); return;
+    // 왜 못 그리는지 구분해 알려준다
+    let msg='PEG 를 계산할 자료가 부족합니다';
+    if(d){
+      const hasPer=(d.per||[]).some(v=>v!=null), hasPf=(d.profit||[]).some(v=>v!=null);
+      const nq=(d.periods||[]).length;
+      if(!hasPer) msg='PER 자료가 없습니다';
+      else if(!hasPf) msg='순이익 자료가 없습니다';
+      else if(nq<5) msg='전년 동기 비교를 위해 5개 분기 이상 필요합니다 (현재 '+nq+'개)';
+      else msg='최근 순이익이 전년보다 줄어 PEG 를 계산하지 않습니다';
+    }
+    ctx.fillText(msg, W/2, H/2); return;
   }
   const per=d.periods||[], n=per.length;
   const PAD={l:10,r:32,t:12,b:20};
@@ -7334,12 +7344,12 @@ const FIN3_SERIES = [
 const FIN3_N = 4;           // 최근 몇 분기
 
 function fin3Load(){
-  try{ const r=localStorage.getItem('kg_fin3'); if(r){ const o=JSON.parse(r);
+  try{ const r=localStorage.getItem('kg_fin3_v2'); if(r){ const o=JSON.parse(r);
     if(o && o.date===invToday() && o.data){ FIN3=o.data; return true; } } }catch(e){}
   return false;
 }
 function fin3Save(){
-  try{ localStorage.setItem('kg_fin3', JSON.stringify({date:invToday(), data:FIN3})); }catch(e){}
+  try{ localStorage.setItem('kg_fin3_v2', JSON.stringify({date:invToday(), data:FIN3})); }catch(e){}
 }
 // 표에 있는 종목 중 아직 안 받은 것만 순차 조회 (네이버 차단 방지)
 async function ensureFin3(codes, onDone){
@@ -7354,7 +7364,10 @@ async function ensureFin3(codes, onDone){
         try{
           const r=await fetch(SRV_URL+'/?fin3='+c);
           const d=await r.json();
-          if(d&&d.ok) FIN3[c]={periods:d.periods||[], salesGrowth:d.salesGrowth||null, roe:d.roe||null, debt:d.debt||null};
+          if(d&&d.ok) FIN3[c]={periods:d.periods||[], salesGrowth:d.salesGrowth||null,
+            roe:d.roe||null, debt:d.debt||null,
+            pbr:d.pbr||null, per:d.per||null, profit:d.profit||null,
+            opm:d.opm||null, npm:d.npm||null, quick:d.quick||null};
         }catch(e){}
       }));
       if(i+2<want.length) await new Promise(r=>setTimeout(r,180));
