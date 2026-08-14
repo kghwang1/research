@@ -696,7 +696,7 @@
   .anl-sug .sc{color:var(--mut);font-size:11px;margin-left:6px}
   .anl-title{font-size:15px;font-weight:700;color:var(--ink);margin:4px 0 6px}
   .anl-title .sub{font-size:11.5px;color:var(--mut);font-weight:500;margin-left:6px}
-  #anlCanvas{width:100%;height:200px;display:block;background:var(--panel);
+  #anlCanvas{width:100%;height:200px;display:block;background:#21262d;
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
   .anl-comment{margin-top:10px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;font-size:13px;line-height:1.75;color:var(--ink)}
@@ -716,10 +716,11 @@
   .fin-guide .fg-r b{color:#d4af00;font-weight:700;margin-right:4px}
   .fin-guide .fg-f{font-family:monospace;color:#e6edf3}
   /* 재무 3지표 미니 그래프 */
-  .fin3{display:flex;flex-direction:column;align-items:center;gap:1px}
-  .fin3 svg{display:block}
-  .fin3-v{font-size:9px;font-weight:700;font-family:monospace;letter-spacing:.5px}
-  .fin3-p{font-size:8px;color:#6e7681;font-family:monospace;margin-top:-1px}
+  .hdr-fin{font-size:9.5px;font-weight:700;letter-spacing:-.2px}
+  .fin3{display:flex;align-items:center;justify-content:center}
+  .fin3 svg{display:block;background:#21262d;border-radius:4px}
+  td.fin3-go{cursor:pointer;background:#21262d !important;padding:2px}
+  td.fin3-go:active{opacity:.6}
   /* ETF 통합 표 */
   .val-tbl td.etf-mk{font-size:11px;font-weight:700;color:#8b949e}
   .val-tbl tr.etf-sub td{background:#1b2029;font-weight:700;color:#e6edf3;border-top:1px solid #30363d}
@@ -2807,7 +2808,24 @@ function sortValOf(kind, code, row){
   return -999;
 }
 // 헤더 텍스트 → 정렬키 (해당 열이 없으면 정렬 없음)
+// 재무 열 헤더 — 지표명을 선 색과 맞추고, 자료의 최근 분기를 표시
+function hdrFin(){
+  let q='';
+  for(const c in FIN3){
+    const ps=(FIN3[c].periods||[]).filter(Boolean);
+    if(ps.length){ const p=String(ps[ps.length-1]);
+      if(p.length>=6) q=p.slice(2,4)+'.'+Math.ceil(parseInt(p.slice(4,6),10)/3)+'분기';
+      break; }
+  }
+  const c=Object.fromEntries(FIN3_SERIES.map(s=>[s.k,s.c]));
+  return '재무' + (q?`<span class="hdr-sub">${q}</span>`:'')
+       + `<br><span class="hdr-fin"><b style="color:${c.salesGrowth}">매출</b>·`
+       + `<b style="color:${c.roe}">ROE</b>·<b style="color:${c.debt}">부채</b></span>`;
+}
+
 function sortKindOf(x){
+  // 재무 열은 정렬 대상이 아니다 (헤더에 'ROE' 글자가 들어 있어 먼저 걸러낸다)
+  if(x.indexOf('재무')>=0) return null;
   if(x==='보유') return 'invchk';
   if(x.indexOf('점수')>=0) return 'score';
   if(x.indexOf('현재가')>=0) return 'rate';
@@ -2964,9 +2982,9 @@ function bindPfTopBar(rerender){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[76,60,46,76,92,90,90,90,82,100,84,200,44,92];
+  const W=[76,60,46,92,92,76,90,90,90,82,100,84,200];
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["종목","분류","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","점수","재무<br><span class=\"hdr-sub\">매출·ROE·부채</span>"];
+  const H=["종목","분류","비중(%)","현재가<br>(전일대비%)",hdrFin(),"ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+pfMenuHtml({save:'valSave', load:'valReset'})+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
@@ -3010,6 +3028,7 @@ function renderKrTable(){
     h+=`<td class="mp-r wt">${r[2]==null?'':r[2]}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r krlive" data-code="${code}" data-name="${r[1]||''}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(krRate[code]):''}</td>`;
+    h+=`<td class="mp-c fin3-go" data-code="${code}" data-name="${escHtml(r[1]||'')}">${fin3Cell(code, r[1]||"")}</td>`;
     // ROE (코스피200과 동일 형식)
     let krRoeTxt = code ? '—' : '';
     const rz = krRoe[code];
@@ -3027,8 +3046,6 @@ function renderKrTable(){
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td>${consCell(code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
-    h+=`<td class="score-cell ${PIN_MARKS.get(code)||''}" data-code="${code}">${scoreCell(code)}</td>`;
-    h+=`<td class="mp-c">${fin3Cell(code)}</td>`;
     h+='</tr>';
   });
   h+=`<tr class="add-row"><td colspan="12"><button class="add-row-btn" onclick="addKrRow()">＋ 종목 추가</button></td></tr>`;
@@ -3602,7 +3619,7 @@ function renderWatchTable(){
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
-  const W = [96,60,90,92,90,90,90,100,100,84,200,44,92];
+  const W = [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
   // 관심·투자 공통: 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서 (점수·합산식 없음)
@@ -3979,9 +3996,9 @@ function renderCautionTable(){
     rows.sort((a,b)=> frgnSellStreak(b.code) - frgnSellStreak(a.code));
   }
 
-  const W=[30,90,90,92,82,90,90,100,100,84,200];
+  const W=[40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(cautionRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-  const H=["순서","종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","점수","재무<br><span class=\"hdr-sub\">매출·ROE·부채</span>"];
+  const H=["순서","종목","현재가<br>(전일대비%)",hdrFin(),"ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
 
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   let h='<caption class="kr-cap" style="border-left:3px solid #ef5350">⚠️ 주의 — 외국인 연속 순매도 종목 <span style="display:block;font-size:10.5px;color:#ef5350;font-weight:600;margin-top:2px">'+rows.length+'종목 · 최근 2일 이상 연속 외국인 순매도 · 현재가 클릭 시 차트</span></caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
@@ -4023,6 +4040,7 @@ function renderCautionTable(){
     h+='<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="wlink" data-code="'+code+'"><span class="kn">'+escHtml(nm)+'</span><span class="kc">'+code+'</span></a></td>';
     const liveCellStyle = liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+='<td class="mp-r cautlive" data-code="'+code+'" data-name="'+escHtml(nm)+'"'+liveCellStyle+'>'+liveStr+(liveStr&&!/[—…]/.test(liveStr)?rateHtml(cautionRate[code]):'')+'</td>';
+    h+='<td class="mp-c fin3-go" data-code="'+code+'" data-name="'+escHtml(nm)+'">'+fin3Cell(code, nm)+'</td>';
     h+='<td>'+roeTxt+'</td>';
     h+='<td class="frgnc">'+frgnCell(code)+'</td>';
     h+='<td class="famtc">'+frgnAmtCell(code)+'</td>';
@@ -4031,8 +4049,6 @@ function renderCautionTable(){
     h+='<td class="mp-r">'+tgtStr+upHtml+'</td>';
     h+='<td>'+consCell(code)+'</td>';
     h+='<td class="mp-l rpt">'+repCell+'</td>';
-    h+='<td class="mp-r">'+scoreCell(code)+'</td>';
-    h+='<td class="mp-r">'+fin3Cell(code)+'</td>';
     h+='</tr>';
   });
   h+='</tbody>';
@@ -6724,22 +6740,36 @@ function anlDraw(){
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
     ctx.font='bold 11px monospace';
-    const used=[];                       // 값 표시가 겹치지 않게
+    // 점은 먼저 모두 찍는다
+    const marks=[];
     FIN3_SERIES.forEach(se=>{
       const v=(d[se.k]||[])[ANL_HOVER]; if(v==null||!se._yOf) return;
       const py=se._yOf(v);
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
-      const txt=v.toFixed(1);
+      marks.push({ se, v, py });
+    });
+    // 값 표시 — 선이 겹쳐도 세 개가 모두 보이도록 위에서부터 차례로 자리를 잡는다
+    const GAP=13, TOP=PAD.t+10, BOT=PAD.t+ch-3;
+    marks.sort((a,b)=>a.py-b.py);
+    let prev=-Infinity;
+    marks.forEach(m=>{
+      let ty=Math.max(m.py-6, prev+GAP);          // 앞의 것과 최소 간격 확보
+      ty=Math.max(TOP, ty);
+      marks._over = ty > BOT;
+      prev=ty; m.ty=ty;
+    });
+    // 아래로 넘치면 전체를 위로 당긴다
+    const over = marks.length ? (marks[marks.length-1].ty - BOT) : 0;
+    if(over>0) marks.forEach(m=>{ m.ty=Math.max(TOP, m.ty-over); });
+    marks.forEach(m=>{
+      const txt=m.v.toFixed(1);
       const tw=ctx.measureText(txt).width;
-      let ty=py-7;
-      while(used.some(u=>Math.abs(u-ty)<11)) ty-=11;   // 겹치면 위로 밀기
-      ty=Math.max(PAD.t+9, Math.min(PAD.t+ch-2, ty));
-      used.push(ty);
-      let tx=x+7;
-      if(tx+tw+4 > W-PAD.r) tx = x-7-tw-4;             // 오른쪽 끝이면 왼쪽에
-      ctx.fillStyle='#0d1117dd'; ctx.fillRect(tx-3, ty-9, tw+6, 12);
-      ctx.fillStyle=se.c; ctx.textAlign='left';
-      ctx.fillText(txt, tx, ty);
+      let tx=x+8;
+      if(tx+tw+4 > W-PAD.r) tx = x-8-tw-4;        // 오른쪽 끝이면 왼쪽에
+      ctx.fillStyle='#0d1117ee'; ctx.fillRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.strokeStyle=m.se.c; ctx.lineWidth=1; ctx.strokeRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.fillStyle=m.se.c; ctx.textAlign='left';
+      ctx.fillText(txt, tx, m.ty);
     });
   }
 }
@@ -6805,26 +6835,44 @@ function anlComment(){
     if(rt!=null && Math.abs(rt)>0.5) s+= rt>0 ? ' 최근 <b>오르는</b> 추세입니다.' : ' 최근 <b>내리는</b> 추세입니다.';
     P.push(s+'</p>');
   }
-  // 재무구조
+  // 재무구조 — 금융업은 부채비율 기준이 다르다
+  const FIN_BIZ=/(증권|은행|금융|캐피탈|카드|보험|화재|해상|생명|저축|지주|holdings?)/i;
+  const isFin = FIN_BIZ.test(ANL_NAME||'') || (b!=null && b>=400);
   if(b==null) P.push('<p><b>재무구조</b> — 부채비율이 아직 공시되지 않았습니다.</p>');
+  else if(isFin){
+    let s=`<p><b>재무구조</b> — 부채비율은 <b>${b.toFixed(1)}%</b>입니다. `;
+    s+='다만 <b>금융업은 이 기준을 그대로 적용하지 않습니다.</b> 증권사의 고객 예탁금, 은행의 예금, 보험사의 책임준비금은 '
+     + '회계상 부채로 잡히지만 갚아야 할 빚이라기보다 <b>영업의 재료</b>에 가깝습니다. 그래서 수백~1,000% 이상도 정상 범위입니다.';
+    s+=' 금융업은 부채비율 대신 <b>자기자본비율·NCR(순자본비율)·BIS비율</b> 같은 건전성 지표를 봐야 하고, 이 앱에는 그 자료가 없습니다.';
+    if(bt!=null && Math.abs(bt)>1) s+= bt>0 ? ' 최근 흐름은 <b>증가</b> 쪽입니다.' : ' 최근 흐름은 <b>감소</b> 쪽입니다.';
+    P.push(s+'</p>');
+  }
   else{
     let s=`<p><b>재무구조</b> — 부채비율은 <b>${b.toFixed(1)}%</b>입니다. `;
     if(b<=100) s+='100% 이하로 안정적입니다.';
     else if(b<=200) s+='부담이 크지는 않으나 낮은 편도 아닙니다. 업종 평균과 비교해 보세요.';
-    else s+='200%를 넘어 부담이 있습니다. 금리 변화에 민감할 수 있습니다.';
+    else s+='200%를 넘어 부담이 있습니다. 다만 금융·건설·항공처럼 원래 높은 업종일 수 있으니 동종업계와 비교해 보세요.';
     if(bt!=null && Math.abs(bt)>1) s+= bt>0 ? ' 최근 <b>늘고</b> 있습니다.' : ' 최근 <b>줄고</b> 있습니다.';
     P.push(s+'</p>');
   }
   // 종합
   if(g!=null && r!=null && b!=null){
-    const pass=(g>0)+(r>=15)+(b<=100);
     let s='<p style="border-top:1px solid var(--line);padding-top:8px;margin-top:9px"><b>종합</b> — ';
-    if(pass===3) s+='매출 성장·ROE 15%↑·부채비율 100%↓ <b>세 조건을 모두</b> 충족합니다. 재무적으로 건실합니다.';
-    else if(pass===2) s+='세 조건 중 <b>둘</b>을 충족합니다.';
-    else if(pass===1) s+='세 조건 중 <b>하나</b>만 충족합니다.';
-    else s+='세 조건을 모두 밑돕니다.';
-    if(r>=15 && b>200) s+=' 특히 ROE가 높지만 부채비율도 높아, <b>빚으로 만든 수익성</b>일 수 있습니다.';
-    if(r<8 && b<=50) s+=' 부채는 적지만 ROE가 낮아 <b>자산을 충분히 활용하지 못하는</b> 모습입니다.';
+    if(isFin){
+      // 금융업은 부채비율 조건을 빼고 두 가지로만 판단
+      const pass2=(g>0)+(r>=15);
+      if(pass2===2) s+='매출 성장과 ROE 15%↑를 <b>모두</b> 충족합니다. 부채비율은 금융업 특성상 판단에서 제외했습니다.';
+      else if(pass2===1) s+='매출 성장과 ROE 중 <b>하나</b>를 충족합니다. 부채비율은 금융업 특성상 판단에서 제외했습니다.';
+      else s+='매출 성장과 ROE 모두 기준을 밑돕니다.';
+    } else {
+      const pass=(g>0)+(r>=15)+(b<=100);
+      if(pass===3) s+='매출 성장·ROE 15%↑·부채비율 100%↓ <b>세 조건을 모두</b> 충족합니다. 재무적으로 건실합니다.';
+      else if(pass===2) s+='세 조건 중 <b>둘</b>을 충족합니다.';
+      else if(pass===1) s+='세 조건 중 <b>하나</b>만 충족합니다.';
+      else s+='세 조건을 모두 밑돕니다.';
+      if(r>=15 && b>200) s+=' 특히 ROE가 높지만 부채비율도 높아, <b>빚으로 만든 수익성</b>일 수 있습니다.';
+      if(r<8 && b<=50) s+=' 부채는 적지만 ROE가 낮아 <b>자산을 충분히 활용하지 못하는</b> 모습입니다.';
+    }
     P.push(s+'</p>');
   }
   P.push('<p style="color:#8b949e;font-size:12px;margin-top:8px">※ 위 내용은 공시된 수치를 정해진 기준에 대입해 정리한 것으로, 투자 판단이나 매매 권유가 아닙니다. 재무제표는 과거 실적이며 주가는 미래를 반영합니다.</p>');
@@ -6863,7 +6911,10 @@ const FIN_GUIDE_HTML = `
     <div class="fg-r">
       <b>산출식</b><span class="fg-f">부채총계 ÷ 자기자본 × 100</span><br>
       <b>의미</b><b style="color:#e6edf3">100% 이하면 안정적</b>, 200%를 넘으면 부담입니다.
-      업종마다 기준이 달라 동종업계와 비교하는 것이 맞습니다 (금융·건설은 높고, IT·제약은 낮습니다).
+      업종마다 기준이 달라 동종업계와 비교하는 것이 맞습니다 (건설·항공은 높고, IT·제약은 낮습니다).<br>
+      <b style="color:#e6edf3">금융업은 이 기준을 적용하지 않습니다.</b> 증권사의 고객 예탁금, 은행의 예금, 보험사의 책임준비금은
+      회계상 부채로 잡히지만 갚아야 할 빚이라기보다 영업의 재료에 가깝습니다. 수백~1,000% 이상도 정상이며,
+      금융업은 자기자본비율·NCR·BIS비율 같은 건전성 지표로 봐야 합니다.
     </div>
   </div>
 
@@ -6878,6 +6929,27 @@ const FIN_GUIDE_HTML = `
     </div>
   </div>
 </div>`;
+
+// 재무 그래프를 누르면 분석 페이지로 이동해 그 종목을 자동 조회
+document.addEventListener('click', (e)=>{
+  const el = e.target && e.target.closest ? e.target.closest('.fin3-go') : null;
+  if(!el) return;
+  const code = el.dataset.code;
+  if(!code) return;
+  e.preventDefault(); e.stopPropagation();
+  // 표는 전체화면 오버레이(#valFull) 안에 있으므로 먼저 닫아야 분석 페이지가 보인다
+  const vf=document.getElementById('valFull'); if(vf) vf.classList.remove('on');
+  // 분석 탭으로 전환
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  const tb=document.querySelector('.tab[data-t="hub"]'); if(tb) tb.classList.add('on');
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
+  const sec=document.getElementById('hub'); if(sec) sec.classList.add('on');
+  window.scrollTo(0,0);
+  anlInit();
+  // 종목명을 알면 함께 넘긴다
+  const nm = el.getAttribute('data-name') || code;
+  anlPick(code, nm);
+}, true);
 
 // 포트 페이지 하단에 한 번만 채운다
 function finGuideInit(){
@@ -6931,7 +7003,7 @@ async function ensureFin3(codes, onDone){
 }
 
 // 미니 그래프 (SVG) — 계열마다 자기 축
-function fin3Cell(code){
+function fin3Cell(code, name){
   const c=String(code||'').replace(/[^0-9]/g,'');
   const d=FIN3[c];
   if(!d) return '<span class="rsub">'+(SRV_URL?'…':'—')+'</span>';
@@ -6953,18 +7025,8 @@ function fin3Cell(code){
     last.push({c:se.c, v:raw[raw.length-1]});
   });
   if(!any) return '<span class="rsub">—</span>';
-  const txt=last.map(x=>`<span style="color:${x.c}">${x.v.toFixed(0)}</span>`).join(' ');
-  // 마지막 분기 표시 (예: 26.06)
-  const ps=(d.periods||[]).filter(Boolean);
-  let plab='';
-  if(ps.length){
-    const p=String(ps[ps.length-1]);
-    if(p.length>=6) plab=p.slice(2,4)+'.'+p.slice(4,6);
-  }
-  return `<div class="fin3" title="최근 ${FIN3_N}분기 · 매출증가율/ROE/부채비율">`
+  return `<div class="fin3" title="눌러서 분석 페이지로 이동">`
        + `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${lines}</svg>`
-       + `<div class="fin3-v">${txt}</div>`
-       + (plab?`<div class="fin3-p">${plab}</div>`:'')
        + `</div>`;
 }
 
@@ -7368,9 +7430,9 @@ function renderInvestKq(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_KQ_ROWS = rows.slice(0,30);
-  const W=[96,60,28,92,90,90,82,90,100,100,84,210,110];
+  const W=[96,60,92,92,76,90,90,82,100,100,84,210];
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","점수","재무<br><span class=\"hdr-sub\">매출·ROE·부채</span>"];
+  const H=["종목","분류","현재가<br>(전일대비%)",hdrFin(),"ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invKqRefresh'})}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -7401,6 +7463,7 @@ function renderInvestKq(){
     h+=`<td class="cls-cell">${clsCellHtml(r.code, r.name)}</td>`;
     const invLiveStyle = r.price ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r invlive" data-code="${r.code}" data-name="${escHtml(r.name)}"${invLiveStyle}>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
+    h+=`<td class="mp-c fin3-go" data-code="${r.code}" data-name="${escHtml(r.name||'')}">${fin3Cell(r.code, r.name||"")}</td>`;
     h+=`<td>${roeTxt}</td>`;
     h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
     h+=`<td class="famtc">${frgnAmtCell(r.code)}</td>`;
@@ -7409,8 +7472,6 @@ function renderInvestKq(){
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${consCell(r.code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
-    h+=`<td class="score-cell ${PIN_MARKS.get(r.code)||''}" data-code="${r.code}">${scoreCell(r.code)}</td>`;
-    h+=`<td class="mp-c">${fin3Cell(r.code)}</td>`;
     h+='</tr>';
   });
   h+=`<tr class="add-row"><td style="padding:5px 4px"><div class="isearch" style="position:relative"><input type="text" class="iinput" placeholder="＋종목 추가" autocomplete="off" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 6px;border-radius:6px;font-size:11px"><div class="iac" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:180px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.5)"></div></div></td><td colspan="10"></td></tr>`;
@@ -7444,9 +7505,9 @@ function renderInvest(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_ROWS=rows.slice(0,30);
-  const W=[96,60,28,92,90,90,82,90,100,100,84,210,110];
+  const W=[96,60,92,92,76,90,90,82,100,100,84,210];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
-  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)","점수","재무<br><span class=\"hdr-sub\">매출·ROE·부채</span>"];
+  const H=["종목","분류","현재가<br>(전일대비%)",hdrFin(),"ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invRefresh'})}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -7477,6 +7538,7 @@ function renderInvest(){
     h+=`<td class="cls-cell">${clsCellHtml(r.code, r.name)}</td>`;
     const invLiveStyle = r.price ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r invlive" data-code="${r.code}" data-name="${escHtml(r.name)}"${invLiveStyle}>${r.price?addComma(r.price):'—'}${r.rate!=null?rateHtml(r.rate):''}</td>`;
+    h+=`<td class="mp-c fin3-go" data-code="${r.code}" data-name="${escHtml(r.name||'')}">${fin3Cell(r.code, r.name||"")}</td>`;
     h+=`<td>${roeTxt}</td>`;
     h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
     h+=`<td class="famtc">${frgnAmtCell(r.code)}</td>`;
@@ -7485,8 +7547,6 @@ function renderInvest(){
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${consCell(r.code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
-    h+=`<td class="score-cell ${PIN_MARKS.get(r.code)||''}" data-code="${r.code}">${scoreCell(r.code)}</td>`;
-    h+=`<td class="mp-c">${fin3Cell(r.code)}</td>`;
     h+='</tr>';
   });
   h+=`<tr class="add-row"><td style="padding:5px 4px"><div class="isearch" style="position:relative"><input type="text" class="iinput" placeholder="＋종목 추가" autocomplete="off" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 6px;border-radius:6px;font-size:11px"><div class="iac" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:180px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.5)"></div></div></td><td colspan="10"></td></tr>`;
