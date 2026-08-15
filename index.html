@@ -687,9 +687,11 @@
   /* 분석 탭에서는 앱 헤더(제목·탭)를 숨겨 화면을 넓게 쓴다 */
   body.anl-mode header{display:none}
   body.anl-mode #hub{padding-top:0}
-  .anl-top{display:flex;align-items:center;gap:8px;padding:6px 10px;
+  .anl-top{display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:6px 10px;
     background:var(--panel);border-bottom:1px solid var(--line)}
-  .anl-ttl{font-size:14px;font-weight:700;color:#d4af00;flex:none}
+  .anl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .anl-row select{flex:0 1 auto;min-width:0}
+  .anl-ttl{font-size:15.4px;font-weight:700;color:#f2c800;flex:none}
   .anl-backbtn{padding:4px 12px;border-radius:6px;border:1px solid #6e7681;
     background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
   .anl-backbtn:active{opacity:.6}
@@ -700,6 +702,14 @@
   .anl-side{width:132px;min-width:60px;flex:none;border-right:1px solid var(--line);
     display:flex;flex-direction:column;background:var(--panel)}
   /* 종목 칸 경계 — 끌어서 폭 조절 */
+  /* 종목분석 하부 메뉴 */
+  .subnav{display:flex;gap:4px;align-items:center}
+  .subnav button{background:transparent;border:1px solid var(--line);color:var(--ink2,#8b949e);
+    border-radius:6px;padding:4px 11px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  .subnav button:hover{color:var(--ink,#e6edf3)}
+  .subnav button.on{background:var(--accent);border-color:var(--accent);color:#0d1117;font-weight:700}
+  .subnav .subsep{width:1px;height:16px;background:var(--line);margin:0 3px}
+  .subnav button[data-sub="home"],.subnav button[data-sub="port"]{color:#8b949e}
   .anl-resize{flex:none;width:7px;cursor:col-resize;background:var(--panel);
     border-right:1px solid var(--line);position:relative;touch-action:none;user-select:none}
   .anl-resize::before{content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
@@ -808,9 +818,7 @@
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
-   <div class="tab" id="longTabBtn">장기투자</div>
-   <div class="tab" id="chartTabBtn">챠트</div>
-   <div class="tab" data-t="hub">분석</div>
+   <div class="tab" id="stkTabBtn">종목분석</div>
    <div class="tab" data-t="watch">방송</div>
   </div>
  </div>
@@ -822,16 +830,20 @@
  <section id="hub">
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
-   <button id="anlBack" class="anl-backbtn">‹ 이전</button>
-   <button id="anlSideToggle" class="anl-backbtn">종목</button>
-   <select id="anlPortSel">
-    <option value="">포트폴리오 선택</option>
-    <option value="invpf">선정주</option>
-    <option value="kr">한국(체)</option>
-    <option value="invest">코스피200</option>
-    <option value="investkq">코스닥100</option>
-   </select>
-   <span class="anl-ttl" style="margin-left:auto">기업분석</span>
+   <div class="anl-row">
+    <span class="anl-ttl">종목분석</span>
+    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+   </div>
+   <div class="anl-row">
+    <button id="anlSideToggle" class="anl-backbtn">종목</button>
+    <select id="anlPortSel">
+     <option value="">포트폴리오 선택</option>
+     <option value="invpf">선정주</option>
+     <option value="kr">한국(체)</option>
+     <option value="invest">코스피200</option>
+     <option value="investkq">코스닥100</option>
+    </select>
+   </div>
   </div>
   <div class="anl-layout">
    <div class="anl-side" id="anlSide">
@@ -845,7 +857,7 @@
    <div class="anl-main">
     <div id="anlTitle" class="anl-title"></div>
     <canvas id="anlCanvas"></canvas>
-    <div class="anl-sect">저평가·현금여력 <span>막대 = PEG · 1 미만이면 성장 대비 저평가(녹색) · 1 이상은 빨강</span></div>
+    <div class="anl-sect">저평가·현금여력 <span>PER·PBR 은 낮을수록, 당좌비율은 높을수록 좋음 · 막대 = PEG (1 미만 녹색이면 성장 대비 저평가)</span></div>
     <canvas id="anlCanvas2"></canvas>
     <div id="anlComment" class="anl-comment"></div>
     <div class="fin-guide" id="finGuide"></div>
@@ -988,8 +1000,12 @@
 
 <!-- 챠트 전체화면 오버레이 -->
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
-  <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
-    <span class="anl-ttl">챠트</span><button id="chartHomeBtn" class="anl-backbtn">‹ 이전</button>
+  <div class="anl-top">
+    <div class="anl-row">
+      <span class="anl-ttl">종목분석</span>
+      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+    </div>
+    <div class="anl-row">
     <button id="chartSideToggle" class="anl-backbtn">종목</button>
     <select id="chartPortSel">
       <option value="idx">(지수)</option>
@@ -1003,6 +1019,7 @@
       <option value="dividend">배당</option>
       <option value="guide">📖 해석</option>
     </select>
+    </div>
   </div>
   <div style="display:flex;flex:1;overflow:hidden">
     <div id="chartSidebar" style="width:150px;min-width:80px;max-width:60%;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0">
@@ -1019,10 +1036,14 @@
 
 <!-- 장기투자 전체화면 오버레이 -->
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
-  <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--panel);border-bottom:1px solid var(--line)">
-    <span class="anl-ttl">장기투자</span>
-    <button id="longHomeBtn" class="anl-backbtn">‹ 이전</button>
-    <span style="margin-left:auto;font-size:11px;color:#8b93a1">6개월 이상 보유 관점 채점</span>
+  <div class="anl-top">
+    <div class="anl-row">
+      <span class="anl-ttl">종목분석</span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+    </div>
+    <div class="anl-row">
+      <span style="font-size:11px;color:#8b93a1">종목·포트폴리오는 왼쪽 목록에서 고릅니다</span>
+    </div>
   </div>
   <div style="flex:1;overflow:hidden;min-width:0">
     <iframe id="longIframe" style="width:100%;height:100%;border:none" src="about:blank"></iframe>
@@ -1233,10 +1254,8 @@ async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));
 
 /* ---------- tabs ---------- */
 $$('.tab').forEach(t=>t.onclick=()=>{
-  // 챠트 전체화면
-  if(t.id==='chartTabBtn'){ closeLongView(true); openChartView(); return; }
-  // 장기투자 전체화면
-  if(t.id==='longTabBtn'){ closeChartView(true); openLongView(); return; }
+  // 종목분석 — 기본 화면은 챠트
+  if(t.id==='stkTabBtn'){ goSub('chart'); return; }
   // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
   closeChartView(true); // 다른 탭 클릭 시 챠트 닫기
@@ -6916,7 +6935,7 @@ window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDraw
 // 두 번째 그래프 (ROE·PBR·당좌비율) + PEG 막대
 // ══════════════════════════════════════
 const FIN2_SERIES = [
-  { k:'roe',   n:'ROE',    c:'#ffd54f' },
+  { k:'per',   n:'PER',    c:'#ffd54f' },   // ROE 는 첫 그래프에 있으므로 여기선 PER 로
   { k:'pbr',   n:'PBR',    c:'#ef5350' },
   { k:'quick', n:'당좌비율', c:'#58a6ff' },
 ];
@@ -7231,18 +7250,56 @@ const FIN_GUIDE_HTML = `
   </div>
 
   <div class="fg-item">
-    <div class="fg-t"><i style="border-color:#ef5350"></i>4. PBR (주가순자산비율)</div>
+    <div class="fg-t"><i style="border-color:#ffd54f"></i>4. PER (주가수익비율)</div>
     <div class="fg-r">
-      <b>산출식</b><span class="fg-f">주가 ÷ 주당순자산(BPS)</span><br>
-      <b>의미</b>자기자본 대비 주가 수준입니다. 1배면 장부상 순자산만큼 값이 매겨진 것입니다.
-      절대값보다 <b style="color:#e6edf3">그 종목의 과거 밴드</b> 안에서 지금이 어디쯤인지가 더 쓸모 있습니다.<br>
-      <b style="color:#e6edf3">ROE ÷ PBR</b> 이 높을수록 저평가 후보입니다. 벌어들이는 힘에 비해 주가가 싸다는 뜻이니까요.
-      ROE는 오르는데 PBR이 제자리인 구간이 그래프에서 벌어져 보입니다.
+      <b>산출식</b><span class="fg-f">주가 ÷ 주당순이익(EPS) = 시가총액 ÷ 순이익</span><br>
+      <b>의미</b>지금 이익을 그대로 유지한다면 <b style="color:#e6edf3">투자금을 회수하는 데 몇 년 걸리는가</b>입니다.
+      PER 10배면 10년치 이익을 미리 주고 사는 셈입니다. <b style="color:#e6edf3">낮을수록 쌉니다.</b><br>
+      <b>기준</b>절대 기준은 없습니다. 성장이 빠른 업종은 20~30배도 정상이고, 경기민감·성숙 업종은 10배 밑이 흔합니다.
+      <b style="color:#e6edf3">동종업계 평균, 그리고 그 종목의 과거 밴드</b>와 견주는 것이 맞습니다.<br>
+      <b style="color:#e6edf3">주의</b> — 경기민감주는 <b style="color:#e6edf3">PER이 가장 낮을 때가 고점</b>인 경우가 많습니다.
+      이익이 정점일 때 분모가 커져 PER이 낮게 보이기 때문입니다. 반도체·화학·철강이 대표적입니다.
+      적자면 PER이 계산되지 않아 그래프가 끊깁니다. 이익이 급감한 분기에는 값이 치솟아 선이 크게 튑니다.
     </div>
   </div>
 
   <div class="fg-item">
-    <div class="fg-t"><i style="border-color:#58a6ff"></i>5. 당좌비율</div>
+    <div class="fg-t"><i style="border-color:#ef5350"></i>5. PBR (주가순자산비율)</div>
+    <div class="fg-r">
+      <b>산출식</b><span class="fg-f">주가 ÷ 주당순자산(BPS)</span><br>
+      <b>의미</b>자기자본 대비 주가 수준입니다. 1배면 장부상 순자산만큼 값이 매겨진 것입니다.
+      절대값보다 <b style="color:#e6edf3">그 종목의 과거 밴드</b> 안에서 지금이 어디쯤인지가 더 쓸모 있습니다.
+      PBR이 낮다고 다 싼 것은 아닙니다 — 돈을 못 버는 회사는 원래 낮습니다. 그래서 다음 항목처럼 ROE와 묶어서 봅니다.
+    </div>
+  </div>
+
+  <div class="fg-item">
+    <div class="fg-t"><i style="border-color:#ffd54f;border-right-color:#ef5350"></i>6. ROE ÷ PBR (두 그래프를 잇는 값)</div>
+    <div class="fg-r">
+      <b>산출식</b><span class="fg-f">ROE(%) ÷ PBR</span><br>
+      <b>의미</b>첫 번째 그래프의 <b style="color:#e6edf3">ROE(버는 힘)</b>를 두 번째 그래프의
+      <b style="color:#e6edf3">PBR(주가 수준)</b>로 나눈 값입니다. 벌어들이는 힘에 비해 주가가 얼마나 싼가를 한 숫자로 봅니다.
+      값이 클수록 저평가 후보입니다.<br>
+      <b style="color:#e6edf3">이 값은 PER의 역수(이익수익률)와 같습니다.</b>
+      ROE는 순이익÷자기자본이고 PBR은 시가총액÷자기자본이라, 나누면 자기자본이 약분돼
+      <span class="fg-f">순이익 ÷ 시가총액 × 100</span> 즉 <b style="color:#e6edf3">이익수익률</b>이 됩니다.
+      예를 들어 ROE 15%에 PBR 1.5배면 10이 나오고, 이는 PER 10배와 같은 말입니다.
+      그래서 <b style="color:#e6edf3">PER 선이 끊기거나 크게 튄 구간</b>에서 대신 쓸 수 있습니다.
+      적자로 PER이 안 나올 때도 ROE와 PBR은 계산되기 때문입니다.<br>
+      <b>기준</b><b style="color:#e6edf3">10 이상(PER 10배 이하)이면 저평가 구간</b>으로 봅니다.
+      더 정확히는 국고채 금리와 견줍니다 — 이익수익률이 국채 금리보다 뚜렷이 높아야 주식을 드는 위험을 보상받습니다.
+      금리가 3%인데 이익수익률이 4%라면 굳이 주식일 이유가 약합니다.<br>
+      <b>그래프에서</b>PER 선(노랑)이 내려가는데 PBR 선(빨강)은 그대로인 구간은
+      <b style="color:#e6edf3">ROE가 좋아졌다는 뜻</b>입니다. 같은 자산으로 이익을 더 내고 있다는 신호이니
+      첫 번째 그래프의 ROE 선과 맞춰 보세요.<br>
+      <b style="color:#e6edf3">주의</b> — ROE는 지난 실적이고 PBR은 오늘 주가라 시점이 어긋납니다.
+      일회성 이익으로 ROE가 부풀었거나, 빚을 늘려 자기자본을 줄인 경우에는 값이 좋아 보여도 저평가가 아닙니다.
+      부채비율을 반드시 함께 보시고, 자산이 큰 금융·지주회사는 구조적으로 높게 나오니 동종업계끼리 비교하세요.
+    </div>
+  </div>
+
+  <div class="fg-item">
+    <div class="fg-t"><i style="border-color:#58a6ff"></i>7. 당좌비율</div>
     <div class="fg-r">
       <b>산출식</b><span class="fg-f">당좌자산(유동자산 − 재고자산) ÷ 유동부채 × 100</span><br>
       <b>의미</b>재고를 팔지 않고도 <b style="color:#e6edf3">단기 빚을 갚을 수 있는가</b>를 봅니다.
@@ -7253,13 +7310,13 @@ const FIN_GUIDE_HTML = `
   </div>
 
   <div class="fg-item">
-    <div class="fg-t"><span style="display:inline-block;width:11px;height:7px;background:#8b949e88;flex:none"></span>6. PEG (막대)</div>
+    <div class="fg-t"><span style="display:inline-block;width:11px;height:7px;background:#8b949e88;flex:none"></span>8. PEG (막대)</div>
     <div class="fg-r">
       <b>산출식</b><span class="fg-f">PER ÷ 순이익 증가율(전년 동기 대비, %)</span><br>
       <b>의미</b>PER만으로는 비싼지 알 수 없습니다. 많이 성장하는 기업은 PER이 높아도 정당하니까요.
       성장률로 나눠 <b style="color:#e6edf3">성장 대비 주가</b>를 봅니다.
       <b style="color:#e6edf3">1 미만이면 저평가</b>(그래프에서 진녹색·낮은 막대), 1 이상이면 성장에 비해 비싸다고 봅니다(빨강·높은 막대).
-      그래프는 <b style="color:#e6edf3">가운데가 1</b>이라, 막대가 중앙보다 아래면 저평가입니다.<br>
+      막대 위의 숫자가 실제 값입니다.<br>
       분기 자료라 <b style="color:#e6edf3">4분기 전과 비교</b>하므로 5번째 분기부터 값이 나오고,
       이익이 줄어든 분기는 계산하지 않습니다.
       <b style="color:#e6edf3">주의</b> — 이익이 급증한 직후에는 값이 지나치게 작게 나옵니다. 기저효과를 함께 보셔야 합니다.
@@ -7274,7 +7331,11 @@ const FIN_GUIDE_HTML = `
       <b style="color:#e6edf3">매출 성장 + ROE 15%↑ + 부채비율 100%↓</b>가 동시에 맞으면 재무적으로 건실하다고 봅니다.<br><br>
       두 번째 그래프는 <b style="color:#e6edf3">사도 되는 가격인가</b>를 봅니다.
       아무리 좋은 기업이라도 이미 비싸게 사면 수익이 나지 않습니다.
-      <b style="color:#e6edf3">ROE 높음 + PBR 낮음 + PEG 1 미만</b>이 겹치면 저평가 후보로 봅니다.<br><br>
+      <b style="color:#e6edf3">PER 낮음 + PBR 낮음 + PEG 1 미만</b>이 겹치면 저평가 후보로 봅니다.
+      단, 세 개 모두 <b style="color:#e6edf3">첫 그래프에서 ROE가 받쳐줄 때</b>만 의미가 있습니다.
+      돈을 못 버는 회사는 원래 PER·PBR이 낮습니다.
+      앞의 둘은 <b style="color:#e6edf3">ROE ÷ PBR</b> 한 값으로 묶어서 볼 수 있고(현재 수익력 대비 가격),
+      PEG는 여기에 <b style="color:#e6edf3">성장</b>을 더해 봅니다. 둘 다 높은 점수를 받는 종목이 드문 이유입니다.<br><br>
       재무제표는 과거이고 주가는 미래를 반영합니다. 이 지표는 종목을 <b style="color:#e6edf3">거르는 용도</b>로 쓰고,
       매매 시점은 차트 지표로 판단하시는 편이 맞습니다.
     </div>
@@ -7332,6 +7393,52 @@ function anlRenderList(filter){
     d.onclick=()=>anlPick(d.dataset.code, d.dataset.name);
   });
 }
+/* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자) ===== */
+function subPaint(which){
+  $$('.subnav button').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  const st=$('#stkTabBtn'); if(st) st.classList.add('on');
+}
+function goSub(which){
+  // 상위 화면으로 빠져나가기
+  if(which==='home'||which==='port'){
+    closeChartView(true); closeLongView(true); hubHide();
+    document.body.style.overflow='';
+    $$('.tab').forEach(x=>x.classList.remove('on'));
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const key = which==='home' ? 'market' : 'port';
+    const tb=document.querySelector('.tab[data-t="'+key+'"]'); if(tb) tb.classList.add('on');
+    const sc=$('#'+key); if(sc) sc.classList.add('on');
+    window.scrollTo(0,0);
+    if(key==='market' && typeof renderMarket==='function') renderMarket();
+    return;
+  }
+  if(which==='chart'){
+    closeLongView(true); hubHide();
+    openChartView();
+  }else if(which==='long'){
+    closeChartView(true); hubHide();
+    openLongView();
+  }else{                                   // 분석
+    closeChartView(true); closeLongView(true);
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const sec=$('#hub'); if(sec) sec.classList.add('on');
+    document.body.classList.add('anl-mode');
+    document.body.style.overflow='';
+    window.scrollTo(0,0);
+    anlInit();
+  }
+  subPaint(which);
+}
+function hubHide(){
+  const sec=$('#hub'); if(sec) sec.classList.remove('on');
+  document.body.classList.remove('anl-mode');
+}
+document.addEventListener('click', e=>{
+  const b=e.target.closest('.subnav button');
+  if(b) goSub(b.dataset.sub);
+});
+
 // 종목 칸 — 접기/펴기 + 경계 끌어서 폭 조절
 const ANL_W_KEY='kg_anl_side_w';
 function anlSideInit(){
@@ -7402,13 +7509,7 @@ document.addEventListener('click', (e)=>{
   // 표는 전체화면 오버레이(#valFull) 안에 있으므로 먼저 닫아야 분석 페이지가 보인다
   const vf=document.getElementById('valFull'); if(vf) vf.classList.remove('on');
   // 분석 탭으로 전환
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  const tb=document.querySelector('.tab[data-t="hub"]'); if(tb) tb.classList.add('on');
-  document.querySelectorAll('section').forEach(s=>s.classList.remove('on'));
-  const sec=document.getElementById('hub'); if(sec) sec.classList.add('on');
-  document.body.classList.add('anl-mode');
-  window.scrollTo(0,0);
-  anlInit();
+  goSub('hub');
   // 지금 표에 보이는 종목들을 좌측 목록으로 넘긴다 (정렬·필터 상태 그대로)
   const rows=[];
   const tbl = el.closest('table');
@@ -8276,7 +8377,8 @@ function openChartView(initPort, initCode, initName, rowsOverride){
   document.body.style.overflow='hidden';
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
-  const btn=$('#chartTabBtn'); if(btn) btn.classList.add('on');
+  document.body.classList.remove('anl-mode');
+  const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
   // 포트: 지정값 또는 기본(지수)
   chartPort = initPort || 'idx';
   if(chartPort==='guide') chartPort='idx';        // 해석 화면을 남긴 채 종목을 열지 않도록
@@ -8319,7 +8421,7 @@ function openLongView(){
   document.body.classList.remove('anl-mode');
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
-  const btn=$('#longTabBtn'); if(btn) btn.classList.add('on');
+  const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
   const ifr=$('#longIframe');
   if(ifr && (!ifr.src || ifr.src==='about:blank')) ifr.src=LONG_URL;
 }
