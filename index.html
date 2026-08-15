@@ -7155,6 +7155,36 @@ function anlComment(){
   // ── 저평가·현금여력·PEG ──
   const pbr=last(d.pbr), per=last(d.per), qk=last(d.quick), opm=last(d.opm), npm=last(d.npm);
   const P2=[];
+  // PER — 저평가 그래프의 첫 선
+  {
+    const pv=(d.per||[]).filter(x=>x!=null && x>0);
+    if(per!=null && per>0){
+      let band='';
+      if(pv.length>=3){
+        const lo=Math.min(...pv), hi=Math.max(...pv);
+        const pos=hi>lo ? ((per-lo)/(hi-lo)*100) : 50;
+        band=` 자료 구간(${lo.toFixed(1)}~${hi.toFixed(1)}배) 안에서 <b>${Math.round(pos)}% 위치</b>입니다.`;
+      }
+      let s=`<p><b>PER</b> — <b>${per.toFixed(1)}배</b>로, 지금 이익이 유지된다면 투자금 회수에 약 ${per.toFixed(0)}년이 걸리는 값입니다.${band} `;
+      if(per<10)       s+='이익 대비 주가가 <b>낮은 편</b>입니다.';
+      else if(per<=15) s+='보통 수준입니다.';
+      else if(per<=25) s+='이익 대비 주가가 <b>다소 높은</b> 편입니다.';
+      else             s+='이익 대비 주가가 <b>높은</b> 편으로, 그만한 성장이 뒤따라야 정당화됩니다.';
+      // 추세 (직전 분기 대비)
+      if(pv.length>=2){
+        const prev=pv[pv.length-2], df=per-prev;
+        if(Math.abs(df)/Math.max(prev,1) >= 0.1)
+          s+= df<0 ? ' 직전 분기보다 낮아졌는데, 주가가 빠졌거나 이익이 늘었다는 뜻입니다.'
+                   : ' 직전 분기보다 높아졌는데, 주가가 올랐거나 이익이 줄었다는 뜻입니다.';
+      }
+      // 경기민감 함정
+      if(per<10 && r!=null && r>=20)
+        s+=' <b>주의</b> — ROE가 높은데 PER이 10배 미만이면 <b>이익 정점</b>일 수 있습니다. 경기민감 업종은 가장 싸 보일 때가 고점인 경우가 많습니다.';
+      P2.push(s+'</p>');
+    }else if(per!=null && per<=0){
+      P2.push('<p><b>PER</b> — 적자라 계산되지 않습니다. 그래프에서 PER 선이 끊긴 구간이 그 시기이며, 이때는 <b>ROE÷PBR</b>로 대신 보셔야 합니다.</p>');
+    }
+  }
   if(pbr!=null && r!=null){
     const rp=r/pbr;
     // PBR 밴드 위치 (자료 구간 안에서 지금이 어디쯤인가)
@@ -7169,6 +7199,7 @@ function anlComment(){
     if(rp>=10) s+='자기자본 수익성 대비 주가가 <b>싼 편</b>입니다.';
     else if(rp>=5) s+='보통 수준입니다.';
     else s+='수익성 대비 주가가 <b>비싼 편</b>입니다.';
+    s+=` 이 값은 이익수익률(PER의 역수)과 같아, PER <b>약 ${rp>0?(100/rp).toFixed(1):'—'}배</b>에 해당합니다.`;
     P2.push(s+'</p>');
   }
   if(qk!=null){
@@ -7190,6 +7221,38 @@ function anlComment(){
       if(v<1) s+='성장률 대비 PER이 낮아 <b>저평가</b> 구간으로 봅니다.';
       else s+='성장률 대비 PER이 높습니다.';
       s+=' 다만 이익이 급증한 직후에는 값이 매우 작게 나오므로 <b>기저효과</b>를 함께 봐야 합니다.';
+      P2.push(s+'</p>');
+    }
+  }
+  // 저평가 종합 — PER·PBR·PEG·당좌비율을 한 문단으로
+  {
+    const pg=anlPegSeries();
+    const peg=pg ? [...pg].reverse().find(x=>x!=null) : null;
+    const rp=(pbr!=null&&r!=null&&pbr>0) ? r/pbr : null;
+    const cheap=[], rich=[];
+    if(per!=null&&per>0){ (per<=15?cheap:rich).push('PER '+per.toFixed(1)+'배'); }
+    if(pbr!=null){ (pbr<=1.5?cheap:rich).push('PBR '+pbr.toFixed(2)+'배'); }
+    if(peg!=null){ (peg<1?cheap:rich).push('PEG '+peg.toFixed(2)); }
+    if(cheap.length+rich.length>=2){
+      let s='<p style="border-top:1px solid var(--line);padding-top:8px;margin-top:9px"><b>종합</b> — ';
+      const n=cheap.length, tot=cheap.length+rich.length;
+      if(n===tot)      s+=`밸류에이션 지표 ${tot}개(${cheap.join(', ')})가 <b>모두 저평가</b> 쪽입니다.`;
+      else if(n===0)   s+=`밸류에이션 지표 ${tot}개(${rich.join(', ')})가 <b>모두 부담스러운</b> 수준입니다.`;
+      else             s+=`${tot}개 중 <b>${n}개</b>가 저평가 쪽입니다 — 싼 쪽: ${cheap.join(', ')} / 비싼 쪽: ${rich.join(', ')}.`;
+
+      // 수익성과 묶어서 읽기 (싼 데는 이유가 있는 경우가 많다)
+      if(r!=null){
+        if(n>=2 && r>=15) s+=' <b>ROE가 15%를 넘으면서 지표도 싼</b> 구간으로, 저평가 후보로 볼 만합니다.';
+        else if(n>=2 && r<8) s+=' 다만 ROE가 낮아, <b>싼 것이 아니라 못 버는 회사일 가능성</b>을 먼저 확인해야 합니다.';
+        else if(n===0 && r>=15) s+=' 다만 ROE가 높아 <b>비싼 값을 하는 회사</b>일 수 있습니다. 성장이 이어지는지가 관건입니다.';
+      }
+      if(rp!=null) s+=` 수익력 대비 가격(ROE÷PBR)은 <b>${rp.toFixed(1)}</b>입니다.`;
+      // 현금여력을 마지막에 붙여 매수 여력 판단으로 연결
+      if(qk!=null){
+        if(qk<70) s+=' 당좌비율이 낮아, 싸 보여도 <b>버틸 힘</b>을 함께 봐야 합니다.';
+        else if(qk>=150) s+=' 당좌비율도 넉넉해 재무적으로 여유가 있습니다.';
+      }
+      s+=' 저평가 판단은 <b>동종업계·과거 밴드</b>와 견줄 때 의미가 있습니다.';
       P2.push(s+'</p>');
     }
   }
