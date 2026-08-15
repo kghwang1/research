@@ -47,6 +47,12 @@ button,input,select,textarea{font:inherit}
 .hd .t{font-size:19px;font-weight:700}
 .hd .c{color:var(--tx3)}
 .hd .q{margin-left:auto;color:var(--tx3);font-size:11px}
+.enline{display:flex;align-items:center;gap:8px;margin:2px 0 0;flex-wrap:wrap}
+.enline .en{color:#8fb6ff;font-size:13px;letter-spacing:.2px}
+.enline .en.none{color:var(--tx3);font-style:italic}
+.enbtn{background:var(--panel2);border:1px solid var(--line);color:var(--tx2);
+  border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer}
+.enbtn:hover{color:var(--tx);border-color:#3a4150}
 .verdict{display:flex;align-items:center;gap:14px;background:var(--panel);
   border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:10px 0 14px}
 .verdict .big{font-size:38px;font-weight:800;line-height:1;letter-spacing:-1px}
@@ -161,9 +167,68 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
    자료: worker ?fin3=  ·  포트 목록: 부모창 chartPortRows()
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
-const K_ROWS='kg_long_rows', K_FUND='kg_long_funds';
-const BUILD='KG_LONG 2026-08-15d';
+const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en';
+const BUILD='KG_LONG 2026-08-15e';
 console.log(BUILD);
+
+/* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
+const EN_NAME={
+"005930":"Samsung Electronics","000660":"SK Hynix","373220":"LG Energy Solution",
+"207940":"Samsung Biologics","005380":"Hyundai Motor","000270":"Kia",
+"068270":"Celltrion","005490":"POSCO Holdings","035420":"NAVER","035720":"Kakao",
+"051910":"LG Chem","006400":"Samsung SDI","028260":"Samsung C&T","012330":"Hyundai Mobis",
+"105560":"KB Financial Group","055550":"Shinhan Financial Group","086790":"Hana Financial Group",
+"316140":"Woori Financial Group","138040":"Meritz Financial Group","032830":"Samsung Life Insurance",
+"000810":"Samsung Fire & Marine Insurance","001450":"Hyundai Marine & Fire Insurance",
+"005830":"DB Insurance","088350":"Hanwha Life Insurance","071050":"Korea Investment Holdings",
+"006800":"Mirae Asset Securities","039490":"Kiwoom Securities","016360":"Samsung Securities",
+"015760":"Korea Electric Power","036460":"Korea Gas","017670":"SK Telecom","030200":"KT",
+"032640":"LG Uplus","009150":"Samsung Electro-Mechanics","011070":"LG Innotek",
+"018260":"Samsung SDS","034730":"SK Inc","096770":"SK Innovation","011790":"SKC",
+"285130":"SK Chemicals","018670":"SK Gas","010950":"S-Oil","011170":"Lotte Chemical",
+"011780":"Kumho Petrochemical","009830":"Hanwha Solutions","000880":"Hanwha",
+"012450":"Hanwha Aerospace","272210":"Hanwha Systems","042660":"Hanwha Ocean",
+"047810":"Korea Aerospace Industries","064350":"Hyundai Rotem","079550":"LIG Nex1",
+"010140":"Samsung Heavy Industries","009540":"HD Korea Shipbuilding & Offshore Engineering",
+"329180":"HD Hyundai Heavy Industries","267250":"HD Hyundai","267260":"HD Hyundai Electric",
+"011200":"HMM","003490":"Korean Air","086280":"Hyundai Glovis","004020":"Hyundai Steel",
+"010130":"Korea Zinc","103140":"Poongsan","006260":"LS Corp","010120":"LS Electric",
+"298040":"Hyosung Heavy Industries","298000":"Hyosung TNC","298050":"Hyosung Advanced Materials",
+"112610":"CS Wind","000720":"Hyundai Engineering & Construction","028050":"Samsung E&A",
+"047040":"Daewoo Engineering & Construction","375500":"DL E&C","006360":"GS Engineering & Construction",
+"078930":"GS Holdings","007070":"GS Retail","139480":"Emart","004170":"Shinsegae",
+"282330":"BGF Retail","027410":"BGF","069960":"Hyundai Department Store",
+"001040":"CJ Corp","097950":"CJ CheilJedang","035760":"CJ ENM","051500":"CJ Freshway",
+"004990":"Lotte Corp","005300":"Lotte Chilsung Beverage","280360":"Lotte Wellfood",
+"032350":"Lotte Tour Development","271560":"Orion","033780":"KT&G","003230":"Samyang Foods",
+"004370":"Nongshim","001680":"Daesang","007310":"Ottogi","026960":"Dongsuh",
+"051900":"LG H&H","090430":"Amorepacific","161890":"Kolmar Korea","192820":"Cosmax",
+"383220":"F&F","081660":"Fila Holdings","120110":"Kolon Industries",
+"161390":"Hankook Tire & Technology","204320":"HL Mando","018880":"Hanon Systems",
+"011210":"Hyundai Wia","241560":"Doosan Bobcat","000150":"Doosan","034020":"Doosan Enerbility",
+"002380":"KCC","344820":"KCC Glass","014830":"Unid","010060":"OCI Holdings","456040":"OCI",
+"014680":"Hansol Chemical","093370":"Foosung","357780":"Soulbrain","178920":"PI Advanced Materials",
+"247540":"Ecopro BM","086520":"Ecopro","066970":"L&F","000990":"DB HiTek",
+"042700":"Hanmi Semiconductor","240810":"Wonik IPS","403870":"HPSP","058470":"Leeno Industrial",
+"039030":"EO Technics","222800":"Simmtech","178320":"Seojin System","095340":"ISC",
+"007660":"ISU Petasys","098460":"Koh Young Technology","272290":"Innox Advanced Materials",
+"095610":"TES","319660":"PSK","005290":"Dongjin Semichem","108320":"LX Semicon",
+"348210":"Nextin","140860":"Park Systems","214150":"Classys","039200":"Oscotec",
+"237690":"ST Pharm","128940":"Hanmi Pharm","000100":"Yuhan","069620":"Daewoong Pharmaceutical",
+"185750":"Chong Kun Dang","302440":"SK Bioscience","196170":"Alteogen","145020":"Hugel",
+"259960":"Krafton","251270":"Netmarble","036570":"NCSoft","078340":"Com2uS",
+"263750":"Pearl Abyss","293490":"Kakao Games","095660":"Neowiz","352820":"HYBE",
+"041510":"SM Entertainment","122870":"YG Entertainment","035900":"JYP Entertainment",
+"012750":"S-1","069260":"Huchems","091700":"Partron","353200":"Daeduck Electronics"
+};
+let enCustom = jload0(K_EN,{});
+function jload0(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } }
+function enOf(code){ return (enCustom[code]||EN_NAME[code]||'') }
+function setEn(code,v){
+  v=(v||'').trim();
+  if(v) enCustom[code]=v; else delete enCustom[code];
+  try{ localStorage.setItem(K_EN,JSON.stringify(enCustom)) }catch(e){}
+}
 
 let saved = jload(K_ROWS,[]);        // [{code,name,manual}]
 let funds = jload(K_FUND,{});        // {code:{name,prev,cur,dif}}
@@ -454,6 +519,11 @@ function renderMain(){
   m.innerHTML=`
   <div class="hd"><span class="t">${esc(c.name||cur)}</span><span class="c">${cur}</span>
     <span class="q">${BUILD}</span></div>
+  <div class="enline">
+    <span class="${enOf(cur)?'en':'en none'}" id="enTxt">${esc(enOf(cur)||'영문명 없음 — NBIM 검색용으로 넣어두세요')}</span>
+    <button id="enEdit" class="enbtn">✎ 영문명</button>
+    ${enOf(cur)?'<button id="enCopy" class="enbtn">복사</button>':''}
+  </div>
   <div class="verdict">
     <div class="big" style="color:${col}">${s.total}<small>/100</small></div>
     <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}
@@ -509,6 +579,18 @@ function renderMain(){
                     nps: np==='_'?null:(np==='1') });
     rescore(cur); renderList(); renderMain();
   });
+  const eb=document.getElementById('enEdit');
+  if(eb) eb.onclick=()=>{
+    const v=prompt('NBIM 검색에 쓸 영문 사명', enOf(cur)||'');
+    if(v===null) return;
+    setEn(cur,v); renderMain();
+  };
+  const ec=document.getElementById('enCopy');
+  if(ec) ec.onclick=async()=>{
+    const t=enOf(cur);
+    try{ await navigator.clipboard.writeText(t); ec.textContent='복사됨'; setTimeout(()=>ec.textContent='복사',1200); }
+    catch(e){ prompt('복사해서 NBIM 검색창에 붙여넣으세요', t); }
+  };
   document.getElementById('keepBtn').onclick=()=>{
     if(inSaved) saved=saved.filter(r=>r.code!==cur);
     else saved.push({code:cur,name:c.name||'',manual:manualOf(cur)});
