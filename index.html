@@ -804,6 +804,60 @@
 </style>
 </head>
 <body>
+<!-- ===== 시작 로딩 화면 ===== -->
+<div id="bootLoading">
+  <div class="bl-box">
+    <div class="bl-spin"></div>
+    <div class="bl-t">KG리서치보드</div>
+    <div class="bl-s" id="bootMsg">포트폴리오 정보를 불러오는 중…</div>
+  </div>
+</div>
+<style>
+#bootLoading{position:fixed;inset:0;z-index:100000;background:#0c0e14;
+  display:flex;align-items:center;justify-content:center;transition:opacity .3s}
+#bootLoading.off{opacity:0;pointer-events:none}
+#bootLoading .bl-box{text-align:center;color:#e6edf3;
+  font:14px/1.6 -apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif}
+#bootLoading .bl-spin{width:38px;height:38px;margin:0 auto 14px;border-radius:50%;
+  border:3px solid #262c38;border-top-color:#d4af00;animation:blspin .8s linear infinite}
+@keyframes blspin{to{transform:rotate(360deg)}}
+#bootLoading .bl-t{font-size:17px;font-weight:800;letter-spacing:-.3px}
+#bootLoading .bl-s{margin-top:5px;font-size:12px;color:#8b949e}
+</style>
+<script>
+/* 시작할 때 자료를 다 읽을 때까지 화면을 덮어 둔다.
+   조회(fetch)가 모두 끝나고 잠잠해지면 걷어낸다. 멈추는 일이 없도록 안전장치도 둔다. */
+(function(){
+  var ov=document.getElementById('bootLoading'), msg=document.getElementById('bootMsg');
+  if(!ov) return;
+  var started=0, done=0, idle=null, finished=false;
+  var orig=window.fetch;
+  if(typeof orig==='function'){
+    window.fetch=function(){
+      started++;
+      var p=orig.apply(this,arguments);
+      var settle=function(){ done++; if(msg&&!finished) msg.textContent='자료 '+done+' / '+started+' 불러오는 중…'; check(); };
+      try{ p.then(settle,settle); }catch(e){ settle(); }
+      return p;
+    };
+  }
+  function check(){
+    if(finished) return;
+    clearTimeout(idle);
+    idle=setTimeout(function(){ if(started>0 && done>=started) finish(); }, 500);
+  }
+  function finish(){
+    if(finished) return; finished=true;
+    clearTimeout(idle);
+    if(typeof orig==='function') window.fetch=orig;
+    ov.classList.add('off');
+    setTimeout(function(){ if(ov&&ov.parentNode) ov.parentNode.removeChild(ov); }, 350);
+  }
+  window.addEventListener('load', function(){ setTimeout(function(){ if(started===0) finish(); }, 800); });
+  setTimeout(finish, 15000);            // 서버가 느려도 15초 뒤에는 반드시 걷는다
+  window.bootLoadingDone=finish;        // 필요하면 코드에서 직접 닫을 수 있게
+})();
+</script>
 <header>
  <div class="wrap">
   <div class="brand">
@@ -3425,12 +3479,23 @@ async function refreshWatchAll(btn){
   if(btn){ btn.textContent='갱신 중…'; btn.disabled=true; }
   // 선정주: 다른 표의 관심·보유 목록을 다시 읽고 현재가만 새로 받는다
   if(watchPort==='invpf'){
+    // 메모리에 남은 옛 목록을 모두 버리고, 지금 포트에 체크된 종목만 남긴다
+    _WATCH_ROWS_watch = null; _WATCH_ROWS_invpf = null; WATCH_ROWS = null;
+    _SEL_VISIBLE = new Set();
+    const pg = selPurgeOrphans();
+    const n = selCountBy();
     selSyncRows();
     renderWatchTable();
     await fetchWatchLive(true);
     renderWatchTable();
     if(btn){ btn.textContent=old||'↻ 새로'; btn.disabled=false; }
-    toast('관심·보유 목록과 현재가를 다시 불러왔습니다 ('+(selAllRows().length)+'종목)');
+    if(pg.skipped){
+      toast(`${n.total}종목을 다시 불러왔습니다 · ${pg.skipped.join('·')} 표를 아직 안 열어 정리는 건너뜀`);
+    }else if(pg.removed){
+      toast(`포트에 없는 ${pg.removed}종목을 빼고 ${n.total}종목만 남겼습니다 (${pg.names.join(', ')}${pg.removed>pg.names.length?' 외':''})`);
+    }else{
+      toast(`관심 ${n.watch} · 보유 ${n.invest} · 추가 ${n.add} → ${n.total}종목을 다시 불러왔습니다`);
+    }
     return;
   }
   watchDataState='idle';
@@ -3507,6 +3572,32 @@ async function refreshOneWatch(code){
     }
   }catch(e){}
 }
+/* 해외 종합정보(?usinfos=)는 티커 8개씩 나눠 도느라 가장 느리다.
+   하루치를 캐시해 두고, 미국(체) 표가 이미 받아둔 값도 함께 쓴다. */
+const US_INFO_KEY='kg_usinfo_v1';
+let US_INFO={};
+(function(){ try{ const r=localStorage.getItem(US_INFO_KEY); if(r){ const o=JSON.parse(r);
+  if(o && o.date === new Date().toISOString().slice(0,10)) US_INFO=o.map||{}; } }catch(e){} })();
+function usInfoSave(){
+  try{ localStorage.setItem(US_INFO_KEY, JSON.stringify({date:new Date().toISOString().slice(0,10), map:US_INFO})); }catch(e){}
+}
+// 미국(체) 표가 이미 조회해 둔 시세·목표가를 선정주 저장소로 옮겨 담는다
+function usReuseFromUsc(tickers){
+  const got=new Set();
+  tickers.forEach(t=>{
+    const key='US:'+t, q=(typeof uscLive!=='undefined')?uscLive[t]:null;
+    if(q && q.price!=null){
+      watchLive[key]=q.priceStr||String(q.price);
+      if(q.rate!=null) watchRate[key]=q.rate;
+      if(q.high52!=null) watchHigh52[key]=String(q.high52);
+      got.add(t);
+    }
+    if(typeof uscTarget!=='undefined' && uscTarget[t]!=null) watchTarget[key]=uscTarget[t];
+    if(typeof uscCons!=='undefined' && uscCons[t]) { watchUsCons[key]=uscCons[t]; consPut(key, uscCons[t]); }
+  });
+  return got;
+}
+
 async function fetchWatchLive(fresh){
   watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={}; watchUsCons={};
   const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
@@ -3541,8 +3632,21 @@ async function fetchWatchLive(fresh){
   // 미국(해외) 종목 시세 조회 (US:티커 → 야후)
   const usCodes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^US:/i.test(rc)?rc.replace(/^US:/i,'').toUpperCase():''; }).filter(Boolean))];
   if(usCodes.length){
-    for(let i=0;i<usCodes.length;i+=CH){
-      const part=usCodes.slice(i,i+CH);
+    // ① 미국(체) 표가 이미 받아둔 값 먼저 쓰기
+    const reused = fresh ? new Set() : usReuseFromUsc(usCodes);
+    // ② 하루치 캐시에서 종합정보 채우기
+    if(!fresh) usCodes.forEach(t=>{
+      const u=US_INFO[t]; if(!u) return;
+      const key='US:'+t;
+      if(u.roe!=null) watchRoe[key]={roe:u.roe, period:u.period||'', prevRoe:null};
+      if(u.target!=null && watchTarget[key]==null) watchTarget[key]=u.target;
+      if(u.high52!=null && watchHigh52[key]==null) watchHigh52[key]=String(u.high52);
+      if(u.cons){ watchUsCons[key]=u.cons; consPut(key,u.cons); }
+      if(u.news) watchUsNews[key]=u.news;
+    });
+    const needQuote = usCodes.filter(t=>!reused.has(t));
+    for(let i=0;i<needQuote.length;i+=CH){
+      const part=needQuote.slice(i,i+CH);
       try{
         const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.join(','))+freshQ);
         const d=await r.json();
@@ -3551,21 +3655,31 @@ async function fetchWatchLive(fresh){
         } });
       }catch(e){}
     }
-    // 미국 종목 종합정보: ROE·52주최고가·목표가·뉴스 (네이버)
-    for(let i=0;i<usCodes.length;i+=8){
-      const part=usCodes.slice(i,i+8);
+    // ③ 종합정보(ROE·52주최고가·목표가·뉴스) — 캐시에 없는 티커만 조회
+    const needInfo = fresh ? usCodes : usCodes.filter(t=>!US_INFO[t]);
+    let infoNew=false;
+    for(let i=0;i<needInfo.length;i+=8){
+      const part=needInfo.slice(i,i+8);
       try{
         const r=await fetch(SRV_URL+'/?usinfos='+encodeURIComponent(part.join(',')));
         const d=await r.json();
-        ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const key='US:'+String(q.ticker||'').toUpperCase();
-          if(q.roe!=null) watchRoe[key]={roe:q.roe, period:'', prevRoe:null};
-          if(q.target!=null) watchTarget[key]=q.target;
-          if(q.high52!=null) watchHigh52[key]=String(q.high52);   // 네이버 종목페이지 우선
-          if(q.consStr||q.consScore!=null||q.consOpinion){ const o={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore, count:q.consCount}; watchUsCons[key]=o; consPut(key,o); }
-          if(q.newsTitle) watchUsNews[key]={title:q.newsTitle, link:q.newsLink||'', date:q.newsDate||''};
+        ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){
+          const tk=String(q.ticker||'').toUpperCase(), key='US:'+tk, save={};
+          if(q.roe!=null){ watchRoe[key]={roe:q.roe, period:'', prevRoe:null}; save.roe=q.roe; }
+          if(q.target!=null){ watchTarget[key]=q.target; save.target=q.target; }
+          if(q.high52!=null){ watchHigh52[key]=String(q.high52); save.high52=q.high52; }   // 네이버 종목페이지 우선
+          if(q.consStr||q.consScore!=null||q.consOpinion){
+            const o={str:q.consStr||'', opinion:q.consOpinion||'', score:q.consScore, count:q.consCount};
+            watchUsCons[key]=o; consPut(key,o); save.cons=o;
+          }
+          if(q.newsTitle){ const nw={title:q.newsTitle, link:q.newsLink||'', date:q.newsDate||''}; watchUsNews[key]=nw; save.news=nw; }
+          US_INFO[tk]=save; infoNew=true;
         } });
       }catch(e){}
+      // 조회가 길어지면 받은 만큼 먼저 보여준다
+      if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
     }
+    if(infoNew) usInfoSave();
   }
   saveWatchRows();
   if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
@@ -3760,7 +3874,8 @@ function renderWatchTable(){
     const ci = selReadRows('kg_invpf_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
     const ck=(id,lbl,on)=>`<label class="div-chk" style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-weight:500"><input type="checkbox" id="${id}"${on?' checked':''}><span>${lbl}</span></label>`;
     capFilter = ck('selKr','국내',selFilter.kr) + ck('selUs','국외',selFilter.us)
-              + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest);
+              + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest)
+              + `<span style="font-size:10.5px;color:#8b949e;margin-left:4px">관심 ${cw} · 보유 ${ci} · 추가 ${selReadRows('kg_addstk_rows').filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length}</span>`;
   }
   const capBtns = isSel
     ? {refresh:'watchDataBtn'}                                                       // 선정주: 새로고침만
@@ -4488,6 +4603,57 @@ function selWriteRows(key, rows, skipSync){
   if(key==='kg_watch_rows'){ _WATCH_ROWS_watch = rows; if(typeof watchPort!=='undefined' && watchPort!=='invpf') WATCH_ROWS = rows; }
   else if(key==='kg_invpf_rows'){ _WATCH_ROWS_invpf = rows; if(typeof watchPort!=='undefined' && watchPort==='invpf') WATCH_ROWS = rows; }
 }
+/* 지금 각 포트폴리오 표에 실제로 존재하는 종목 전체 (= 체크가 가능한 종목)
+   여기에 없는 종목은 어느 표에서도 체크를 풀 수 없는 '떠도는 종목'이다. */
+function selPortUniverse(){
+  const set=new Set();
+  const add=c=>{ c=String(c||'').trim(); if(c) set.add(c.toUpperCase()); };
+  try{ if(typeof KR_PF!=='undefined'&&KR_PF.rows) KR_PF.rows.forEach(r=>add(r[0])); }catch(e){}
+  try{ if(typeof INVEST_POOL!=='undefined') INVEST_POOL.forEach(r=>add(r.code)); }catch(e){}
+  try{ if(typeof INVEST_KQ_POOL!=='undefined') INVEST_KQ_POOL.forEach(r=>add(r.code)); }catch(e){}
+  try{ selReadRows('kg_addstk_rows').forEach(r=>add(Array.isArray(r)?r[0]:(r&&r.code))); }catch(e){}
+  try{ if(typeof USC_DATA!=='undefined') USC_DATA.forEach(r=>add('US:'+String(r[0]||'').toUpperCase())); }catch(e){}
+  try{ if(typeof VAL_DATA!=='undefined') VAL_DATA.forEach(r=>add('US:'+String(r[1]||'').toUpperCase())); }catch(e){}
+  try{ if(typeof KRETF_DATA!=='undefined') KRETF_DATA.forEach(r=>add(r[0])); }catch(e){}
+  try{ if(typeof USETF_DATA!=='undefined') USETF_DATA.forEach(r=>add('US:'+String(r[0]||'').toUpperCase())); }catch(e){}
+  try{ if(typeof DIV_ETF!=='undefined'&&typeof DIV_GROUPS!=='undefined') DIV_GROUPS.forEach(g=>{
+        (DIV_ETF[g.key].kr||[]).forEach(e=>add(e[0]));
+        (DIV_ETF[g.key].us||[]).forEach(e=>add('US:'+String(e[0]||'').toUpperCase())); }); }catch(e){}
+  try{ if(typeof CHART_IDX_ROWS!=='undefined') CHART_IDX_ROWS.forEach(r=>add(r[0])); }catch(e){}
+  return set;
+}
+/* 선정주를 비우고 '지금 포트폴리오에 체크된 종목'만 남긴다.
+   포트 자료가 아직 안 읽힌 상태면 멀쩡한 종목까지 지울 수 있으므로 하지 않는다. */
+function selPurgeOrphans(){
+  const need=[];
+  if(typeof investLoaded==='undefined'||!investLoaded) need.push('코스피200');
+  if(typeof investKqLoaded==='undefined'||!investKqLoaded) need.push('코스닥100');
+  if(need.length) return {skipped:need};
+  const uni=selPortUniverse();
+  if(uni.size<50) return {skipped:['포트 자료']};
+  const codeOf = r => String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim();
+  let removed=0; const names=[];
+  ['kg_watch_rows','kg_invpf_rows','kg_addstk_rows'].forEach(k=>{
+    const rows=selReadRows(k);
+    const keep=rows.filter(r=>{
+      const c=codeOf(r); if(!c) return false;                 // 빈 줄도 정리
+      if(uni.has(c.toUpperCase())) return true;
+      removed++; if(names.length<6) names.push((Array.isArray(r)?r[1]:'')||c);
+      return false;
+    });
+    if(keep.length!==rows.length) selWriteRows(k, keep, true);
+  });
+  return {removed, names};
+}
+
+// 선정주에 들어오는 종목이 어느 저장소에서 왔는지 개수로 확인
+function selCountBy(){
+  const cnt = key => selReadRows(key).filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length;
+  const o = { watch:cnt('kg_watch_rows'), invest:cnt('kg_invpf_rows'), add:cnt('kg_addstk_rows') };
+  o.total = selAllRows().length;
+  return o;
+}
+
 function selAllRows(){
   const map = new Map();  // key(code) → {code, name, isUS, watch, invest}
   const load = (key, flag) => {
@@ -8028,15 +8194,24 @@ function addStkAdd(code, name){
   if(ADD_ROWS.some(r=>String(r[0])===c)){ toast('이미 담긴 종목입니다: '+(name||c)); return; }
   ADD_ROWS.push([c, name||'']);
   saveAddRows();
+  // 담는 즉시 '관심'에도 체크된 상태로 넣는다 (선정주·분류 열에 바로 반영)
+  if(typeof inPort==='function' && !inPort('kg_watch_rows', c)){
+    togglePortMember('kg_watch_rows', c, name||'');
+  }
   renderAddStk();
   fetchAddStkData([c]);
-  toast('추가종목에 담았습니다: '+(name||c));
+  toast('추가종목에 담고 관심에도 체크했습니다: '+(name||c));
 }
 function addStkRemove(code){
   const c=String(code||'').replace(/[^0-9]/g,'');
   loadAddRows();
   ADD_ROWS = ADD_ROWS.filter(r=>String(r[0])!==c);
-  saveAddRows(); renderAddStk();
+  saveAddRows();
+  // 담을 때 함께 켰던 관심 체크도 되돌린다
+  if(typeof inPort==='function' && inPort('kg_watch_rows', c)){
+    togglePortMember('kg_watch_rows', c, '');
+  }
+  renderAddStk();
 }
 
 // 코스피200과 같은 소스(?symbols= ·?targets= ·?roes=)로 채운다
@@ -8110,7 +8285,7 @@ function renderAddStk(){
   const addBox = '<div class="isearch" style="position:relative;margin-top:6px;max-width:330px">'
     + '<input type="text" class="ainput" placeholder="＋ 종목 추가 — 종목명 또는 6자리 코드" autocomplete="off" '
     + 'style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:7px 9px;border-radius:6px;font-size:12px">'
-    + '<div class="aac" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:60;background:#161b22;border:1px solid #30363d;border-radius:6px;max-height:240px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.5)"></div></div>';
+    + '</div>';
   const bar='<caption class="inv-bar">'+pfMenuHtml({refresh:'addRefresh'})+addBox
           + `<span style="display:block;font-size:10.5px;color:#6e7681;margin-top:4px">${ADD_ROWS.length}종목 · 선정주에 관심으로 함께 나옵니다</span>`
           + '</caption>';
@@ -8193,11 +8368,39 @@ function renderAddStk(){
 }
 
 // 종목 추가 칸 — 검색 자동완성 + 6자리 코드 직접 입력
+//  추천 목록은 표(고정 헤더·고정 첫 열)에 가리므로 body 에 position:fixed 로 띄운다
+function addStkAcBox(){
+  let b=document.getElementById('addStkAc');
+  if(!b){
+    b=document.createElement('div');
+    b.id='addStkAc';
+    b.style.cssText='display:none;position:fixed;z-index:99999;background:#161b22;border:1px solid #30363d;'
+      + 'border-radius:8px;max-height:260px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.6)';
+    document.body.appendChild(b);
+  }
+  return b;
+}
+function addStkAcPlace(inp){
+  const b=addStkAcBox(), r=inp.getBoundingClientRect();
+  b.style.left=Math.round(r.left)+'px';
+  b.style.width=Math.round(r.width)+'px';
+  const below=window.innerHeight-r.bottom;
+  if(below<170 && r.top>below){          // 아래가 좁으면 위로 펼친다
+    b.style.top='auto'; b.style.bottom=Math.round(window.innerHeight-r.top+4)+'px';
+    b.style.maxHeight=Math.round(r.top-12)+'px';
+  }else{
+    b.style.bottom='auto'; b.style.top=Math.round(r.bottom+4)+'px';
+    b.style.maxHeight=Math.min(260, Math.round(below-12))+'px';
+  }
+}
 function bindAddStkInput(t){
   const inp=t.querySelector('input.ainput'); if(!inp) return;
-  const box=inp.parentNode.querySelector('.aac');
-  let timer=null;
-  const close=()=>{ if(box){ box.style.display='none'; box.innerHTML=''; } };
+  const box=addStkAcBox();
+  let timer=null, onMove=null;
+  const close=()=>{
+    box.style.display='none'; box.innerHTML='';
+    if(onMove){ window.removeEventListener('scroll', onMove, true); window.removeEventListener('resize', onMove); onMove=null; }
+  };
   inp.oninput=()=>{
     const v=inp.value.trim();
     if(timer) clearTimeout(timer);
@@ -8209,11 +8412,17 @@ function bindAddStkInput(t){
         const d=await r.json();
         const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d{6}$/.test(it.code)).slice(0,10);
         if(!items.length){ close(); return; }
-        box.innerHTML=items.map(it=>`<div class="aac-item" data-code="${it.code}" data-name="${escHtml(it.name)}" style="padding:8px 10px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21262d"><b>${escHtml(it.name)}</b> <span style="color:#8b949e">${it.code}</span></div>`).join('');
+        box.innerHTML=items.map(it=>`<div class="aac-item" data-code="${it.code}" data-name="${escHtml(it.name)}" style="padding:9px 11px;cursor:pointer;font-size:12.5px;color:#e6edf3;border-bottom:1px solid #21262d"><b>${escHtml(it.name)}</b> <span style="color:#8b949e">${it.code}</span></div>`).join('');
         box.querySelectorAll('.aac-item').forEach(el=>{
           el.onmousedown=ev=>{ ev.preventDefault(); addStkAdd(el.dataset.code, el.dataset.name); inp.value=''; close(); };
         });
         box.style.display='block';
+        addStkAcPlace(inp);
+        if(!onMove){
+          onMove=()=>{ if(box.style.display!=='none') addStkAcPlace(inp); };
+          window.addEventListener('scroll', onMove, true);
+          window.addEventListener('resize', onMove);
+        }
       }catch(e){}
     },250);
   };
