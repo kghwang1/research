@@ -4972,6 +4972,22 @@ async function myServerPut(loud){
   if(loud) toast('저장 실패: '+_myLastErr);
   return false;
 }
+/* 추가종목·장기 후보에 있는 종목은 '관심'에도 반드시 체크돼 있어야 한다.
+   서버에서 목록만 되돌아오는 경우(관심 목록은 별도 저장)에도 스스로 맞춘다. */
+function myEnsureWatch(){
+  const want=new Map();
+  const put=r=>{ const c=String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim();
+                 if(/^\d{6}$/.test(c)) want.set(c, (Array.isArray(r)?r[1]:(r&&r.name))||''); };
+  try{ selReadRows('kg_addstk_rows').forEach(put); }catch(e){}
+  try{ (typeof selLongRows==='function'?selLongRows():[]).forEach(put); }catch(e){}
+  if(!want.size) return 0;
+  let w=selReadRows('kg_watch_rows');
+  const has=c=>w.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim().toUpperCase()===c);
+  let added=0;
+  want.forEach((nm,c)=>{ if(!has(c.toUpperCase())){ w.push([c,nm]); added++; } });
+  if(added) selWriteRows('kg_watch_rows', w, true);
+  return added;
+}
 function myServerSave(delay){
   if(!_myLoaded) return;                        // 불러오기 전에는 덮어쓰지 않는다
   clearTimeout(_mySaveTimer);
@@ -4999,6 +5015,7 @@ async function myServerLoad(){
       if(typeof loadAddRows==='function') loadAddRows();
     }
   }catch(e){}
+  try{ myEnsureWatch(); }catch(e){}
   _myLoaded=true;
 }
 const SEL_LEGACY_KEYS = ['watch_portfolio', 'watch', 'invpf_portfolio'];  // 구버전 키
@@ -6113,6 +6130,7 @@ function drawFtrend(canvasId){
 // 토글 버튼
 document.addEventListener('DOMContentLoaded', () => {
   myServerLoad();   // 장기 후보·추가종목을 서버에서 먼저 받아온다 (기기 공유)
+  setTimeout(()=>{ try{ myEnsureWatch(); }catch(e){} }, 2500);   // 관심 체크 재확인
   loadIdx3();   // 시황 상단 코스피·코스닥·선물 비교 그래프
   anlInit();    // 분석 페이지 (종목 검색·재무 그래프·해석)
   // 분류 열 체크박스 (모든 포트 표 공통, 이벤트 위임)
@@ -7852,7 +7870,7 @@ function stkSetPort(p){ if(p && p!=='guide'){ STK.port=p; } }
 window.addEventListener('message', e=>{
   const d=e.data;
   if(!d) return;
-  if(d.kg==='sync'){ selRefreshIfOpen(); myServerSave(); return; }
+  if(d.kg==='sync'){ myEnsureWatch(); selRefreshIfOpen(); myServerSave(); return; }
   if(d.kg!=='stk') return;
   if(d.port) stkSetPort(d.port);
   if(d.code) stkSet(d.code, d.name);
@@ -8409,6 +8427,7 @@ function loadAddRows(){
 function saveAddRows(){
   try{ localStorage.setItem(ADD_KEY, JSON.stringify(ADD_ROWS)); }catch(e){}
   if(typeof selWriteRows==='function') selWriteRows(ADD_KEY, ADD_ROWS, true);
+  if(typeof myEnsureWatch==='function') myEnsureWatch();
   if(typeof myServerSave==='function') myServerSave();
 }
 function addStkAdd(code, name){
@@ -9202,6 +9221,7 @@ function openLongView(port, code){
 function closeLongView(keepTab){
   const ov=$('#longFullScreen'); if(!ov || ov.style.display==='none') return;
   ov.style.display='none';
+  myEnsureWatch();             // 장기 후보를 관심에도 반영
   selRefreshIfOpen();          // 장기투자에서 바뀐 후보를 선정주 표에 반영
   document.body.style.overflow='';
   if(keepTab) return;
