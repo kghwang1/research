@@ -4935,7 +4935,8 @@ function renderSelect(box){
 
 // ══════ 선정주 서버 저장/불러오기 (Cloudflare KV) ══════
 const SEL_SRV_KEY = 'selpf';                                  // 신규 통합 키
-const MY_SRV_KEY  = 'mylists';                                // 장기 후보 + 추가종목 (기기 공유)
+const MY_SRV_KEY  = 'mypf';                                   // 장기 후보 + 추가종목 (selpf·divpf 와 같은 이름 규칙)
+const MY_SRV_ALT  = ['mylists','my_lists'];                   // 예전에 쓰던 이름 (불러오기 때만 확인)
 
 /* 장기 후보(kg_long_rows·점수)와 추가종목(kg_addstk_rows)을 서버에 보관한다.
    담거나 뺄 때마다 자동 저장하고, 앱을 시작할 때 자동으로 불러온다. */
@@ -4946,25 +4947,34 @@ function myLocal(){
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{}, savedAt:new Date().toISOString() };
 }
 let _myLastErr='';
+async function myPutOnce(key, body, ct){
+  const r=await fetch(SRV_URL+'/?data='+key, {method:'POST', headers:{'Content-Type':ct}, body});
+  const txt=await r.text();
+  let d=null; try{ d=JSON.parse(txt); }catch(e){}
+  if(d&&d.ok) return {ok:true};
+  return {ok:false, why:(d&&(d.error||d.message)) || ('HTTP '+r.status+' '+txt.slice(0,120))};
+}
 async function myServerPut(loud){
   if(!SRV_URL){ if(loud) toast('서버 주소가 없습니다'); return false; }
   const body=JSON.stringify(myLocal());
-  try{
-    const r=await fetch(SRV_URL+'/?data='+MY_SRV_KEY, {
-      method:'POST', headers:{'Content-Type':'text/plain'}, body
-    });
-    const d=await r.json().catch(()=>null);
-    const ok=!!(d&&d.ok);
-    _myLastErr = ok ? '' : ((d&&d.error)||('HTTP '+r.status));
-    if(!ok) console.warn('mylists 저장 실패:', _myLastErr);
-    if(loud) toast(ok ? '서버에 저장했습니다 (장기종목·추가종목)' : '저장 실패: '+_myLastErr);
-    return ok;
-  }catch(e){
-    _myLastErr=e.message||String(e);
-    console.warn('mylists 저장 실패:', _myLastErr);
-    if(loud) toast('저장 실패: '+_myLastErr);
-    return false;
+  // 본문 형식·키 이름을 바꿔가며 시도한다 (worker 가 어느 조합을 받는지 확실치 않음)
+  const tries=[[MY_SRV_KEY,'text/plain'],[MY_SRV_KEY,'application/json'],['mylists','text/plain']];
+  let why='';
+  for(const [k,ct] of tries){
+    try{
+      const r=await myPutOnce(k, body, ct);
+      if(r.ok){
+        _myLastErr='';
+        if(loud) toast('서버에 저장했습니다 ('+k+')');
+        return true;
+      }
+      why = k+'/'+ct.split('/')[1]+' → '+r.why;
+    }catch(e){ why = k+' → '+(e.message||e); }
   }
+  _myLastErr=why;
+  console.warn('장기종목·추가종목 저장 실패:', why);
+  if(loud) toast('저장 실패: '+why);
+  return false;
 }
 function myServerSave(delay){
   if(!_myLoaded) return;                        // 불러오기 전에는 덮어쓰지 않는다
@@ -4986,7 +4996,8 @@ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState=
 async function myServerLoad(){
   if(!SRV_URL){ _myLoaded=true; return; }
   try{
-    const o = await selFetchKey(MY_SRV_KEY);
+    let o = await selFetchKey(MY_SRV_KEY);
+    if(!o){ for(const k of MY_SRV_ALT){ o = await selFetchKey(k); if(o) break; } }
     if(o){
       const put=(k,v)=>{ if(v!=null){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} } };
       if(Array.isArray(o.long))   put('kg_long_rows', o.long);
