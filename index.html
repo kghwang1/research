@@ -4935,8 +4935,10 @@ function renderSelect(box){
 
 // ══════ 선정주 서버 저장/불러오기 (Cloudflare KV) ══════
 const SEL_SRV_KEY = 'selpf';                                  // 신규 통합 키
-const MY_SRV_KEY  = 'mypf';                                   // 장기 후보 + 추가종목 (selpf·divpf 와 같은 이름 규칙)
-const MY_SRV_ALT  = ['mylists','my_lists'];                   // 예전에 쓰던 이름 (불러오기 때만 확인)
+/* worker 가 허용하지 않는 키(bad key)는 쓸 수 없으므로,
+   이미 허용된 selpf 안에 mylists 칸을 하나 만들어 함께 보관한다. */
+const MY_SRV_KEY  = SEL_SRV_KEY;      // = 'selpf'
+const MY_FIELD    = 'mylists';
 
 /* 장기 후보(kg_long_rows·점수)와 추가종목(kg_addstk_rows)을 서버에 보관한다.
    담거나 뺄 때마다 자동 저장하고, 앱을 시작할 때 자동으로 불러온다. */
@@ -4947,33 +4949,27 @@ function myLocal(){
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{}, savedAt:new Date().toISOString() };
 }
 let _myLastErr='';
-async function myPutOnce(key, body, ct){
-  const r=await fetch(SRV_URL+'/?data='+key, {method:'POST', headers:{'Content-Type':ct}, body});
-  const txt=await r.text();
-  let d=null; try{ d=JSON.parse(txt); }catch(e){}
-  if(d&&d.ok) return {ok:true};
-  return {ok:false, why:(d&&(d.error||d.message)) || ('HTTP '+r.status+' '+txt.slice(0,120))};
-}
 async function myServerPut(loud){
   if(!SRV_URL){ if(loud) toast('서버 주소가 없습니다'); return false; }
-  const body=JSON.stringify(myLocal());
-  // 본문 형식·키 이름을 바꿔가며 시도한다 (worker 가 어느 조합을 받는지 확실치 않음)
-  const tries=[[MY_SRV_KEY,'text/plain'],[MY_SRV_KEY,'application/json'],['mylists','text/plain']];
-  let why='';
-  for(const [k,ct] of tries){
-    try{
-      const r=await myPutOnce(k, body, ct);
-      if(r.ok){
-        _myLastErr='';
-        if(loud) toast('서버에 저장했습니다 ('+k+')');
-        return true;
-      }
-      why = k+'/'+ct.split('/')[1]+' → '+r.why;
-    }catch(e){ why = k+' → '+(e.message||e); }
-  }
-  _myLastErr=why;
-  console.warn('장기종목·추가종목 저장 실패:', why);
-  if(loud) toast('저장 실패: '+why);
+  try{
+    // 기존 selpf 내용을 읽어 관심·보유 목록을 지우지 않고 mylists 칸만 갈아끼운다
+    const cur = (await selFetchKey(MY_SRV_KEY)) || {};
+    cur[MY_FIELD] = myLocal();
+    cur.savedAt = new Date().toISOString();
+    const r = await fetch(SRV_URL+'/?data='+MY_SRV_KEY,
+      {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(cur)});
+    const txt = await r.text();
+    let d=null; try{ d=JSON.parse(txt); }catch(e){}
+    if(d && d.ok){
+      _myLastErr='';
+      if(loud) toast('서버에 저장했습니다 (장기종목 '+(cur[MY_FIELD].long||[]).length
+                    +' · 추가종목 '+(cur[MY_FIELD].add||[]).length+'종목)');
+      return true;
+    }
+    _myLastErr = (d&&(d.error||d.message)) || ('HTTP '+r.status+' '+txt.slice(0,120));
+  }catch(e){ _myLastErr = e.message||String(e); }
+  console.warn('장기종목·추가종목 저장 실패:', _myLastErr);
+  if(loud) toast('저장 실패: '+_myLastErr);
   return false;
 }
 function myServerSave(delay){
@@ -4985,19 +4981,15 @@ function myServerSave(delay){
 function myFlush(){
   if(!_myLoaded || !SRV_URL) return;
   clearTimeout(_mySaveTimer);
-  try{
-    const b=new Blob([JSON.stringify(myLocal())],{type:'text/plain'});
-    if(navigator.sendBeacon) navigator.sendBeacon(SRV_URL+'/?data='+MY_SRV_KEY, b);
-    else myServerPut(false);
-  }catch(e){}
+  myServerPut(false);          // 기존 내용을 읽어 합쳐야 하므로 일반 저장을 쓴다
 }
 window.addEventListener('pagehide', myFlush);
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') myFlush(); });
 async function myServerLoad(){
   if(!SRV_URL){ _myLoaded=true; return; }
   try{
-    let o = await selFetchKey(MY_SRV_KEY);
-    if(!o){ for(const k of MY_SRV_ALT){ o = await selFetchKey(k); if(o) break; } }
+    const box = await selFetchKey(MY_SRV_KEY);
+    const o = box && box[MY_FIELD];
     if(o){
       const put=(k,v)=>{ if(v!=null){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} } };
       if(Array.isArray(o.long))   put('kg_long_rows', o.long);
@@ -5013,12 +5005,14 @@ const SEL_LEGACY_KEYS = ['watch_portfolio', 'watch', 'invpf_portfolio'];  // 구
 
 async function selSaveToServer(btn){
   if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
+  const prev = (await selFetchKey(SEL_SRV_KEY)) || {};
   const payload = {
     watch:  selReadRows('kg_watch_rows'),
     invest: selReadRows('kg_invpf_rows'),
     grades: (typeof WATCH_GRADES!=='undefined' && WATCH_GRADES) ? [...WATCH_GRADES.entries()] : [],
     savedAt: new Date().toISOString()
   };
+  if(prev[MY_FIELD]) payload[MY_FIELD] = prev[MY_FIELD];   // 장기종목·추가종목 칸 보존
   const cnt = selAllRows().length;
   const old = btn ? btn.textContent : '';
   if(btn){ btn.textContent='저장 중…'; btn.disabled=true; }
@@ -9195,7 +9189,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=14';
+const LONG_URL='kg-long.html?v=15';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
