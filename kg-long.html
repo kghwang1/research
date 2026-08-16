@@ -17,8 +17,8 @@ body{background:var(--bg);color:var(--tx);
 button,input,select,textarea{font:inherit}
 .topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
   padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);min-height:44px}
-.topbar .t{font-size:17px;font-weight:800;letter-spacing:-.3px}
-.topbar .c{color:var(--tx3);font-size:12px}
+.topbar .t{font-size:20.6px;font-weight:800;letter-spacing:-.3px;color:#f2c800}
+.topbar .c{color:#f2c800;opacity:.75;font-size:13.2px;font-weight:700}
 .topbar .q{margin-left:auto;color:var(--tx3);font-size:11px}
 .wrap{display:flex;height:calc(100vh - 45px);overflow:hidden}
 
@@ -178,7 +178,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16j';
+const BUILD='KG_LONG 2026-08-16m';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -254,15 +254,20 @@ function tellParent(code,name){
 
 function jload(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } }
 function jsave(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
-function saveRows(){ jsave(K_ROWS, saved) }
+// 장기 후보는 장기목록에만 담는다 (관심·보유는 건드리지 않는다)
+function saveRows(){ jsave(K_ROWS, saved); notifyParent(); }
+function notifyParent(){
+  try{ if(window.parent&&window.parent!==window)
+    window.parent.postMessage({kg:'sync', what:'long'}, '*'); }catch(e){}
+}
 // 채점 결과를 저장해 두면 포트의 [선정주 → 장기종목] 표에 점수가 뜬다
 function saveScore(code){
   const c=cache[code]; if(!c||!c.score) return;
   const m=jload(K_SCORE,{});
   m[code]={ total:c.score.total, flags:c.score.flags.length>0, name:c.name||'', at:Date.now() };
-  jsave(K_SCORE,m);
+  jsave(K_SCORE,m); notifyParent();
 }
-function dropScore(code){ const m=jload(K_SCORE,{}); delete m[code]; jsave(K_SCORE,m); }
+function dropScore(code){ const m=jload(K_SCORE,{}); delete m[code]; jsave(K_SCORE,m); notifyParent(); }
 function manualOf(code){
   const s=saved.find(r=>r.code===code);
   if(s) return s.manual;
@@ -476,7 +481,7 @@ function verdictOf(t,flags){
 async function loadOne(code,name){
   let c=cache[code];
   if(c&&(c.loading||c.fin)) return c;
-  c=cache[code]={loading:true,name:name||''};
+  c=cache[code]={loading:true,name:name||savedName(code)||''};
   renderList(); if(cur===code) renderMain();
   try{
     let raw=parentFin3(code);
@@ -486,7 +491,7 @@ async function loadOne(code,name){
       raw=await r.json();
     }
     c.raw=raw;
-    c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||code;
+    c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||c.name||savedName(code)||code;
     c.fin=fillDerived(normalize(raw));
     if(!c.fin.roe&&!c.fin.debt&&!c.fin.per) throw new Error('재무 항목을 못 찾음');
     c.score=score(c.fin,manualOf(code));
@@ -562,14 +567,20 @@ function renderLongList(){
 let showList=false;
 
 /* 상단 바 — 종목명 · 검색창 · 장기종목 · 후보 담기 (화면 전체 폭) */
+function savedName(code){ const r=saved.find(x=>x.code===code); return r?r.name:'' }
+function listName(code){
+  const {out}=domesticOnly(srcRows());
+  const r=out.find(x=>x[0]===code); return r?r[1]:'';
+}
 function renderTop(){
   const tb=document.getElementById('topbar'); if(!tb) return;
   const old=document.getElementById('hq');
   const keepVal = old ? old.value : '';
   const hadFocus = old && document.activeElement===old;
   const c=cur?cache[cur]:null;
+  const nameOf = code => (cache[code]&&cache[code].name) || (savedName(code)) || listName(code) || code;
   const title = showList ? '장기종목'
-              : (c && (c.name||cur)) ? esc(c.name||cur) : '종목분석';
+              : cur ? esc(nameOf(cur)) : '종목분석';
   const inSaved = cur && saved.some(r=>r.code===cur);
   tb.innerHTML =
     `<span class="t">${title}</span>`
@@ -612,10 +623,6 @@ function renderMain(){
   const fr=(l,k,u)=>fin[k]?`<tr><td>${l}</td>${fin[k].map(v=>`<td>${fmt(v,u)}</td>`).join('')}</tr>`:'';
 
   m.innerHTML=`
-  <div class="hd"><span class="t">${esc(c.name||cur)}</span><span class="c">${cur}</span>
-    <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
-    <button id="longListBtn" class="enbtn" style="padding:4px 10px;font-size:12px">장기종목</button>
-    <span class="q">${BUILD}</span></div>
   <div class="enline">
     <span class="${enOf(cur)?'en':'en none'}" id="enTxt">${esc(enOf(cur)||'영문명 없음 — NBIM 검색용으로 넣어두세요')}</span>
     <button id="enEdit" class="enbtn">✎ 영문명</button>
