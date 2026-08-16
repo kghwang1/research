@@ -35,7 +35,7 @@ button,input,select,textarea{font:inherit}
 .hd2 .q{margin-left:auto;color:var(--tx3);font-size:11px}
 
 /* ---- 사이드 ---- */
-.side{width:222px;flex:0 0 222px;border-right:1px solid var(--line);
+.side{width:222px;min-width:90px;flex:0 0 222px;border-right:1px solid var(--line);
   background:var(--panel);display:flex;flex-direction:column;min-height:0}
 .sbox{padding:8px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
 .sbox .r{display:flex;gap:5px}
@@ -44,6 +44,12 @@ button,input,select,textarea{font:inherit}
 .sbox button{background:var(--acc);border:0;color:#fff;border-radius:4px;padding:5px 10px;cursor:pointer}
 .srcnote{color:var(--tx3);font-size:11px}
 .list{flex:1;overflow:auto;min-height:0}
+/* 좌우 경계 — 끌어서 폭 조절 */
+.rsz{flex:none;width:7px;cursor:col-resize;background:var(--panel);
+  border-right:1px solid var(--line);position:relative;touch-action:none;user-select:none}
+.rsz::before{content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
+  width:3px;height:44px;border-radius:2px;background:#4a525e}
+.rsz:hover::before,.rsz.on::before{background:var(--acc)}
 .item{display:flex;align-items:center;gap:6px;padding:7px 9px;border-bottom:1px solid #21252e;cursor:pointer}
 .item:hover{background:var(--panel2)}
 .item.on{background:#243049;border-left:3px solid var(--acc);padding-left:6px}
@@ -129,9 +135,9 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 .mfoot button{border:1px solid var(--line);background:var(--panel2);color:var(--tx2);border-radius:5px;padding:7px 14px;cursor:pointer}
 .mfoot button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
 @media(max-width:640px){
-  .wrap{flex-direction:column}
-  .side{width:100%;flex:0 0 auto;max-height:44vh;border-right:0;border-bottom:1px solid var(--line)}
+  .side{width:132px;flex:0 0 132px}     /* 좁아도 좌우 2단을 유지한다 */
   .two{grid-template-columns:1fr}
+  .main{padding:10px 10px 40px}
 }
 </style>
 </head>
@@ -161,6 +167,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
       <button id="reload">↻ 다시 계산</button>
     </div>
   </aside>
+  <div class="rsz" id="rsz" title="드래그해서 폭 조절"></div>
   <main class="main" id="main"></main>
 </div>
 
@@ -192,7 +199,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16q';
+const BUILD='KG_LONG 2026-08-16r';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -803,10 +810,42 @@ function pick(code,name){
   if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
 }
 (function(){
-  const tg=document.getElementById('sideToggle'), sd=document.getElementById('side');
+  const tg=document.getElementById('sideToggle'), sd=document.getElementById('side'), rz=document.getElementById('rsz');
   if(!tg||!sd) return;
-  const paint=()=>{ tg.classList.toggle('on', sd.style.display!=='none'); };
+  const paint=()=>{
+    const off = sd.style.display==='none';
+    if(rz) rz.style.display = off ? 'none' : 'block';
+    tg.classList.toggle('on', !off);
+  };
   tg.onclick=()=>{ sd.style.display = (sd.style.display==='none') ? 'flex' : 'none'; paint(); };
+
+  // 저장해 둔 폭 적용
+  const W_KEY='kg_long_side_w';
+  const w=parseInt(localStorage.getItem(W_KEY)||'',10);
+  if(w>=90 && w<=560){ sd.style.width=w+'px'; sd.style.flexBasis=w+'px'; }
+
+  if(rz){
+    let dragging=false;
+    const move=x=>{
+      const left=sd.getBoundingClientRect().left;
+      const nw=Math.max(90, Math.min(560, Math.round(x-left)));
+      sd.style.width=nw+'px'; sd.style.flexBasis=nw+'px';
+    };
+    const stop=()=>{
+      if(!dragging) return;
+      dragging=false; rz.classList.remove('on'); document.body.style.userSelect='';
+      try{ localStorage.setItem(W_KEY, parseInt(sd.style.width,10)||222); }catch(e){}
+    };
+    rz.addEventListener('mousedown', e=>{ dragging=true; rz.classList.add('on'); document.body.style.userSelect='none'; e.preventDefault(); });
+    document.addEventListener('mousemove', e=>{ if(dragging) move(e.clientX); });
+    document.addEventListener('mouseup', stop);
+    rz.addEventListener('touchstart', e=>{ dragging=true; rz.classList.add('on'); if(e.touches[0]) move(e.touches[0].clientX); e.preventDefault(); }, {passive:false});
+    rz.addEventListener('touchmove', e=>{ if(dragging&&e.touches[0]){ move(e.touches[0].clientX); e.preventDefault(); } }, {passive:false});
+    rz.addEventListener('touchend', stop);
+    rz.addEventListener('touchcancel', stop);
+    rz.addEventListener('dblclick', ()=>{ sd.style.width='222px'; sd.style.flexBasis='222px';
+      try{ localStorage.setItem(W_KEY,'222'); }catch(e){} });
+  }
   paint();
 })();
 document.getElementById('src').onchange=e=>{ src=e.target.value; cur=null; renderList(); renderMain() };
