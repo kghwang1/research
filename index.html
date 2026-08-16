@@ -3482,7 +3482,7 @@ async function refreshWatchAll(btn){
     // 메모리에 남은 옛 목록을 모두 버리고, 지금 포트에 체크된 종목만 남긴다
     _WATCH_ROWS_watch = null; _WATCH_ROWS_invpf = null; WATCH_ROWS = null;
     _SEL_VISIBLE = new Set();
-    const pg = selPurgeOrphans();
+    const pg = (selSub==='long') ? {removed:0, names:[]} : selPurgeOrphans();
     const n = selCountBy();
     selSyncRows();
     renderWatchTable();
@@ -3877,10 +3877,16 @@ function renderWatchTable(){
               + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest)
               + `<span style="font-size:10.5px;color:#8b949e;margin-left:4px">관심 ${cw} · 보유 ${ci} · 추가 ${selReadRows('kg_addstk_rows').filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length}</span>`;
   }
+  const subNav = isSel
+    ? '<span class="subnav" style="margin-right:8px">'
+      + `<button data-selsub="own"${selSub==='own'?' class="on"':''}>관심보유</button>`
+      + `<button data-selsub="long"${selSub==='long'?' class="on"':''}>장기종목</button>`
+      + '</span>'
+    : '';
   const capBtns = isSel
     ? {refresh:'watchDataBtn'}                                                       // 선정주: 새로고침만
     : {refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'};
-  let h='<caption class="kr-cap">'+capTitle+pfMenuHtml(capBtns, {checks:capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+capTitle+subNav+pfMenuHtml(capBtns, {checks: (isSel&&selSub==='long') ? '' : capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -4034,6 +4040,9 @@ function renderWatchTable(){
     sel.onchange=()=>{ if(sel.value) WATCH_GRADES.set(sel.dataset.code, parseInt(sel.value)); else WATCH_GRADES.delete(sel.dataset.code); saveWatchGrades(); sel.classList.toggle('neg', parseInt(sel.value)<0); };
   });
   // 초기화 (색칠된 종목은 보존)
+  t.querySelectorAll('.subnav button[data-selsub]').forEach(b=>{
+    b.onclick=()=>setSelSub(b.dataset.selsub);
+  });
   const rb=$('#watchResetBtn'); if(rb) rb.onclick=()=>{
     loadWatchRows();
     const kept=WATCH_ROWS.filter(r=>{
@@ -4682,7 +4691,29 @@ function selAllRows(){
 let _SEL_VISIBLE = new Set();   // 현재 표에 그려진 종목코드(대문자)
 
 // 필터를 적용한 통합 목록을 WATCH_ROWS 형식([[code,name],...])으로 만든다
+/* 선정주 하부 화면: own=관심·보유 / long=장기투자에서 담은 종목 */
+let selSub='own';
+function selLongRows(){
+  try{
+    const r=localStorage.getItem('kg_long_rows'); const a=r?JSON.parse(r):[];
+    if(!Array.isArray(a)) return [];
+    return a.map(x=>[String((x&&x.code)||''), (x&&x.name)||''])
+            .filter(x=>/^\d{6}$/.test(x[0]));
+  }catch(e){ return []; }
+}
+function setSelSub(v){
+  selSub = (v==='long') ? 'long' : 'own';
+  _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
+  selSyncRows(); renderWatchTable(); fetchWatchLive();
+}
+
 function selSyncRows(){
+  if(selSub==='long'){                       // 장기종목 — 장기투자에서 담은 후보
+    const rows=selLongRows();
+    _SEL_VISIBLE = new Set(rows.map(r=>String(r[0]).toUpperCase()));
+    WATCH_ROWS = rows; _WATCH_ROWS_invpf = rows;
+    return rows;
+  }
   const f = selFilter;
   const vis = selAllRows().filter(it => {
     if(it.isUS && !f.us) return false;
@@ -6945,7 +6976,7 @@ function anlInit(){
   const psel=$('#anlPortSel');
   if(psel && !psel._bound){
     psel._bound=true;
-    psel.onchange=()=>{ if(psel.value) anlLoadPort(psel.value); };
+    psel.onchange=()=>{ if(psel.value){ if(typeof stkSetPort==='function') stkSetPort(psel.value); anlLoadPort(psel.value); } };
   }
 
   anlSideInit();
@@ -6980,6 +7011,7 @@ function anlInit(){
 }
 
 async function anlPick(code, name){
+  if(typeof stkSet==='function') stkSet(code, name);
   ANL_CODE=code; ANL_NAME=name||code; ANL_HOVER=-1;
   const sug=$('#anlSuggest'); if(sug){ sug.innerHTML=''; sug.classList.remove('on'); }
   const inp=$('#anlInput'); if(inp) inp.value=ANL_NAME;
@@ -7609,11 +7641,13 @@ const FIN_GUIDE_HTML = `
 // 분석 화면을 열 때 목록이 비어 있으면 한국(체)를 기본으로 채운다
 function anlEnsureDefaultList(){
   if(ANL_LIST.length) return;                 // 표에서 넘어온 목록이 있으면 그대로 둔다
-  const psel=$('#anlPortSel'); if(psel) psel.value='kr';
-  anlLoadPort('kr');
+  const p=(typeof STK!=='undefined' && STK.port) ? STK.port : 'kr';
+  const psel=$('#anlPortSel'); if(psel) psel.value=p;
+  anlLoadPort(p, (typeof STK!=='undefined')?STK.code:'');
 }
 
-function anlLoadPort(mk){
+let ANL_PORT=null;      // 분석 좌측 목록이 어느 포트에서 왔는지
+function anlLoadPort(mk, wantCode){
   let rows=[];
   try{
     if(mk==='addstk'){
@@ -7634,7 +7668,10 @@ function anlLoadPort(mk){
   rows.forEach(r=>{ const c=String(r.code||'').replace(/[^0-9]/g,'');
     if(c.length===6 && !seen.has(c)){ seen.add(c); uniq.push({code:c, name:r.name||c}); } });
   anlSetList(uniq, mk);
-  if(uniq.length && !ANL_CODE) anlPick(uniq[0].code, uniq[0].name);
+  ANL_PORT=mk;
+  const want = wantCode && uniq.find(r=>r.code===String(wantCode));
+  if(want) anlPick(want.code, want.name);
+  else if(uniq.length && !ANL_CODE) anlPick(uniq[0].code, uniq[0].name);
   ensureFin3(uniq.slice(0,40).map(r=>r.code));
 }
 
@@ -7663,6 +7700,20 @@ function anlRenderList(filter){
     d.onclick=()=>anlPick(d.dataset.code, d.dataset.name);
   });
 }
+/* 종목분석 세 화면이 함께 쓰는 좌측 상태 (포트 + 고른 종목) */
+window.STK = { port:'kr', code:'', name:'' };
+function stkSet(code, name){
+  if(code){ STK.code=String(code); STK.name=name||''; }
+}
+function stkSetPort(p){ if(p && p!=='guide'){ STK.port=p; } }
+// 자식 창(kg-long.html)에서 고른 종목을 받는다
+window.addEventListener('message', e=>{
+  const d=e.data;
+  if(!d || d.kg!=='stk') return;
+  if(d.port) stkSetPort(d.port);
+  if(d.code) stkSet(d.code, d.name);
+});
+
 /* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자) ===== */
 function subPaint(which){
   $$('.subnav button').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
@@ -7670,6 +7721,7 @@ function subPaint(which){
   const st=$('#stkTabBtn'); if(st) st.classList.add('on');
 }
 function goSub(which){
+  // 세 화면이 같은 종목·포트를 이어받는다
   // 상위 화면으로 빠져나가기
   if(which==='home'||which==='port'){
     closeChartView(true); closeLongView(true); hubHide();
@@ -7685,10 +7737,10 @@ function goSub(which){
   }
   if(which==='chart'){
     closeLongView(true); hubHide();
-    openChartView();
+    openChartView(STK.port, STK.code, STK.name);
   }else if(which==='long'){
     closeChartView(true); hubHide();
-    openLongView();
+    openLongView(STK.port, STK.code);
   }else{                                   // 분석
     closeChartView(true); closeLongView(true);
     $$('section').forEach(x=>x.classList.remove('on'));
@@ -7697,7 +7749,9 @@ function goSub(which){
     document.body.style.overflow='';
     window.scrollTo(0,0);
     anlInit();
-    anlEnsureDefaultList();
+    if(STK.port && ANL_PORT!==STK.port) anlLoadPort(STK.port, STK.code);
+    else if(STK.code && ANL_CODE!==STK.code) anlPick(STK.code, STK.name);
+    else anlEnsureDefaultList();
   }
   subPaint(which);
 }
@@ -8919,7 +8973,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
   document.body.classList.remove('anl-mode');
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
   // 포트: 지정값 또는 기본(지수)
-  chartPort = initPort || 'idx';
+  chartPort = initPort || STK.port || 'kr';
   if(chartPort==='guide') chartPort='idx';        // 해석 화면을 남긴 채 종목을 열지 않도록
   if(typeof showChartGuide==='function') showChartGuide(false);
   // 표에서 넘어온 목록이 있으면 그 종목만, 없으면(홈→차트 등) 포트 전체
@@ -8952,8 +9006,8 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=6';
-function openLongView(){
+const LONG_URL='kg-long.html?v=7';
+function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
   document.body.style.overflow='hidden';
@@ -8962,7 +9016,11 @@ function openLongView(){
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
   const ifr=$('#longIframe');
-  if(ifr && (!ifr.src || ifr.src==='about:blank')) ifr.src=LONG_URL;
+  if(ifr){
+    const q = LONG_URL + '&port=' + encodeURIComponent(port||STK.port||'kr')
+            + (code ? '&code='+encodeURIComponent(code) : '');
+    if(!ifr.src || ifr.src==='about:blank' || ifr._q!==q){ ifr._q=q; ifr.src=q; }
+  }
 }
 function closeLongView(keepTab){
   const ov=$('#longFullScreen'); if(!ov || ov.style.display==='none') return;
@@ -9321,6 +9379,7 @@ function buildChartStockList(filter){
       if(ev.target && ev.target.closest && ev.target.closest('.cs-chks')) return;
       box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
       el.classList.add('on');
+      stkSet(el.dataset.code, el.dataset.name);
       const ifr=$('#chartIframe');
       if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name);
     };
@@ -9413,6 +9472,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // 포트폴리오 드롭다운 → 좌측 종목 목록 갱신 ('해석'이면 우측에 해설 표시)
   const ps=$('#chartPortSel'); if(ps){
     ps.onchange=()=>{
+      if(typeof stkSetPort==='function') stkSetPort(ps.value);
       chartPort=ps.value;
       chartRowsOverride=null;   // 사용자가 포트를 바꾸면 전체 목록으로
       if(chartPort==='guide'){ showChartGuide(true); return; }

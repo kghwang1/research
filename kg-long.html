@@ -169,7 +169,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en';
-const BUILD='KG_LONG 2026-08-16f';
+const BUILD='KG_LONG 2026-08-16g';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -235,6 +235,13 @@ let saved = jload(K_ROWS,[]);        // [{code,name,manual}]
 let funds = jload(K_FUND,{});        // {code:{name,prev,cur,dif}}
 const cache = {};                    // code -> {name,fin,raw,score,error,loading}
 let src='_saved', cur=null;
+const QS=new URLSearchParams(location.search);
+const Q_PORT=QS.get('port')||'', Q_CODE=(QS.get('code')||'').replace(/[^0-9]/g,'');
+// 부모창(종목분석)에 고른 종목을 알려 세 화면이 같은 종목을 보게 한다
+function tellParent(code,name){
+  try{ if(window.parent&&window.parent!==window)
+    window.parent.postMessage({kg:'stk', port:src.startsWith('_')?'':src, code, name}, '*'); }catch(e){}
+}
 
 function jload(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } }
 function jsave(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
@@ -500,8 +507,47 @@ function renderList(){
       ${src==='_saved'?`<span class="x" data-del="${esc(code)}">✕</span>`:''}</div>`;
   }).join('');
 }
+// 담아둔 장기 후보를 한눈에 (선정주의 [장기종목] 과 같은 목록)
+function renderLongList(){
+  const m=document.getElementById('main');
+  if(!saved.length){
+    m.innerHTML='<div class="msg">담아둔 장기종목이 없습니다.<br>종목을 채점한 뒤 <b>＋ 후보 담기</b>로 담으세요.</div>';
+    return;
+  }
+  const line=r=>{
+    const c=cache[r.code], s=c&&c.score;
+    const col=!s?'var(--tx3)':s.flags.length?'var(--bad)':s.total>=80?'var(--ok)':s.total>=65?'var(--warn)':'var(--tx3)';
+    const en=enOf(r.code);
+    return `<tr data-code="${esc(r.code)}" style="cursor:pointer">
+      <td style="text-align:left"><b>${esc(r.name||c&&c.name||r.code)}</b>
+        <span style="color:var(--tx3);font-size:11px"> ${esc(r.code)}</span>
+        ${en?`<div style="color:#8fb6ff;font-size:11px">${esc(en)}</div>`:''}</td>
+      <td style="color:${col};font-weight:700">${s?s.total:'…'}</td>
+      <td style="color:var(--tx2)">${s?(s.flags.length?'보류':s.total>=80?'후보':s.total>=65?'관찰':'제외'):''}</td>
+      <td style="color:var(--tx2)">${s?s.tD.max?s.tD.got+'/'+s.tD.max:'미확인':''}</td>
+    </tr>`;
+  };
+  m.innerHTML=`
+  <div class="hd"><span class="t">장기종목</span>
+    <span class="c">${saved.length}종목</span>
+    <button id="backScore" class="enbtn" style="padding:4px 10px;font-size:12px">종목 채점으로</button>
+    <span class="q">${BUILD}</span></div>
+  <div class="card" style="margin-top:10px"><div class="scroll">
+    <table class="fin"><thead><tr><th>종목</th><th>점수</th><th>판정</th><th>장기자금</th></tr></thead>
+    <tbody>${saved.map(line).join('')}</tbody></table></div></div>
+  <div class="hint" style="padding:10px 2px">줄을 누르면 그 종목의 채점 화면으로 갑니다.
+    이 목록은 포트의 <b>선정주 → 장기종목</b> 에도 그대로 나옵니다.</div>`;
+  m.querySelectorAll('tbody tr').forEach(tr=>{
+    tr.onclick=()=>{ showList=false; pick(tr.dataset.code, ''); };
+  });
+  const bs=document.getElementById('backScore');
+  if(bs) bs.onclick=()=>{ showList=false; renderMain(); };
+}
+
+let showList=false;
 function renderMain(){
   const m=document.getElementById('main');
+  if(showList){ renderLongList(); return; }
   if(!cur){ m.innerHTML='<div class="msg">왼쪽에서 종목을 고르세요.<br>포트폴리오를 바꾸면 그 목록이 그대로 나옵니다.</div>'; return }
   const c=cache[cur];
   if(!c||c.loading){ m.innerHTML='<div class="msg">'+cur+' 재무 받는 중…</div>'; return }
@@ -519,6 +565,7 @@ function renderMain(){
 
   m.innerHTML=`
   <div class="hd"><span class="t">${esc(c.name||cur)}</span><span class="c">${cur}</span>
+    <button id="longListBtn" class="enbtn" style="padding:4px 10px;font-size:12px">장기종목</button>
     <span class="q">${BUILD}</span></div>
   <div class="enline">
     <span class="${enOf(cur)?'en':'en none'}" id="enTxt">${esc(enOf(cur)||'영문명 없음 — NBIM 검색용으로 넣어두세요')}</span>
@@ -592,6 +639,8 @@ function renderMain(){
     try{ await navigator.clipboard.writeText(t); ec.textContent='복사됨'; setTimeout(()=>ec.textContent='복사',1200); }
     catch(e){ prompt('복사해서 NBIM 검색창에 붙여넣으세요', t); }
   };
+  const llb=document.getElementById('longListBtn');
+  if(llb) llb.onclick=()=>{ showList=true; renderMain(); };
   document.getElementById('keepBtn').onclick=()=>{
     if(inSaved) saved=saved.filter(r=>r.code!==cur);
     else saved.push({code:cur,name:c.name||'',manual:manualOf(cur)});
@@ -631,7 +680,7 @@ function buildFunds(){
 
 /* ---------- 이벤트 ---------- */
 function pick(code,name){
-  cur=code; renderList();
+  cur=code; renderList(); tellParent(code,name);
   const c=cache[code];
   if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
 }
@@ -665,7 +714,13 @@ document.getElementById('fClear').onclick=()=>{
   funds={}; jsave(K_FUND,funds); renderList(); renderMain();
 };
 
-renderList(); renderMain();
+// 종목분석에서 넘겨준 포트·종목으로 시작
+if(Q_PORT){
+  const sel=document.getElementById('src');
+  if([...sel.options].some(o=>o.value===Q_PORT)){ src=Q_PORT; sel.value=Q_PORT; }
+}
+renderList();
+if(Q_CODE){ pick(Q_CODE,''); } else { renderMain(); }
 saved.slice(0,20).forEach(r=>loadOne(r.code,r.name));
 </script>
 </body>
