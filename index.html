@@ -4945,17 +4945,44 @@ function myLocal(){
   return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{}, savedAt:new Date().toISOString() };
 }
-function myServerSave(delay){
-  if(!SRV_URL || !_myLoaded) return;            // 불러오기 전에는 덮어쓰지 않는다
-  clearTimeout(_mySaveTimer);
-  _mySaveTimer=setTimeout(async()=>{
-    try{
-      await fetch(SRV_URL+'/?data='+MY_SRV_KEY, {
-        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(myLocal())
-      });
-    }catch(e){}
-  }, delay===0?0:1200);                          // 연속 변경은 한 번만 보낸다
+let _myLastErr='';
+async function myServerPut(loud){
+  if(!SRV_URL){ if(loud) toast('서버 주소가 없습니다'); return false; }
+  const body=JSON.stringify(myLocal());
+  try{
+    const r=await fetch(SRV_URL+'/?data='+MY_SRV_KEY, {
+      method:'POST', headers:{'Content-Type':'text/plain'}, body
+    });
+    const d=await r.json().catch(()=>null);
+    const ok=!!(d&&d.ok);
+    _myLastErr = ok ? '' : ((d&&d.error)||('HTTP '+r.status));
+    if(!ok) console.warn('mylists 저장 실패:', _myLastErr);
+    if(loud) toast(ok ? '서버에 저장했습니다 (장기종목·추가종목)' : '저장 실패: '+_myLastErr);
+    return ok;
+  }catch(e){
+    _myLastErr=e.message||String(e);
+    console.warn('mylists 저장 실패:', _myLastErr);
+    if(loud) toast('저장 실패: '+_myLastErr);
+    return false;
+  }
 }
+function myServerSave(delay){
+  if(!_myLoaded) return;                        // 불러오기 전에는 덮어쓰지 않는다
+  clearTimeout(_mySaveTimer);
+  _mySaveTimer=setTimeout(()=>myServerPut(false), delay===0?0:1200);
+}
+// 창을 닫거나 화면을 벗어날 때 남은 변경을 확실히 보낸다
+function myFlush(){
+  if(!_myLoaded || !SRV_URL) return;
+  clearTimeout(_mySaveTimer);
+  try{
+    const b=new Blob([JSON.stringify(myLocal())],{type:'text/plain'});
+    if(navigator.sendBeacon) navigator.sendBeacon(SRV_URL+'/?data='+MY_SRV_KEY, b);
+    else myServerPut(false);
+  }catch(e){}
+}
+window.addEventListener('pagehide', myFlush);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') myFlush(); });
 async function myServerLoad(){
   if(!SRV_URL){ _myLoaded=true; return; }
   try{
@@ -8478,7 +8505,9 @@ function renderAddStk(){
     + '<input type="text" class="ainput" placeholder="＋ 종목 추가 — 종목명 또는 6자리 코드" autocomplete="off" '
     + 'style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:7px 9px;border-radius:6px;font-size:12px">'
     + '</div>';
-  const bar='<caption class="inv-bar">'+pfMenuHtml({refresh:'addRefresh'})+addBox
+  const myBtns = '<button id="myPut" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#3fb950;margin-right:5px">💾 서버 저장</button>'
+               + '<button id="myGet" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff">📥 서버 불러오기</button>';
+  const bar='<caption class="inv-bar">'+pfMenuHtml({refresh:'addRefresh'})+myBtns+addBox
           + `<span style="display:block;font-size:10.5px;color:#6e7681;margin-top:4px">${ADD_ROWS.length}종목 · 선정주에 관심으로 함께 나옵니다</span>`
           + '</caption>';
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
@@ -8555,6 +8584,11 @@ function renderAddStk(){
   t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code; if(c) openChart(c, td.dataset.name); }; });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('#addRefresh'); if(rfb) rfb.onclick=()=>refreshAddStk(rfb);
+  const mp=t.querySelector('#myPut'); if(mp) mp.onclick=()=>myServerPut(true);
+  const mg=t.querySelector('#myGet'); if(mg) mg.onclick=async()=>{
+    _myLoaded=false; await myServerLoad(); loadAddRows(); renderAddStk(); fetchAddStkData();
+    toast('서버에서 불러왔습니다 (추가 '+ADD_ROWS.length+'종목)');
+  };
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code;
     if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
 }
@@ -9150,7 +9184,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=13';
+const LONG_URL='kg-long.html?v=14';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';

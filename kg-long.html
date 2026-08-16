@@ -178,7 +178,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16m';
+const BUILD='KG_LONG 2026-08-16n';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -264,7 +264,9 @@ function notifyParent(){
 function saveScore(code){
   const c=cache[code]; if(!c||!c.score) return;
   const m=jload(K_SCORE,{});
-  m[code]={ total:c.score.total, flags:c.score.flags.length>0, name:c.name||'', at:Date.now() };
+  m[code]={ total:c.score.total, flags:c.score.flags.length>0, name:bestName(code)||c.name||'', at:Date.now() };
+  const row=saved.find(x=>x.code===code);
+  if(row && !row.name){ row.name=bestName(code)||''; jsave(K_ROWS, saved); }
   jsave(K_SCORE,m); notifyParent();
 }
 function dropScore(code){ const m=jload(K_SCORE,{}); delete m[code]; jsave(K_SCORE,m); notifyParent(); }
@@ -544,7 +546,7 @@ function renderLongList(){
     const col=!s?'var(--tx3)':s.flags.length?'var(--bad)':s.total>=80?'var(--ok)':s.total>=65?'var(--warn)':'var(--tx3)';
     const en=enOf(r.code);
     return `<tr data-code="${esc(r.code)}" style="cursor:pointer">
-      <td style="text-align:left"><b>${esc(r.name||c&&c.name||r.code)}</b>
+      <td style="text-align:left"><b>${esc(bestName(r.code)||r.code)}</b>
         <span style="color:var(--tx3);font-size:11px"> ${esc(r.code)}</span>
         ${en?`<div style="color:#8fb6ff;font-size:11px">${esc(en)}</div>`:''}</td>
       <td style="color:${col};font-weight:700">${s?s.total:'…'}</td>
@@ -567,7 +569,16 @@ function renderLongList(){
 let showList=false;
 
 /* 상단 바 — 종목명 · 검색창 · 장기종목 · 후보 담기 (화면 전체 폭) */
-function savedName(code){ const r=saved.find(x=>x.code===code); return r?r.name:'' }
+function savedName(code){
+  const r=saved.find(x=>x.code===code);
+  if(r&&r.name) return r.name;
+  try{ const m=jload(K_SCORE,{}); if(m[code]&&m[code].name) return m[code].name; }catch(e){}
+  return '';
+}
+function bestName(code){
+  return (cache[code]&&cache[code].name && cache[code].name!==code ? cache[code].name : '')
+      || savedName(code) || listName(code) || '';
+}
 function listName(code){
   const {out}=domesticOnly(srcRows());
   const r=out.find(x=>x[0]===code); return r?r[1]:'';
@@ -578,7 +589,7 @@ function renderTop(){
   const keepVal = old ? old.value : '';
   const hadFocus = old && document.activeElement===old;
   const c=cur?cache[cur]:null;
-  const nameOf = code => (cache[code]&&cache[code].name) || (savedName(code)) || listName(code) || code;
+  const nameOf = code => bestName(code) || code;
   const title = showList ? '장기종목'
               : cur ? esc(nameOf(cur)) : '종목분석';
   const inSaved = cur && saved.some(r=>r.code===cur);
@@ -599,7 +610,7 @@ function renderTop(){
   if(kb) kb.onclick=()=>{
     if(!cur) return;
     if(inSaved){ saved=saved.filter(r=>r.code!==cur); dropScore(cur); }
-    else { saved.push({code:cur,name:(cache[cur]&&cache[cur].name)||'',manual:manualOf(cur)}); saveScore(cur); }
+    else { saved.push({code:cur,name:bestName(cur)||'',manual:manualOf(cur)}); saveScore(cur); }
     saveRows(); renderList(); renderMain();
   };
 }
