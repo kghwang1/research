@@ -15,8 +15,16 @@ html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--tx);
   font:13px/1.5 -apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif}
 button,input,select,textarea{font:inherit}
-.wrap{display:flex;height:100vh;overflow:hidden}
-.sttl{font-size:12px;font-weight:700;color:#f2c800;letter-spacing:.5px}
+/* 위 줄: [종목] 버튼 + 포트폴리오 (분석 페이지와 같은 형식) */
+.lgtop{display:flex;align-items:center;gap:8px;padding:6px 10px;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.lgtop select{background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+  border-radius:6px;padding:5px 10px;font-size:12.5px;min-width:150px}
+.lgbtn{padding:4px 12px;border-radius:6px;border:1px solid #6e7681;
+  background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
+.lgbtn.on{background:#f2c800;border-color:#f2c800}
+.wrap{display:flex;height:calc(100vh - 40px);overflow:hidden}
+.side .hsearch{width:100%;box-sizing:border-box}
 /* 우측 머리 2줄 */
 .hd1,.hd2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .hd1{margin-bottom:3px}
@@ -128,11 +136,9 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <aside class="side">
-    <div class="sbox">
-      <div class="sttl">종목</div>
-      <select id="src">
+<div class="lgtop">
+  <button id="sideToggle" class="lgbtn">종목</button>
+  <select id="src">
         <option value="kr">한국(체)</option>
         <option value="_saved">장기 후보 (저장됨)</option>
         <option value="_funds">펀드 명부 — 지분 증가</option>
@@ -141,7 +147,12 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
         <option value="watch">관심</option>
         <option value="invest">코스피200</option>
         <option value="investkq">코스닥100</option>
-      </select>
+  </select>
+</div>
+<div class="wrap">
+  <aside class="side" id="side">
+    <div class="sbox">
+      <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
       <div class="srcnote" id="srcnote"></div>
     </div>
     <div class="list" id="list"></div>
@@ -181,7 +192,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16p';
+const BUILD='KG_LONG 2026-08-16q';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -594,25 +605,20 @@ function headHtml(){
   const inSaved = cur && saved.some(r=>r.code===cur);
   const en = cur ? enOf(cur) : '';
   return `<div class="hd1">
-    <span class="lb">종목이름 :</span>
     <span class="nm">${title}</span>
     ${cur&&!showList?`<span class="c">${cur}</span>`:''}
     ${showList?`<span class="c">${saved.length}종목</span>`:''}
     ${cur&&!showList?`<button id="keepBtn" class="enbtn" style="${inSaved?'':'background:var(--acc);border-color:var(--acc);color:#fff'}">${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>`:''}
-    <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
+    <button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>
   </div>
   <div class="hd2">
-    <span class="lb">영&nbsp;&nbsp;문 :</span>
     <span class="${en?'en':'en none'}" id="enTxt">${esc(en||'영문명 없음 — NBIM 검색용')}</span>
     ${cur?'<button id="enEdit" class="enbtn">✎</button>':''}
     ${en?'<button id="enCopy" class="enbtn">복사</button>':''}
-    <button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>
     <span class="q">${BUILD}</span>
   </div>`;
 }
-function bindHead(keepVal, hadFocus){
-  const nq=document.getElementById('hq');
-  if(nq && keepVal){ nq.value=keepVal; if(hadFocus){ nq.focus(); nq.setSelectionRange(keepVal.length,keepVal.length); } }
+function bindHead(){
   bindHeadSearch();
   const lb=document.getElementById('longListBtn');
   if(lb) lb.onclick=()=>{ showList=!showList; renderMain(); };
@@ -636,10 +642,7 @@ function bindHead(keepVal, hadFocus){
 
 function renderMain(){
   const m=document.getElementById('main');
-  const oldq=document.getElementById('hq');
-  const keepVal = oldq ? oldq.value : '';
-  const hadFocus = oldq && document.activeElement===oldq;
-  const done = body => { m.innerHTML = headHtml() + body; bindHead(keepVal, hadFocus); };
+  const done = body => { m.innerHTML = headHtml() + body; bindHead(); };
   if(showList){ renderLongList(done); return; }
   if(!cur){ done('<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'); return }
   const c=cache[cur];
@@ -799,6 +802,13 @@ function pick(code,name){
   const c=cache[code];
   if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
 }
+(function(){
+  const tg=document.getElementById('sideToggle'), sd=document.getElementById('side');
+  if(!tg||!sd) return;
+  const paint=()=>{ tg.classList.toggle('on', sd.style.display!=='none'); };
+  tg.onclick=()=>{ sd.style.display = (sd.style.display==='none') ? 'flex' : 'none'; paint(); };
+  paint();
+})();
 document.getElementById('src').onchange=e=>{ src=e.target.value; cur=null; renderList(); renderMain() };
 document.getElementById('list').onclick=e=>{
   const d=e.target.dataset.del;
@@ -825,6 +835,7 @@ if(Q_PORT){
   const sel=document.getElementById('src');
   if([...sel.options].some(o=>o.value===Q_PORT)){ src=Q_PORT; sel.value=Q_PORT; }
 }
+bindHeadSearch();
 renderList();
 if(Q_CODE){ pick(Q_CODE,''); } else { renderMain(); }
 saved.slice(0,20).forEach(r=>loadOne(r.code,r.name));
