@@ -709,6 +709,13 @@
   .subnav button:hover{color:var(--ink,#e6edf3)}
   .subnav button.on{background:var(--accent);border-color:var(--accent);color:#0d1117;font-weight:700}
   .subnav .subsep{width:1px;height:16px;background:var(--line);margin:0 3px}
+  /* 선정주 하부메뉴 — 종목분석 하부메뉴와 분리 */
+  .selnav{display:inline-flex;align-items:center;gap:4px;margin:0 8px 0 6px;vertical-align:middle}
+  .selnav button{background:transparent;border:1px solid var(--line);color:#8b949e;
+    border-radius:6px;padding:3px 11px;font-size:11.5px;cursor:pointer;white-space:nowrap;font-weight:600}
+  .selnav button:hover{color:#e6edf3}
+  .selnav button.on{background:var(--accent);border-color:var(--accent);color:#0d1117}
+  .selnav .selrfr{width:auto;color:#f0883e}
   .subnav button[data-sub="home"],.subnav button[data-sub="port"]{color:#8b949e}
   .anl-resize{flex:none;width:7px;cursor:col-resize;background:var(--panel);
     border-right:1px solid var(--line);position:relative;touch-action:none;user-select:none}
@@ -3702,6 +3709,21 @@ function watchCommit(idx, code, name){
 // 코드로 삭제 (정렬된 표에서 인덱스가 어긋나는 문제 방지)
 function watchDeleteByCode(code, idxFallback){
   const c=String(code||'').trim();
+  if(watchPort==='invpf' && selSub==='long'){
+    // 장기종목 표: 장기 후보 목록과 점수에서 뺀다
+    const k=c.toUpperCase();
+    try{
+      const r=localStorage.getItem('kg_long_rows'); const a=r?JSON.parse(r):[];
+      if(Array.isArray(a)) localStorage.setItem('kg_long_rows',
+        JSON.stringify(a.filter(x=>String((x&&x.code)||'').toUpperCase()!==k)));
+    }catch(e){}
+    try{
+      const m=longScoreMap(); delete m[c]; localStorage.setItem('kg_long_scores', JSON.stringify(m));
+    }catch(e){}
+    selSyncRows(); renderWatchTable(); myServerSave();
+    toast('장기종목 목록에서 뺐습니다');
+    return;
+  }
   if(watchPort==='invpf'){
     if(!c) return;
     const k=c.toUpperCase();
@@ -3883,14 +3905,16 @@ function renderWatchTable(){
               + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest)
               + `<span style="font-size:10.5px;color:#8b949e;margin-left:4px">관심 ${cw} · 보유 ${ci} · 추가 ${selReadRows('kg_addstk_rows').filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length}</span>`;
   }
+  // 관심보유 · 장기종목 · 새로고침 순서로 한 줄에 둔다
   const subNav = isSel
-    ? '<span class="subnav" style="margin-right:8px">'
-      + `<button data-selsub="own"${selSub==='own'?' class="on"':''}>관심보유</button>`
-      + `<button data-selsub="long"${selSub==='long'?' class="on"':''}>장기종목</button>`
+    ? '<span class="selnav">'
+      + `<button type="button" data-selsub="own"${selSub==='own'?' class="on"':''}>관심보유</button>`
+      + `<button type="button" data-selsub="long"${selSub==='long'?' class="on"':''}>장기종목</button>`
+      + '<button type="button" id="watchDataBtn" class="rfr selrfr">↻ 새로</button>'
       + '</span>'
     : '';
   const capBtns = isSel
-    ? {refresh:'watchDataBtn'}                                                       // 선정주: 새로고침만
+    ? {}                                                                             // 선정주: 새로고침은 위 줄로 옮김
     : {refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'};
   let h='<caption class="kr-cap">'+capTitle+subNav+pfMenuHtml(capBtns, {checks: (isSel&&selSub==='long') ? '' : capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
@@ -4049,8 +4073,8 @@ function renderWatchTable(){
     sel.onchange=()=>{ if(sel.value) WATCH_GRADES.set(sel.dataset.code, parseInt(sel.value)); else WATCH_GRADES.delete(sel.dataset.code); saveWatchGrades(); sel.classList.toggle('neg', parseInt(sel.value)<0); };
   });
   // 초기화 (색칠된 종목은 보존)
-  t.querySelectorAll('.subnav button[data-selsub]').forEach(b=>{
-    b.onclick=()=>setSelSub(b.dataset.selsub);
+  t.querySelectorAll('.selnav button[data-selsub]').forEach(b=>{
+    b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setSelSub(b.dataset.selsub); };
   });
   const rb=$('#watchResetBtn'); if(rb) rb.onclick=()=>{
     loadWatchRows();
@@ -4630,6 +4654,7 @@ function selPortUniverse(){
   try{ if(typeof INVEST_POOL!=='undefined') INVEST_POOL.forEach(r=>add(r.code)); }catch(e){}
   try{ if(typeof INVEST_KQ_POOL!=='undefined') INVEST_KQ_POOL.forEach(r=>add(r.code)); }catch(e){}
   try{ selReadRows('kg_addstk_rows').forEach(r=>add(Array.isArray(r)?r[0]:(r&&r.code))); }catch(e){}
+  try{ selLongRows().forEach(r=>add(r[0])); }catch(e){}   // 장기 후보도 지우지 않는다
   try{ if(typeof USC_DATA!=='undefined') USC_DATA.forEach(r=>add('US:'+String(r[0]||'').toUpperCase())); }catch(e){}
   try{ if(typeof VAL_DATA!=='undefined') VAL_DATA.forEach(r=>add('US:'+String(r[1]||'').toUpperCase())); }catch(e){}
   try{ if(typeof KRETF_DATA!=='undefined') KRETF_DATA.forEach(r=>add(r[0])); }catch(e){}
@@ -4910,6 +4935,42 @@ function renderSelect(box){
 
 // ══════ 선정주 서버 저장/불러오기 (Cloudflare KV) ══════
 const SEL_SRV_KEY = 'selpf';                                  // 신규 통합 키
+const MY_SRV_KEY  = 'mylists';                                // 장기 후보 + 추가종목 (기기 공유)
+
+/* 장기 후보(kg_long_rows·점수)와 추가종목(kg_addstk_rows)을 서버에 보관한다.
+   담거나 뺄 때마다 자동 저장하고, 앱을 시작할 때 자동으로 불러온다. */
+let _mySaveTimer=null, _myLoaded=false;
+function myLocal(){
+  const g=k=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null }catch(e){ return null } };
+  return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
+           add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{}, savedAt:new Date().toISOString() };
+}
+function myServerSave(delay){
+  if(!SRV_URL || !_myLoaded) return;            // 불러오기 전에는 덮어쓰지 않는다
+  clearTimeout(_mySaveTimer);
+  _mySaveTimer=setTimeout(async()=>{
+    try{
+      await fetch(SRV_URL+'/?data='+MY_SRV_KEY, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(myLocal())
+      });
+    }catch(e){}
+  }, delay===0?0:1200);                          // 연속 변경은 한 번만 보낸다
+}
+async function myServerLoad(){
+  if(!SRV_URL){ _myLoaded=true; return; }
+  try{
+    const o = await selFetchKey(MY_SRV_KEY);
+    if(o){
+      const put=(k,v)=>{ if(v!=null){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} } };
+      if(Array.isArray(o.long))   put('kg_long_rows', o.long);
+      if(o.scores && typeof o.scores==='object') put('kg_long_scores', o.scores);
+      if(Array.isArray(o.add))    put('kg_addstk_rows', o.add);
+      if(o.en && typeof o.en==='object') put('kg_long_en', o.en);
+      if(typeof loadAddRows==='function') loadAddRows();
+    }
+  }catch(e){}
+  _myLoaded=true;
+}
 const SEL_LEGACY_KEYS = ['watch_portfolio', 'watch', 'invpf_portfolio'];  // 구버전 키
 
 async function selSaveToServer(btn){
@@ -6019,6 +6080,7 @@ function drawFtrend(canvasId){
 
 // 토글 버튼
 document.addEventListener('DOMContentLoaded', () => {
+  myServerLoad();   // 장기 후보·추가종목을 서버에서 먼저 받아온다 (기기 공유)
   loadIdx3();   // 시황 상단 코스피·코스닥·선물 비교 그래프
   anlInit();    // 분석 페이지 (종목 검색·재무 그래프·해석)
   // 분류 열 체크박스 (모든 포트 표 공통, 이벤트 위임)
@@ -7729,17 +7791,30 @@ function stkSet(code, name){
   if(code){ STK.code=String(code); STK.name=name||''; }
 }
 function stkSetPort(p){ if(p && p!=='guide'){ STK.port=p; } }
-// 자식 창(kg-long.html)에서 고른 종목을 받는다
+// 자식 창(kg-long.html)에서 고른 종목·바뀐 목록을 받는다
 window.addEventListener('message', e=>{
   const d=e.data;
-  if(!d || d.kg!=='stk') return;
+  if(!d) return;
+  if(d.kg==='sync'){ selRefreshIfOpen(); myServerSave(); return; }
+  if(d.kg!=='stk') return;
   if(d.port) stkSetPort(d.port);
   if(d.code) stkSet(d.code, d.name);
 });
+// 다른 탭·프레임에서 목록이 바뀌면 선정주 표를 다시 그린다
+window.addEventListener('storage', e=>{
+  if(!e.key) return;
+  if(['kg_long_rows','kg_addstk_rows','kg_watch_rows','kg_invpf_rows','kg_long_scores'].includes(e.key))
+    selRefreshIfOpen();
+});
+function selRefreshIfOpen(){
+  if(typeof valMarket==='undefined' || valMarket!=='invpf') return;
+  _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
+  selSyncRows(); renderWatchTable(); fetchWatchLive();
+}
 
 /* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자) ===== */
 function subPaint(which){
-  $$('.subnav button').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
+  $$('.subnav button[data-sub]').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
   $$('.tab').forEach(x=>x.classList.remove('on'));
   const st=$('#stkTabBtn'); if(st) st.classList.add('on');
 }
@@ -7794,7 +7869,7 @@ function appChromeRestore(){
 }
 document.addEventListener('click', e=>{
   const b=e.target.closest('.subnav button');
-  if(b) goSub(b.dataset.sub);
+  if(b && b.dataset.sub) goSub(b.dataset.sub);   // 선정주 하부메뉴(.selnav)는 여기서 처리하지 않는다
 });
 
 // 종목 칸 — 접기/펴기 + 경계 끌어서 폭 조절
@@ -8273,6 +8348,7 @@ function loadAddRows(){
 function saveAddRows(){
   try{ localStorage.setItem(ADD_KEY, JSON.stringify(ADD_ROWS)); }catch(e){}
   if(typeof selWriteRows==='function') selWriteRows(ADD_KEY, ADD_ROWS, true);
+  if(typeof myServerSave==='function') myServerSave();
 }
 function addStkAdd(code, name){
   const c=String(code||'').replace(/[^0-9]/g,'');
@@ -9039,7 +9115,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=10';
+const LONG_URL='kg-long.html?v=12';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -9058,6 +9134,7 @@ function openLongView(port, code){
 function closeLongView(keepTab){
   const ov=$('#longFullScreen'); if(!ov || ov.style.display==='none') return;
   ov.style.display='none';
+  selRefreshIfOpen();          // 장기투자에서 바뀐 후보를 선정주 표에 반영
   document.body.style.overflow='';
   if(keepTab) return;
   $$('.tab').forEach(x=>x.classList.remove('on'));
