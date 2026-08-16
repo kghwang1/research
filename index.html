@@ -8510,10 +8510,8 @@ function renderAddStk(){
     + '<input type="text" class="ainput" placeholder="＋ 종목 추가 — 종목명 또는 6자리 코드" autocomplete="off" '
     + 'style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:7px 9px;border-radius:6px;font-size:12px">'
     + '</div>';
-  const myBtns = '<button id="myPut" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#3fb950;margin-right:5px">💾 서버 저장</button>'
-               + '<button id="myGet" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#58a6ff">📥 서버 불러오기</button>';
-  const bar='<caption class="inv-bar">'+pfMenuHtml({refresh:'addRefresh'})+myBtns+addBox
-          + `<span style="display:block;font-size:10.5px;color:#6e7681;margin-top:4px">${ADD_ROWS.length}종목 · 선정주에 관심으로 함께 나옵니다</span>`
+  const bar='<caption class="inv-bar">'+pfMenuHtml({refresh:'addRefresh', save:'myPut'})+addBox
+          + `<span style="display:block;font-size:10.5px;color:#6e7681;margin-top:4px">${ADD_ROWS.length}종목 · 담으면 관심에 체크되고 서버에 자동 저장됩니다</span>`
           + '</caption>';
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
@@ -8590,10 +8588,6 @@ function renderAddStk(){
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('#addRefresh'); if(rfb) rfb.onclick=()=>refreshAddStk(rfb);
   const mp=t.querySelector('#myPut'); if(mp) mp.onclick=()=>myServerPut(true);
-  const mg=t.querySelector('#myGet'); if(mg) mg.onclick=async()=>{
-    _myLoaded=false; await myServerLoad(); loadAddRows(); renderAddStk(); fetchAddStkData();
-    toast('서버에서 불러왔습니다 (추가 '+ADD_ROWS.length+'종목)');
-  };
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code;
     if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
 }
