@@ -15,7 +15,12 @@ html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--tx);
   font:13px/1.5 -apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif}
 button,input,select,textarea{font:inherit}
-.wrap{display:flex;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);min-height:44px}
+.topbar .t{font-size:17px;font-weight:800;letter-spacing:-.3px}
+.topbar .c{color:var(--tx3);font-size:12px}
+.topbar .q{margin-left:auto;color:var(--tx3);font-size:11px}
+.wrap{display:flex;height:calc(100vh - 45px);overflow:hidden}
 
 /* ---- 사이드 ---- */
 .side{width:222px;flex:0 0 222px;border-right:1px solid var(--line);
@@ -120,6 +125,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 </style>
 </head>
 <body>
+<div class="topbar" id="topbar"></div>
 <div class="wrap">
   <aside class="side">
     <div class="sbox">
@@ -172,7 +178,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16i';
+const BUILD='KG_LONG 2026-08-16j';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -524,7 +530,8 @@ function renderList(){
 function renderLongList(){
   const m=document.getElementById('main');
   if(!saved.length){
-    m.innerHTML='<div class="msg">담아둔 장기종목이 없습니다.<br>종목을 채점한 뒤 <b>＋ 후보 담기</b>로 담으세요.</div>';
+    m.innerHTML='<div class="msg">담아둔 장기종목이 없습니다.<br>종목을 채점한 뒤 <b>＋ 후보 담기</b>로 담으세요.'
+      +'<br>왼쪽 목록에서 종목을 고르면 채점 화면으로 돌아갑니다.</div>';
     return;
   }
   const line=r=>{
@@ -541,10 +548,6 @@ function renderLongList(){
     </tr>`;
   };
   m.innerHTML=`
-  <div class="hd"><span class="t">장기종목</span>
-    <span class="c">${saved.length}종목</span>
-    <button id="backScore" class="enbtn" style="padding:4px 10px;font-size:12px">종목 채점으로</button>
-    <span class="q">${BUILD}</span></div>
   <div class="card" style="margin-top:10px"><div class="scroll">
     <table class="fin"><thead><tr><th>종목</th><th>점수</th><th>판정</th><th>장기자금</th></tr></thead>
     <tbody>${saved.map(line).join('')}</tbody></table></div></div>
@@ -553,27 +556,52 @@ function renderLongList(){
   m.querySelectorAll('tbody tr').forEach(tr=>{
     tr.onclick=()=>{ showList=false; pick(tr.dataset.code, ''); };
   });
-  const bs=document.getElementById('backScore');
-  if(bs) bs.onclick=()=>{ showList=false; renderMain(); };
+
 }
 
 let showList=false;
+
+/* 상단 바 — 종목명 · 검색창 · 장기종목 · 후보 담기 (화면 전체 폭) */
+function renderTop(){
+  const tb=document.getElementById('topbar'); if(!tb) return;
+  const old=document.getElementById('hq');
+  const keepVal = old ? old.value : '';
+  const hadFocus = old && document.activeElement===old;
+  const c=cur?cache[cur]:null;
+  const title = showList ? '장기종목'
+              : (c && (c.name||cur)) ? esc(c.name||cur) : '종목분석';
+  const inSaved = cur && saved.some(r=>r.code===cur);
+  tb.innerHTML =
+    `<span class="t">${title}</span>`
+  + (cur&&!showList?`<span class="c">${cur}</span>`:'')
+  + (showList?`<span class="c">${saved.length}종목</span>`:'')
+  + `<input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">`
+  + `<button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>`
+  + (cur&&!showList?`<button id="keepBtn" class="enbtn" style="${inSaved?'':'background:var(--acc);border-color:var(--acc);color:#fff'}">${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>`:'')
+  + `<span class="q">${BUILD}</span>`;
+  const nq=document.getElementById('hq');
+  if(nq && keepVal){ nq.value=keepVal; if(hadFocus){ nq.focus(); nq.setSelectionRange(keepVal.length,keepVal.length); } }
+  bindHeadSearch();
+  const lb=document.getElementById('longListBtn');
+  if(lb) lb.onclick=()=>{ showList=!showList; renderMain(); };
+  const kb=document.getElementById('keepBtn');
+  if(kb) kb.onclick=()=>{
+    if(!cur) return;
+    if(inSaved){ saved=saved.filter(r=>r.code!==cur); dropScore(cur); }
+    else { saved.push({code:cur,name:(cache[cur]&&cache[cur].name)||'',manual:manualOf(cur)}); saveScore(cur); }
+    saveRows(); renderList(); renderMain();
+  };
+}
+
 function renderMain(){
+  renderTop();
   const m=document.getElementById('main');
   if(showList){ renderLongList(); return; }
-  const headBar = code => `<div class="hd">
-    <span class="t">${esc(code||'종목분석')}</span>
-    <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
-    <button id="longListBtn" class="enbtn" style="padding:4px 10px;font-size:12px">장기종목</button>
-    <span class="q">${BUILD}</span></div>`;
-  const shell = (code, body) => { m.innerHTML = headBar(code) + body; bindHeadSearch();
-    const b=document.getElementById('longListBtn'); if(b) b.onclick=()=>{ showList=true; renderMain(); }; };
-  if(!cur){ shell('', '<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'); return }
+  if(!cur){ m.innerHTML='<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'; return }
   const c=cache[cur];
-  if(!c||c.loading){ shell(cur, '<div class="msg">'+cur+' 재무 받는 중…</div>'); return }
-  if(c.error){ shell(cur, '<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'); return }
+  if(!c||c.loading){ m.innerHTML='<div class="msg">'+cur+' 재무 받는 중…</div>'; return }
+  if(c.error){ m.innerHTML='<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'; return }
   const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags), m0=manualOf(cur), f=funds[cur];
-  const inSaved=saved.some(r=>r.code===cur);
   const sec=(t,tl,list)=>`<div class="card"><h3>${t}<em>${tl.got} / ${tl.max||0}</em></h3><div class="rows">
     ${list.map(it=>`<div class="row"><span class="k">${it.k}</span><span class="v">${it.v}</span>
       <span class="p">${it.o.avail?it.o.p+'/'+it.max:'제외'}</span></div>
@@ -598,9 +626,6 @@ function renderMain(){
     <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}
       <br><span style="color:var(--tx3)">획득 ${s.got} / 가능 ${s.max}점 → 100점 환산${s.missing?' · 자료없는 '+s.missing+'개 항목 제외':''}</span></div></div>
     <div class="bar"><i style="width:${s.total}%;background:${col}"></i></div>
-    <button id="keepBtn" style="border:1px solid var(--line);background:${inSaved?'var(--panel2)':'var(--acc)'};
-      color:${inSaved?'var(--tx2)':'#fff'};border-radius:5px;padding:7px 12px;cursor:pointer">
-      ${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>
   </div>
   ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:''}
   <div class="grid">
@@ -659,14 +684,6 @@ function renderMain(){
     const t=enOf(cur);
     try{ await navigator.clipboard.writeText(t); ec.textContent='복사됨'; setTimeout(()=>ec.textContent='복사',1200); }
     catch(e){ prompt('복사해서 NBIM 검색창에 붙여넣으세요', t); }
-  };
-  bindHeadSearch();
-  const llb=document.getElementById('longListBtn');
-  if(llb) llb.onclick=()=>{ showList=true; renderMain(); };
-  document.getElementById('keepBtn').onclick=()=>{
-    if(inSaved){ saved=saved.filter(r=>r.code!==cur); dropScore(cur); }
-    else { saved.push({code:cur,name:c.name||'',manual:manualOf(cur)}); saveScore(cur); }
-    saveRows(); renderList(); renderMain();
   };
 }
 
@@ -754,6 +771,7 @@ function buildFunds(){
 
 /* ---------- 이벤트 ---------- */
 function pick(code,name){
+  showList=false;                       // 목록 화면에 갇히지 않고 채점 화면으로
   cur=code; renderList(); tellParent(code,name);
   const c=cache[code];
   if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
