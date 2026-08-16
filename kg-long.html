@@ -15,12 +15,16 @@ html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--tx);
   font:13px/1.5 -apple-system,BlinkMacSystemFont,"Malgun Gothic","맑은 고딕",sans-serif}
 button,input,select,textarea{font:inherit}
-.topbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line);min-height:44px}
-.topbar .t{font-size:20.6px;font-weight:800;letter-spacing:-.3px;color:#f2c800}
-.topbar .c{color:#f2c800;opacity:.75;font-size:13.2px;font-weight:700}
-.topbar .q{margin-left:auto;color:var(--tx3);font-size:11px}
-.wrap{display:flex;height:calc(100vh - 45px);overflow:hidden}
+.wrap{display:flex;height:100vh;overflow:hidden}
+.sttl{font-size:12px;font-weight:700;color:#f2c800;letter-spacing:.5px}
+/* 우측 머리 2줄 */
+.hd1,.hd2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hd1{margin-bottom:3px}
+.hd1 .lb,.hd2 .lb{color:var(--tx3);font-size:11.5px;flex:none}
+.hd1 .nm{font-size:20.6px;font-weight:800;letter-spacing:-.3px;color:#f2c800}
+.hd1 .c{color:#f2c800;opacity:.75;font-size:13.2px;font-weight:700}
+.hd2{margin-bottom:10px}
+.hd2 .q{margin-left:auto;color:var(--tx3);font-size:11px}
 
 /* ---- 사이드 ---- */
 .side{width:222px;flex:0 0 222px;border-right:1px solid var(--line);
@@ -60,9 +64,8 @@ button,input,select,textarea{font:inherit}
   box-shadow:0 8px 24px rgba(0,0,0,.6)}
 #hqAc .it{padding:9px 11px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21252e}
 #hqAc .it:hover{background:var(--panel2)}
-.enline{display:flex;align-items:center;gap:8px;margin:2px 0 0;flex-wrap:wrap}
-.enline .en{color:#8fb6ff;font-size:13px;letter-spacing:.2px}
-.enline .en.none{color:var(--tx3);font-style:italic}
+.hd2 .en{color:#8fb6ff;font-size:13px;letter-spacing:.2px}
+.hd2 .en.none{color:var(--tx3);font-style:italic}
 .enbtn{background:var(--panel2);border:1px solid var(--line);color:var(--tx2);
   border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer}
 .enbtn:hover{color:var(--tx);border-color:#3a4150}
@@ -125,17 +128,17 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 </style>
 </head>
 <body>
-<div class="topbar" id="topbar"></div>
 <div class="wrap">
   <aside class="side">
     <div class="sbox">
+      <div class="sttl">종목</div>
       <select id="src">
+        <option value="kr">한국(체)</option>
         <option value="_saved">장기 후보 (저장됨)</option>
         <option value="_funds">펀드 명부 — 지분 증가</option>
         <option value="invpf">선정주</option>
         <option value="addstk">추가종목</option>
         <option value="watch">관심</option>
-        <option value="kr">한국(체)</option>
         <option value="invest">코스피200</option>
         <option value="investkq">코스닥100</option>
       </select>
@@ -178,7 +181,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16n';
+const BUILD='KG_LONG 2026-08-16p';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -243,7 +246,7 @@ function setEn(code,v){
 let saved = jload(K_ROWS,[]);        // [{code,name,manual}]
 let funds = jload(K_FUND,{});        // {code:{name,prev,cur,dif}}
 const cache = {};                    // code -> {name,fin,raw,score,error,loading}
-let src='_saved', cur=null;
+let src='kr', cur=null;
 const QS=new URLSearchParams(location.search);
 const Q_PORT=QS.get('port')||'', Q_CODE=(QS.get('code')||'').replace(/[^0-9]/g,'');
 // 부모창(종목분석)에 고른 종목을 알려 세 화면이 같은 종목을 보게 한다
@@ -534,11 +537,11 @@ function renderList(){
   }).join('');
 }
 // 담아둔 장기 후보를 한눈에 (선정주의 [장기종목] 과 같은 목록)
-function renderLongList(){
+function renderLongList(done){
   const m=document.getElementById('main');
   if(!saved.length){
-    m.innerHTML='<div class="msg">담아둔 장기종목이 없습니다.<br>종목을 채점한 뒤 <b>＋ 후보 담기</b>로 담으세요.'
-      +'<br>왼쪽 목록에서 종목을 고르면 채점 화면으로 돌아갑니다.</div>';
+    done('<div class="msg">담아둔 장기종목이 없습니다.<br>종목을 채점한 뒤 <b>＋ 후보 담기</b>로 담으세요.'
+      +'<br>왼쪽 목록에서 종목을 고르면 채점 화면으로 돌아갑니다.</div>');
     return;
   }
   const line=r=>{
@@ -554,12 +557,12 @@ function renderLongList(){
       <td style="color:var(--tx2)">${s?s.tD.max?s.tD.got+'/'+s.tD.max:'미확인':''}</td>
     </tr>`;
   };
-  m.innerHTML=`
+  done(`
   <div class="card" style="margin-top:10px"><div class="scroll">
     <table class="fin"><thead><tr><th>종목</th><th>점수</th><th>판정</th><th>장기자금</th></tr></thead>
     <tbody>${saved.map(line).join('')}</tbody></table></div></div>
   <div class="hint" style="padding:10px 2px">줄을 누르면 그 종목의 채점 화면으로 갑니다.
-    이 목록은 포트의 <b>선정주 → 장기종목</b> 에도 그대로 나옵니다.</div>`;
+    이 목록은 포트의 <b>선정주 → 장기종목</b> 에도 그대로 나옵니다.</div>`);
   m.querySelectorAll('tbody tr').forEach(tr=>{
     tr.onclick=()=>{ showList=false; pick(tr.dataset.code, ''); };
   });
@@ -583,24 +586,31 @@ function listName(code){
   const {out}=domesticOnly(srcRows());
   const r=out.find(x=>x[0]===code); return r?r[1]:'';
 }
-function renderTop(){
-  const tb=document.getElementById('topbar'); if(!tb) return;
-  const old=document.getElementById('hq');
-  const keepVal = old ? old.value : '';
-  const hadFocus = old && document.activeElement===old;
-  const c=cur?cache[cur]:null;
-  const nameOf = code => bestName(code) || code;
-  const title = showList ? '장기종목'
-              : cur ? esc(nameOf(cur)) : '종목분석';
+/* 우측 머리 2줄
+   1줄: 종목이름 : 선택 종목명 · [＋후보 담기] · [종목 검색]
+   2줄: 종목이름 : 영문명 · [복사] · [장기종목] */
+function headHtml(){
+  const title = showList ? '장기종목' : (cur ? esc(bestName(cur)||cur) : '종목 미선택');
   const inSaved = cur && saved.some(r=>r.code===cur);
-  tb.innerHTML =
-    `<span class="t">${title}</span>`
-  + (cur&&!showList?`<span class="c">${cur}</span>`:'')
-  + (showList?`<span class="c">${saved.length}종목</span>`:'')
-  + `<input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">`
-  + `<button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>`
-  + (cur&&!showList?`<button id="keepBtn" class="enbtn" style="${inSaved?'':'background:var(--acc);border-color:var(--acc);color:#fff'}">${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>`:'')
-  + `<span class="q">${BUILD}</span>`;
+  const en = cur ? enOf(cur) : '';
+  return `<div class="hd1">
+    <span class="lb">종목이름 :</span>
+    <span class="nm">${title}</span>
+    ${cur&&!showList?`<span class="c">${cur}</span>`:''}
+    ${showList?`<span class="c">${saved.length}종목</span>`:''}
+    ${cur&&!showList?`<button id="keepBtn" class="enbtn" style="${inSaved?'':'background:var(--acc);border-color:var(--acc);color:#fff'}">${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>`:''}
+    <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
+  </div>
+  <div class="hd2">
+    <span class="lb">영&nbsp;&nbsp;문 :</span>
+    <span class="${en?'en':'en none'}" id="enTxt">${esc(en||'영문명 없음 — NBIM 검색용')}</span>
+    ${cur?'<button id="enEdit" class="enbtn">✎</button>':''}
+    ${en?'<button id="enCopy" class="enbtn">복사</button>':''}
+    <button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>
+    <span class="q">${BUILD}</span>
+  </div>`;
+}
+function bindHead(keepVal, hadFocus){
   const nq=document.getElementById('hq');
   if(nq && keepVal){ nq.value=keepVal; if(hadFocus){ nq.focus(); nq.setSelectionRange(keepVal.length,keepVal.length); } }
   bindHeadSearch();
@@ -609,20 +619,32 @@ function renderTop(){
   const kb=document.getElementById('keepBtn');
   if(kb) kb.onclick=()=>{
     if(!cur) return;
+    const inSaved=saved.some(r=>r.code===cur);
     if(inSaved){ saved=saved.filter(r=>r.code!==cur); dropScore(cur); }
     else { saved.push({code:cur,name:bestName(cur)||'',manual:manualOf(cur)}); saveScore(cur); }
     saveRows(); renderList(); renderMain();
   };
+  const eb=document.getElementById('enEdit');
+  if(eb) eb.onclick=()=>{ const v=prompt('NBIM 검색에 쓸 영문 사명', enOf(cur)||''); if(v===null) return; setEn(cur,v); renderMain(); };
+  const ec=document.getElementById('enCopy');
+  if(ec) ec.onclick=async()=>{
+    const t=enOf(cur);
+    try{ await navigator.clipboard.writeText(t); ec.textContent='복사됨'; setTimeout(()=>ec.textContent='복사',1200); }
+    catch(e){ prompt('복사해서 NBIM 검색창에 붙여넣으세요', t); }
+  };
 }
 
 function renderMain(){
-  renderTop();
   const m=document.getElementById('main');
-  if(showList){ renderLongList(); return; }
-  if(!cur){ m.innerHTML='<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'; return }
+  const oldq=document.getElementById('hq');
+  const keepVal = oldq ? oldq.value : '';
+  const hadFocus = oldq && document.activeElement===oldq;
+  const done = body => { m.innerHTML = headHtml() + body; bindHead(keepVal, hadFocus); };
+  if(showList){ renderLongList(done); return; }
+  if(!cur){ done('<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'); return }
   const c=cache[cur];
-  if(!c||c.loading){ m.innerHTML='<div class="msg">'+cur+' 재무 받는 중…</div>'; return }
-  if(c.error){ m.innerHTML='<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'; return }
+  if(!c||c.loading){ done('<div class="msg">'+cur+' 재무 받는 중…</div>'); return }
+  if(c.error){ done('<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'); return }
   const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags), m0=manualOf(cur), f=funds[cur];
   const sec=(t,tl,list)=>`<div class="card"><h3>${t}<em>${tl.got} / ${tl.max||0}</em></h3><div class="rows">
     ${list.map(it=>`<div class="row"><span class="k">${it.k}</span><span class="v">${it.v}</span>
@@ -633,12 +655,7 @@ function renderMain(){
   const cols=[]; for(let i=0;i<n;i++) cols.push(fin.period?(fin.period[i]||('Q'+(i+1))):('Q'+(i+1)));
   const fr=(l,k,u)=>fin[k]?`<tr><td>${l}</td>${fin[k].map(v=>`<td>${fmt(v,u)}</td>`).join('')}</tr>`:'';
 
-  m.innerHTML=`
-  <div class="enline">
-    <span class="${enOf(cur)?'en':'en none'}" id="enTxt">${esc(enOf(cur)||'영문명 없음 — NBIM 검색용으로 넣어두세요')}</span>
-    <button id="enEdit" class="enbtn">✎ 영문명</button>
-    ${enOf(cur)?'<button id="enCopy" class="enbtn">복사</button>':''}
-  </div>
+  done(`
   <div class="verdict">
     <div class="big" style="color:${col}">${s.total}<small>/100</small></div>
     <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}
@@ -678,7 +695,7 @@ function renderMain(){
     <div class="scroll"><table class="fin"><thead><tr><th>항목</th>${cols.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead>
     <tbody>${fr('ROE','roe','%')}${fr('영업이익률','opm','%')}${fr('순이익률','npm','%')}
     ${fr('부채비율','debt','%')}${fr('당좌비율','quick','%')}${fr('PER','per','')}${fr('PBR','pbr','')}</tbody></table></div></div>
-  <details class="dbg"><summary>원자료 보기</summary><pre>${esc(JSON.stringify(c.raw,null,1)).slice(0,20000)}</pre></details>`;
+  <details class="dbg"><summary>원자료 보기</summary><pre>${esc(JSON.stringify(c.raw,null,1)).slice(0,20000)}</pre></details>`);
 
   document.getElementById('m_nbim').value=(m0.nbim===null||m0.nbim===undefined)?'':String(m0.nbim);
   document.getElementById('m_act').value=(m0.active===null||m0.active===undefined)?'_':m0.active;
@@ -691,18 +708,6 @@ function renderMain(){
                     nps: np==='_'?null:(np==='1') });
     rescore(cur); renderList(); renderMain();
   });
-  const eb=document.getElementById('enEdit');
-  if(eb) eb.onclick=()=>{
-    const v=prompt('NBIM 검색에 쓸 영문 사명', enOf(cur)||'');
-    if(v===null) return;
-    setEn(cur,v); renderMain();
-  };
-  const ec=document.getElementById('enCopy');
-  if(ec) ec.onclick=async()=>{
-    const t=enOf(cur);
-    try{ await navigator.clipboard.writeText(t); ec.textContent='복사됨'; setTimeout(()=>ec.textContent='복사',1200); }
-    catch(e){ prompt('복사해서 NBIM 검색창에 붙여넣으세요', t); }
-  };
 }
 
 /* ---------- 우측 종목 검색 ---------- */
