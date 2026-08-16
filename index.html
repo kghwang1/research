@@ -6896,6 +6896,26 @@ async function pnlAutoFetch(silent){
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=0, investSortFrgn=false;
 let REPORT={}, reportLoading=false, reportCacheInit=false;
+/* 여러 묶음을 동시에(기본 4개씩) 처리한다. 하나씩 기다리던 것을 겹쳐 보내
+   코스피200·코스닥100 첫 조회 시간을 크게 줄인다. */
+async function pmap(items, limit, fn, onTick){
+  let idx=0, done=0;
+  const workers=Array.from({length:Math.min(limit,items.length)}, async()=>{
+    while(idx<items.length){
+      const my=idx++;
+      try{ await fn(items[my], my); }catch(e){}
+      done++; if(onTick) onTick(done, items.length);
+    }
+  });
+  await Promise.all(workers);
+}
+// 캐시 유효기간 — 무거운 순위 계산은 며칠 써도 된다 (현재가는 열 때마다 새로 받음)
+const INV_CACHE_DAYS = 5;
+function invCacheFresh(dateStr){
+  if(!dateStr) return false;
+  const d=new Date(dateStr+'T00:00:00'); if(isNaN(d)) return false;
+  return (Date.now()-d.getTime()) < INV_CACHE_DAYS*86400000;
+}
 function invToday(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 /* 투자종목: 현재가·등락률만 가볍게 실시간 갱신(한국 탭과 동일한 방식) — ROE·목표가 등 무거운 데이터는 그대로 캐시 사용 */
 async function refreshInvestPricesLive(){
@@ -6911,7 +6931,12 @@ async function refreshInvestPricesLive(){
         if(q&&q.ok&&q.price!=null){
           const c=String(q.symbol||'').replace('STK:','');
           const row=byCode[c];
-          if(row){ row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate; }
+          if(row){
+            row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate;
+            const pn=parseFloat(String(row.price).replace(/[^0-9.\-]/g,''));
+            const hn=parseFloat(String(row.hi||'').replace(/[^0-9.\-]/g,''));
+            if(isFinite(pn)&&isFinite(hn)&&hn>0) row.drop=(pn-hn)/hn*100;   // 낙폭 재계산
+          }
         }
       });
     }catch(e){}
@@ -6923,7 +6948,7 @@ function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; tr
 function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), map:REPORT})); }catch(e){} }
 function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.removeItem('inv_reports'); }catch(e){} renderInvest(); }
 function saveInvestCache(){ try{ localStorage.setItem('inv_pool', JSON.stringify({date:invToday(), rows:INVEST_POOL})); }catch(e){} }
-function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){
+function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&invCacheFresh(o.date)&&Array.isArray(o.rows)&&o.rows.length){
   // 컨센서스가 없던 시절의 캐시면 버리고 다시 받는다
   if(!o.rows.some(r=>r&&r.cons)) return false;
   INVEST_POOL=o.rows; consFromRows(INVEST_POOL); return true; } } }catch(e){} return false; }
@@ -8305,12 +8330,15 @@ async function loadInvest(){
   const price={},rate={},tgt={},hi={},cons={},nm={};
   uni.forEach(u=>{ if(u.name) nm[u.code]=u.name; });
   const CH=40;
-  for(let i=0;i<codes.length;i+=CH){
-    const part=codes.slice(i,i+CH);
-    try{ const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } }); }catch(e){}
-    try{ const r=await fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}; cons[c]=o; consPut(c,o); } } }); }catch(e){}
-    if(msg) msg.textContent='시세 조회 중… '+Math.min(i+CH,codes.length)+'/'+codes.length;
-  }
+  const parts=[]; for(let i=0;i<codes.length;i+=CH) parts.push(codes.slice(i,i+CH));
+  await pmap(parts, 4, async part=>{
+    const [pRes,tRes]=await Promise.all([
+      fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))).then(r=>r.json()).catch(()=>null),
+      fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))).then(r=>r.json()).catch(()=>null),
+    ]);
+    if(pRes&&pRes.items) pRes.items.forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } });
+    if(tRes&&tRes.items) tRes.items.forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}; cons[c]=o; consPut(c,o); } } });
+  }, (d,t)=>{ if(msg) msg.textContent='시세 조회 중… '+Math.min(d*CH,codes.length)+'/'+codes.length; });
   const all=codes.map(c=>{
     const p=parseFloat(String(price[c]||'').replace(/[^0-9.\-]/g,''));
     const h=parseFloat(String(hi[c]||'').replace(/[^0-9.\-]/g,''));
@@ -8320,11 +8348,12 @@ async function loadInvest(){
   all.sort((a,b)=>a.drop-b.drop);
   const pool=all.slice(0,100);
   const rm={};
-  for(let i=0;i<pool.length;i+=25){
-    const part=pool.slice(i,i+25);
-    if(msg) msg.textContent='ROE 불러오는 중… '+Math.min(i+25,pool.length)+'/'+pool.length;
-    try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); }catch(e){}
-  }
+  const rparts=[]; for(let i=0;i<pool.length;i+=25) rparts.push(pool.slice(i,i+25));
+  await pmap(rparts, 3, async part=>{
+    const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(',')));
+    const d=await r.json();
+    (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
+  }, (d,t)=>{ if(msg) msg.textContent='ROE 불러오는 중… '+Math.min(d*25,pool.length)+'/'+pool.length; });
   pool.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
   INVEST_POOL=pool; investLoaded=true; saveInvestCache();
   if(valMarket==='invest') renderInvest();
@@ -8616,15 +8645,22 @@ function refreshInvestKqPricesLive(){
       try{
         const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
         const d=await r.json();
-        (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); const row=INVEST_KQ_POOL.find(x=>x.code===c); if(row){ row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate; } } });
+        (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); const row=INVEST_KQ_POOL.find(x=>x.code===c);
+          if(row){
+            row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate;
+            const pn=parseFloat(String(row.price).replace(/[^0-9.\-]/g,''));
+            const hn=parseFloat(String(row.hi||'').replace(/[^0-9.\-]/g,''));
+            if(isFinite(pn)&&isFinite(hn)&&hn>0) row.drop=(pn-hn)/hn*100;   // 낙폭 재계산
+          } } });
       }catch(e){}
     }
+    try{ localStorage.setItem('inv_kq_pool', JSON.stringify({date:invToday(), rows:INVEST_KQ_POOL})); }catch(e){}
     if(valMarket==='investkq') renderInvestKq();
   })();
 }
 
 function loadInvestKqCache(){
-  try{ const raw=localStorage.getItem('inv_kq_pool'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&Array.isArray(o.rows)&&o.rows.length){
+  try{ const raw=localStorage.getItem('inv_kq_pool'); if(raw){ const o=JSON.parse(raw); if(o&&invCacheFresh(o.date)&&Array.isArray(o.rows)&&o.rows.length){
     // 컨센서스가 없던 시절의 캐시면 버리고 다시 받는다
     if(!o.rows.some(r=>r&&r.cons)) return false;
     INVEST_KQ_POOL=o.rows; consFromRows(INVEST_KQ_POOL); return true; } } }catch(e){}
@@ -8659,16 +8695,15 @@ async function loadInvestKq(){
   // 2) 시세 + 목표가/52주최고가 (병렬)
   const price={},rate={},tgt={},hi={},cons={};
   const CH=40;
-  for(let i=0;i<codes.length;i+=CH){
-    const part=codes.slice(i,i+CH);
-    if(msg) msg.textContent='코스닥 시세 조회… '+Math.min(i+CH,codes.length)+'/'+codes.length;
+  const kqParts=[]; for(let i=0;i<codes.length;i+=CH) kqParts.push(codes.slice(i,i+CH));
+  await pmap(kqParts, 4, async part=>{
     const [pRes,tRes]=await Promise.all([
       fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))).then(r=>r.json()).catch(()=>null),
       fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))).then(r=>r.json()).catch(()=>null),
     ]);
     if(pRes&&pRes.items) pRes.items.forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } });
     if(tRes&&tRes.items) tRes.items.forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}; cons[c]=o; consPut(c,o); } } });
-  }
+  }, (d,t)=>{ if(msg) msg.textContent='코스닥 시세 조회… '+Math.min(d*CH,codes.length)+'/'+codes.length; });
   // 3) 낙폭 계산 → 큰 순 30개
   const all=codes.map(c=>{
     const p=parseFloat(String(price[c]||'').replace(/[^0-9.\-]/g,''));
