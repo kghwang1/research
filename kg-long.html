@@ -89,8 +89,6 @@ button,input,select,textarea{font:inherit}
 .verdict .big small{font-size:14px;color:var(--tx3);font-weight:600}
 .verdict .lab{font-size:16px;font-weight:700}
 .verdict .sub{color:var(--tx2);font-size:12px;margin-top:3px}
-.bar{flex:1;min-width:100px;height:8px;background:#232833;border-radius:99px;overflow:hidden}
-.bar i{display:block;height:100%;border-radius:99px}
 .flags{margin:0 0 14px;padding:10px 12px;border-radius:6px;background:#2a1c1c;border:1px solid #4a2a28;color:#f0b3af}
 .flags b{color:#ff8b84}
 .flags ul{margin:5px 0 0;padding-left:18px}
@@ -199,7 +197,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16r';
+const BUILD='KG_LONG 2026-08-16s';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -670,7 +668,6 @@ function renderMain(){
     <div class="big" style="color:${col}">${s.total}<small>/100</small></div>
     <div><div class="lab" style="color:${col}">${lab}</div><div class="sub">${sub}
       <br><span style="color:var(--tx3)">획득 ${s.got} / 가능 ${s.max}점 → 100점 환산${s.missing?' · 자료없는 '+s.missing+'개 항목 제외':''}</span></div></div>
-    <div class="bar"><i style="width:${s.total}%;background:${col}"></i></div>
   </div>
   ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:''}
   <div class="grid">
