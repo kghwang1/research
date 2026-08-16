@@ -838,8 +838,8 @@
     <button id="anlSideToggle" class="anl-backbtn">종목</button>
     <select id="anlPortSel">
      <option value="">포트폴리오 선택</option>
+     <option value="kr" selected>한국(체)</option>
      <option value="invpf">선정주</option>
-     <option value="kr">한국(체)</option>
      <option value="invest">코스피200</option>
      <option value="investkq">코스닥100</option>
     </select>
@@ -2302,40 +2302,40 @@ const KRETF_CFG={
    현재가(라이브)·상승여력(계산)은 표시 시 추가됨 */
 const KR_PF={
   rows:[
-    ["005930","삼성전자",25.76,-4.94,"",""],
-    ["069500","KODEX 200",11.2,-2.3,"",""],
-    ["009150","삼성전기",9.19,3.99,"",""],
-    ["000660","SK하이닉스",7.11,-6.49,"",""],
-    ["396500","TIGER 반도체TOP10",3.38,-0.22,"",""],
-    ["252650","KODEX 200동일가중",2.3,2.3,"",""],
-    ["232080","TIGER 코스닥150",2.15,2.15,"",""],
-    ["001820","삼화콘덴서",1.9,1.9,"",""],
-    ["229200","KODEX 코스닥150",1.89,0.59,"",""],
-    ["005935","삼성전자우",1.6,-0.1,"",""],
-    ["494670","TIGER 조선TOP10",1.55,0.15,"",""],
-    ["058470","리노공업",1.55,0.15,"",""],
-    ["079550","LIG디펜스앤에어로스페이스",1.52,0.42,"",""],
-    ["237350","KODEX 코스피100",1.42,-0.08,"",""],
-    ["329180","HD현대중공업",1.31,0.31,"",""],
-    ["347770","파마리서치",1.24,0.14,"",""],
-    ["466920","SOL 조선TOP3플러스",1.23,0.63,"",""],
-    ["222800","심텍",1.19,1.19,"",""],
-    ["196170","알테오젠",1,1,"",""],
-    ["252990","샘씨엔에스",0.83,0.23,"",""],
-    ["091160","KODEX 반도체",0.79,-0.01,"",""],
-    ["","현금",0.76,-0.94,"",""],
-    ["031330","에스에이엠티",0.71,0.11,"",""],
-    ["131290","티에스이",0.71,0.11,"",""],
-    ["352820","하이브",0.71,0.71,"",""],
-    ["019210","와이지-원",0.7,0.1,"",""],
-    ["039030","이오테크닉스",0.7,0.1,"",""],
-    ["108490","로보티즈",0.7,0.2,"",""],
-    ["192080","더블유게임즈",0.66,0.06,"",""],
-    ["000810","삼성화재",0.65,0.05,"",""],
+    ["005930","삼성전자",22.56,-3.2,"",""],
+    ["009150","삼성전기",9.93,0.74,"",""],
+    ["069500","KODEX 200",9.27,-1.93,"",""],
+    ["000660","SK하이닉스",8.93,1.82,"",""],
+    ["108490","로보티즈",2.62,1.92,"",""],
+    ["396500","TIGER 반도체TOP10",2.57,-0.81,"",""],
+    ["001820","삼화콘덴서",2.29,0.39,"",""],
+    ["006400","삼성SDI",1.78,1.78,"",""],
+    ["079550","LIG디펜스앤에어로스페이스",1.73,0.21,"",""],
+    ["005935","삼성전자우",1.51,-0.09,"",""],
+    ["102970","KODEX 증권",1.5,1.5,"",""],
+    ["058470","리노공업",1.48,-0.07,"",""],
+    ["039490","키움증권",1.43,1.43,"",""],
+    ["229200","KODEX 코스닥150",1.43,-0.46,"",""],
+    ["494670","TIGER 조선TOP10",1.41,-0.14,"",""],
+    ["237350","KODEX 코스피100",1.41,-0.01,"",""],
+    ["222800","심텍",1.33,0.14,"",""],
+    ["232080","TIGER 코스닥150",1.26,-0.89,"",""],
+    ["466920","SOL 조선TOP3플러스",1.21,-0.02,"",""],
+    ["329180","HD현대중공업",1.17,-0.14,"",""],
+    ["347770","파마리서치",1.16,-0.08,"",""],
+    ["006800","미래에셋증권",1.07,1.07,"",""],
+    ["091160","KODEX 반도체",0.82,0.03,"",""],
+    ["252990","샘씨엔에스",0.82,-0.01,"",""],
+    ["131290","티에스이",0.79,0.08,"",""],
+    ["039030","이오테크닉스",0.77,0.07,"",""],
+    ["067310","하나마이크론",0.7,0.7,"",""],
+    ["084370","유진테크",0.66,0.66,"",""],
+    ["023530","롯데쇼핑",0.66,0.66,"",""],
+    ["107640","한중엔시에스",0.64,0.64,"",""],
   ],
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
-const KR_LABEL = "8월 7일 포트폴리오 (MP 30위)";  // 한국 표 상단 라벨(매달 갱신)
+const KR_LABEL = "8월 14일 포트폴리오 (MP 30위)";  // 한국 표 상단 라벨(매달 갱신)
 const US_LABEL = "기준일 : 8월 8일 (전체 반영)";  // 미국(반) 표 상단 라벨
 let valMarket='us', VAL=[];
 function krExtraLoad(){ try{ const r=localStorage.getItem('kg_kr_extra'); const a=r?JSON.parse(r):[]; return Array.isArray(a)?a:[]; }catch(e){ return []; } }
@@ -2419,7 +2419,7 @@ const VAL_NOTES={
  usc:'• 비중·변동: MP 분석 자료(수동 갱신).  • 현재가·목표가·52주최고가: 실시간 시세/컨센서스.  • 상승여력: 현재가 기준 자동 계산.  • 기록: 직접 입력(보존).',
  etf:'• 비중: 직접 관리값(수동 갱신).  • 현재가·등락률: 네이버/야후 실시간 시세.  한국·미국 ETF를 한 화면에 모아 봅니다.',
  watch:'• 관심 종목을 직접 입력합니다.  • 종목코드 6자리를 입력하면 종목명·현재가·52주최고가·외국인·목표가·보고서가 한국 포트폴리오와 동일하게 자동으로 채워집니다.  • 마지막 줄에 입력하면 새 입력 줄이 자동 추가됩니다.  • ✕ 를 눌러 종목을 삭제할 수 있습니다.',
- invpf:'• 관심·투자에 담긴 종목을 한 표로 모아 보여줍니다.  • 분류 열의 ☐관심 ☐투자 체크로 소속을 바꾸고, 위 필터(국내/국외/관심/투자)로 원하는 것만 볼 수 있습니다.  • 상단 검색창으로 종목을 추가하면 관심에 담깁니다.  • 💾 저장 / 📥 불러오기로 목록을 서버에 보관해 다른 기기와 공유합니다.',
+ invpf:'• 관심·투자에 담긴 종목을 한 표로 모아 보여줍니다.  • 분류 열의 ☐관심 ☐투자 체크로 소속을 바꾸고, 위 필터(국내/국외/관심/투자)로 원하는 것만 볼 수 있습니다.  • 종목 추가는 다른 표에서 ☐관심 을 체크해 담습니다.',
  caution:'• 한국(체)·코스피200·코스닥100 구성 종목 중 외국인이 최근 2일 이상 연속 순매도한 종목을 자동 수집합니다.  • 탭 진입 시 자동으로 수집하며, 순매도 일수가 많은 순으로 정렬됩니다.  • ROE 필터와 외국인 정렬 기능을 사용할 수 있습니다.',
  invest:'수집·계산 과정\n• 모집단: 네이버 코스피 시가총액 상위 200종목.\n• 낙폭: (현재가−52주최고가)/52주최고가 — 큰 순으로 상위 50을 추려 ROE 조회.\n• ROE: 네이버 재무(분기) 최근값 + 전분기 대비 증감. 기준은 ROE 필터(전체/5/10/상승).\n• 외국인: 네이버 외국인 순매매 최근 5거래일(★=순매수, 과거→최근). 장 마감(18:30) 기준 1일 저장.\n• 목표가: 네이버 증권사 컨센서스 → 상승여력 자동 계산.\n• 보고서: 네이버 종목분석 최근 1건(제목·발표일·분야 자동분류, 원문 링크). 1일 저장.\n• 시세·ROE·외국인·보고서는 하루 1회 수집, ↻ 새로고침 시 다시 수집합니다.'
 };
@@ -3295,14 +3295,16 @@ function consCell(key){
 let watchSortFrgn=false, watchRoeMin=0;
 
 function loadWatchRows(){
-  if(watchPort==='invpf'){ if(!WATCH_ROWS) selSyncRows(); return WATCH_ROWS; }
+  if(watchPort==='invpf'){ return selSyncRows(); }   // 늘 관심·투자 목록에서 새로 만든다
   if(WATCH_ROWS) return WATCH_ROWS;
   try{ const raw=localStorage.getItem(watchKeyRows()); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)) WATCH_ROWS=a; } }catch(e){}
   if(!WATCH_ROWS || !WATCH_ROWS.length) WATCH_ROWS=[['',''],['','']]; // 초기 2줄
   return WATCH_ROWS;
 }
 function saveWatchRows(){
-  if(watchPort==='invpf'){ selSplitSave(); return; }   // 선정주: 관심/투자 저장소로 분리 저장
+  // 선정주는 관심·투자 표를 그대로 비추기만 하는 화면이다.
+  // 여기서 되쓰면 다른 표에서 지운 종목이 되살아나므로 저장하지 않는다.
+  if(watchPort==='invpf') return;
   try{ localStorage.setItem(watchKeyRows(), JSON.stringify(WATCH_ROWS)); }catch(e){}
 }
 
@@ -3414,6 +3416,16 @@ async function snapSaveWatch(){
 async function refreshWatchAll(btn){
   const old=btn?btn.textContent:'';
   if(btn){ btn.textContent='갱신 중…'; btn.disabled=true; }
+  // 선정주: 다른 표의 관심·보유 목록을 다시 읽고 현재가만 새로 받는다
+  if(watchPort==='invpf'){
+    selSyncRows();
+    renderWatchTable();
+    await fetchWatchLive(true);
+    renderWatchTable();
+    if(btn){ btn.textContent=old||'↻ 새로'; btn.disabled=false; }
+    toast('관심·보유 목록과 현재가를 다시 불러왔습니다 ('+(selAllRows().length)+'종목)');
+    return;
+  }
   watchDataState='idle';
   // 캐시 비우고 다시
   watchCodesKr().forEach(c=>{ delete FRGN[c]; delete SHORT[c]; delete REPORT[c]; });
@@ -3568,6 +3580,17 @@ function watchCommit(idx, code, name){
 // 코드로 삭제 (정렬된 표에서 인덱스가 어긋나는 문제 방지)
 function watchDeleteByCode(code, idxFallback){
   const c=String(code||'').trim();
+  if(watchPort==='invpf'){
+    if(!c) return;
+    const k=c.toUpperCase();
+    const codeOf = r => String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim().toUpperCase();
+    ['kg_watch_rows','kg_invpf_rows'].forEach(key=>{
+      selWriteRows(key, selReadRows(key).filter(r=>{ const x=codeOf(r); return !x || x!==k; }), true);
+    });
+    selSyncRows(); renderWatchTable();
+    toast('관심·보유에서 함께 뺐습니다');
+    return;
+  }
   if(!c) return watchDelete(parseInt(idxFallback));
   const i=WATCH_ROWS.findIndex(r=>String((r&&r[0])||'').trim().toUpperCase()===c.toUpperCase());
   if(i<0) return watchDelete(parseInt(idxFallback));
@@ -3732,7 +3755,10 @@ function renderWatchTable(){
     capFilter = ck('selKr','국내',selFilter.kr) + ck('selUs','국외',selFilter.us)
               + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest);
   }
-  let h='<caption class="kr-cap">'+capTitle+pfMenuHtml({refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'}, {checks:capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  const capBtns = isSel
+    ? {refresh:'watchDataBtn'}                                                       // 선정주: 새로고침만
+    : {refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'};
+  let h='<caption class="kr-cap">'+capTitle+pfMenuHtml(capBtns, {checks:capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -3863,13 +3889,17 @@ function renderWatchTable(){
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
-  h+=`<tr class="add-row"><td colspan="10"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
+  if(!isSel) h+=`<tr class="add-row"><td colspan="10"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h;
   // 검색 바를 테이블 위에 별도 배치 (자동완성이 종목 행을 가리지 않도록)
   (function(){
     const sc=$('#valScroll'); if(!sc) return;
     let bar=document.getElementById('wSearchWrap');
+    if(isSel){                                   // 선정주는 검색창을 쓰지 않는다
+      if(bar) bar.remove();
+      return;
+    }
     if(!bar){
       bar=document.createElement('div');
       bar.id='wSearchWrap';
@@ -4490,7 +4520,7 @@ function selSyncRows(){
   });
   _SEL_VISIBLE = new Set(vis.map(it => it.code.toUpperCase()));
   const rows = vis.map(it => [it.code, it.name]);
-  rows.push(['','']);            // 입력용 빈 줄
+  // 선정주는 다른 표를 비추기만 하므로 입력용 빈 줄을 두지 않는다
   WATCH_ROWS = rows;
   _WATCH_ROWS_invpf = rows;
   return rows;
@@ -4554,8 +4584,6 @@ function renderSelect(box){
   if(!box) return;
   const f = selFilter;
   let h = '<div class="div-wrap">';
-  // 검색창 (종목 추가)
-  h += '<div class="wsearch-bar" style="margin-bottom:8px"><input id="selSearchInput" type="text" placeholder="＋ 종목명·코드 입력 후 선택하면 관심에 추가 (지수·ETF·해외 가능)" autocomplete="off"><div id="selSearchAc" class="wsearch-ac"></div></div>';
   // 필터
   h += '<div class="div-filter">';
   h += '<div class="div-filter-row"><span class="div-fl-label">시장</span>'
@@ -4573,9 +4601,6 @@ function renderSelect(box){
     const ci = selReadRows('kg_invpf_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
     h += '<div class="sel-srvbar" style="display:flex;align-items:center;gap:6px;margin:0 0 8px 0;flex-wrap:wrap">'
        + `<span style="font-size:11px;color:#8b949e">관심 ${cw} · 투자 ${ci} · 통합 ${selAllRows().length}종목</span>`
-       + '<span style="flex:1"></span>'
-       + '<button id="selSrvSave" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#3fb950">💾 서버 저장</button>'
-       + '<button id="selSrvLoad" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">📥 서버 불러오기</button>'
        + '</div>';
   }
 
@@ -4597,7 +4622,7 @@ function renderSelect(box){
   });
 
   if(!filtered.length){
-    h += '<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 종목이 없습니다. 위 검색창에서 종목을 추가하거나 필터를 확인하세요.</td></tr>';
+    h += '<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 종목이 없습니다. 필터를 확인하세요.</td></tr>';
   } else {
     filtered.forEach(it => {
       const key = it.isUS ? it.code.toUpperCase() : it.code;
@@ -4643,8 +4668,6 @@ function renderSelect(box){
   // 시세 조회
   const rf=document.getElementById('selRefresh'); if(rf) rf.onclick=()=>fetchSelData(box);
   // 서버 저장 / 불러오기
-  const sv=document.getElementById('selSrvSave'); if(sv) sv.onclick=()=>selSaveToServer(sv);
-  const ld=document.getElementById('selSrvLoad'); if(ld) ld.onclick=()=>selLoadFromServer(box, ld);
   // 종목명·보고서 클릭 → 네이버
   box.querySelectorAll('.sel-link, .sel-rpt').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, isUS=a.dataset.us; if(isUS) openNaverWorld(c); else openNaverDomestic(c); };
@@ -4654,7 +4677,6 @@ function renderSelect(box){
     td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name, isUS=td.dataset.us; openChartView('invpf', isUS?('US:'+c):c, nm); };
   });
   // 검색창 바인딩 (기존 관심 검색 로직 재사용)
-  bindSelSearch(box);
   // 첫 진입 자동 조회
   if(!renderSelect._fetched){ renderSelect._fetched=true; fetchSelData(box); }
 }
@@ -6750,6 +6772,7 @@ function anlInit(){
     psel._bound=true;
     psel.onchange=()=>{ if(psel.value) anlLoadPort(psel.value); };
   }
+
   anlSideInit();
   const inp=$('#anlInput'); if(!inp || inp._bound) return; inp._bound=true;
   const sug=$('#anlSuggest');
@@ -7408,6 +7431,13 @@ const FIN_GUIDE_HTML = `
 
 
 // 포트폴리오 선택 → 그 표의 종목으로 좌측 목록 채우기
+// 분석 화면을 열 때 목록이 비어 있으면 한국(체)를 기본으로 채운다
+function anlEnsureDefaultList(){
+  if(ANL_LIST.length) return;                 // 표에서 넘어온 목록이 있으면 그대로 둔다
+  const psel=$('#anlPortSel'); if(psel) psel.value='kr';
+  anlLoadPort('kr');
+}
+
 function anlLoadPort(mk){
   let rows=[];
   try{
@@ -7490,6 +7520,7 @@ function goSub(which){
     document.body.style.overflow='';
     window.scrollTo(0,0);
     anlInit();
+    anlEnsureDefaultList();
   }
   subPaint(which);
 }
