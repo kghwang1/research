@@ -1314,6 +1314,7 @@ async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));
 $$('.tab').forEach(t=>t.onclick=()=>{
   // 종목분석 — 기본 화면은 챠트
   if(t.id==='stkTabBtn'){ goSub('chart'); return; }
+  if(typeof appChromeRestore==='function') appChromeRestore();
   // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
   closeChartView(true); // 다른 탭 클릭 시 챠트 닫기
@@ -3858,12 +3859,17 @@ function renderWatchTable(){
     const d=rowClass(a[0])-rowClass(b[0]); return d!==0?d:a[1]-b[1];
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
+  const isLongSub = (watchPort==='invpf' && selSub==='long');
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
-  const W = [40,96,92,92,76,90,90,90,100,100,84,200];
+  const W = isLongSub
+    ? [40,96,64,92,92,76,100,100,84]                    // 장기종목: 점수 추가 · 매수액/공매도/보고서 제외
+    : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
   // 관심·투자 공통: 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서 (점수·합산식 없음)
-  const H = ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
+  const H = isLongSub
+    ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스"]
+    : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
   const isSel = (watchPort==='invpf');
@@ -4004,17 +4010,20 @@ function renderWatchTable(){
     }
     h+='<tr>';
     h+=`<td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>`;
+    if(isLongSub) h+=`<td class="mp-c">${longScoreCell(code)}</td>`;
     h+=`<td class="cls-cell">${clsCellHtml(code, nm||'')}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
     h+=`<td>${roeTxt}</td>`;
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
-    h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
-    h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
+    if(!isLongSub){
+      h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
+      h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
+    }
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td>${consCell(code)}</td>`;
-    h+=`<td class="mp-l rpt">${repCell}</td>`;
+    if(!isLongSub) h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
   if(!isSel) h+=`<tr class="add-row"><td colspan="10"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
@@ -4693,6 +4702,19 @@ let _SEL_VISIBLE = new Set();   // 현재 표에 그려진 종목코드(대문�
 // 필터를 적용한 통합 목록을 WATCH_ROWS 형식([[code,name],...])으로 만든다
 /* 선정주 하부 화면: own=관심·보유 / long=장기투자에서 담은 종목 */
 let selSub='own';
+// 장기투자(kg-long.html)가 저장해 둔 점수
+function longScoreMap(){
+  try{ const r=localStorage.getItem('kg_long_scores'); const o=r?JSON.parse(r):{};
+       return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; }
+}
+function longScoreCell(code){
+  if(!code) return '';
+  const v=longScoreMap()[code];
+  if(!v || v.total==null) return '<span class="rsub">—</span>';
+  const col = v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
+  const lab = v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
+  return `<b style="color:${col};font-size:13px">${v.total}</b><div class="rsub" style="color:${col}">${lab}</div>`;
+}
 function selLongRows(){
   try{
     const r=localStorage.getItem('kg_long_rows'); const a=r?JSON.parse(r):[];
@@ -5720,6 +5742,7 @@ function openValFull(){
   $('#valFull').classList.add('on'); setWatchPort('invpf'); renderVal(); fetchWatchLive(true);
 }
 function openPort(m){
+  if(typeof appChromeRestore==='function') appChromeRestore();
   $('#valFull').classList.add('on');
   const s=document.querySelector('#valSub .subtab[data-m="'+m+'"]');
   if(s){ s.click(); } else { openValFull(); }
@@ -7759,6 +7782,16 @@ function hubHide(){
   const sec=$('#hub'); if(sec) sec.classList.remove('on');
   document.body.classList.remove('anl-mode');
 }
+/* 종목분석(전체화면·헤더 숨김)에서 빠져나올 때 앱 화면을 원래대로 되돌린다.
+   이 정리가 빠지면 상단 메뉴가 사라진 채로 남는다. */
+function appChromeRestore(){
+  document.body.classList.remove('anl-mode');
+  document.body.style.overflow='';
+  const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
+  const lf=$('#longFullScreen'); if(lf) lf.style.display='none';
+  const ci=$('#chartIframe'); if(ci) ci.src='about:blank';
+  const hb=$('#hub'); if(hb) hb.classList.remove('on');
+}
 document.addEventListener('click', e=>{
   const b=e.target.closest('.subnav button');
   if(b) goSub(b.dataset.sub);
@@ -9006,7 +9039,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=7';
+const LONG_URL='kg-long.html?v=9';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';

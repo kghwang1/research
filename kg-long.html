@@ -47,6 +47,14 @@ button,input,select,textarea{font:inherit}
 .hd .t{font-size:19px;font-weight:700}
 .hd .c{color:var(--tx3)}
 .hd .q{margin-left:auto;color:var(--tx3);font-size:11px}
+.hsearch{background:var(--panel2);border:1px solid var(--line);color:var(--tx);
+  border-radius:6px;padding:5px 9px;font-size:12.5px;width:180px;max-width:42vw}
+.hsearch::placeholder{color:var(--tx3)}
+#hqAc{position:fixed;z-index:99999;display:none;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;max-height:260px;overflow-y:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.6)}
+#hqAc .it{padding:9px 11px;cursor:pointer;font-size:12.5px;border-bottom:1px solid #21252e}
+#hqAc .it:hover{background:var(--panel2)}
 .enline{display:flex;align-items:center;gap:8px;margin:2px 0 0;flex-wrap:wrap}
 .enline .en{color:#8fb6ff;font-size:13px;letter-spacing:.2px}
 .enline .en.none{color:var(--tx3);font-style:italic}
@@ -115,10 +123,6 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 <div class="wrap">
   <aside class="side">
     <div class="sbox">
-      <div class="r">
-        <input id="add" placeholder="종목코드 6자리" maxlength="6" inputmode="numeric">
-        <button id="addBtn">추가</button>
-      </div>
       <select id="src">
         <option value="_saved">장기 후보 (저장됨)</option>
         <option value="_funds">펀드 명부 — 지분 증가</option>
@@ -129,7 +133,6 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
         <option value="invest">코스피200</option>
         <option value="investkq">코스닥100</option>
       </select>
-      <input id="q" placeholder="검색">
       <div class="srcnote" id="srcnote"></div>
     </div>
     <div class="list" id="list"></div>
@@ -168,8 +171,8 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
    자료: worker ?fin3=  ·  포트 목록: 부모창 chartPortRows()
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
-const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en';
-const BUILD='KG_LONG 2026-08-16g';
+const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
+const BUILD='KG_LONG 2026-08-16i';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -246,6 +249,14 @@ function tellParent(code,name){
 function jload(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } }
 function jsave(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
 function saveRows(){ jsave(K_ROWS, saved) }
+// 채점 결과를 저장해 두면 포트의 [선정주 → 장기종목] 표에 점수가 뜬다
+function saveScore(code){
+  const c=cache[code]; if(!c||!c.score) return;
+  const m=jload(K_SCORE,{});
+  m[code]={ total:c.score.total, flags:c.score.flags.length>0, name:c.name||'', at:Date.now() };
+  jsave(K_SCORE,m);
+}
+function dropScore(code){ const m=jload(K_SCORE,{}); delete m[code]; jsave(K_SCORE,m); }
 function manualOf(code){
   const s=saved.find(r=>r.code===code);
   if(s) return s.manual;
@@ -473,6 +484,7 @@ async function loadOne(code,name){
     c.fin=fillDerived(normalize(raw));
     if(!c.fin.roe&&!c.fin.debt&&!c.fin.per) throw new Error('재무 항목을 못 찾음');
     c.score=score(c.fin,manualOf(code));
+    saveScore(code);
   }catch(e){ c.error=e.message }
   c.loading=false;
   const s=saved.find(r=>r.code===code); if(s&&!s.name&&c.name){ s.name=c.name; saveRows() }
@@ -480,14 +492,15 @@ async function loadOne(code,name){
   return c;
 }
 function rescore(code){
-  const c=cache[code]; if(c&&c.fin) c.score=score(c.fin,manualOf(code));
+  const c=cache[code]; if(c&&c.fin){ c.score=score(c.fin,manualOf(code)); saveScore(code); }
 }
 
 /* ---------- 그리기 ---------- */
 const esc=s=>String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 function renderList(){
   const box=document.getElementById('list'), note=document.getElementById('srcnote');
-  const q=(document.getElementById('q').value||'').trim().toLowerCase();
+  const qEl=document.getElementById('hq');
+  const q=((qEl&&qEl.value)||'').trim().toLowerCase();
   const {out,skipped}=domesticOnly(srcRows());
   note.textContent = out.length
     ? out.length+'개 종목'+(skipped?' · 해외 '+skipped+'개 제외(국내 분기재무만 지원)':'')
@@ -548,10 +561,17 @@ let showList=false;
 function renderMain(){
   const m=document.getElementById('main');
   if(showList){ renderLongList(); return; }
-  if(!cur){ m.innerHTML='<div class="msg">왼쪽에서 종목을 고르세요.<br>포트폴리오를 바꾸면 그 목록이 그대로 나옵니다.</div>'; return }
+  const headBar = code => `<div class="hd">
+    <span class="t">${esc(code||'종목분석')}</span>
+    <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
+    <button id="longListBtn" class="enbtn" style="padding:4px 10px;font-size:12px">장기종목</button>
+    <span class="q">${BUILD}</span></div>`;
+  const shell = (code, body) => { m.innerHTML = headBar(code) + body; bindHeadSearch();
+    const b=document.getElementById('longListBtn'); if(b) b.onclick=()=>{ showList=true; renderMain(); }; };
+  if(!cur){ shell('', '<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'); return }
   const c=cache[cur];
-  if(!c||c.loading){ m.innerHTML='<div class="msg">'+cur+' 재무 받는 중…</div>'; return }
-  if(c.error){ m.innerHTML='<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'; return }
+  if(!c||c.loading){ shell(cur, '<div class="msg">'+cur+' 재무 받는 중…</div>'); return }
+  if(c.error){ shell(cur, '<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'); return }
   const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags), m0=manualOf(cur), f=funds[cur];
   const inSaved=saved.some(r=>r.code===cur);
   const sec=(t,tl,list)=>`<div class="card"><h3>${t}<em>${tl.got} / ${tl.max||0}</em></h3><div class="rows">
@@ -565,6 +585,7 @@ function renderMain(){
 
   m.innerHTML=`
   <div class="hd"><span class="t">${esc(c.name||cur)}</span><span class="c">${cur}</span>
+    <input id="hq" class="hsearch" placeholder="종목 검색 · 코드" autocomplete="off">
     <button id="longListBtn" class="enbtn" style="padding:4px 10px;font-size:12px">장기종목</button>
     <span class="q">${BUILD}</span></div>
   <div class="enline">
@@ -639,13 +660,66 @@ function renderMain(){
     try{ await navigator.clipboard.writeText(t); ec.textContent='복사됨'; setTimeout(()=>ec.textContent='복사',1200); }
     catch(e){ prompt('복사해서 NBIM 검색창에 붙여넣으세요', t); }
   };
+  bindHeadSearch();
   const llb=document.getElementById('longListBtn');
   if(llb) llb.onclick=()=>{ showList=true; renderMain(); };
   document.getElementById('keepBtn').onclick=()=>{
-    if(inSaved) saved=saved.filter(r=>r.code!==cur);
-    else saved.push({code:cur,name:c.name||'',manual:manualOf(cur)});
+    if(inSaved){ saved=saved.filter(r=>r.code!==cur); dropScore(cur); }
+    else { saved.push({code:cur,name:c.name||'',manual:manualOf(cur)}); saveScore(cur); }
     saveRows(); renderList(); renderMain();
   };
+}
+
+/* ---------- 우측 종목 검색 ---------- */
+function hqBox(){
+  let b=document.getElementById('hqAc');
+  if(!b){ b=document.createElement('div'); b.id='hqAc'; document.body.appendChild(b); }
+  return b;
+}
+function hqPlace(inp){
+  const b=hqBox(), r=inp.getBoundingClientRect();
+  b.style.left=Math.round(r.left)+'px';
+  b.style.width=Math.max(210,Math.round(r.width))+'px';
+  b.style.top=Math.round(r.bottom+4)+'px';
+  b.style.maxHeight=Math.min(260,Math.max(120,window.innerHeight-r.bottom-16))+'px';
+}
+function bindHeadSearch(){
+  const inp=document.getElementById('hq'); if(!inp||inp._b) return; inp._b=true;
+  const box=hqBox(); let timer=null;
+  const close=()=>{ box.style.display='none'; box.innerHTML=''; };
+  inp.oninput=()=>{
+    renderList();                       // 왼쪽 목록도 함께 걸러준다
+    const v=inp.value.trim();
+    clearTimeout(timer);
+    if(!v){ close(); return; }
+    timer=setTimeout(async()=>{
+      try{
+        const r=await fetch(WORKER+'?find='+encodeURIComponent(v));
+        const d=await r.json();
+        const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d{6}$/.test(it.code)).slice(0,10);
+        if(!items.length){ close(); return; }
+        box.innerHTML=items.map(it=>
+          `<div class="it" data-code="${it.code}" data-name="${esc(it.name||'')}"><b>${esc(it.name||'')}</b> <span style="color:var(--tx3)">${it.code}</span></div>`).join('');
+        box.querySelectorAll('.it').forEach(el=>{
+          el.onmousedown=ev=>{ ev.preventDefault();
+            close(); inp.value=''; renderList();
+            showList=false; pick(el.dataset.code, el.dataset.name);   // 고르면 바로 채점
+          };
+        });
+        box.style.display='block'; hqPlace(inp);
+      }catch(e){ close(); }
+    },250);
+  };
+  inp.onkeydown=ev=>{
+    if(ev.key==='Enter'){
+      ev.preventDefault();
+      const c=String(inp.value||'').replace(/[^0-9]/g,'');
+      if(c.length===6){ close(); inp.value=''; renderList(); showList=false; pick(c,''); }
+    }else if(ev.key==='Escape'){ close(); }
+  };
+  inp.onblur=()=>setTimeout(close,150);
+  window.addEventListener('scroll',()=>{ if(box.style.display!=='none') hqPlace(inp); },true);
+  window.addEventListener('resize',()=>{ if(box.style.display!=='none') hqPlace(inp); });
 }
 
 /* ---------- 펀드 명부 ---------- */
@@ -684,16 +758,7 @@ function pick(code,name){
   const c=cache[code];
   if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
 }
-document.getElementById('addBtn').onclick=()=>{
-  const el=document.getElementById('add'), code=el.value.trim();
-  if(!/^\d{6}$/.test(code)) return alert('6자리 종목코드를 넣으세요.');
-  if(!saved.some(r=>r.code===code)) saved.push({code,name:'',manual:{nbim:null,active:null,nps:null}});
-  saveRows(); el.value=''; src='_saved'; document.getElementById('src').value='_saved';
-  pick(code,'');
-};
-document.getElementById('add').onkeydown=e=>{ if(e.key==='Enter') document.getElementById('addBtn').click() };
 document.getElementById('src').onchange=e=>{ src=e.target.value; cur=null; renderList(); renderMain() };
-document.getElementById('q').oninput=()=>renderList();
 document.getElementById('list').onclick=e=>{
   const d=e.target.dataset.del;
   if(d){ saved=saved.filter(r=>r.code!==d); saveRows(); if(cur===d) cur=null; renderList(); renderMain(); return }
