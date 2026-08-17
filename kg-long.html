@@ -197,7 +197,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-16s';
+const BUILD='KG_LONG 2026-08-17a';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -268,7 +268,7 @@ const Q_PORT=QS.get('port')||'', Q_CODE=(QS.get('code')||'').replace(/[^0-9]/g,'
 // 부모창(종목분석)에 고른 종목을 알려 세 화면이 같은 종목을 보게 한다
 function tellParent(code,name){
   try{ if(window.parent&&window.parent!==window)
-    window.parent.postMessage({kg:'stk', port:src.startsWith('_')?'':src, code, name}, '*'); }catch(e){}
+    window.parent.postMessage({kg:'stk', port:src.startsWith('_')?'':src, code:code||'', name:name||''}, '*'); }catch(e){}
 }
 
 function jload(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d }catch(e){ return d } }
@@ -845,7 +845,11 @@ function pick(code,name){
   }
   paint();
 })();
-document.getElementById('src').onchange=e=>{ src=e.target.value; cur=null; renderList(); renderMain() };
+document.getElementById('src').onchange=e=>{
+  src=e.target.value; cur=null;
+  if(!src.startsWith('_')) tellParent('','');   // 포트 변경을 부모(종목분석)에 알린다
+  renderList(); renderMain();
+};
 document.getElementById('list').onclick=e=>{
   const d=e.target.dataset.del;
   if(d){ saved=saved.filter(r=>r.code!==d); saveRows(); if(cur===d) cur=null; renderList(); renderMain(); return }

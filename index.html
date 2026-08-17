@@ -898,12 +898,12 @@
    <div class="anl-row">
     <button id="anlSideToggle" class="anl-backbtn">종목</button>
     <select id="anlPortSel">
-     <option value="">포트폴리오 선택</option>
      <option value="kr" selected>한국(체)</option>
-     <option value="addstk">추가종목</option>
-     <option value="invpf">선정주</option>
      <option value="invest">코스피200</option>
      <option value="investkq">코스닥100</option>
+     <option value="addstk">추가종목</option>
+     <option value="invpf">선정주</option>
+     <option value="watch">관심</option>
     </select>
    </div>
   </div>
@@ -1077,6 +1077,7 @@
       <option value="invest">코스피200</option>
       <option value="investkq">코스닥100</option>
       <option value="addstk">추가종목</option>
+      <option value="watch">관심</option>
       <option value="usc">미국(체)</option>
       <option value="us">미국(반)</option>
       <option value="etf">한·미 ETF</option>
@@ -7136,7 +7137,12 @@ function anlInit(){
   const psel=$('#anlPortSel');
   if(psel && !psel._bound){
     psel._bound=true;
-    psel.onchange=()=>{ if(psel.value){ if(typeof stkSetPort==='function') stkSetPort(psel.value); anlLoadPort(psel.value); } };
+    psel.onchange=()=>{
+      if(!psel.value) return;
+      if(typeof stkSetPort==='function') stkSetPort(psel.value);
+      ANL_CODE='';                       // 다른 포트로 옮겼으니 첫 종목부터 다시
+      anlLoadPort(psel.value);
+    };
   }
 
   anlSideInit();
@@ -7807,10 +7813,17 @@ function anlEnsureDefaultList(){
 }
 
 let ANL_PORT=null;      // 분석 좌측 목록이 어느 포트에서 왔는지
+// 분석이 다룰 수 있는 포트 (국내 6자리 종목만 재무 조회가 된다)
+const ANL_PORTS=['kr','invest','investkq','addstk','invpf','watch'];
 function anlLoadPort(mk, wantCode){
+  // 해외·지수·ETF 포트에서 넘어오면 분석에서는 다룰 수 없으므로 한국(체)로 받는다
+  if(!ANL_PORTS.includes(mk)) mk='kr';
+  const psel=$('#anlPortSel'); if(psel) psel.value=mk;   // 드롭다운 표시를 항상 일치시킨다
   let rows=[];
   try{
-    if(mk==='addstk'){
+    if(mk==='watch'){
+      rows=(_portRows('kg_watch_rows')||[]).map(r=>({code:String(r[0]||''), name:r[1]||''}));
+    } else if(mk==='addstk'){
       rows=(typeof chartPortRows==='function'?chartPortRows('addstk'):[]).map(r=>({code:String(r[0]||''), name:r[1]||''}));
     } else if(mk==='kr'){
       rows=(typeof KR_PF!=='undefined' ? KR_PF.rows : []).map(r=>({code:String(r[0]||''), name:r[1]||''}));
@@ -7932,7 +7945,8 @@ function goSub(which){
     subPaint(which);                       // 화면을 세우고 나서 메뉴를 칠한다
     try{
       anlInit();
-      if(STK.port && ANL_PORT!==STK.port) anlLoadPort(STK.port, STK.code);
+      const want = ANL_PORTS.includes(STK.port) ? STK.port : 'kr';
+      if(ANL_PORT!==want) anlLoadPort(want, STK.code);          // 포트 먼저 맞추고
       else if(STK.code && ANL_CODE!==STK.code) anlPick(STK.code, STK.name);
       else anlEnsureDefaultList();
     }catch(e){ console.warn('분석 화면 준비 중 오류:', e); }
@@ -9217,7 +9231,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=18';
+const LONG_URL='kg-long.html?v=19';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
