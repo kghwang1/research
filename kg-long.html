@@ -201,7 +201,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-17d';
+const BUILD='KG_LONG 2026-08-17e';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -268,7 +268,13 @@ let funds = jload(K_FUND,{});        // {code:{name,prev,cur,dif}}
 const cache = {};                    // code -> {name,fin,raw,score,error,loading}
 let src='kr', cur=null;
 const QS=new URLSearchParams(location.search);
-const Q_PORT=QS.get('port')||'', Q_CODE=(QS.get('code')||'').replace(/[^0-9]/g,'');
+const Q_PORT=QS.get('port')||'';
+const Q_CODE=(function(){
+  const raw=String(QS.get('code')||'').trim();
+  const d=raw.replace(/[^0-9]/g,'');
+  if(d.length===6) return d;                 // 국내 6자리
+  return /[A-Za-z]/.test(raw) ? raw : '';    // 해외 티커 (US: 접두사 포함 가능)
+})();
 // 부모창(종목분석)에 고른 종목을 알려 세 화면이 같은 종목을 보게 한다
 function tellParent(code,name){
   try{ if(window.parent&&window.parent!==window)
@@ -938,7 +944,11 @@ if(Q_PORT){
 }
 bindHeadSearch();
 renderList();
-if(Q_CODE){ pick(Q_CODE,''); } else { renderMain(); }
+if(Q_CODE){
+  const {out}=domesticOnly(srcRows());
+  const hit=out.find(r=>String(r[0]).toUpperCase()===Q_CODE.toUpperCase());
+  pick(hit?hit[0]:Q_CODE, hit?hit[1]:'');
+} else { renderMain(); }
 saved.slice(0,20).forEach(r=>loadOne(r.code,r.name));
 </script>
 </body>
