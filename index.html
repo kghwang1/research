@@ -2986,7 +2986,7 @@ function hdrFin(){
       if(p.length>=6) q=p.slice(2,4)+'.'+Math.ceil(parseInt(p.slice(4,6),10)/3)+'분기';
       break; }
   }
-  const c=Object.fromEntries(FIN3_SERIES.map(s=>[s.k,s.c]));
+  const c=Object.fromEntries(FIN3_SERIES.concat(FIN3_SERIES_US).map(s=>[s.k,s.c]));
   return '재무' + (q?`<span class="hdr-sub">${q}</span>`:'')
        + `<br><span class="hdr-fin"><b style="color:${c.salesGrowth}">매출</b>·`
        + `<b style="color:${c.roe}">ROE</b>·<b style="color:${c.debt}">부채</b></span>`;
@@ -3944,7 +3944,8 @@ function renderWatchTable(){
   watchDisp.forEach((r,ri)=>{
     const rawCode=String(r[0]||'');
     // 지수/원자재/해외: 6자리 숫자 종목코드가 아닌 것
-    const isUSRow = /^US:/i.test(rawCode);
+    // 'US:AAPL' 뿐 아니라 'SNDK' 처럼 접두사 없는 티커도 해외로 본다
+    const isUSRow = /^US:/i.test(rawCode) || (isLongSub && isUsCode(rawCode));
     const isIdxRow = rawCode!=='' && !/^\d{6}$/.test(rawCode) && !isUSRow;
     const code = (isIdxRow||isUSRow) ? rawCode : rawCode.replace(/[^0-9]/g,'');
     const nm=r[1]||'';
@@ -3999,6 +4000,26 @@ function renderWatchTable(){
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="wusa" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" data-wcode="${escHtml(rawCode)}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
       const usLiveStyle = uLive ? ' style="cursor:pointer;text-decoration:underline dotted"' : ' style="cursor:pointer;color:#58a6ff"';
       const liveCell = uLive ? `${liveStr}${rateH}` : '차트▶';
+      if(isLongUs){
+        // 장기보유2 — 미국(반) 적정주가 표와 같은 항목
+        const vr=valRowOf(rawCode);
+        const fair = vr ? vr[8] : '';
+        const goal = vr ? vr[6] : '';
+        const peg  = vr ? vr[4] : '';
+        const pef  = vr ? vr[3] : '';
+        const dash = '<span class="rsub">—</span>';
+        h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>`
+         + `<td class="mp-c">${longScoreCell(rawCode)}</td>`
+         + `<td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td>`
+         + `<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td>`
+         + `<td class="mp-r">${fair!==''&&fair!=null ? usCell(fair, uLive) : dash}</td>`
+         + `<td class="mp-c">${peg!==''&&peg!=null ? peg : dash}</td>`
+         + `<td class="mp-c">${pef!==''&&pef!=null ? pef : dash}</td>`
+         + `<td class="mp-r">${highStr}</td>`
+         + `<td class="mp-r">${goal!==''&&goal!=null ? usCell(goal, uLive) : tgtCell}</td>`
+         + `<td>${consH || dash}</td></tr>`;
+        return;
+      }
       h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
       return;
     }
@@ -4765,7 +4786,8 @@ function longScoreMap(){
 }
 function longScoreCell(code){
   if(!code) return '';
-  const v=longScoreMap()[code];
+  const m=longScoreMap();
+  const v = m[code] || m[String(code).replace(/^US:/i,'')] || m['US:'+String(code)];
   if(!v || v.total==null) return '<span class="rsub">—</span>';
   const col = v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
   const lab = v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
@@ -7290,7 +7312,8 @@ function anlDraw(){
   const PAD={l:10,r:10,t:26,b:20};   // 위쪽은 범례 자리
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
-  FIN3_SERIES.forEach(se=>{
+  const SER=seriesFor(d);
+  SER.forEach(se=>{
     const a=d[se.k]||[];
     const v=a.filter(x=>x!=null);
     if(v.length<2) return;
@@ -7310,14 +7333,14 @@ function anlDraw(){
   // X축 분기
   ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
   per.forEach((p,i)=>{
-    const s=String(p); const lab=s.length>=6 ? s.slice(2,4)+'.'+s.slice(4,6) : s;
+    const lab=perLabel(p);
     if(n>6 && i%2===1) return;
     ctx.fillText(lab, xOf(i), H-5);
   });
   // 범례 — 그래프 안 좌상단
   ctx.font='11px sans-serif'; ctx.textAlign='left';
   let lx=PAD.l+2;
-  FIN3_SERIES.forEach(se=>{
+  SER.forEach(se=>{
     ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(lx, PAD.t-5); ctx.lineTo(lx+11, PAD.t-5); ctx.stroke();
     ctx.fillStyle=se.c;
@@ -7332,7 +7355,7 @@ function anlDraw(){
     ctx.font='bold 11px monospace';
     // 점은 먼저 모두 찍는다
     const marks=[];
-    FIN3_SERIES.forEach(se=>{
+    seriesFor(d).forEach(se=>{
       const v=(d[se.k]||[])[ANL_HOVER]; if(v==null||!se._yOf) return;
       const py=se._yOf(v);
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
@@ -7458,7 +7481,7 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   });
   // X축 분기
   ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
-  per.forEach((p,i)=>{ const s=String(p); const lab=s.length>=6?s.slice(2,4)+'.'+s.slice(4,6):s;
+  per.forEach((p,i)=>{ const lab=perLabel(p);
     if(n>6 && i%2===1) return; ctx.fillText(lab, xOf(i), H-5); });
   // 범례
   ctx.font='11px sans-serif'; ctx.textAlign='left';
@@ -7547,9 +7570,11 @@ function anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx, mode){
 function anlPegSeries(){
   const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return null;
   const per=d.per||[], pf=d.profit||[];
+  // 분기 자료는 4기 전(전년동기)과, 연간 자료는 직전 해와 비교한다
+  const lag = (d.us || (d.periods||[]).length<=4) ? 1 : 4;
   return (d.periods||[]).map((_,i)=>{
-    if(i<4) return null;
-    const p=per[i], a=pf[i], b=pf[i-4];
+    if(i<lag) return null;
+    const p=per[i], a=pf[i], b=pf[i-lag];
     if(p==null||a==null||b==null||b===0) return null;
     const g=((a-b)/Math.abs(b))*100;
     if(!(g>0)) return null;                 // 감익이면 PEG 무의미
@@ -7565,14 +7590,17 @@ function anlComment(){
   const trend=a=>{ const v=(a||[]).filter(x=>x!=null).slice(-3);
     if(v.length<2) return null;
     return v[v.length-1]-v[0]; };
-  const g=last(d.salesGrowth), r=last(d.roe), b=last(d.debt);
-  const gt=trend(d.salesGrowth), rt=trend(d.roe), bt=trend(d.debt);
+  const isUs = !!d.us;                       // 해외는 ROE·부채비율이 오지 않는다
+  const g=last(d.salesGrowth), b=last(d.debt);
+  const r = isUs ? last(d.roa) : last(d.roe);
+  const gt=trend(d.salesGrowth), bt=trend(d.debt);
+  const rt = isUs ? trend(d.roa) : trend(d.roe);
   const P=[];
 
   // 성장성
   if(g==null) P.push('<p><b>성장성</b> — 매출 자료가 없어 판단할 수 없습니다.</p>');
   else{
-    let s=`<p><b>성장성</b> — 최근 분기 매출증가율은 <b>${g.toFixed(1)}%</b>입니다. `;
+    let s=`<p><b>성장성</b> — 최근 ${isUs?'연간':'분기'} 매출증가율은 <b>${g.toFixed(1)}%</b>입니다. `;
     if(g>=20) s+='높은 성장 국면입니다. 다만 직전 분기가 낮았던 기저효과가 섞였을 수 있어, 이 수준이 이어지는지 다음 분기를 확인해야 합니다.';
     else if(g>=5) s+='꾸준한 성장 구간입니다.';
     else if(g>=0) s+='성장이 거의 멈춘 상태입니다.';
@@ -7581,7 +7609,18 @@ function anlComment(){
     P.push(s+'</p>');
   }
   // 수익성
-  if(r==null) P.push('<p><b>수익성</b> — ROE가 아직 공시되지 않았습니다.</p>');
+  if(r==null) P.push('<p><b>수익성</b> — '+(isUs?'ROA':'ROE')+' 자료가 없습니다.</p>');
+  else if(isUs){
+    let s=`<p><b>수익성</b> — ROA는 <b>${r.toFixed(2)}%</b>입니다. `;
+    if(r>=8) s+='총자산 대비 8%를 넘어 자산을 효율적으로 쓰고 있습니다.';
+    else if(r>=5) s+='양호한 수준입니다.';
+    else if(r>=3) s+='보통 수준입니다.';
+    else if(r>=0) s+='낮은 편입니다.';
+    else s+='적자 상태입니다.';
+    if(rt!=null && Math.abs(rt)>0.5) s+= rt>0 ? ' 최근 <b>오르는</b> 추세입니다.' : ' 최근 <b>내리는</b> 추세입니다.';
+    s+=' 해외 종목은 ROE가 공시되지 않아 <b>ROA</b>로 봅니다 — 빚을 쓴 효과가 빠진 값이라 기준선이 ROE보다 낮습니다.';
+    P.push(s+'</p>');
+  }
   else{
     let s=`<p><b>수익성</b> — ROE는 <b>${r.toFixed(2)}%</b>입니다. `;
     if(r>=15) s+='기준으로 삼는 15%를 넘어 자본을 효율적으로 쓰고 있습니다.';
@@ -7594,7 +7633,21 @@ function anlComment(){
   // 재무구조 — 금융업은 부채비율 기준이 다르다
   const FIN_BIZ=/(증권|은행|금융|캐피탈|카드|보험|화재|해상|생명|저축|지주|holdings?)/i;
   const isFin = FIN_BIZ.test(ANL_NAME||'') || (b!=null && b>=400);
-  if(b==null) P.push('<p><b>재무구조</b> — 부채비율이 아직 공시되지 않았습니다.</p>');
+  if(b==null && isUs){
+    const lastOf=a=>{ const v=(a||[]).filter(x=>x!=null); return v.length?v[v.length-1]:null; };
+    const op=lastOf(d.op), pf=lastOf(d.profit), ed=lastOf(d.ebitda);
+    let s='<p><b>재무구조</b> — 해외 종목은 부채비율·당좌비율이 공시되지 않아 <b>이익의 질</b>로 대신 봅니다. ';
+    if(op && pf!=null){
+      const q=pf/op;
+      s+=`순이익은 EBIT 의 <b>${q.toFixed(2)}배</b>입니다. `;
+      if(q>1.3) s+='<b>본업 밖 이익이 섞여 있을 수 있습니다.</b> 일회성 항목인지 확인하세요.';
+      else if(q>=0.6) s+='본업에서 번 것이 순이익으로 남고 있습니다.';
+      else s+='이자·세금 부담이 커 순이익 전환율이 낮습니다.';
+    }else s+='EBIT 자료가 없어 판단이 어렵습니다.';
+    if(op && ed) s+=` EBIT÷EBITDA 는 <b>${(op/ed).toFixed(2)}</b>로, 값이 클수록 감가상각 부담이 작습니다.`;
+    P.push(s+'</p>');
+  }
+  else if(b==null) P.push('<p><b>재무구조</b> — 부채비율이 아직 공시되지 않았습니다.</p>');
   else if(isFin){
     let s=`<p><b>재무구조</b> — 부채비율은 <b>${b.toFixed(1)}%</b>입니다. `;
     s+='다만 <b>금융업은 이 기준을 그대로 적용하지 않습니다.</b> 증권사의 고객 예탁금, 은행의 예금, 보험사의 책임준비금은 '
@@ -8172,6 +8225,22 @@ const FIN3_SERIES = [
   { k:'roe',         n:'ROE',       c:'#ffd54f' },
   { k:'debt',        n:'부채비율',   c:'#58a6ff' },
 ];
+/* 해외는 ROE·부채비율이 오지 않는다. ROA 와 영업이익률로 대신 그린다. */
+const FIN3_SERIES_US = [
+  { k:'salesGrowth', n:'매출증가율', c:'#ef5350' },
+  { k:'roa',         n:'ROA',       c:'#ffd54f' },
+  { k:'opm',         n:'영업이익률', c:'#58a6ff' },
+];
+const seriesFor = d => (d && d.us) ? FIN3_SERIES_US : FIN3_SERIES;
+/* 기간 표기를 짧게. 국내 '202403' · 해외 '2024.06.28' 두 형태를 모두 받는다 */
+function perLabel(p){
+  const s=String(p||''); if(!s) return '';
+  let m=s.match(/^(\d{4})[.\-\/](\d{1,2})/);            // 2024.06.28
+  if(m) return m[1].slice(2)+'.'+String(+m[2]).padStart(2,'0');
+  m=s.match(/^(\d{4})(\d{2})/);                          // 202403
+  if(m) return m[1].slice(2)+'.'+m[2];
+  return s.length>7 ? s.slice(2,7) : s;
+}
 const FIN3_N = 4;           // 최근 몇 분기
 
 function fin3Load(){
@@ -8216,11 +8285,15 @@ async function ensureFin3(codes, onDone){
         try{
           const r=await fetch(USFIN_URL+'/?usfin='+encodeURIComponent(usTickerOf(c))+'&freq=annual');
           const d=await r.json();
-          if(d&&d.ok) FIN3[c]={periods:d.periods||[], salesGrowth:null,
+          if(d&&d.ok){
+            const sal=d.sales||null;
+            const sg = sal ? sal.map((v,i)=> (i===0||v==null||!sal[i-1]) ? null : (v-sal[i-1])/Math.abs(sal[i-1])*100) : null;
+            FIN3[c]={periods:d.periods||[], salesGrowth:sg,
             roe:d.roe||null, roa:d.roa||null, debt:d.debt||null,
             pbr:d.pbr||null, per:d.per||null, profit:d.profit||null,
             opm:d.opm||null, npm:d.npm||null, quick:d.quick||null,
             op:d.op||null, ebitda:d.ebitda||null, sales:d.sales||null, us:true};
+          }
         }catch(e){}
       }));
       if(i+2<us.length) await new Promise(r=>setTimeout(r,180));
@@ -8233,12 +8306,14 @@ async function ensureFin3(codes, onDone){
 
 // 미니 그래프 (SVG) — 계열마다 자기 축
 function fin3Cell(code, name){
-  const c=String(code||'').replace(/[^0-9]/g,'');
+  const raw0=String(code||'').trim();
+  const dg=raw0.replace(/[^0-9]/g,'');
+  const c = (dg.length===6) ? dg : raw0;
   const d=FIN3[c];
   if(!d) return '<span class="rsub">'+(SRV_URL?'…':'—')+'</span>';
   const W=84, H=30, PAD=2;
   let any=false, lines='', last=[];
-  FIN3_SERIES.forEach(se=>{
+  seriesFor(d).forEach(se=>{
     const raw=(d[se.k]||[]).slice(-FIN3_N).filter(v=>v!=null);
     if(raw.length<2) return;
     any=true;
@@ -8502,6 +8577,12 @@ async function ensureReports(codes){
 const KOSPI_FALLBACK=["005930","000660","373220","207940","005380","000270","005935","068270","105560","035420","005490","012450","329180","055550","035720","006400","028260","012330","086790","015760","009150","032830","010130","259960","316140","138040","051910","402340","096770","033780","003670","034020","000810","017670","030200","018260","064350","042660","010140","047810","011070","090430","024110","029780","088350","003550","034730","267250","011780","161390","097950","271560","280360","023530","004020","001040","139480","008770","282330","000100","128940","009830","011170","066570","034220","036570","251270","000720","006360","028050","375500","010950","352820","069960","020000","000150","034020","005300","004990","001120"];
 const KOSDAQ_FALLBACK=["247540","196170","086520","028300","091990","066970","035760","058470","240810","357780","293490","145020","328130","277810","141080","112040","067310","039030","036930","263750","214150","348370","253450","178320","950140","403870","166090","084990","000250","048410","085660","022100","036540","121600","265520","214450","035900","056190","287410","102710","092040","900140","240810","065350","195940","054620","376300","131970","137400","240600"];
 function qLabel(p){ if(!p) return ''; let m=String(p).match(/(\d{4})[.\-\/](\d{1,2})/); if(!m) m=String(p).match(/^(\d{4})(\d{2})$/); if(!m) return String(p); const y=m[1].slice(2); const mo=+m[2]; const q=mo<=3?1:mo<=6?2:mo<=9?3:4; return q+'Q'+y; }
+/* 해외 연간 자료는 분기 표기가 맞지 않아 회계연도로 적는다 */
+function perTitle(p, isUs){
+  if(!isUs) return qLabel(p);
+  const m=String(p||'').match(/^(\d{4})/);
+  return m ? 'FY'+m[1].slice(2) : String(p||'');
+}
 function openInvest(force){
   valMarket='invest';
   $$('#valSub .subtab').forEach(x=>x.classList.toggle('on', x.dataset.m==='invest'));
