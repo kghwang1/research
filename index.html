@@ -2116,6 +2116,8 @@ const VAL_VIEW=[
 ];
 /* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
 const KR_CODE={'삼성전자':'005930','SK하이닉스':'000660','현대차':'005380','네이버':'035420'};
+/* 한국 기업의 미국 예탁증서(ADR) — 네이버가 ADR 재무를 주지 않으므로 국내 코드로 본다 */
+const ADR_KR={'HXSCL':'000660','SSNLF':'005930','HYMTF':'005380','NPCPF':'035420','LPL':'034220','KB':'105560','SHG':'055550','WF':'316140','KEP':'015760','PKX':'005490','KT':'030200','SKM':'017670'};
 /* 표의 Symbol이 야후 티커와 다른 경우 보정 */
 const SYM_FIX={"Oracle":"ORCL","Macy's":"M","Crox":"CROX","NIKE":"NKE","Target":"TGT","Circle":"CRCL","Nebius":"NBIS","Block XYZ":"XYZ","Zillow":"Z"};
 /* 시세 조회용 심볼 (없으면 null → 현재가 '—') */
@@ -4830,8 +4832,8 @@ function longScoreCell(code){
   const m=longScoreMap();
   const v = m[code] || m[String(code).replace(/^US:/i,'')] || m['US:'+String(code)];
   if(!v || v.total==null) return '<span class="rsub">—</span>';
-  const col = v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
-  const lab = v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
+  const col = v.thin ? '#8b949e' : v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
+  const lab = v.thin ? '자료부족' : v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
   return `<b style="color:${col};font-size:13px">${v.total}</b><div class="rsub" style="color:${col}">${lab}</div>`;
 }
 /* 장기종목 하위 구분: kr=국내 6자리 · us=해외 티커
@@ -9495,7 +9497,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=23';
+const LONG_URL='kg-long.html?v=24';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -9578,9 +9580,10 @@ function chartPortRows(port){
     return (typeof KR_PF!=='undefined' && KR_PF.rows) ? KR_PF.rows.map(r=>[r[0], r[1]]) : [];
   }
   if(port==='usc'){
-    // '현금' 처럼 티커가 빈 행은 조회 대상이 아니므로 뺀다
+    // '현금' 처럼 티커가 빈 행은 빼고, 한국 기업 ADR 은 국내 코드로 바꾼다
     return (typeof USC_DATA!=='undefined')
-      ? USC_DATA.filter(r=>String(r[0]||'').trim()).map(r=>[String(r[0]).trim(), r[1]])
+      ? USC_DATA.filter(r=>String(r[0]||'').trim())
+                .map(r=>{ const t=String(r[0]).trim(); return [ADR_KR[t.toUpperCase()]||t, r[1]]; })
       : [];
   }
   if(port==='invest'){  // 코스피200
