@@ -197,7 +197,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-17a';
+const BUILD='KG_LONG 2026-08-17c';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -346,6 +346,8 @@ const FIELDS={
   npm:['npm','순이익률','netMargin'],
   per:['per','PER'], pbr:['pbr','PBR'],
   profit:['profit','순이익','당기순이익'],
+  roa:['roa','ROA','총자산이익률'],
+  ebitda:['ebitda','EBITDA'],
   salesGrowth:['salesGrowth','매출증가율'],
   sales:['sales','매출액','매출','revenue'], op:['op','영업이익','operatingProfit'],
   period:['periods','period','기간','date','yymm','분기','label']
@@ -441,33 +443,73 @@ function tally(items){
 }
 
 function score(fin,m){
-  const roe6=tail(fin.roe,6), roeAvg=avg(roe6);
+  /* 수익성 지표: ROE 가 있으면 ROE, 없으면 ROA 를 쓴다.
+     ROE = 순이익÷자기자본(주주 기준), ROA = 순이익÷총자산(레버리지 제외).
+     해외(네이버)는 ROE 를 주지 않으므로 ROA 로 대체하고 기준선을 낮춘다. */
+  const hasRoe = fin.roe && fin.roe.some(v=>v!=null);
+  const useRoa = !hasRoe && fin.roa && fin.roa.some(v=>v!=null);
+  const profKey = hasRoe ? 'roe' : (useRoa ? 'roa' : 'roe');
+  const profLabel = useRoa ? 'ROA' : 'ROE';
+  const roe6=tail(fin[profKey],6), profAvg=avg(roe6);
   let cv=null;
-  if(roe6.length>=3&&roeAvg&&Math.abs(roeAvg)>0.01){
-    const v=roe6.reduce((s,x)=>s+(x-roeAvg)**2,0)/roe6.length; cv=Math.sqrt(v)/Math.abs(roeAvg);
+  if(roe6.length>=3&&profAvg&&Math.abs(profAvg)>0.01){
+    const v=roe6.reduce((s,x)=>s+(x-profAvg)**2,0)/roe6.length; cv=Math.sqrt(v)/Math.abs(profAvg);
   }
   const lossQ=roe6.filter(v=>v<0).length;
   const opm=tail(fin.opm,6); let trend=null;
   if(opm.length>=4){ const h=Math.ceil(opm.length/2); trend=avg(opm.slice(-h))-avg(opm.slice(0,opm.length-h)) }
+  const opmAvg=avg(opm);
   const debt=last(fin.debt), quick=last(fin.quick), per=last(fin.per), pbr=last(fin.pbr);
 
-  const A1=band(roeAvg,[[15,15,'우수'],[10,12,'양호'],[7,8,'보통'],[4,4,'낮음']]);
-  const A2= lossQ>0 ? {p:0,why:'적자분기 '+lossQ+'회',avail:true}
+  const A1= useRoa
+          ? band(profAvg,[[8,12,'우수'],[5,10,'양호'],[3,6,'보통'],[1.5,3,'낮음']])   // ROA 는 기준선이 낮다
+          : band(profAvg,[[15,12,'우수'],[10,10,'양호'],[7,6,'보통'],[4,3,'낮음']]);
+  const A2= lossQ>0 ? {p:0,why:'적자 '+lossQ+'회',avail:true}
           : cv===null ? {p:0,why:'자료부족',avail:false}
-          : bandLow(cv,[[0.15,15,'매우 안정'],[0.30,11,'안정'],[0.50,6,'변동 큼']]);
+          : bandLow(cv,[[0.15,12,'매우 안정'],[0.30,9,'안정'],[0.50,5,'변동 큼']]);
+  // 영업이익률 수준 — 20% 이상 만점 (업종 차이가 크므로 동종업계와 함께 보세요)
+  const A4= band(opmAvg,[[20,10,'매우 높음'],[15,8,'높음'],[10,6,'양호'],[5,3,'보통']]);
   const A3= trend===null?{p:0,why:'자료부족',avail:false}
-          : band(trend,[[1,10,'개선'],[0,7,'유지'],[-1,4,'소폭 악화']]);
+          : band(trend,[[1,6,'개선'],[0,4,'유지'],[-1,2,'소폭 악화']]);
+  const hasBs = (debt!=null) || (quick!=null);        // 재무상태표 자료가 오는가
   const B1=bandLow(debt,[[50,15,'매우 낮음'],[100,12,'낮음'],[150,8,'보통'],[200,4,'높음']]);
   const B2=band(quick,[[150,15,'풍부'],[100,12,'양호'],[70,8,'보통'],[50,4,'빠듯']]);
+
+  /* 부채·당좌가 없으면(해외) 이익의 질로 대체한다
+     Q1 순이익÷EBIT : 본업으로 번 것이 순이익으로 남는 비율.
+                      1 을 크게 넘으면 본업 밖 이익(일회성)이 섞였다는 신호라 감점.
+     Q2 EBIT÷EBITDA : 감가상각을 빼고도 남는 비율. 설비 부담이 클수록 낮다. */
+  const opN=tail(fin.op,6), pfN=tail(fin.profit,6), edN=tail(fin.ebitda,6);
+  const ratio=(a,b)=>{
+    if(!a.length||!b.length) return null;
+    const n=Math.min(a.length,b.length);
+    const va=a.slice(-n), vb=b.slice(-n);
+    const pairs=va.map((v,i)=>(v!=null&&vb[i]!=null&&vb[i]>0)?v/vb[i]:null).filter(v=>v!=null);
+    return pairs.length?avg(pairs):null;
+  };
+  const q1=ratio(pfN,opN), q2=ratio(opN,edN);
+  const Q1 = q1===null ? {p:0,why:'자료부족',avail:false}
+           : q1>1.3   ? {p:2, why:'순이익이 EBIT 보다 큼 — 본업 밖 이익 의심',avail:true}
+           : q1>1.1   ? {p:8, why:'순이익이 EBIT 을 웃돎',avail:true}
+           : q1>=0.6  ? {p:15,why:'이익이 본업에서 나옴',avail:true}
+           : q1>=0.4  ? {p:10,why:'이자·세금 부담이 큰 편',avail:true}
+           : q1>0     ? {p:5, why:'순이익 전환율 낮음',avail:true}
+           :            {p:0, why:'적자',avail:true};
+  const Q2 = q2===null ? {p:0,why:'자료부족',avail:false}
+           : band(q2,[[0.7,15,'감가상각 부담 적음'],[0.5,11,'보통'],[0.3,6,'설비 부담 큼']]);
   const C1= per===null?{p:0,why:'자료없음',avail:false}
           : per<=0 ?{p:0,why:'적자/이상치',avail:true}
           : bandLow(per,[[10,8,'저평가'],[15,6,'적정'],[25,4,'다소 비쌈'],[40,2,'비쌈']]);
   const C2=bandLow(pbr,[[1,7,'저평가'],[1.5,5,'적정'],[2.5,3,'다소 비쌈'],[4,1,'비쌈']]);
 
-  const A=[{k:'ROE 6분기 평균',v:fmt(roeAvg,'%'),o:A1,max:15},
-           {k:'ROE 안정성',v:cv===null?'—':'CV '+cv.toFixed(2),o:A2,max:15},
-           {k:'영업이익률 추세',v:trend===null?'—':(trend>0?'+':'')+trend.toFixed(1)+'%p',o:A3,max:10}];
-  const B=[{k:'부채비율',v:fmt(debt,'%'),o:B1,max:15},{k:'당좌비율',v:fmt(quick,'%'),o:B2,max:15}];
+  const A=[{k:profLabel+' 평균',v:fmt(profAvg,'%'),o:A1,max:12},
+           {k:profLabel+' 안정성',v:cv===null?'—':'CV '+cv.toFixed(2),o:A2,max:12},
+           {k:'영업이익률 수준',v:fmt(opmAvg,'%'),o:A4,max:10},
+           {k:'영업이익률 추세',v:trend===null?'—':(trend>0?'+':'')+trend.toFixed(1)+'%p',o:A3,max:6}];
+  const B = hasBs
+    ? [{k:'부채비율',v:fmt(debt,'%'),o:B1,max:15},{k:'당좌비율',v:fmt(quick,'%'),o:B2,max:15}]
+    : [{k:'이익의 질 (순이익÷EBIT)',v:q1===null?'—':q1.toFixed(2),o:Q1,max:15},
+       {k:'EBIT ÷ EBITDA',       v:q2===null?'—':q2.toFixed(2),o:Q2,max:15}];
   const C=[{k:'PER',v:fmt(per,'배'),o:C1,max:8},{k:'PBR',v:fmt(pbr,'배'),o:C2,max:7}];
 
   // 장기자금 — 미확인(null)은 채점에서 제외
@@ -485,11 +527,15 @@ function score(fin,m){
 
   const flags=[];
   if(debt!==null&&debt>200) flags.push('부채비율 '+debt.toFixed(0)+'% — 장기 보유 중 금리·업황 충격에 취약합니다.');
-  if(lossQ>=2) flags.push('최근 6분기 중 적자 '+lossQ+'회 — 이익이 아직 구조화되지 않았습니다.');
+  if(lossQ>=2) flags.push('최근 6기 중 적자 '+lossQ+'회 — 이익이 아직 구조화되지 않았습니다.');
+  if(q1!==null && q1>1.5) flags.push('순이익이 EBIT 의 '+q1.toFixed(1)+'배 — 본업 밖 이익이 섞여 있을 수 있습니다.');
+  if(opmAvg!==null && opmAvg>60) flags.push('영업이익률 '+opmAvg.toFixed(0)+'% — 자료가 정상인지 확인이 필요합니다.');
   if(quick!==null&&quick<50) flags.push('당좌비율 '+quick.toFixed(0)+'% — 단기 유동성이 빠듯합니다.');
-  if(cv!==null&&cv>0.6) flags.push('ROE 변동계수 '+cv.toFixed(2)+' — 실적이 사이클에 크게 흔들립니다.');
+  if(cv!==null&&cv>0.6) flags.push(profLabel+' 변동계수 '+cv.toFixed(2)+' — 실적이 사이클에 크게 흔들립니다.');
 
-  return {total, got, max, missing, flags, tA,tB,tC,tD, detail:{A,B,C}};
+  return {total, got, max, missing, flags, tA,tB,tC,tD,
+          bsLabel: hasBs ? '재무 안전성' : '이익의 질 (재무 자료 없음)',
+          profLabel, detail:{A,B,C}};
 }
 function verdictOf(t,flags){
   if(flags.length) return ['보류','var(--bad)','결격 항목을 먼저 확인하세요.'];
@@ -672,7 +718,7 @@ function renderMain(){
   ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:''}
   <div class="grid">
     ${sec('사업의 질',s.tA,s.detail.A)}
-    ${sec('재무 안전성',s.tB,s.detail.B)}
+    ${sec(s.bsLabel||'재무 안전성',s.tB,s.detail.B)}
     ${sec('밸류에이션',s.tC,s.detail.C)}
     <div class="card"><h3>장기자금 <em>${s.tD.max?s.tD.got+' / '+s.tD.max:'미확인'}</em></h3>
       ${f?`<div class="row"><span class="k">명부 지분율</span>

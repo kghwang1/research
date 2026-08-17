@@ -3491,7 +3491,7 @@ async function refreshWatchAll(btn){
     // 메모리에 남은 옛 목록을 모두 버리고, 지금 포트에 체크된 종목만 남긴다
     _WATCH_ROWS_watch = null; _WATCH_ROWS_invpf = null; WATCH_ROWS = null;
     _SEL_VISIBLE = new Set();
-    const pg = (selSub==='long') ? {removed:0, names:[]} : selPurgeOrphans();
+    const pg = isLongTab() ? {removed:0, names:[]} : selPurgeOrphans();
     const n = selCountBy();
     selSyncRows();
     renderWatchTable();
@@ -3710,7 +3710,7 @@ function watchCommit(idx, code, name){
 // 코드로 삭제 (정렬된 표에서 인덱스가 어긋나는 문제 방지)
 function watchDeleteByCode(code, idxFallback){
   const c=String(code||'').trim();
-  if(watchPort==='invpf' && selSub==='long'){
+  if(watchPort==='invpf' && isLongTab()){
     // 장기종목 표: 장기 후보 목록과 점수에서 뺀다
     const k=c.toUpperCase();
     try{
@@ -3882,15 +3882,20 @@ function renderWatchTable(){
     const d=rowClass(a[0])-rowClass(b[0]); return d!==0?d:a[1]-b[1];
   }).map(x=>x[0]);
   const displayRows = [...sorted, ...empties];
-  const isLongSub = (watchPort==='invpf' && selSub==='long');
+  const isLongSub = (watchPort==='invpf' && isLongTab());
+  const isLongUs  = (isLongSub && selSub==='long2');
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
-  const W = isLongSub
+  const W = isLongUs
+    ? [40,110,64,92,104,104,58,64,100,104,84]           // 국외: 미국(반) 적정주가 표와 같은 항목
+    : isLongSub
     ? [40,96,64,92,92,76,100,100,84]                    // 장기종목: 점수 추가 · 매수액/공매도/보고서 제외
     : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
   // 관심·투자 공통: 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서 (점수·합산식 없음)
-  const H = isLongSub
+  const H = isLongUs
+    ? ["종목","장기<br>점수","분류","현재가<br>(전일대비%)","적정주가<br>(상승여력%)","PEG","P/E(F)","52주최고가<br>(낙폭)","목표주가<br>(상승여력%)","컨센서스"]
+    : isLongSub
     ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스"]
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
@@ -3907,17 +3912,19 @@ function renderWatchTable(){
               + `<span style="font-size:10.5px;color:#8b949e;margin-left:4px">관심 ${cw} · 보유 ${ci} · 추가 ${selReadRows('kg_addstk_rows').filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length}</span>`;
   }
   // 관심보유 · 장기종목 · 새로고침 순서로 한 줄에 둔다
+  const lc = isSel ? selLongCount() : null;
   const subNav = isSel
     ? '<span class="selnav">'
       + `<button type="button" data-selsub="own"${selSub==='own'?' class="on"':''}>관심보유</button>`
-      + `<button type="button" data-selsub="long"${selSub==='long'?' class="on"':''}>장기종목</button>`
+      + `<button type="button" data-selsub="long1"${selSub==='long1'?' class="on"':''}>장기보유1 <b>${lc.kr}</b></button>`
+      + `<button type="button" data-selsub="long2"${selSub==='long2'?' class="on"':''}>장기보유2 <b>${lc.us}</b></button>`
       + '<button type="button" id="watchDataBtn" class="rfr selrfr">↻ 새로</button>'
       + '</span>'
     : '';
   const capBtns = isSel
     ? {}                                                                             // 선정주: 새로고침은 위 줄로 옮김
     : {refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'};
-  let h='<caption class="kr-cap">'+capTitle+subNav+pfMenuHtml(capBtns, {checks: (isSel&&selSub==='long') ? '' : capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  let h='<caption class="kr-cap">'+capTitle+subNav+pfMenuHtml(capBtns, {checks: (isSel&&isLongTab()) ? '' : capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -4039,15 +4046,30 @@ function renderWatchTable(){
     h+=`<td class="cls-cell">${clsCellHtml(code, nm||'')}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
-    h+=`<td>${roeTxt}</td>`;
-    h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
-    if(!isLongSub){
-      h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
-      h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
+    if(isLongUs){
+      // 미국(반) 적정주가 표와 같은 항목 — 적정주가 · PEG · P/E(F)
+      const vr=valRowOf(code);
+      const fair = vr ? vr[8] : '';
+      const goal = vr ? vr[6] : '';
+      const peg  = vr ? vr[4] : '';
+      const pef  = vr ? vr[3] : '';
+      h+=`<td class="mp-r">${usCell(fair, liveStr)}</td>`;
+      h+=`<td class="mp-c">${peg!=='' && peg!=null ? peg : '<span class="rsub">—</span>'}</td>`;
+      h+=`<td class="mp-c">${pef!=='' && pef!=null ? pef : '<span class="rsub">—</span>'}</td>`;
+      h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
+      h+=`<td class="mp-r">${goal!=='' && goal!=null ? usCell(goal, liveStr) : (tgtStr+upHtml)}</td>`;
+      h+=`<td>${consCell(code)}</td>`;
+    }else{
+      h+=`<td>${roeTxt}</td>`;
+      h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
+      if(!isLongSub){
+        h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
+        h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
+      }
+      h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
+      h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
+      h+=`<td>${consCell(code)}</td>`;
     }
-    h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
-    h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
-    h+=`<td>${consCell(code)}</td>`;
     if(!isLongSub) h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
@@ -4727,7 +4749,12 @@ let _SEL_VISIBLE = new Set();   // 현재 표에 그려진 종목코드(대문�
 
 // 필터를 적용한 통합 목록을 WATCH_ROWS 형식([[code,name],...])으로 만든다
 /* 선정주 하부 화면: own=관심·보유 / long=장기투자에서 담은 종목 */
+/* 선정주 하부 화면
+     own   = 관심보유
+     long1 = 장기보유1 (국내 6자리)
+     long2 = 장기보유2 (해외 티커)  — 채점 항목이 달라 표를 나눈다 */
 let selSub='own';
+const isLongTab = v => String(v||selSub).indexOf('long')===0;
 // 장기투자(kg-long.html)가 저장해 둔 점수
 function longScoreMap(){
   try{ const r=localStorage.getItem('kg_long_scores'); const o=r?JSON.parse(r):{};
@@ -4741,22 +4768,75 @@ function longScoreCell(code){
   const lab = v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
   return `<b style="color:${col};font-size:13px">${v.total}</b><div class="rsub" style="color:${col}">${lab}</div>`;
 }
-function selLongRows(){
+/* 장기종목 하위 구분: kr=국내 6자리 · us=해외 티커
+   채점 항목이 서로 달라(해외는 ROE·부채비율이 없음) 한 표에 섞지 않는다 */
+let selLongMkt='kr';
+function selLongAll(){
   try{
     const r=localStorage.getItem('kg_long_rows'); const a=r?JSON.parse(r):[];
     if(!Array.isArray(a)) return [];
-    return a.map(x=>[String((x&&x.code)||''), (x&&x.name)||''])
-            .filter(x=>/^\d{6}$/.test(x[0]));
+    return a.map(x=>[String((x&&x.code)||'').trim(), (x&&x.name)||''])
+            .filter(x=>x[0]);
   }catch(e){ return []; }
 }
+function selLongRows(mkt){
+  const m = mkt || selLongMkt;
+  return selLongAll().filter(x => m==='us' ? !/^\d{6}$/.test(x[0]) : /^\d{6}$/.test(x[0]));
+}
+function selLongCount(){
+  const all=selLongAll();
+  return { kr: all.filter(x=>/^\d{6}$/.test(x[0])).length,
+           us: all.filter(x=>!/^\d{6}$/.test(x[0])).length };
+}
+
+/* 장기보유2(해외) 표는 미국(반) 적정주가 표와 같은 항목을 쓴다.
+   VAL_DATA 열: 1=Symbol 2=기업명 3=P/E(F) 4=PEG 6=목표주가 8=적정주가 */
+let _valByTicker=null;
+function valRowOf(code){
+  if(!_valByTicker){
+    _valByTicker={};
+    try{
+      (typeof VAL_DATA!=='undefined'?VAL_DATA:[]).forEach(r=>{
+        const sym=String(r[1]||'').trim();
+        if(!sym) return;
+        const fix=(typeof SYM_FIX!=='undefined' && SYM_FIX[sym]) ? SYM_FIX[sym] : sym;
+        _valByTicker[fix.toUpperCase()]=r;
+        _valByTicker[sym.toUpperCase()]=r;
+      });
+    }catch(e){}
+  }
+  const t=String(code||'').replace(/^US:/i,'').trim().toUpperCase();
+  return _valByTicker[t]||null;
+}
+function usTicker(code){ return String(code||'').replace(/^US:/i,'').trim().toUpperCase(); }
+/* 기준값 대비 현재가 상승여력 — (기준−현재)/현재×100 */
+function usUpside(base, cur){
+  const b=parseFloat(String(base||'').replace(/[^0-9.\-]/g,''));
+  const c=parseFloat(String(cur||'').replace(/[^0-9.\-]/g,''));
+  if(!isFinite(b)||!isFinite(c)||!c) return '';
+  return Math.round((b-c)/c*100);
+}
+function usCell(base, cur){
+  if(base===undefined||base===null||base==='') return '<span class="rsub">—</span>';
+  const up=usUpside(base, cur);
+  const tag = up==='' ? '' : ` <span class="diffp${up>=0?'':' neg'}">(${up>=0?'+':''}${up}%)</span>`;
+  return addComma(base)+tag;
+}
+
+function selLongEmptyMsg(){
+  return selSub==='long2'
+    ? '장기보유2(해외)에 담긴 종목이 없습니다. 장기투자 화면에서 해외 종목을 채점해 담으면 여기에 나옵니다.'
+    : '장기보유1(국내)에 담긴 종목이 없습니다. 장기투자 화면에서 ＋후보 담기로 담으세요.';
+}
 function setSelSub(v){
-  selSub = (v==='long') ? 'long' : 'own';
+  selSub = (v==='long1'||v==='long2') ? v : 'own';
+  selLongMkt = (selSub==='long2') ? 'us' : 'kr';
   _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
   selSyncRows(); renderWatchTable(); fetchWatchLive();
 }
 
 function selSyncRows(){
-  if(selSub==='long'){                       // 장기종목 — 장기투자에서 담은 후보
+  if(isLongTab()){                           // 장기보유 — 장기투자에서 담은 후보
     const rows=selLongRows();
     _SEL_VISIBLE = new Set(rows.map(r=>String(r[0]).toUpperCase()));
     WATCH_ROWS = rows; _WATCH_ROWS_invpf = rows;
@@ -9231,7 +9311,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=19';
+const LONG_URL='kg-long.html?v=20';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
