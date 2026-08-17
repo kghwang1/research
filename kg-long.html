@@ -151,6 +151,9 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
         <option value="watch">관심</option>
         <option value="invest">코스피200</option>
         <option value="investkq">코스닥100</option>
+        <option value="usc">미국(체)</option>
+        <option value="us">미국(반)</option>
+        <option value="etf">한·미 ETF</option>
   </select>
 </div>
 <div class="wrap">
@@ -196,8 +199,9 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
    자료: worker ?fin3=  ·  포트 목록: 부모창 chartPortRows()
 */
 const WORKER='https://quote.kghwang1.workers.dev/';
+const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-17c';
+const BUILD='KG_LONG 2026-08-17d';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -326,11 +330,16 @@ function srcRows(){
       .sort((a,b)=>funds[b].dif-funds[a].dif).map(c=>[c,funds[c].name||'']);
   return parentRows(src);
 }
+/* 국내 6자리 코드와 해외 티커를 모두 받는다 (해외는 kg-usfin worker 로 조회) */
+const isUsCode = c => !/^\d{6}$/.test(String(c||'').replace(/^US:/i,'')) && /[A-Za-z]/.test(String(c||''));
+const usTickerOf = c => String(c||'').replace(/^US:/i,'').trim().toUpperCase();
 function domesticOnly(rows){
   const out=[],skip=[];
   rows.forEach(r=>{
     const c=String(r[0]||'').trim();
-    if(/^\d{6}$/.test(c)) out.push([c, r[1]||'']); else if(c) skip.push(c);
+    if(/^\d{6}$/.test(c)) out.push([c, r[1]||'']);
+    else if(isUsCode(c)) out.push([c, r[1]||'']);
+    else if(c) skip.push(c);
   });
   return {out, skipped:skip.length};
 }
@@ -553,9 +562,13 @@ async function loadOne(code,name){
   try{
     let raw=parentFin3(code);
     if(!raw){
-      const r=await fetch(WORKER+'?fin3='+encodeURIComponent(code));
+      const u = isUsCode(code)
+        ? USFIN+'?usfin='+encodeURIComponent(usTickerOf(code))+'&freq=annual'   // 해외
+        : WORKER+'?fin3='+encodeURIComponent(code);                            // 국내
+      const r=await fetch(u);
       if(!r.ok) throw new Error('worker '+r.status);
       raw=await r.json();
+      if(raw && raw.ok===false) throw new Error(raw.error||'자료 없음');
     }
     c.raw=raw;
     c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||c.name||savedName(code)||code;
@@ -806,8 +819,10 @@ function bindHeadSearch(){
   inp.onkeydown=ev=>{
     if(ev.key==='Enter'){
       ev.preventDefault();
-      const c=String(inp.value||'').replace(/[^0-9]/g,'');
+      const v=String(inp.value||'').trim();
+      const c=v.replace(/[^0-9]/g,'');
       if(c.length===6){ close(); inp.value=''; renderList(); showList=false; pick(c,''); }
+      else if(/^[A-Za-z.\-]{1,6}$/.test(v)){ close(); inp.value=''; renderList(); showList=false; pick(v.toUpperCase(),''); }
     }else if(ev.key==='Escape'){ close(); }
   };
   inp.onblur=()=>setTimeout(close,150);

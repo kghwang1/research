@@ -904,6 +904,9 @@
      <option value="addstk">추가종목</option>
      <option value="invpf">선정주</option>
      <option value="watch">관심</option>
+     <option value="usc">미국(체)</option>
+     <option value="us">미국(반)</option>
+     <option value="etf">한·미 ETF</option>
     </select>
    </div>
   </div>
@@ -7237,6 +7240,7 @@ function anlInit(){
     if(!q){ if(sug){ sug.innerHTML=''; sug.classList.remove('on'); } return; }
     // 6자리 숫자면 바로 조회
     if(/^\d{6}$/.test(q)){ anlPick(q, q); return; }
+  if(/^[A-Za-z.\-]{1,6}$/.test(q) && q.length>=2 && q===q.toUpperCase()){ anlPick(q, q); return; }
     timer=setTimeout(async()=>{
       if(!SRV_URL || !sug) return;
       try{
@@ -7894,9 +7898,9 @@ function anlEnsureDefaultList(){
 
 let ANL_PORT=null;      // 분석 좌측 목록이 어느 포트에서 왔는지
 // 분석이 다룰 수 있는 포트 (국내 6자리 종목만 재무 조회가 된다)
-const ANL_PORTS=['kr','invest','investkq','addstk','invpf','watch'];
+const ANL_PORTS=['kr','invest','investkq','addstk','invpf','watch','usc','us','etf'];
 function anlLoadPort(mk, wantCode){
-  // 해외·지수·ETF 포트에서 넘어오면 분석에서는 다룰 수 없으므로 한국(체)로 받는다
+  // 지수·배당처럼 종목 분석이 안 되는 포트만 한국(체)로 받는다
   if(!ANL_PORTS.includes(mk)) mk='kr';
   const psel=$('#anlPortSel'); if(psel) psel.value=mk;   // 드롭다운 표시를 항상 일치시킨다
   let rows=[];
@@ -7914,12 +7918,22 @@ function anlLoadPort(mk, wantCode){
       rows=(typeof INVEST_ROWS!=='undefined'?INVEST_ROWS:[]).map(r=>({code:r.code, name:r.name}));
     } else if(mk==='investkq'){
       rows=(typeof INVEST_KQ_ROWS!=='undefined'?INVEST_KQ_ROWS:[]).map(r=>({code:r.code, name:r.name}));
+    } else if(mk==='usc'||mk==='us'||mk==='etf'){
+      rows=(typeof chartPortRows==='function'?chartPortRows(mk):[])
+             .map(r=>({code:String(r[0]||''), name:r[1]||''}));
     }
   }catch(e){}
   // 코드 중복 제거
   const seen=new Set(); const uniq=[];
-  rows.forEach(r=>{ const c=String(r.code||'').replace(/[^0-9]/g,'');
-    if(c.length===6 && !seen.has(c)){ seen.add(c); uniq.push({code:c, name:r.name||c}); } });
+  rows.forEach(r=>{
+    const raw=String(r.code||'').trim();
+    const digits=raw.replace(/[^0-9]/g,'');
+    const c = (digits.length===6) ? digits : (isUsCode(raw) ? raw : '');
+    if(!c) return;
+    const k=c.toUpperCase();
+    if(seen.has(k)) return;
+    seen.add(k); uniq.push({code:c, name:r.name||c});
+  });
   anlSetList(uniq, mk);
   ANL_PORT=mk;
   const want = wantCode && uniq.find(r=>r.code===String(wantCode));
@@ -7935,9 +7949,10 @@ let ANL_FROM=null;      // 돌아갈 표 (valMarket 값)
 // ETF 는 재무제표가 없으므로 목록에서 제외한다
 const ETF_NAME=/(KODEX|TIGER|KBSTAR|ARIRANG|HANARO|SOL |ACE |PLUS |RISE |WOORI|KOSEF|TIMEFOLIO|파워|마이다스|ETN)/i;
 function anlSetList(rows, fromMarket){
+  const usPort = (fromMarket==='usc'||fromMarket==='us'||fromMarket==='etf');
   ANL_LIST=(rows||[])
-    .filter(r=>r && /^\d{6}$/.test(String(r.code||'')))
-    .filter(r=>!ETF_NAME.test(String(r.name||'')));
+    .filter(r=>r && (/^\d{6}$/.test(String(r.code||'')) || isUsCode(r.code)))
+    .filter(r=>usPort || !ETF_NAME.test(String(r.name||'')));   // 해외 포트는 ETF 도 그대로 둔다
   ANL_FROM=fromMarket||null;
   anlRenderList();
 }
@@ -8168,15 +8183,22 @@ function fin3Save(){
   try{ localStorage.setItem('kg_fin3_v2', JSON.stringify({date:invToday(), data:FIN3})); }catch(e){}
 }
 // 표에 있는 종목 중 아직 안 받은 것만 순차 조회 (네이버 차단 방지)
+/* 해외 재무 전용 worker — 국내 ?fin3= 과 같은 키로 돌려준다 */
+const USFIN_URL='https://kg-usfin.kghwang1.workers.dev';
+const isUsCode = c => !/^\d{6}$/.test(String(c||'').replace(/^US:/i,'')) && /[A-Za-z]/.test(String(c||''));
+const usTickerOf = c => String(c||'').replace(/^US:/i,'').trim().toUpperCase();
+
 async function ensureFin3(codes, onDone){
   if(!SRV_URL || fin3Busy) return;
-  const want=[...new Set((codes||[]).map(c=>String(c||'').replace(/[^0-9]/g,'')).filter(c=>c.length===6))]
-             .filter(c=>!FIN3[c]);
-  if(!want.length) return;
+  const all=[...new Set((codes||[]).map(c=>String(c||'').trim()).filter(Boolean))];
+  const kr=all.filter(c=>/^\d{6}$/.test(c)).filter(c=>!FIN3[c]);
+  const us=all.filter(c=>isUsCode(c)).filter(c=>!FIN3[c]);
+  if(!kr.length && !us.length) return;
   fin3Busy=true;
   try{
-    for(let i=0;i<want.length;i+=2){
-      await Promise.all(want.slice(i,i+2).map(async c=>{
+    // 국내
+    for(let i=0;i<kr.length;i+=2){
+      await Promise.all(kr.slice(i,i+2).map(async c=>{
         try{
           const r=await fetch(SRV_URL+'/?fin3='+c);
           const d=await r.json();
@@ -8186,7 +8208,22 @@ async function ensureFin3(codes, onDone){
             opm:d.opm||null, npm:d.npm||null, quick:d.quick||null};
         }catch(e){}
       }));
-      if(i+2<want.length) await new Promise(r=>setTimeout(r,180));
+      if(i+2<kr.length) await new Promise(r=>setTimeout(r,180));
+    }
+    // 해외 — 연간(3기)이 분기보다 안정적이라 연간을 쓴다
+    for(let i=0;i<us.length;i+=2){
+      await Promise.all(us.slice(i,i+2).map(async c=>{
+        try{
+          const r=await fetch(USFIN_URL+'/?usfin='+encodeURIComponent(usTickerOf(c))+'&freq=annual');
+          const d=await r.json();
+          if(d&&d.ok) FIN3[c]={periods:d.periods||[], salesGrowth:null,
+            roe:d.roe||null, roa:d.roa||null, debt:d.debt||null,
+            pbr:d.pbr||null, per:d.per||null, profit:d.profit||null,
+            opm:d.opm||null, npm:d.npm||null, quick:d.quick||null,
+            op:d.op||null, ebitda:d.ebitda||null, sales:d.sales||null, us:true};
+        }catch(e){}
+      }));
+      if(i+2<us.length) await new Promise(r=>setTimeout(r,180));
     }
     fin3Save();
     if(typeof onDone==='function') onDone();
@@ -9311,7 +9348,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=20';
+const LONG_URL='kg-long.html?v=21';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
