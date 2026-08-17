@@ -2115,7 +2115,7 @@ const VAL_VIEW=[
 /* 한국 종목 → 네이버 6자리 코드 (도메스틱 페이지·실시간 시세용) */
 const KR_CODE={'삼성전자':'005930','SK하이닉스':'000660','현대차':'005380','네이버':'035420'};
 /* 표의 Symbol이 야후 티커와 다른 경우 보정 */
-const SYM_FIX={"Oracle":"ORCL","Macy's":"M","Crox":"CROX","NIKE":"NKE","Target":"TGT","Circle":"CRCL","Nebius":"NBIS"};
+const SYM_FIX={"Oracle":"ORCL","Macy's":"M","Crox":"CROX","NIKE":"NKE","Target":"TGT","Circle":"CRCL","Nebius":"NBIS","Block XYZ":"XYZ","Zillow":"Z"};
 /* 시세 조회용 심볼 (없으면 null → 현재가 '—') */
 function valQuoteSym(sym){
   sym=String(sym==null?'':sym).trim();
@@ -9436,7 +9436,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=22';
+const LONG_URL='kg-long.html?v=23';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -9519,7 +9519,10 @@ function chartPortRows(port){
     return (typeof KR_PF!=='undefined' && KR_PF.rows) ? KR_PF.rows.map(r=>[r[0], r[1]]) : [];
   }
   if(port==='usc'){
-    return (typeof USC_DATA!=='undefined') ? USC_DATA.map(r=>[r[0], r[1]]) : [];
+    // '현금' 처럼 티커가 빈 행은 조회 대상이 아니므로 뺀다
+    return (typeof USC_DATA!=='undefined')
+      ? USC_DATA.filter(r=>String(r[0]||'').trim()).map(r=>[String(r[0]).trim(), r[1]])
+      : [];
   }
   if(port==='invest'){  // 코스피200
     return (typeof INVEST_ROWS!=='undefined' && INVEST_ROWS.length) ? INVEST_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']) : [];
@@ -9528,7 +9531,19 @@ function chartPortRows(port){
     return (typeof INVEST_KQ_ROWS!=='undefined' && INVEST_KQ_ROWS.length) ? INVEST_KQ_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']) : [];
   }
   if(port==='us'){  // 미국(반)
-    return (typeof VAL_DATA!=='undefined') ? VAL_DATA.map(r=>[r[1], r[2]]) : [];  // [순위,티커,명칭,...] → 티커·명칭
+    // 표의 Symbol 은 'Oracle' 'Block XYZ' '삼성전자' 처럼 티커가 아닌 것이 섞여 있다.
+    // 조회 가능한 코드(해외 티커 / 국내 6자리)로 바꾸고, 바스켓 항목은 뺀다.
+    if(typeof VAL_DATA==='undefined') return [];
+    const out=[];
+    VAL_DATA.forEach(r=>{
+      const raw=String(r[1]||'').trim(), nm=r[2]||raw;
+      if(!raw) return;
+      if(/[(),]/.test(raw)) return;                     // 'MMF(BIL,ICSH), IEF' 같은 묶음은 제외
+      const q=(typeof valQuoteSym==='function') ? valQuoteSym(raw) : raw;
+      if(!q) return;
+      out.push([ q.indexOf('STK:')===0 ? q.slice(4) : q, nm ]);
+    });
+    return out;
   }
   if(port==='etf'){  // 한·미 ETF
     const kr=(typeof KRETF_DATA!=='undefined') ? KRETF_DATA.map(r=>[r[0], r[1]]) : [];

@@ -201,7 +201,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-17e';
+const BUILD='KG_LONG 2026-08-17f';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -717,7 +717,17 @@ function renderMain(){
   if(!cur){ done('<div class="msg">위 검색칸에서 종목을 찾거나, 왼쪽 목록에서 고르세요.</div>'); return }
   const c=cache[cur];
   if(!c||c.loading){ done('<div class="msg">'+cur+' 재무 받는 중…</div>'); return }
-  if(c.error){ done('<div class="msg">자료를 받지 못했습니다 — '+esc(c.error)+'<br>worker 의 ?fin3= 응답을 확인하세요.</div>'); return }
+  if(c.error){
+    const nm=String(bestName(cur)||'');
+    const etfLike = /ETF|INDEX|TRUST|SPDR|ISHARES|INVESCO|VANECK|ROUNDHILL|PROSHARES|GLOBAL X|SELECT SECTOR|EQUAL WEIGHT/i.test(nm);
+    done('<div class="msg">'
+      + (etfLike
+          ? '<b>ETF·펀드는 재무 채점 대상이 아닙니다.</b><br>개별 기업이 아니라 여러 종목을 담은 상품이라 ROE·영업이익률 같은 지표가 없습니다.'
+          : '자료를 받지 못했습니다 — '+esc(c.error)
+            + '<br>티커 표기가 맞는지, 해외 재무 worker 가 배포됐는지 확인하세요.')
+      + '</div>');
+    return;
+  }
   const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags), m0=manualOf(cur), f=funds[cur];
   const sec=(t,tl,list)=>`<div class="card"><h3>${t}<em>${tl.got} / ${tl.max||0}</em></h3><div class="rows">
     ${list.map(it=>`<div class="row"><span class="k">${it.k}</span><span class="v">${it.v}</span>

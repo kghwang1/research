@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>미국(반) 재무 조회 점검</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--line:#2a2f3a;--tx:#e6e9ef;--tx2:#9aa3b2;--tx3:#6b7385;
+  --ok:#3fb950;--bad:#ef5350;--warn:#d29922;--acc:#5b8def}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);padding:14px;
+  font:13px/1.6 -apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif}
+h1{font-size:17px;margin:0 0 4px}
+p.sub{color:var(--tx2);margin:0 0 12px;font-size:12px}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+button{background:var(--acc);border:0;color:#fff;border-radius:6px;padding:7px 14px;cursor:pointer;font-size:13px}
+button.gray{background:var(--panel);border:1px solid var(--line);color:var(--tx2)}
+button:disabled{opacity:.5;cursor:default}
+input{background:var(--panel);border:1px solid var(--line);color:var(--tx);border-radius:6px;padding:6px 9px;width:340px;max-width:70vw}
+.stat{color:var(--tx2);font-size:12px}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;margin-top:8px}
+th,td{padding:5px 7px;border-bottom:1px solid #21252e;text-align:left;white-space:nowrap}
+th{color:var(--tx3);font-size:11px;font-weight:600;position:sticky;top:0;background:var(--bg)}
+td.n{text-align:right}
+.ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)} .mut{color:var(--tx3)}
+.wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<h1>해외 재무 조회 점검</h1>
+<p class="sub">미국(체)·미국(반) 표의 티커를 하나씩 kg-usfin worker 로 조회해, 분석·장기투자에서 자료가 제대로 오는지 확인합니다.
+ETF 는 개별 기업이 아니라 재무가 없는 것이 정상입니다.</p>
+
+<div class="bar">
+  <input id="url" value="https://kg-usfin.kghwang1.workers.dev/">
+  <label class="stat"><input type="checkbox" id="ann" checked style="width:auto"> 연간</label>
+  <select id="scope" style="background:var(--panel);border:1px solid var(--line);color:var(--tx);border-radius:6px;padding:6px 9px">
+    <option value="all">미국(체)+미국(반)</option>
+    <option value="usc">미국(체)만</option>
+    <option value="us">미국(반)만</option>
+    <option value="stock">개별 기업만 (ETF 제외)</option>
+  </select>
+  <button id="run">점검 시작</button>
+  <button id="stop" class="gray" disabled>중단</button>
+  <span class="stat" id="stat"></span>
+</div>
+
+<div class="wrap"><table>
+<thead><tr>
+  <th>#</th><th>티커</th><th>구분</th><th>종목명</th><th>결과</th><th>심볼</th><th>기간</th>
+  <th class="n">ROA</th><th class="n">영업이익률</th><th class="n">PER</th><th class="n">PBR</th><th>비고</th>
+</tr></thead>
+<tbody id="tb"></tbody>
+</table></div>
+
+<script>
+/* 미국(반) 표에서 뽑은 티커 — index.html 의 VAL_DATA 와 같은 규칙으로 정리한 것
+   (묶음 항목 제외, Oracle→ORCL 같은 보정 적용, 한국 종목은 제외) */
+const LIST = [["SPY","SS SPDR S&P500 ETF","체"],["DRAM","ROUNDHILL MEMORY ETF","체"],["MU","MICRON TECHNOLOGY","체"],["SNDK","SANDISK","체"],["SOXX","ISHARES SEMICONDUCTOR ETF","체"],["TSLA","TESLA","체"],["GOOGL","ALPHABET CL A","체"],["EWY","ISHARES MSCI SOUTH KOREA ETF","체"],["MRVL","MARVELL TECHNOLOGY","체"],["INTC","INTEL","체"],["RSP","INVESCO S&P500 EQUAL WEIGHT","체"],["LITE","LUMENTUM HOLDINGS","체"],["SPCE","SPACE EXPLORATION TECHN-CL A","체"],["SMH","VANECK SEMICONDUCTOR ETF","체"],["AMAT","APPLIED MATERIALS","체"],["HXSCL","SK HYNIX ADR","체"],["LRCX","LAM RESEARCH","체"],["ASML","ASML HOLDING","체"],["QQQ","INVESCO QQQ TRUST SERIES 1","체"],["AVGO","BROADCOM","체"],["XLV","SS HEALTH CARE SELECT SECTOR","체"],["META","META PLATFORMS CL A","체"],["PLTR","PALANTIR TECHNOLOGIES","체"],["APP","APPLOVIN","체"],["MRNA","MODERNA","체"],["BLK","BLACKROCK","체"],["MRK","MERCK","체"],["ABNB","AIRBNB CL A","체"],["NVDA","NVIDIA","체"],["AAPL","APPLE","체"],["IGV","ISHARES EXPANDED TECH-SOFTWARE","체"],["CAT","CATERPILLAR","체"],["URA","GLOBAL X URANIUM ETF","체"],["TSM","TAIWAN SEMICONDUCTOR ADR","체"],["DIA","다우존스 ETF","반"],["GOOG","알파벳(구글)","반"],["AMZN","아마존","반"],["MSFT","마이크로소프트","반"],["NFLX","넷플릭스","반"],["LLY","일라이릴리","반"],["NVO","노보노디스크","반"],["ORCL","오라클","반"],["DELL","델테크놀로지스","반"],["CRWD","크라우드스트라이크","반"],["CRM","세일즈포스","반"],["CRWV","코어위브","반"],["RIVN","리비안","반"],["ZM","줌","반"],["WDC","웨스턴디지털","반"],["STX","시게이트","반"],["SKHY","SK하이닉스 ADR","반"],["COHR","코히런트","반"],["AMD","AMD","반"],["ARM","ARM홀딩스","반"],["COST","코스트코","반"],["UNH","유나이티드헬스","반"],["CMG","치폴레","반"],["DPZ","도미노피자","반"],["NKE","나이키","반"],["LULU","룰루레몬","반"],["CROX","크록스","반"],["SBUX","스타벅스","반"],["BOTZ","로보틱스 ETF","반"],["ISRG","인튜이티브서지컬","반"],["M","메이시스","반"],["HD","홈디포","반"],["IONQ","아이온큐","반"],["QBTS","디웨이브퀀텀","반"],["RGTI","리게티컴퓨팅","반"],["QUBT","퀀텀컴퓨팅","반"],["ARQQ","아르킷퀀텀","반"],["QNT","QNT","반"],["IBM","IBM","반"],["SPCX","SPCX","반"],["RKLB","로켓랩","반"],["PL","플래닛랩스","반"],["RDW","레드와이어","반"],["ASTS","AST스페이스모바일","반"],["GSAT","글로벌스타","반"],["LUNR","인튜이티브머신스","반"],["SMCI","슈퍼마이크로","반"],["SOUN","사운드하운드","반"],["SOFI","소파이","반"],["V","비자","반"],["RBLX","로블록스","반"],["U","유니티","반"],["SNOW","스노우플레이크","반"],["VUZI","뷰직스","반"],["NTLA","인텔리아","반"],["DIS","디즈니","반"],["PYPL","페이팔","반"],["ENPH","엔페이즈","반"],["AFRM","어펌","반"],["APPS","디지털터빈","반"],["BAC","뱅크오브아메리카","반"],["JPM","JP모건","반"],["GS","골드만삭스","반"],["WMT","월마트","반"],["KO","코카콜라","반"],["ADBE","어도비","반"],["TGT","타겟","반"],["CHPT","차지포인트","반"],["NIO","니오","반"],["LCID","루시드","반"],["KOPN","코핀","반"],["XYZ","블록","반"],["Z","질로우","반"],["IMMR","이머전","반"],["ABCL","앱셀러라","반"],["GPRO","고프로","반"],["CRSP","크리스퍼테라퓨틱스","반"],["UBER","우버","반"],["BBY","베스트바이","반"],["CAR","에이비스버짓","반"],["CRCL","서클","반"],["JOBY","조비에비에이션","반"],["TEM","템퍼스AI","반"],["PFE","화이자","반"],["IREN","아이리스에너지","반"],["NBIS","네비우스","반"],["CRDO","크레도테크","반"],["PANW","팔로알토네트웍스","반"],["PGY","퍼가니움","반"],["SHOP","쇼피파이","반"],["MCD","맥도날드","반"],["ANET","아리스타네트웍스","반"],["FIG","피그마","반"],["DAL","델타항공","반"],["PATH","유아이패스","반"],["SERV","서브로보틱스","반"],["JNJ","존슨앤존슨","반"],["VZ","버라이즌","반"],["BE","블룸에너지","반"],["RDDT","레딧","반"],["EL","에스티로더","반"],["GLW","코닝","반"],["CSCO","시스코","반"],["USAR","USAR","반"],["NOW","서비스나우","반"],["ZS","지스케일러","반"],["HPE","HPE","반"]];
+
+const $ = s => document.querySelector(s);
+const tb = $('#tb');
+let stopped = false;
+
+const fmt = a => {
+  if (!a || !a.length) return '—';
+  const v = a.filter(x => x != null);
+  return v.length ? (Math.round(v[v.length - 1] * 10) / 10) : '—';
+};
+
+const ETF_RE = /ETF|INDEX|TRUST|SPDR|ISHARES|INVESCO|VANECK|ROUNDHILL|PROSHARES|GLOBAL X|SELECT SECTOR|EQUAL WEIGHT/i;
+function row(i, t, name, src, isEtf) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td class="mut">${i + 1}</td><td><b>${t}</b></td>`
+    + `<td class="mut">${src}${isEtf ? ' · <span class="warn">ETF</span>' : ''}</td>`
+    + `<td class="mut">${name}</td>`
+    + `<td class="mut">대기…</td><td></td><td></td>`
+    + `<td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="mut"></td>`;
+  tb.appendChild(tr);
+  return tr;
+}
+
+async function check(base, t, ann) {
+  const u = base.replace(/\/+$/, '') + '/?usfin=' + encodeURIComponent(t) + (ann ? '&freq=annual' : '');
+  const r = await fetch(u);
+  return await r.json();
+}
+
+$('#run').onclick = async () => {
+  stopped = false;
+  tb.innerHTML = '';
+  $('#run').disabled = true; $('#stop').disabled = false;
+  const base = $('#url').value.trim();
+  const ann = $('#ann').checked;
+  const scope = $('#scope').value;
+  const SEL = LIST.filter(x => {
+    const isEtf = ETF_RE.test(x[1] || '');
+    if (scope === 'usc') return x[2] === '체';
+    if (scope === 'us') return x[2] === '반';
+    if (scope === 'stock') return !isEtf;
+    return true;
+  });
+  const rows = SEL.map((x, i) => row(i, x[0], x[1], x[2], ETF_RE.test(x[1] || '')));
+  let ok = 0, bad = 0, etfNo = 0;
+
+  for (let i = 0; i < SEL.length; i++) {
+    if (stopped) break;
+    const [t, name] = SEL[i];
+    const isEtf = ETF_RE.test(name || '');
+    const tds = rows[i].querySelectorAll('td');
+    tds[4].textContent = '조회 중…';
+    try {
+      const d = await check(base, t, ann);
+      if (d && d.ok) {
+        ok++;
+        const miss = ['roa', 'opm', 'per', 'pbr'].filter(k => !d[k] || d[k].every(v => v == null));
+        tds[4].innerHTML = miss.length ? '<span class="warn">일부 없음</span>' : '<span class="ok">정상</span>';
+        tds[5].textContent = d.symbol || '';
+        tds[6].textContent = (d.periods || []).join(' ');
+        tds[7].textContent = fmt(d.roa);
+        tds[8].textContent = fmt(d.opm);
+        tds[9].textContent = fmt(d.per);
+        tds[10].textContent = fmt(d.pbr);
+        tds[11].textContent = miss.length ? ('빠짐: ' + miss.join(',')) : (d.freq || '');
+      } else if (isEtf) {
+        etfNo++;
+        tds[4].innerHTML = '<span class="mut">해당없음</span>';
+        tds[11].textContent = 'ETF — 재무가 없는 것이 정상';
+      } else {
+        bad++;
+        tds[4].innerHTML = '<span class="bad">실패</span>';
+        tds[5].textContent = (d && d.symbol) || '';
+        tds[11].textContent = (d && d.error) || '응답 없음';
+      }
+    } catch (e) {
+      bad++;
+      tds[4].innerHTML = '<span class="bad">오류</span>';
+      tds[11].textContent = e.message;
+    }
+    $('#stat').textContent = `${i + 1} / ${SEL.length}  ·  정상 ${ok} · 실패 ${bad} · ETF ${etfNo}`;
+    await new Promise(r => setTimeout(r, 120));   // 서버 부담을 줄인다
+  }
+  $('#run').disabled = false; $('#stop').disabled = true;
+};
+$('#stop').onclick = () => { stopped = true; };
+</script>
+</body>
+</html>
