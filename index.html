@@ -895,7 +895,7 @@
   <div class="anl-top">
    <div class="anl-row">
     <span class="anl-ttl">종목분석</span>
-    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
    </div>
    <div class="anl-row">
     <button id="anlSideToggle" class="anl-backbtn">종목</button>
@@ -1071,7 +1071,7 @@
   <div class="anl-top">
     <div class="anl-row">
       <span class="anl-ttl">종목분석</span>
-      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
     </div>
     <div class="anl-row">
     <button id="chartSideToggle" class="anl-backbtn">종목</button>
@@ -1104,12 +1104,41 @@
   </div>
 </div>
 
+<!-- 보고서 전체화면 오버레이 -->
+<div id="rptFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
+  <div class="anl-top">
+    <div class="anl-row">
+      <span class="anl-ttl">종목분석</span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+    </div>
+    <div class="anl-row">
+      <button id="rptSideToggle" class="anl-backbtn">종목</button>
+      <select id="rptPortSel">
+        <option value="kr">한국(체)</option>
+        <option value="invest">코스피200</option>
+        <option value="investkq">코스닥100</option>
+        <option value="addstk">추가종목</option>
+        <option value="invpf">선정주</option>
+        <option value="watch">관심</option>
+      </select>
+      <span style="font-size:11px;color:#8b93a1">국내 종목만 지원됩니다</span>
+    </div>
+  </div>
+  <div class="anl-layout">
+    <div class="anl-side" id="rptSide">
+      <div class="anl-search"><input id="rptSearch" type="text" placeholder="종목 검색" autocomplete="off"></div>
+      <div class="anl-list" id="rptList"></div>
+    </div>
+    <div class="anl-main" id="rptMain"></div>
+  </div>
+</div>
+
 <!-- 장기투자 전체화면 오버레이 -->
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
       <span class="anl-ttl">종목분석</span>
-      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
     </div>
     <div class="anl-row">
       <span style="font-size:11px;color:#8b93a1">종목·포트폴리오는 왼쪽 목록에서 고릅니다</span>
@@ -5457,8 +5486,8 @@ function renderDividend(box){
    +'</div>';
 
   // 표
-  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','연 배당','주가 수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트','보고서'];
-  const W=[64,196,84,100,74,178,90,58];
+  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','연 배당','주가 수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트'];
+  const W=[64,232,84,100,74,178,96];
   h+='<table class="val-tbl mp div-tbl"><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
 
@@ -5478,7 +5507,7 @@ function renderDividend(box){
     });
     if(!filtered.length) return;
     // 그룹 헤더 행
-    h+=`<tr class="div-grp"><td colspan="8" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
+    h+=`<tr class="div-grp"><td colspan="7" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
     filtered.forEach((it,i)=>{
       shown++;
       const key=it.isUS?('US:'+it.code.toUpperCase()):it.code;
@@ -5496,8 +5525,6 @@ function renderDividend(box){
       const retCell = `<span style="font-size:12.6px;white-space:nowrap">${rfmt(d.ret1)} / ${rfmt(d.ret3)} / ${rfmt(d.ret6)} / ${rfmt(d.ret12)}</span>`;
       // 미니차트
       const chartCell = d.chart ? divMiniChart(d.chart) : (SRV_URL?'<span style="color:#6e7681;font-size:10px">…</span>':'—');
-      // 보고서 (네이버 링크)
-      const rptCell = `<a href="#" class="div-rpt" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" style="color:#58a6ff;font-size:10px">네이버▶</a>`;
       // 현재가 + 변동율 (클릭 → 차트)
       let priceCell='<span style="color:#6e7681">'+(SRV_URL?'…':'—')+'</span>';
       if(d.price!=null){
@@ -5512,12 +5539,11 @@ function renderDividend(box){
         +`<td class="mp-r" style="color:#3fb950;font-weight:600;font-size:14px">${divYld}</td>`
         +`<td class="mp-c">${retCell}</td>`
         +`<td class="mp-c">${chartCell}</td>`
-        +`<td class="mp-c">${rptCell}</td>`
         +`</tr>`;
     });
   });
   if(!shown){
-    h+='<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
+    h+='<tr><td colspan="7" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
   }
   h+='</tbody></table>';
   h+='</div>';
@@ -5542,7 +5568,7 @@ function renderDividend(box){
   const dsv=document.getElementById('divSrvSave'); if(dsv) dsv.onclick=()=>divSaveToServer(dsv);
   const dld=document.getElementById('divSrvLoad'); if(dld) dld.onclick=()=>divLoadFromServer(box, dld);
   // 종목명·보고서 클릭 → 네이버
-  box.querySelectorAll('.div-link, .div-rpt').forEach(a=>{
+  box.querySelectorAll('.div-link').forEach(a=>{
     a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, isUS=a.dataset.us;
       if(isUS) openNaverWorld(c); else openNaverDomestic(c);
     };
@@ -8150,7 +8176,121 @@ function selRefreshIfOpen(){
   selSyncRows(); renderWatchTable(); fetchWatchLive();
 }
 
-/* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자) ===== */
+/* ===== 보고서 화면 ===== */
+const RPT_URL='https://kg-usfin.kghwang1.workers.dev';
+const RPT_CACHE={};           // code -> {items, at}
+let rptPort='kr', rptCode='', rptName='';
+
+function openRptView(port, code, name){
+  const ov=$('#rptFullScreen'); if(!ov) return;
+  ov.style.display='flex';
+  document.body.style.overflow='hidden';
+  document.body.classList.remove('anl-mode');
+  const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
+  rptPort = ['kr','invest','investkq','addstk','invpf','watch'].includes(port||'') ? port : 'kr';
+  const ps=$('#rptPortSel'); if(ps) ps.value=rptPort;
+  rptBuildList();
+  const want = code && /^\d{6}$/.test(String(code)) ? String(code) : '';
+  const first = (chartPortRows(rptPort)||[]).map(r=>String(r[0]||'')).find(c=>/^\d{6}$/.test(c));
+  rptPick(want || first || '', name||'');
+  rptBind();
+}
+function closeRptView(keepTab){
+  const ov=$('#rptFullScreen'); if(!ov || ov.style.display==='none') return;
+  ov.style.display='none';
+  document.body.style.overflow='';
+  if(keepTab) return;
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
+  const ps=$('#port'); if(ps) ps.classList.add('on');
+}
+function rptBuildList(filter){
+  const box=$('#rptList'); if(!box) return;
+  const f=String(filter||'').toLowerCase();
+  const rows=(chartPortRows(rptPort)||[]).filter(r=>/^\d{6}$/.test(String(r[0]||'')));
+  const seen=new Set();
+  let h='';
+  rows.forEach(r=>{
+    const code=String(r[0]), name=r[1]||code;
+    if(seen.has(code)) return; seen.add(code);
+    if(f && !name.toLowerCase().includes(f) && !code.includes(f)) return;
+    h+=`<div class="cs-item${code===rptCode?' on':''}" data-code="${code}" data-name="${escHtml(name)}">`
+     + `<div class="cs-nm">${escHtml(name)}</div><div class="cs-cd">${code}</div></div>`;
+  });
+  box.innerHTML = h || '<div style="padding:14px;color:#8b949e;font-size:12px">국내 종목이 없습니다.</div>';
+  box.querySelectorAll('.cs-item').forEach(el=>{
+    el.onclick=()=>rptPick(el.dataset.code, el.dataset.name);
+  });
+}
+async function rptPick(code, name){
+  rptCode=String(code||''); rptName=name||'';
+  if(typeof stkSet==='function' && rptCode) stkSet(rptCode, rptName);
+  rptBuildList($('#rptSearch') ? $('#rptSearch').value : '');
+  rptRender('loading');
+  if(!rptCode) { rptRender('empty'); return; }
+  const hit=RPT_CACHE[rptCode];
+  if(hit && (Date.now()-hit.at) < 6*3600*1000){ rptRender('ok', hit.items); return; }
+  try{
+    const r=await fetch(RPT_URL+'/?rpts='+rptCode+'&n=20');
+    const d=await r.json();
+    const items=(d&&d.ok&&d.items)?d.items:[];
+    RPT_CACHE[rptCode]={items, at:Date.now()};
+    rptRender(items.length?'ok':'none', items);
+  }catch(e){ rptRender('err', null, e.message); }
+}
+/* 올해 보고서를 5개까지. 올해 것이 3개 이하면 최신 3개를 보여준다. */
+function rptSelect(items){
+  const year=String(new Date().getFullYear());
+  const yr=items.filter(x=>String(x.date||'').indexOf(year)===0
+                        || String(x.date||'').slice(0,4)===year);
+  if(yr.length>3) return {list:yr.slice(0,5), mode:'올해 보고서'};
+  return {list:items.slice(0,3), mode:'최신 보고서'};
+}
+function rptRender(state, items, msg){
+  const m=$('#rptMain'); if(!m) return;
+  const head=`<div class="anl-title">${escHtml(rptName||rptCode||'종목 미선택')}`
+    + (rptCode?` <span style="color:#8b949e;font-size:12px">${rptCode}</span>`:'') + `</div>`;
+  if(state==='loading'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">보고서 불러오는 중…</div>'; return; }
+  if(state==='empty'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">왼쪽에서 종목을 고르세요.</div>'; return; }
+  if(state==='err'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">보고서를 받지 못했습니다 — '+escHtml(msg||'')+'</div>'; return; }
+  if(state==='none'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">등록된 리서치 보고서가 없습니다.</div>'; return; }
+
+  const {list, mode}=rptSelect(items);
+  let h=head+`<div style="padding:2px 0 10px;color:#8b949e;font-size:11.5px">${mode} ${list.length}건 · 전체 ${items.length}건</div>`;
+  h+='<div style="display:flex;flex-direction:column;gap:8px">';
+  list.forEach(x=>{
+    const sec=(typeof classifySector==='function')?classifySector(x.title, rptCode):'';
+    h+=`<a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
+        style="display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;text-decoration:none;color:var(--ink,#e6edf3)">
+        <div style="font-size:13.5px;font-weight:600;line-height:1.5">${escHtml(x.title)}</div>
+        <div style="margin-top:4px;font-size:11px;color:#8b949e">${escHtml(x.date||'')}${x.broker?' · '+escHtml(x.broker):''}${sec?' · '+escHtml(sec):''}</div>
+      </a>`;
+  });
+  h+='</div>';
+  m.innerHTML=h;
+}
+function rptBind(){
+  const ps=$('#rptPortSel');
+  if(ps && !ps._b){ ps._b=true;
+    ps.onchange=()=>{ rptPort=ps.value; if(typeof stkSetPort==='function') stkSetPort(rptPort);
+      rptCode=''; rptBuildList(); const first=(chartPortRows(rptPort)||[]).map(r=>String(r[0]||'')).find(c=>/^\d{6}$/.test(c));
+      const nm=(chartPortRows(rptPort)||[]).find(r=>String(r[0])===first); rptPick(first||'', nm?nm[1]:''); };
+  }
+  const sc=$('#rptSearch');
+  if(sc && !sc._b){ sc._b=true; sc.oninput=()=>rptBuildList(sc.value); }
+  const tg=$('#rptSideToggle'), sd=$('#rptSide');
+  if(tg && sd && !tg._b){ tg._b=true;
+    const paint=()=>{ tg.style.background = sd.style.display==='none' ? '#8b949e' : '#f2c800'; };
+    tg.onclick=()=>{ sd.style.display = sd.style.display==='none' ? 'flex' : 'none'; paint(); };
+    paint();
+  }
+}
+
+/* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자 · 보고서) ===== */
 function subPaint(which){
   // 홈·포트로 빠져나갈 때는 상위 탭을 종목분석으로 되돌리지 않는다
   $$('.subnav button[data-sub]').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
@@ -8162,7 +8302,7 @@ function goSub(which){
   // 세 화면이 같은 종목·포트를 이어받는다
   // 상위 화면으로 빠져나가기
   if(which==='home'||which==='port'){
-    closeChartView(true); closeLongView(true); hubHide();
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
     if(which==='home'){ const vf=$('#valFull'); if(vf) vf.classList.remove('on'); }
     document.body.style.overflow='';
     $$('.tab').forEach(x=>x.classList.remove('on'));
@@ -8175,16 +8315,20 @@ function goSub(which){
     return;
   }
   if(which==='chart'){
-    closeLongView(true); hubHide();
+    closeLongView(true); closeRptView(true); hubHide();
     openChartView(STK.port, STK.code, STK.name);
   }else if(which==='long'){
-    closeChartView(true); hubHide();
+    closeChartView(true); closeRptView(true); hubHide();
     openLongView(STK.port, STK.code);
+  }else if(which==='rpt'){
+    closeChartView(true); closeLongView(true); hubHide();
+    openRptView(STK.port, STK.code, STK.name);
   }else{                                   // 분석
     // 오버레이를 확실히 걷어내고 분석 화면만 남긴다
     const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
     const ci=$('#chartIframe'); if(ci) ci.src='about:blank';
     const lf=$('#longFullScreen'); if(lf) lf.style.display='none';
+    const rf2=$('#rptFullScreen'); if(rf2) rf2.style.display='none';
     // 포트폴리오 표는 전체화면 오버레이(#valFull)라 섹션 전환만으로는 안 사라진다
     const vf=$('#valFull'); if(vf) vf.classList.remove('on');
     document.body.style.overflow='';
@@ -8215,6 +8359,7 @@ function appChromeRestore(){
   document.body.style.overflow='';
   const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
   const lf=$('#longFullScreen'); if(lf) lf.style.display='none';
+  const rf=$('#rptFullScreen'); if(rf) rf.style.display='none';
   const ci=$('#chartIframe'); if(ci) ci.src='about:blank';
   const hb=$('#hub'); if(hb) hb.classList.remove('on');
 }
@@ -8746,7 +8891,9 @@ let ADD_ROWS=[], ADD_DATA={}, addStkLoading=false;
 
 function loadAddRows(){
   try{ const r=localStorage.getItem(ADD_KEY); const a=r?JSON.parse(r):[];
-       ADD_ROWS = Array.isArray(a) ? a.filter(x=>Array.isArray(x)&&/^\d{6}$/.test(String(x[0]||''))) : []; }
+       ADD_ROWS = Array.isArray(a)
+         ? a.filter(x=>Array.isArray(x) && (/^\d{6}$/.test(String(x[0]||'')) || /^US:[A-Z.\-]{1,7}$/i.test(String(x[0]||''))))
+         : []; }
   catch(e){ ADD_ROWS=[]; }
   return ADD_ROWS;
 }
@@ -8757,10 +8904,15 @@ function saveAddRows(){
   if(typeof myServerSave==='function') myServerSave();
 }
 function addStkAdd(code, name){
-  const c=String(code||'').replace(/[^0-9]/g,'');
-  if(c.length!==6){ alert('6자리 종목코드를 넣어 주세요.'); return; }
+  const raw=String(code||'').trim();
+  const dg=raw.replace(/[^0-9]/g,'');
+  // 국내는 6자리 코드, 해외는 티커(US: 접두사로 저장)
+  let c;
+  if(dg.length===6) c=dg;
+  else if(/^(US:)?[A-Za-z][A-Za-z.\-]{0,6}$/.test(raw)) c='US:'+raw.replace(/^US:/i,'').toUpperCase();
+  else { alert('6자리 종목코드 또는 미국 티커를 넣어 주세요.'); return; }
   loadAddRows();
-  if(ADD_ROWS.some(r=>String(r[0])===c)){ toast('이미 담긴 종목입니다: '+(name||c)); return; }
+  if(ADD_ROWS.some(r=>String(r[0]).toUpperCase()===c.toUpperCase())){ toast('이미 담긴 종목입니다: '+(name||c)); return; }
   ADD_ROWS.push([c, name||'']);
   saveAddRows();
   // 담는 즉시 '관심'에도 체크된 상태로 넣는다 (선정주·분류 열에 바로 반영)
@@ -8772,9 +8924,9 @@ function addStkAdd(code, name){
   toast('추가종목에 담고 관심에도 체크했습니다: '+(name||c));
 }
 function addStkRemove(code){
-  const c=String(code||'').replace(/[^0-9]/g,'');
+  const c=String(code||'').trim().toUpperCase();
   loadAddRows();
-  ADD_ROWS = ADD_ROWS.filter(r=>String(r[0])!==c);
+  ADD_ROWS = ADD_ROWS.filter(r=>String(r[0]).toUpperCase()!==c);
   saveAddRows();
   // 담을 때 함께 켰던 관심 체크도 되돌린다
   if(typeof inPort==='function' && inPort('kg_watch_rows', c)){
@@ -8852,7 +9004,7 @@ function renderAddStk(){
 
   // 캡션: 관심 체크박스 줄 + 그 아래 종목 추가 칸
   const addBox = '<div class="isearch" style="position:relative;margin-top:6px;max-width:330px">'
-    + '<input type="text" class="ainput" placeholder="＋ 종목 추가 — 종목명 또는 6자리 코드" autocomplete="off" '
+    + '<input type="text" class="ainput" placeholder="＋ 종목 추가 — 종목명·6자리 코드·미국 티커" autocomplete="off" '
     + 'style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:7px 9px;border-radius:6px;font-size:12px">'
     + '</div>';
   const bar='<caption class="inv-bar">'+pfMenuHtml({refresh:'addRefresh', save:'myPut'})+addBox
@@ -8875,7 +9027,7 @@ function renderAddStk(){
   else if(roeMin>0) rows=rows.filter(r=>r.roe!=null&&r.roe>=roeMin);
 
   if(!ADD_ROWS.length){
-    h+='<tr><td colspan="12" style="padding:18px;color:#8b949e">담긴 종목이 없습니다. 위 [종목 추가] 칸에 종목명이나 6자리 코드를 넣어 주세요.</td></tr>';
+    h+='<tr><td colspan="12" style="padding:18px;color:#8b949e">담긴 종목이 없습니다. 위 [종목 추가] 칸에 종목명·6자리 코드·미국 티커(AAPL 등)를 넣어 주세요.</td></tr>';
   } else if(!rows.length){
     h+='<tr><td colspan="12" style="padding:18px;color:#8b949e">필터 조건에 맞는 종목이 없습니다. ROE 기준을 바꿔 보세요.</td></tr>';
   }
@@ -8914,9 +9066,13 @@ function renderAddStk(){
     h+=`<td class="mp-r invlive" data-code="${r.code}" data-name="${escHtml(r.name)}"${st}>${r.price?addComma(r.price):(SRV_URL?'…':'—')}${r.rate!=null?rateHtml(r.rate):''}</td>`;
     h+=`<td class="mp-c fin3-go" data-code="${r.code}" data-name="${escHtml(r.name||'')}">${fin3Cell(r.code, r.name||"")}</td>`;
     h+=`<td>${roeTxt}</td>`;
-    h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
-    h+=`<td class="famtc">${frgnAmtCell(r.code)}</td>`;
-    h+=`<td class="shortc">${shortSvgCell(r.code)}</td>`;
+    if(r.isUs){
+      h+=`<td class="mp-c"><span class="rsub">해외</span></td><td class="mp-c"><span class="rsub">—</span></td><td class="mp-c"><span class="rsub">—</span></td>`;
+    }else{
+      h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
+      h+=`<td class="famtc">${frgnAmtCell(r.code)}</td>`;
+      h+=`<td class="shortc">${shortSvgCell(r.code)}</td>`;
+    }
     h+=`<td class="mp-r">${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${consCell(r.code)}</td>`;
@@ -8999,8 +9155,10 @@ function bindAddStkInput(t){
   inp.onkeydown=ev=>{
     if(ev.key==='Enter'){
       ev.preventDefault();
-      const c=String(inp.value||'').replace(/[^0-9]/g,'');
+      const v=String(inp.value||'').trim();
+      const c=v.replace(/[^0-9]/g,'');
       if(c.length===6){ addStkAdd(c,''); inp.value=''; close(); }
+      else if(/^(US:)?[A-Za-z][A-Za-z.\-]{0,6}$/.test(v)){ addStkAdd(v,''); inp.value=''; close(); }
     } else if(ev.key==='Escape') close();
   };
   inp.onblur=()=>setTimeout(close,150);
