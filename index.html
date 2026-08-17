@@ -7889,7 +7889,9 @@ function selRefreshIfOpen(){
 
 /* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자) ===== */
 function subPaint(which){
+  // 홈·포트로 빠져나갈 때는 상위 탭을 종목분석으로 되돌리지 않는다
   $$('.subnav button[data-sub]').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
+  if(which==='home'||which==='port') return;
   $$('.tab').forEach(x=>x.classList.remove('on'));
   const st=$('#stkTabBtn'); if(st) st.classList.add('on');
 }
@@ -7915,16 +7917,23 @@ function goSub(which){
     closeChartView(true); hubHide();
     openLongView(STK.port, STK.code);
   }else{                                   // 분석
-    closeChartView(true); closeLongView(true);
+    // 오버레이를 확실히 걷어내고 분석 화면만 남긴다
+    const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
+    const ci=$('#chartIframe'); if(ci) ci.src='about:blank';
+    const lf=$('#longFullScreen'); if(lf) lf.style.display='none';
+    document.body.style.overflow='';
     $$('section').forEach(x=>x.classList.remove('on'));
     const sec=$('#hub'); if(sec) sec.classList.add('on');
     document.body.classList.add('anl-mode');
-    document.body.style.overflow='';
     window.scrollTo(0,0);
-    anlInit();
-    if(STK.port && ANL_PORT!==STK.port) anlLoadPort(STK.port, STK.code);
-    else if(STK.code && ANL_CODE!==STK.code) anlPick(STK.code, STK.name);
-    else anlEnsureDefaultList();
+    subPaint(which);                       // 화면을 세우고 나서 메뉴를 칠한다
+    try{
+      anlInit();
+      if(STK.port && ANL_PORT!==STK.port) anlLoadPort(STK.port, STK.code);
+      else if(STK.code && ANL_CODE!==STK.code) anlPick(STK.code, STK.name);
+      else anlEnsureDefaultList();
+    }catch(e){ console.warn('분석 화면 준비 중 오류:', e); }
+    return;
   }
   subPaint(which);
 }
@@ -8970,6 +8979,8 @@ function openChart(code, name, rowsOverride) {
   // 현재 보고 있는 포트폴리오를 좌측에, 클릭한 종목 차트를 우측에 (차트 페이지와 동일 형식)
   const portMap={ watch:'watch', invpf:'invpf', kr:'kr', invest:'invest', investkq:'investkq', addstk:'addstk', usc:'usc', us:'us', etf:'etf' };
   const port = portMap[valMarket] || 'invpf';
+  if(typeof stkSetPort==='function') stkSetPort(port);
+  if(typeof stkSet==='function' && code) stkSet(code, name);
   openChartView(port, code, name, rowsOverride);
 }
 
@@ -9168,6 +9179,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
   $$('section').forEach(x=>x.classList.remove('on'));
   document.body.classList.remove('anl-mode');
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
+  if(typeof subPaint==='function') subPaint('chart');   // 하부메뉴도 챠트로 표시
   // 포트: 지정값 또는 기본(지수)
   chartPort = initPort || STK.port || 'kr';
   if(chartPort==='guide') chartPort='idx';        // 해석 화면을 남긴 채 종목을 열지 않도록
