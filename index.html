@@ -7900,6 +7900,7 @@ function goSub(which){
   // 상위 화면으로 빠져나가기
   if(which==='home'||which==='port'){
     closeChartView(true); closeLongView(true); hubHide();
+    if(which==='home'){ const vf=$('#valFull'); if(vf) vf.classList.remove('on'); }
     document.body.style.overflow='';
     $$('.tab').forEach(x=>x.classList.remove('on'));
     $$('section').forEach(x=>x.classList.remove('on'));
@@ -7921,21 +7922,20 @@ function goSub(which){
     const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
     const ci=$('#chartIframe'); if(ci) ci.src='about:blank';
     const lf=$('#longFullScreen'); if(lf) lf.style.display='none';
+    // 포트폴리오 표는 전체화면 오버레이(#valFull)라 섹션 전환만으로는 안 사라진다
+    const vf=$('#valFull'); if(vf) vf.classList.remove('on');
     document.body.style.overflow='';
     $$('section').forEach(x=>x.classList.remove('on'));
     const sec=$('#hub'); if(sec) sec.classList.add('on');
     document.body.classList.add('anl-mode');
     window.scrollTo(0,0);
     subPaint(which);                       // 화면을 세우고 나서 메뉴를 칠한다
-    kgState('분석 화면 세운 직후');
     try{
       anlInit();
       if(STK.port && ANL_PORT!==STK.port) anlLoadPort(STK.port, STK.code);
       else if(STK.code && ANL_CODE!==STK.code) anlPick(STK.code, STK.name);
       else anlEnsureDefaultList();
-    }catch(e){ console.warn('[KG] 분석 화면 준비 중 오류:', e); }
-    kgState('분석 목록 준비 후');
-    setTimeout(()=>kgState('분석 0.5초 뒤'), 500);
+    }catch(e){ console.warn('분석 화면 준비 중 오류:', e); }
     return;
   }
   subPaint(which);
@@ -7956,21 +7956,8 @@ function appChromeRestore(){
 }
 document.addEventListener('click', e=>{
   const b=e.target.closest('.subnav button');
-  if(b && b.dataset.sub){
-    console.log('[KG] 하부메뉴 클릭:', b.dataset.sub);
-    goSub(b.dataset.sub);
-  }
+  if(b && b.dataset.sub) goSub(b.dataset.sub);   // 선정주 하부메뉴(.selnav)는 여기서 처리하지 않는다
 });
-// 화면이 어느 순간 바뀌는지 추적 (문제 재현 시 콘솔 확인용)
-function kgState(tag){
-  const on=[...document.querySelectorAll('section.on')].map(x=>x.id).join(',')||'(없음)';
-  const cf=$('#chartFullScreen'), lf=$('#longFullScreen');
-  console.log('[KG]', tag, '| section.on =', on,
-    '| 챠트오버레이 =', cf&&cf.style.display,
-    '| 장기오버레이 =', lf&&lf.style.display,
-    '| anl-mode =', document.body.classList.contains('anl-mode'));
-}
-window.kgState=kgState;
 
 // 종목 칸 — 접기/펴기 + 경계 끌어서 폭 조절
 const ANL_W_KEY='kg_anl_side_w';
