@@ -4832,8 +4832,8 @@ function longScoreCell(code){
   const m=longScoreMap();
   const v = m[code] || m[String(code).replace(/^US:/i,'')] || m['US:'+String(code)];
   if(!v || v.total==null) return '<span class="rsub">—</span>';
-  const col = v.thin ? '#8b949e' : v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
-  const lab = v.thin ? '자료부족' : v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
+  const col = v.loss ? '#ef5350' : v.thin ? '#8b949e' : v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
+  const lab = v.loss ? '적자' : v.thin ? '자료부족' : v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
   return `<b style="color:${col};font-size:13px">${v.total}</b><div class="rsub" style="color:${col}">${lab}</div>`;
 }
 /* 장기종목 하위 구분: kr=국내 6자리 · us=해외 티커
@@ -9497,7 +9497,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=24';
+const LONG_URL='kg-long.html?v=25';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';

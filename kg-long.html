@@ -201,7 +201,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-17g';
+const BUILD='KG_LONG 2026-08-17h';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -295,6 +295,7 @@ function saveScore(code){
   const m=jload(K_SCORE,{});
   m[code]={ total:c.score.total, flags:c.score.flags.length>0,
             thin:(c.score.max!=null && c.score.max<SCORE_MIN_BASE),
+            loss:!!c.score.isLoss,
             name:bestName(code)||c.name||'', at:Date.now() };
   const row=saved.find(x=>x.code===code);
   if(row && !row.name){ row.name=bestName(code)||''; jsave(K_ROWS, saved); }
@@ -550,7 +551,18 @@ function score(fin,m){
   if(quick!==null&&quick<50) flags.push('당좌비율 '+quick.toFixed(0)+'% — 단기 유동성이 빠듯합니다.');
   if(cv!==null&&cv>0.6) flags.push(profLabel+' 변동계수 '+cv.toFixed(2)+' — 실적이 사이클에 크게 흔들립니다.');
 
-  return {total, got, max, missing, flags, tA,tB,tC,tD,
+  /* 적자 기업 판별 — 자료가 없는 것과 구분해서 알린다.
+     순이익·영업이익·수익성 지표 중 최근 값이 음수면 적자로 본다. */
+  const lastN = a => { const v=(a||[]).filter(x=>x!=null); return v.length? v[v.length-1] : null; };
+  const pfLast = lastN(fin.profit), opLast = lastN(fin.op), prLast = lastN(fin[profKey]);
+  const isLoss = (pfLast!=null && pfLast<0) || (prLast!=null && prLast<0) ||
+                 (pfLast==null && opLast!=null && opLast<0);
+  const lossHow = [];
+  if(pfLast!=null && pfLast<0) lossHow.push('순이익 적자');
+  if(opLast!=null && opLast<0) lossHow.push('영업 적자');
+  if(prLast!=null && prLast<0) lossHow.push(profLabel+' 마이너스');
+
+  return {total, got, max, missing, flags, isLoss, lossHow, tA,tB,tC,tD,
           bsLabel: hasBs ? '재무 안전성' : '이익의 질 (재무 자료 없음)',
           profLabel, detail:{A,B,C}};
 }
@@ -558,9 +570,13 @@ function score(fin,m){
    적자 성장주는 PER 이 없고 ROE·부채비율도 안 오는 경우가 많아,
    남은 항목만으로 환산하면 점수가 부풀려진다. */
 const SCORE_MIN_BASE = 45;
-function verdictOf(t,flags,maxBase){
+function verdictOf(t,flags,maxBase,isLoss,lossHow){
+  if(isLoss)
+    return ['적자 기업','var(--bad)',
+      (lossHow&&lossHow.length ? lossHow.join(' · ')+'. ' : '')
+      + '이익이 나기 전이라 수익성·밸류에이션 지표로는 판단할 수 없습니다. 매출 성장과 적자 축소 속도를 직접 보세요.'];
   if(maxBase!=null && maxBase < SCORE_MIN_BASE)
-    return ['자료 부족','var(--tx3)','채점 가능한 항목이 적어 점수를 신뢰하기 어렵습니다. 적자이거나 공시 항목이 빠진 종목입니다.'];
+    return ['자료 부족','var(--tx3)','채점 가능한 항목이 적어 점수를 신뢰하기 어렵습니다. 공시 항목이 빠진 종목입니다.'];
   if(flags.length) return ['보류','var(--bad)','결격 항목을 먼저 확인하세요.'];
   if(t>=80) return ['장기보유 후보','var(--ok)','6개월 이상 들고 갈 근거가 있습니다.'];
   if(t>=65) return ['관찰','var(--warn)','한두 분기 더 지켜보세요.'];
@@ -636,14 +652,15 @@ function renderLongList(done){
   const line=r=>{
     const c=cache[r.code], s=c&&c.score;
     const thin = s && s.max!=null && s.max < SCORE_MIN_BASE;
-    const col=!s?'var(--tx3)':thin?'var(--tx3)':s.flags.length?'var(--bad)':s.total>=80?'var(--ok)':s.total>=65?'var(--warn)':'var(--tx3)';
+    const loss = s && s.isLoss;
+    const col=!s?'var(--tx3)':loss?'var(--bad)':thin?'var(--tx3)':s.flags.length?'var(--bad)':s.total>=80?'var(--ok)':s.total>=65?'var(--warn)':'var(--tx3)';
     const en=enOf(r.code);
     return `<tr data-code="${esc(r.code)}" style="cursor:pointer">
       <td style="text-align:left"><b>${esc(bestName(r.code)||r.code)}</b>
         <span style="color:var(--tx3);font-size:11px"> ${esc(r.code)}</span>
         ${en?`<div style="color:#8fb6ff;font-size:11px">${esc(en)}</div>`:''}</td>
       <td style="color:${col};font-weight:700">${s?s.total:'…'}</td>
-      <td style="color:var(--tx2)">${s?(thin?'자료부족':s.flags.length?'보류':s.total>=80?'후보':s.total>=65?'관찰':'제외'):''}</td>
+      <td style="color:var(--tx2)">${s?(loss?'적자':thin?'자료부족':s.flags.length?'보류':s.total>=80?'후보':s.total>=65?'관찰':'제외'):''}</td>
       <td style="color:var(--tx2)">${s?s.tD.max?s.tD.got+'/'+s.tD.max:'미확인':''}</td>
     </tr>`;
   };
@@ -737,7 +754,7 @@ function renderMain(){
       + '</div>');
     return;
   }
-  const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags,s.max), m0=manualOf(cur), f=funds[cur];
+  const s=c.score, [lab,col,sub]=verdictOf(s.total,s.flags,s.max,s.isLoss,s.lossHow), m0=manualOf(cur), f=funds[cur];
   const sec=(t,tl,list)=>`<div class="card"><h3>${t}<em>${tl.got} / ${tl.max||0}</em></h3><div class="rows">
     ${list.map(it=>`<div class="row"><span class="k">${it.k}</span><span class="v">${it.v}</span>
       <span class="p">${it.o.avail?it.o.p+'/'+it.max:'제외'}</span></div>
