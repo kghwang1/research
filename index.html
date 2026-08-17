@@ -5441,6 +5441,13 @@ function renderDividend(box){
   h+='<button id="divRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#f0883e">↻ 새로</button>';
   h+='<button id="divSrvSave" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#3fb950">💾 저장</button>';
   h+='<button id="divSrvLoad" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">📥 불러</button>';
+  if(divCacheDate){
+    const dd=divDaysSince(divCacheDate);
+    const left=Math.max(0, DIV_FULL_DAYS-dd);
+    h+=`<span style="font-size:10.5px;color:#6e7681;margin-left:6px">배당·수익률 자료 ${divCacheDate}`
+      + (dd>0?` (${dd}일 전)`:' (오늘)')
+      + ` · ${left>0?left+'일 뒤 자동 갱신':'갱신 예정'} · 현재가는 하루 1회</span>`;
+  }
 
   h+='</div>';
 
@@ -5527,7 +5534,7 @@ function renderDividend(box){
   const rf=document.getElementById('divRefresh');
   if(rf) rf.onclick=async()=>{
     const t0=rf.textContent; rf.textContent='갱신 중…'; rf.disabled=true;
-    try{ localStorage.removeItem('kg_div_cache'); }catch(e){}
+    try{ localStorage.removeItem('kg_div_cache'); localStorage.removeItem(DIV_PRICE_KEY); }catch(e){}
     await fetchDivData(box, true);
     rf.textContent=t0; rf.disabled=false;
     toast('최신 자료로 갱신하고 서버에 저장했습니다');
@@ -5552,24 +5559,40 @@ function renderDividend(box){
 
 // 배당 데이터 네이버 조회 (배당율·수익률·차트)
 const SNAP_DIV='snap_div';
+let divCacheDate='';        // 무거운 자료를 마지막으로 받은 날
+/* 배당 ETF 는 구성·배당률이 자주 바뀌지 않는다.
+   무거운 자료(배당률·기간수익률·차트)는 5일 주기, 현재가는 하루 1회만 받는다.
+   더 자주 보고 싶으면 표 위 ↻ 새로 버튼을 쓴다. */
+const DIV_FULL_DAYS = 5;                 // 전체 자료 갱신 주기
+const DIV_PRICE_KEY = 'kg_div_price_at'; // 현재가를 마지막으로 받은 날
+function divDaysSince(dateStr){
+  if(!dateStr) return 9999;
+  const d=new Date(String(dateStr)+'T00:00:00');
+  if(isNaN(d)) return 9999;
+  return Math.floor((Date.now()-d.getTime())/86400000);
+}
 async function fetchDivData(box, force){
   if(!SRV_URL) return;
-  // ── 하루 1회 캐시 (기기 localStorage → 없으면 서버 스냅샷) + 현재가만 매번 갱신 ──
   const CACHE_KEY='kg_div_cache';
   const today=new Date().toISOString().slice(0,10);
-  // 캐시 로드
-  let cache={};
+  // 캐시 로드 — 5일 안이면 그대로 쓴다
+  let cache={}, cacheDate='';
   if(!force){
-    try{ const raw=localStorage.getItem(CACHE_KEY); if(raw){ const o=JSON.parse(raw); if(o && o.date===today && o.data){ cache=o.data; } } }catch(e){}
+    try{
+      const raw=localStorage.getItem(CACHE_KEY);
+      if(raw){ const o=JSON.parse(raw);
+        if(o && o.data && divDaysSince(o.date) < DIV_FULL_DAYS){ cache=o.data; cacheDate=o.date; } }
+    }catch(e){}
     // 기기에 없으면 서버 스냅샷에서 (다른 기기가 이미 모아둔 자료 재사용)
     if(!Object.keys(cache).length){
       const s=await snapLoad(SNAP_DIV);
-      if(s && s.data && Object.keys(s.data).length){
-        cache=s.data;
-        try{ localStorage.setItem(CACHE_KEY, JSON.stringify({date:today, data:cache})); }catch(e){}
+      if(s && s.data && Object.keys(s.data).length && divDaysSince(s.date||s.savedAt) < DIV_FULL_DAYS){
+        cache=s.data; cacheDate=s.date||today;
+        try{ localStorage.setItem(CACHE_KEY, JSON.stringify({date:cacheDate, data:cache})); }catch(e){}
       }
     }
   }
+  divCacheDate = cacheDate || today;
   const haveCache=Object.keys(cache).length>0;
   // 대상 종목
   const targets=[];
@@ -5583,14 +5606,19 @@ async function fetchDivData(box, force){
     // 캐시 적용 → 즉시 표시
     Object.keys(cache).forEach(k=>{ divData[k]=Object.assign(divData[k]||{}, cache[k]); });
     renderDividend(box);
-    // 현재가만 갱신 (가벼움)
-    await refreshDivPrices(uniq);
-    renderDividend(box);
+    // 현재가는 하루 1회만 (강제 새로고침이면 무조건)
+    let priceAt=''; try{ priceAt=localStorage.getItem(DIV_PRICE_KEY)||''; }catch(e){}
+    if(force || priceAt!==today){
+      await refreshDivPrices(uniq);
+      try{ localStorage.setItem(DIV_PRICE_KEY, today); }catch(e){}
+      renderDividend(box);
+    }
     return;
   }
 
   // 캐시 없음 → 전체 조회 (하루 1회)
-  for(const t of uniq){
+  // 30종목을 하나씩 기다리면 왕복이 60회라 매우 느리다. 4개씩 겹쳐 보낸다.
+  await pmap(uniq, 4, async (t)=>{
     const key=t.isUS?('US:'+t.code.toUpperCase()):t.code;
     divData[key]=divData[key]||{};
     if(t.isUS){
@@ -5609,7 +5637,7 @@ async function fetchDivData(box, force){
           if(d.chart) divData[key].chart=d.chart;
         }
       }catch(e){}
-      // 네이버 종목은 차트가 usinfo에 없으니 별도 조회
+      // 차트가 함께 오지 않았을 때만 따로 받는다
       if(!divData[key].chart){
         try{
           const r=await fetch(SRV_URL+'/?naverWorldChart='+encodeURIComponent(t.code)+'&timeframe=day&days=400'); const d=await r.json();
@@ -5625,9 +5653,12 @@ async function fetchDivData(box, force){
         }catch(e){}
       }
     } else {
-      // 국내: 네이버 종합정보
+      // 국내: 종합정보와 미니차트를 동시에 받는다
+      const [d, dc] = await Promise.all([
+        fetch(SRV_URL+'/?krinfo='+encodeURIComponent(t.code)).then(r=>r.json()).catch(()=>null),
+        fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=200').then(r=>r.json()).catch(()=>null)
+      ]);
       try{
-        const r=await fetch(SRV_URL+'/?krinfo='+encodeURIComponent(t.code)); const d=await r.json();
         if(d && d.ok){
           if(d.price!=null) divData[key].price=d.price;
           if(d.rate!=null) divData[key].rate=d.rate;
@@ -5638,19 +5669,22 @@ async function fetchDivData(box, force){
           if(d.divYield!=null) divData[key].div=d.divYield;
         }
       }catch(e){}
-      // 국내 미니차트
       try{
-        const r=await fetch(SRV_URL+'/?naverChart='+encodeURIComponent(t.code)+'&timeframe=day&days=200'); const d=await r.json();
-        if(d && d.ok && d.data && d.data.length>5){ divData[key].chart=d.data.slice(-126); }
+        if(dc && dc.ok && dc.data && dc.data.length>5){ divData[key].chart=dc.data.slice(-126); }
       }catch(e){}
     }
-    renderDividend(box);
-  }
+  }, (done, total)=>{
+    // 받은 만큼 조금씩 보여준다 (매번 다시 그리면 그것대로 느리다)
+    if(done===total || done%5===0) renderDividend(box);
+  });
+  renderDividend(box);
   // 캐시 저장 (하루치) — 기기 + 서버 스냅샷
   const toSave={};
   uniq.forEach(t=>{ const k=t.isUS?('US:'+t.code.toUpperCase()):t.code; if(divData[k]) toSave[k]=divData[k]; });
   try{ localStorage.setItem(CACHE_KEY, JSON.stringify({date:today, data:toSave})); }catch(e){}
-  if(Object.keys(toSave).length) await snapSave(SNAP_DIV, {data:toSave});
+  try{ localStorage.setItem(DIV_PRICE_KEY, today); }catch(e){}
+  divCacheDate = today;
+  if(Object.keys(toSave).length) await snapSave(SNAP_DIV, {date:today, data:toSave});
 }
 
 // 현재가만 갱신 (페이지 열 때마다, 가벼움)
