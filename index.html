@@ -3613,7 +3613,9 @@ function usReuseFromUsc(tickers){
 async function fetchWatchLive(fresh){
   watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={}; watchUsCons={};
   const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
-  if(!codes.length||!SRV_URL) return;
+  if(!SRV_URL) return;
+  const hasUs=(WATCH_ROWS||[]).some(r=>{ const rc=String(r[0]||'').trim(); return /^US:/i.test(rc)||isUsCode(rc); });
+  if(!codes.length && !hasUs) return;   // 해외만 있어도 아래 해외 조회는 진행한다
   const freshQ = fresh ? '&fresh=1' : '';
   const CH=40;
   for(let i=0;i<codes.length;i+=CH){
@@ -3642,7 +3644,12 @@ async function fetchWatchLive(fresh){
     }catch(e){}
   }
   // 미국(해외) 종목 시세 조회 (US:티커 → 야후)
-  const usCodes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^US:/i.test(rc)?rc.replace(/^US:/i,'').toUpperCase():''; }).filter(Boolean))];
+  // 'US:AAPL' 뿐 아니라 장기보유2 처럼 접두사 없는 티커('SNDK')도 함께 조회한다
+  const usCodes=[...new Set((WATCH_ROWS||[]).map(r=>{
+    const rc=String(r[0]||'').trim();
+    if(/^US:/i.test(rc)) return rc.replace(/^US:/i,'').toUpperCase();
+    return isUsCode(rc) ? rc.toUpperCase() : '';
+  }).filter(Boolean))];
   if(usCodes.length){
     // ① 미국(체) 표가 이미 받아둔 값 먼저 쓰기
     const reused = fresh ? new Set() : usReuseFromUsc(usCodes);
