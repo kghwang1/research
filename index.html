@@ -902,13 +902,13 @@
     <select id="anlPortSel">
      <option value="kr" selected>한국(체)</option>
      <option value="invest">코스피200</option>
-     <option value="investkq">코스닥100</option>
-     <option value="addstk">추가종목</option>
-     <option value="invpf">선정주</option>
-     <option value="watch">관심</option>
+      <option value="investkq">코스닥100</option>
+     <option value="invpf">관심보유</option>
+     <option value="long">장기보유</option>
      <option value="usc">미국(체)</option>
      <option value="us">미국(반)</option>
      <option value="etf">한·미 ETF</option>
+     <option value="dividend">배당</option>
     </select>
    </div>
   </div>
@@ -1076,13 +1076,12 @@
     <div class="anl-row">
     <button id="chartSideToggle" class="anl-backbtn">종목</button>
     <select id="chartPortSel">
-      <option value="idx">(지수)</option>
-      <option value="invpf">선정주</option>
+      <option value="idx">지수</option>
       <option value="kr">한국(체)</option>
       <option value="invest">코스피200</option>
       <option value="investkq">코스닥100</option>
-      <option value="addstk">추가종목</option>
-      <option value="watch">관심</option>
+      <option value="invpf">관심보유</option>
+      <option value="long">장기보유</option>
       <option value="usc">미국(체)</option>
       <option value="us">미국(반)</option>
       <option value="etf">한·미 ETF</option>
@@ -1116,10 +1115,9 @@
       <select id="rptPortSel">
         <option value="kr">한국(체)</option>
         <option value="invest">코스피200</option>
-        <option value="investkq">코스닥100</option>
-        <option value="addstk">추가종목</option>
-        <option value="invpf">선정주</option>
-        <option value="watch">관심</option>
+      <option value="investkq">코스닥100</option>
+        <option value="invpf">관심보유</option>
+        <option value="long">장기보유</option>
       </select>
       <span style="font-size:11px;color:#8b93a1">국내 종목만 지원됩니다</span>
     </div>
@@ -2687,7 +2685,8 @@ function renderVal(){
   });
   // 미국(반) 현재가 클릭 → 챠트
   t.querySelectorAll('td.uslive').forEach(td=>{
-    td.onclick=()=>{ const s=td.dataset.sym, nm=td.dataset.name; if(s) openChart(s, nm); };
+    td.onclick=()=>{ const s=td.dataset.sym, nm=td.dataset.name;
+      if(s) openChart(s, nm, domVisRows(t,'td.uslive','sym','name')); };
   });
   // 적정주가 헤더 클릭 → 적정가차이 기준 정렬(토글)
   const fairTh=t.querySelector('th.sortable');
@@ -3276,7 +3275,7 @@ function renderKrTable(){
   t.querySelectorAll('td.krlive').forEach(td=>{ td.onclick=()=>{
     const c = td.dataset.code;
     const nm = td.dataset.name;
-    if(c) openChart(c, nm);
+    if(c) openChart(c, nm, domVisRows(t,'td.krlive','code','name'));
   }; });
   const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
   ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes);
@@ -4464,7 +4463,8 @@ function renderCautionTable(){
   t.className='val-tbl mp mpfix'; t.innerHTML=h; bindPinEvents(t, renderCautionTable, 'caution');
   ensureFin3(CAUTION_ROWS.map(r=>r.code||r[0]), ()=>{ if(valMarket==='caution') renderCautionTable(); });
   // 현재가 클릭 → 차트
-  t.querySelectorAll('td.cautlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
+  t.querySelectorAll('td.cautlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name;
+    if(c) openChart(c, nm, domVisRows(t,'td.cautlive','code','name')); }; });
   // 종목 링크 → 네이버
   t.querySelectorAll('a.wlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) openNaverDomestic(c); }; });
   // ROE 필터 버튼
@@ -4671,7 +4671,7 @@ function renderUscTable(){
   t.querySelectorAll('td.uslive').forEach(td=>{ td.onclick=()=>{
     const s = td.dataset.sym;
     const nm = td.dataset.name;
-    if(s) openChart(s, nm);
+    if(s) openChart(s, nm, domVisRows(t,'td.uslive','sym','name'));
   }; });
   t.querySelectorAll('.kredit').forEach(td=>{
     td.onblur=()=>{ const r=+td.dataset.r, f=+td.dataset.f; VAL[r][f]=td.textContent.trim(); saveVal(); };
@@ -8079,32 +8079,29 @@ function anlEnsureDefaultList(){
 
 let ANL_PORT=null;      // 분석 좌측 목록이 어느 포트에서 왔는지
 // 분석이 다룰 수 있는 포트 (국내 6자리 종목만 재무 조회가 된다)
-const ANL_PORTS=['kr','invest','investkq','addstk','invpf','watch','usc','us','etf'];
+/* 지수는 챠트 전용 — 분석·장기투자에서는 한국(체)로 받는다 */
+const ANL_PORTS=['kr','invest','investkq','invpf','long','usc','us','etf','dividend'];
 function anlLoadPort(mk, wantCode){
   // 지수·배당처럼 종목 분석이 안 되는 포트만 한국(체)로 받는다
   if(!ANL_PORTS.includes(mk)) mk='kr';
   const psel=$('#anlPortSel'); if(psel) psel.value=mk;   // 드롭다운 표시를 항상 일치시킨다
+  /* 목록은 chartPortRows 한 곳에서 가져온다.
+     표에서 필터를 걸고 현재가를 눌렀다면 그 '보이는 종목만' 목록이
+     chartPortRows 안에 저장돼 있어, 챠트·분석·장기투자가 같은 목록을 쓰게 된다. */
   let rows=[];
   try{
-    if(mk==='watch'){
-      rows=(_portRows('kg_watch_rows')||[]).map(r=>({code:String(r[0]||''), name:r[1]||''}));
-    } else if(mk==='addstk'){
-      rows=(typeof chartPortRows==='function'?chartPortRows('addstk'):[]).map(r=>({code:String(r[0]||''), name:r[1]||''}));
-    } else if(mk==='kr'){
-      rows=(typeof KR_PF!=='undefined' ? KR_PF.rows : []).map(r=>({code:String(r[0]||''), name:r[1]||''}));
-    } else if(mk==='invpf'){
-      const w=_portRows('kg_watch_rows')||[], v=_portRows('kg_invpf_rows')||[];
-      rows=[...w,...v].map(r=>({code:String(r[0]||''), name:r[1]||''}));
-    } else if(mk==='invest'){
-      rows=(typeof INVEST_ROWS!=='undefined'?INVEST_ROWS:[]).map(r=>({code:r.code, name:r.name}));
-    } else if(mk==='investkq'){
-      rows=(typeof INVEST_KQ_ROWS!=='undefined'?INVEST_KQ_ROWS:[]).map(r=>({code:r.code, name:r.name}));
-    } else if(mk==='usc'||mk==='us'||mk==='etf'){
-      rows=(typeof chartPortRows==='function'?chartPortRows(mk):[])
-             .map(r=>({code:String(r[0]||''), name:r[1]||''}));
-    }
+    rows=(typeof chartPortRows==='function'?chartPortRows(mk):[])
+           .map(r=>({code:String(r[0]||''), name:r[1]||''}));
   }catch(e){}
   // 코드 중복 제거
+  /* 코스피200·코스닥100 은 표를 한 번 열어야 목록이 생긴다.
+     아직 안 읽었으면 빈 화면 대신 한국(체)로 받는다.
+     장기보유·관심보유가 비어 있는 것은 '담긴 종목이 없다'는 뜻이므로 그대로 둔다. */
+  if(!rows.length && (mk==='invest' || mk==='investkq')){
+    const psel0=$('#anlPortSel'); if(psel0) psel0.value='kr';
+    mk='kr';
+    rows=(typeof KR_PF!=='undefined' ? KR_PF.rows : []).map(r=>({code:String(r[0]||''), name:r[1]||''}));
+  }
   const seen=new Set(); const uniq=[];
   rows.forEach(r=>{
     const raw=String(r.code||'').trim();
@@ -8190,7 +8187,7 @@ function openRptView(port, code, name){
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
-  rptPort = ['kr','invest','investkq','addstk','invpf','watch'].includes(port||'') ? port : 'kr';
+  rptPort = ['kr','invest','investkq','invpf','long'].includes(port||'') ? port : 'kr';
   const ps=$('#rptPortSel'); if(ps) ps.value=rptPort;
   rptBuildList();
   const want = code && /^\d{6}$/.test(String(code)) ? String(code) : '';
@@ -9085,7 +9082,8 @@ function renderAddStk(){
   ensureFin3(disp.map(r=>r.code), ()=>{ if(valMarket==='addstk') renderAddStk(); });
   bindAddStkInput(t);
   t.querySelectorAll('.adel').forEach(x=>{ x.onclick=ev=>{ ev.stopPropagation(); addStkRemove(x.dataset.code); }; });
-  t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code; if(c) openChart(c, td.dataset.name); }; });
+  t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code;
+    if(c) openChart(c, td.dataset.name, domVisRows(t,'td.invlive','code','name')); }; });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('#addRefresh'); if(rfb) rfb.onclick=()=>refreshAddStk(rfb);
   const mp=t.querySelector('#myPut'); if(mp) mp.onclick=()=>myServerPut(true);
@@ -9330,7 +9328,8 @@ function renderInvestKq(){
   t.className='val-tbl mp mpfix'; t.innerHTML=h; bindPinEvents(t, renderInvestKq, 'investkq'); bindPfTopBar(renderInvestKq);
   ensureFin3(invKqDisp.map(r=>r.code), ()=>{ if(valMarket==='investkq') renderInvestKq(); });
   bindInvestAddInput(t);
-  t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(c) openChart(c, nm); }; });
+  t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name;
+    if(c) openChart(c, nm, domVisRows(t,'td.invlive','code','name')); }; });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMinKq(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('#invKqRefresh'); if(rfb) rfb.onclick=refreshInvestKq;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
@@ -9409,7 +9408,7 @@ function renderInvest(){
   t.querySelectorAll('td.invlive').forEach(td=>{
     td.onclick=()=>{
       const c=td.dataset.code, nm=td.dataset.name;
-      if(c) openChart(c, nm);
+      if(c) openChart(c, nm, domVisRows(t,'td.invlive','code','name'));
     };
   });
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
@@ -9450,9 +9449,25 @@ function closeFlow(){
 
 /* ── 챠트앱 연결 ── */
 const CHART_URL = 'https://kghwang1.github.io/research/kg-chart.html';
+/* 표에 실제로 그려진 행에서 [코드, 이름]을 뽑는다.
+   필터를 건 뒤 현재가를 눌러도 챠트·분석·장기투자가 같은 목록을 쓰도록 넘긴다. */
+function domVisRows(tbl, sel, codeAttr, nameAttr){
+  if(!tbl) return [];
+  const out=[], seen=new Set();
+  tbl.querySelectorAll(sel).forEach(el=>{
+    const c=String(el.dataset[codeAttr]||'').trim();
+    if(!c || seen.has(c)) return;
+    seen.add(c); out.push([c, String(el.dataset[nameAttr]||'').trim()]);
+  });
+  return out;
+}
 function openChart(code, name, rowsOverride) {
   // 현재 보고 있는 포트폴리오를 좌측에, 클릭한 종목 차트를 우측에 (차트 페이지와 동일 형식)
-  const portMap={ watch:'watch', invpf:'invpf', kr:'kr', invest:'invest', investkq:'investkq', addstk:'addstk', usc:'usc', us:'us', etf:'etf' };
+  /* 표에서 넘어올 때 쓰는 포트 이름.
+     추가종목·관심은 통일 목록에 없으므로 '관심보유'(invpf)로 모은다. */
+  const portMap={ kr:'kr', invest:'invest', investkq:'investkq',
+                  invpf:'invpf', watch:'invpf', addstk:'invpf', long:'long',
+                  usc:'usc', us:'us', etf:'etf', dividend:'dividend' };
   const port = portMap[valMarket] || 'invpf';
   if(typeof stkSetPort==='function') stkSetPort(port);
   if(typeof stkSet==='function' && code) stkSet(code, name);
@@ -9689,7 +9704,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=25';
+const LONG_URL='kg-long.html?v=27';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -9746,6 +9761,11 @@ function chartPortRows(port){
     try{ const r=localStorage.getItem('kg_watch_rows'); if(r){ const a=JSON.parse(r); if(Array.isArray(a)) return a; } }catch(e){}
     return [];
   }
+  if(port==='long'){   // 장기보유 — 장기투자에서 담은 후보 (국내+해외)
+    try{ const r=localStorage.getItem('kg_long_rows'); if(r){ const a=JSON.parse(r);
+      if(Array.isArray(a)) return a.map(x=>[String((x&&x.code)||'').trim(), (x&&x.name)||'']).filter(x=>x[0]); } }catch(e){}
+    return [];
+  }
   if(port==='idx'){ return CHART_IDX_ROWS.map(r=>[r[0], r[1]]); }
   if(port==='invpf'){
     // 선정주 = 관심 + 투자 통합 (선정주 표와 동일)
@@ -9779,10 +9799,19 @@ function chartPortRows(port){
       : [];
   }
   if(port==='invest'){  // 코스피200
-    return (typeof INVEST_ROWS!=='undefined' && INVEST_ROWS.length) ? INVEST_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']) : [];
+    if(typeof INVEST_ROWS!=='undefined' && INVEST_ROWS.length)
+      return INVEST_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']);
+    // 표를 아직 안 열었으면 캐시해 둔 후보 풀을 쓴다
+    if(typeof INVEST_POOL!=='undefined' && INVEST_POOL.length)
+      return INVEST_POOL.map(r=>[r.code, r.name||'']);
+    return [];
   }
   if(port==='investkq'){  // 코스닥100
-    return (typeof INVEST_KQ_ROWS!=='undefined' && INVEST_KQ_ROWS.length) ? INVEST_KQ_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']) : [];
+    if(typeof INVEST_KQ_ROWS!=='undefined' && INVEST_KQ_ROWS.length)
+      return INVEST_KQ_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']);
+    if(typeof INVEST_KQ_POOL!=='undefined' && INVEST_KQ_POOL.length)
+      return INVEST_KQ_POOL.map(r=>[r.code, r.name||'']);
+    return [];
   }
   if(port==='us'){  // 미국(반)
     // 표의 Symbol 은 'Oracle' 'Block XYZ' '삼성전자' 처럼 티커가 아닌 것이 섞여 있다.
