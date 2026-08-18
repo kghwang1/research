@@ -8284,18 +8284,60 @@ function rptRender(state, items, msg){
   if(state==='none'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">등록된 리서치 보고서가 없습니다.</div>'; return; }
 
   const {list, mode}=rptSelect(items);
-  let h=head+`<div style="padding:2px 0 10px;color:#8b949e;font-size:11.5px">${mode} ${list.length}건 · 전체 ${items.length}건</div>`;
+  RPT_SHOWN=list;
+  let h=head+`<div style="padding:2px 0 10px;color:#8b949e;font-size:11.5px">${mode} ${list.length}건 · 전체 ${items.length}건 · 제목을 누르면 이 자리에서 열립니다</div>`;
   h+='<div style="display:flex;flex-direction:column;gap:6px">';
-  list.forEach(x=>{
+  list.forEach((x,i)=>{
     const sec=(typeof classifySector==='function')?classifySector(x.title, rptCode):'';
-    h+=`<a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
-        style="display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;text-decoration:none;color:var(--ink,#e6edf3)">
+    h+=`<div class="rpt-card" data-i="${i}"
+        style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer">
         <div style="font-size:13px;font-weight:600;line-height:1.5">${escHtml(x.title)}</div>
         <div style="margin-top:4px;font-size:11px;color:#8b949e">${escHtml(x.date||'')}${x.broker?' · '+escHtml(x.broker):''}${sec?' · '+escHtml(sec):''}</div>
-      </a>`;
+      </div>`;
   });
   h+='</div>';
   m.innerHTML=h;
+  m.querySelectorAll('.rpt-card').forEach(el=>{
+    el.onmouseenter=()=>el.style.borderColor='var(--accent)';
+    el.onmouseleave=()=>el.style.borderColor='var(--line)';
+    el.onclick=()=>rptOpen(+el.dataset.i);
+  });
+}
+
+/* 보고서 원문을 우측 칸에서 연다 (좌측 종목 목록은 그대로) */
+let RPT_SHOWN=[];
+function rptOpen(i){
+  const x=RPT_SHOWN[i]; if(!x) return;
+  const m=$('#rptMain'); if(!m) return;
+  const src = RPT_URL+'/?rptview='+encodeURIComponent(x.link||'');
+  m.innerHTML=`
+    <div class="anl-title" style="margin-bottom:6px">
+      <button id="rptBack" class="anl-backbtn">‹ 목록</button>
+      <span style="font-size:14px;font-weight:700">${escHtml(x.title)}</span>
+      <span class="code">${escHtml(x.date||'')}${x.broker?' · '+escHtml(x.broker):''}</span>
+      <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
+         style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
+    </div>
+    <div id="rptViewWrap" style="position:relative;height:calc(100% - 42px);min-height:420px;
+         border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)">
+      <div id="rptViewMsg" style="position:absolute;inset:0;display:flex;align-items:center;
+           justify-content:center;color:#8b949e;font-size:12px">원문 여는 중…</div>
+      <iframe id="rptViewFrame" src="${escHtml(src)}"
+              style="width:100%;height:100%;border:none;background:#fff"></iframe>
+    </div>`;
+  const bk=$('#rptBack'); if(bk) bk.onclick=()=>rptRender('ok', (RPT_CACHE[rptCode]||{}).items||[]);
+  const fr=$('#rptViewFrame'), msg=$('#rptViewMsg');
+  if(fr){
+    fr.onload=()=>{ if(msg) msg.style.display='none'; };
+    // PDF 가 없거나 막힌 경우 안내로 바꾼다
+    setTimeout(()=>{
+      if(msg && msg.style.display!=='none'){
+        msg.innerHTML='이 보고서는 이 자리에서 열 수 없습니다.<br>'
+          + '<span style="color:#6e7681">PDF 가 없거나 원문이 외부 열람을 막는 경우입니다. 위 [새 창 ▸] 로 보세요.</span>';
+        msg.style.textAlign='center'; msg.style.lineHeight='1.8';
+      }
+    }, 6000);
+  }
 }
 function rptBind(){
   const ps=$('#rptPortSel');
