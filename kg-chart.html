@@ -2613,10 +2613,8 @@ function drawSub(canvas, key) {
       const hv = adxr[state.hoverIdx];
       if (hv != null) {
         const hy = yOf(hv);
-        ctx.fillStyle = '#332800'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hv.toFixed(1), W-PAD.r+3, hy+3);
+        drawAxisVal(ctx, W, PAD, hy, hv.toFixed(1),
+          hv >= 25 ? 'high' : hv <= 20 ? 'low' : 'base');
       }
     }
     // 레이블
@@ -2810,12 +2808,8 @@ function drawSub(canvas, key) {
       ? arr[state.hoverIdx]
       : arr.filter(v=>v!=null).slice(-1)[0];
     if (rsiNow != null) {
-      const ry = yOf(rsiNow);
-      const rc = rsiNow >= 70 ? '#f0a836' : rsiNow <= 30 ? '#3fb950' : '#e6edf3';
-      ctx.fillStyle = '#0d1117'; ctx.fillRect(W-PAD.r+1, ry-7, PAD.r-2, 14);
-      ctx.strokeStyle = rc; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, ry-7, PAD.r-2, 14);
-      ctx.fillStyle = rc; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
-      ctx.fillText(rsiNow.toFixed(1), W-PAD.r+3, ry+3);
+      drawAxisVal(ctx, W, PAD, yOf(rsiNow), rsiNow.toFixed(1),
+        rsiNow >= 70 ? 'high' : rsiNow <= 30 ? 'low' : 'base');
     }
     // 70 위(과매수) 영역 채움 - 주황
     ctx.fillStyle = '#f0a83633';
@@ -2955,11 +2949,8 @@ function drawSub(canvas, key) {
       const hv = netArr[state.hoverIdx];
       if (hv != null) {
         const hy = hv > 0 ? ch/2+PAD.t - Math.abs(hv)/maxN*(ch/2-2) : ch/2+PAD.t + Math.abs(hv)/maxN*(ch/2-2);
-        const hvFmt = fmt(hv);
-        ctx.fillStyle = '#332800'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hvFmt, W-PAD.r+3, hy+3);
+        // 외국인 순매수 — 사는 쪽이면 주의색, 파는 쪽이면 초록
+        drawAxisVal(ctx, W, PAD, hy, fmt(hv), hv > 0 ? 'high' : hv < 0 ? 'low' : 'base');
       }
     }
 
@@ -3018,10 +3009,7 @@ function drawSub(canvas, key) {
       const hv = instArr[state.hoverIdx];
       if (hv != null) {
         const hy = hv > 0 ? ch/2+PAD.t - Math.abs(hv)/maxN*(ch/2-2) : ch/2+PAD.t + Math.abs(hv)/maxN*(ch/2-2);
-        ctx.fillStyle = '#332200'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.strokeStyle = '#ff9800'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.fillStyle = '#ff9800'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(fmt(hv), W-PAD.r+3, hy+3);
+        drawAxisVal(ctx, W, PAD, hy, fmt(hv), hv > 0 ? 'high' : hv < 0 ? 'low' : 'base');
       }
     }
 
@@ -3384,6 +3372,24 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementB
 const REF_LINE_COLOR = '#f0a836aa';
 const REF_LINE_WIDTH = 1;
 const REF_LABEL_COLOR = '#f0a836';   // 보조선 숫자 라벨
+
+/* 보조그래프 우측 축의 값 상자 — 색으로 상태를 알린다
+     base : 흰 글자 · 흰 테두리   (평범한 구간)
+     high : 붉은 바탕 · 노란 글자 (과열·주의)
+     low  : 초록 바탕 · 흰 글자   (과매도·기회)
+   모든 보조지표가 같은 규칙을 쓰도록 한 곳에 모았다. */
+const AXVAL = {
+  base: { bg:'#0d1117', line:'#e6edf3', text:'#e6edf3' },
+  high: { bg:'#8b1a1a', line:'#ef5350', text:'#ffd54f' },
+  low : { bg:'#14532d', line:'#3fb950', text:'#ffffff' }
+};
+function drawAxisVal(ctx, W, PAD, y, text, state){
+  const c = AXVAL[state] || AXVAL.base;
+  ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-7, PAD.r-2, 14);
+  ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-7, PAD.r-2, 14);
+  ctx.fillStyle = c.text; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(text, W-PAD.r+3, y+3);
+}
 
 let chartStep = null;
 const STEP_HOLD_DELAY = 450;   // 길게 누름을 인식하기까지(ms)
