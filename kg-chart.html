@@ -2949,7 +2949,7 @@ function drawSub(canvas, key) {
       const hv = netArr[state.hoverIdx];
       if (hv != null) {
         const hy = hv > 0 ? ch/2+PAD.t - Math.abs(hv)/maxN*(ch/2-2) : ch/2+PAD.t + Math.abs(hv)/maxN*(ch/2-2);
-        // 외국인 순매수 — 사는 쪽이면 주의색, 파는 쪽이면 초록
+        // 외국인 순매수 — 순매수(+)는 붉은색, 순매도(−)는 초록색
         drawAxisVal(ctx, W, PAD, hy, fmt(hv), hv > 0 ? 'high' : hv < 0 ? 'low' : 'base');
       }
     }
@@ -3009,6 +3009,7 @@ function drawSub(canvas, key) {
       const hv = instArr[state.hoverIdx];
       if (hv != null) {
         const hy = hv > 0 ? ch/2+PAD.t - Math.abs(hv)/maxN*(ch/2-2) : ch/2+PAD.t + Math.abs(hv)/maxN*(ch/2-2);
+        // 기관 순매수 — 순매수(+)는 붉은색, 순매도(−)는 초록색
         drawAxisVal(ctx, W, PAD, hy, fmt(hv), hv > 0 ? 'high' : hv < 0 ? 'low' : 'base');
       }
     }
@@ -3373,11 +3374,11 @@ const REF_LINE_COLOR = '#f0a836aa';
 const REF_LINE_WIDTH = 1;
 const REF_LABEL_COLOR = '#f0a836';   // 보조선 숫자 라벨
 
-/* 보조그래프 우측 축의 값 상자 — 색으로 상태를 알린다
-     base : 흰 글자 · 흰 테두리   (평범한 구간)
-     high : 붉은 바탕 · 노란 글자 (과열·주의)
-     low  : 초록 바탕 · 흰 글자   (과매도·기회)
-   모든 보조지표가 같은 규칙을 쓰도록 한 곳에 모았다. */
+/* 보조그래프 우측 축의 값 상자 — 높은 값은 붉은 쪽으로 통일한다
+     high : 붉은 바탕 · 노란 글자  (값이 높음 · 과열 · 순매수)
+     base : 어두운 바탕 · 흰 글자  (중간 구간)
+     low  : 초록 바탕 · 흰 글자    (값이 낮음 · 과매도 · 순매도)
+   한국 시장 관례(상승 빨강)를 따르며, 모든 보조지표가 같은 규칙을 쓴다. */
 const AXVAL = {
   base: { bg:'#0d1117', line:'#e6edf3', text:'#e6edf3' },
   high: { bg:'#8b1a1a', line:'#ef5350', text:'#ffd54f' },
