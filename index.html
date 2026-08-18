@@ -705,6 +705,10 @@
   .anl-backbtn.on{background:#f2c800;border-color:#f2c800}
   /* 분석 페이지 — 좌측 종목 목록 + 우측 내용 */
   .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
+  /* 전체화면 오버레이(보고서·챠트)에서는 남은 높이를 그대로 채운다 —
+     고정 높이면 화면 크기에 따라 아래가 잘리거나 남는다 */
+  #rptFullScreen .anl-layout,#chartFullScreen .anl-layout{height:auto;flex:1;min-height:0}
+  #rptFullScreen .anl-main{display:flex;flex-direction:column;overflow:hidden}
   /* 좌측 종목 칸 — 네 화면 공통 (챠트 기준 150px) */
   .anl-side{width:150px;min-width:80px;max-width:60%;flex:none;flex-shrink:0;
     border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel)}
@@ -8428,16 +8432,12 @@ function rptOpen(i){
   // 목록에서 PDF 주소를 이미 받았으면 그걸 바로 중계한다
   const src = RPT_URL+'/?rptview='+encodeURIComponent(x.pdf || x.link || '');
   m.innerHTML=`
-    <div class="anl-title" style="margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:6px;margin:0 0 6px;flex:none">
       <button id="rptBack" class="anl-backbtn">‹ 목록</button>
-      <span class="plain" style="font-size:14px">${escHtml(x.title)}</span>
-      <span class="code">${escHtml(x.date||'')}${x.broker?' · '+escHtml(x.broker):''}</span>
-      <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
-         style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;margin:0 0 6px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto">
       <button id="rptBody" class="anl-backbtn">본문 글</button>
       <button id="rptPdf" class="anl-backbtn">PDF</button>
+      <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
+         style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
     </div>
     <div id="rptViewWrap" style="position:relative;flex:1;min-height:0;
          border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)">
