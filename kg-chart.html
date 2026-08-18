@@ -2540,6 +2540,16 @@ function drawSub(canvas, key) {
     ctx.beginPath(); ctx.moveTo(PAD.l, y20); ctx.lineTo(W - PAD.r, y20); ctx.stroke();
     ctx.fillStyle = '#f0a836'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText('20', W - PAD.r + 3, y20 + 3);
+    /* 기준선 25 — 추세가 실제로 살아 있다고 보는 통상 기준.
+       20 은 횡보 탈출, 25 위부터 DI 교차 신호를 신뢰한다. */
+    if (25 >= minV && 25 <= maxV) {
+      const y25 = yOf(25);
+      ctx.strokeStyle = '#ffd54f88'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+      ctx.beginPath(); ctx.moveTo(PAD.l, y25); ctx.lineTo(W - PAD.r, y25); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ffd54f'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillText('25', W - PAD.r + 3, y25 + 3);
+    }
     // 기준선 40 — 추세가 무르익은 구간. 고점·저점 판단에 쓴다
     if (40 >= minV && 40 <= maxV) {
       const y40 = yOf(40);
@@ -2631,9 +2641,10 @@ function drawSub(canvas, key) {
       arr.forEach((v,i) => { if (v==null) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
       ctx.stroke();
     };
-    // +DI 빨강, -DI 초록
+    /* DMI 창은 방향만 본다 — +DI 와 -DI 의 교차.
+       추세 강도(ADX·ADXR)와 25 기준선은 ADXR 창에서 보므로 여기서는 그리지 않는다. */
     drawLine(pdi, '#ef5350', 1.6);
-    drawLine(ndi, '#3fb950', 1.6);
+    drawLine(ndi, '#58a6ff', 1.6);
     // 교차 신호: +DI가 -DI 상향돌파=매수(▲), 하향돌파=매도(▼)
     for (let i = 1; i < n; i++) {
       if (pdi[i]==null||ndi[i]==null||pdi[i-1]==null||ndi[i-1]==null) continue;
@@ -2646,9 +2657,9 @@ function drawSub(canvas, key) {
         ctx.moveTo(xOf(i), y+13); ctx.lineTo(xOf(i)-4, y+20); ctx.lineTo(xOf(i)+4, y+20); ctx.closePath(); ctx.fill();
       }
       if (prevDiff>=0 && curDiff<0) {
-        // 매도 ▼ (초록, 교차점 위)
+        // 매도 ▼ (파랑, 교차점 위)
         const y = yOf(pdi[i]);
-        ctx.fillStyle = '#3fb950';
+        ctx.fillStyle = '#58a6ff';
         ctx.beginPath();
         ctx.moveTo(xOf(i), y-13); ctx.lineTo(xOf(i)-4, y-20); ctx.lineTo(xOf(i)+4, y-20); ctx.closePath(); ctx.fill();
       }
@@ -2657,24 +2668,14 @@ function drawSub(canvas, key) {
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
       ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
-      // 호버 위치의 값을 y축에 표시
-      const hv = vals[0] ? vals[0][state.hoverIdx] : null;
-      if (hv != null) {
-        const hy = yOf(hv);
-        const hvFmt = Math.abs(hv) >= 1e8 ? (hv/1e8).toFixed(1)+'억' : Math.abs(hv) >= 1e4 ? (hv/1e4).toFixed(1)+'만' : hv >= 100 ? Math.round(hv).toLocaleString() : hv.toFixed(2);
-        ctx.fillStyle = '#332800'; ctx.fillRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, hy-7, PAD.r-2, 14);
-        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hvFmt, W-PAD.r+3, hy+3);
-      }
     }
-    // 레이블
+    // 레이블 — 선 색과 같게 맞춘다
     const lastP = pdi.filter(v=>v!=null).slice(-1)[0];
     const lastN = ndi.filter(v=>v!=null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = C.muted; ctx.fillText('DMI 방향성지수', PAD.l + 22, PAD.t + 11);
-    ctx.fillStyle = '#ffd54f'; ctx.fillText('+DI ' + (lastP!=null?lastP.toFixed(0):''), PAD.l + 118, PAD.t + 11);
-    ctx.fillStyle = '#ef5350'; ctx.fillText('-DI ' + (lastN!=null?lastN.toFixed(0):''), PAD.l + 174, PAD.t + 11);
+    ctx.fillStyle = '#ef5350'; ctx.fillText('+DI ' + (lastP!=null?lastP.toFixed(0):''), PAD.l + 118, PAD.t + 11);
+    ctx.fillStyle = '#58a6ff'; ctx.fillText('-DI ' + (lastN!=null?lastN.toFixed(0):''), PAD.l + 174, PAD.t + 11);
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
     ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
     ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
@@ -2803,6 +2804,19 @@ function drawSub(canvas, key) {
     ctx.fillText('30', W - PAD.r + 3, y30 + 3);
     ctx.fillStyle = '#6e7681';
     ctx.fillText('50', W - PAD.r + 3, y50 + 3);
+    /* 우측 축의 RSI 값 — 그래프를 짚으면 그 자리의 값, 아니면 최근 값.
+       (짚기 전에는 최근 값이 보이고, 손가락을 옮기면 따라 움직인다) */
+    const rsiNow = (state.hoverIdx >= 0 && state.hoverIdx < arr.length && arr[state.hoverIdx] != null)
+      ? arr[state.hoverIdx]
+      : arr.filter(v=>v!=null).slice(-1)[0];
+    if (rsiNow != null) {
+      const ry = yOf(rsiNow);
+      const rc = rsiNow >= 70 ? '#f0a836' : rsiNow <= 30 ? '#3fb950' : '#e6edf3';
+      ctx.fillStyle = '#0d1117'; ctx.fillRect(W-PAD.r+1, ry-7, PAD.r-2, 14);
+      ctx.strokeStyle = rc; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, ry-7, PAD.r-2, 14);
+      ctx.fillStyle = rc; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(rsiNow.toFixed(1), W-PAD.r+3, ry+3);
+    }
     // 70 위(과매수) 영역 채움 - 주황
     ctx.fillStyle = '#f0a83633';
     for (let i = 0; i < arr.length - 1; i++) {
