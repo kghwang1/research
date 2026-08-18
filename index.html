@@ -806,18 +806,30 @@
   .val-tbl td.kredit2.neg{color:#2e9e4f}
   /* 코스피·코스닥·선물 비교 그래프 (시황 상단) */
   .idx3-wrap{margin-bottom:8px}
-  .idx3-legend{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 4px;font-size:11px}
+  /* 한국·미국 그래프를 나란히 — 전체 높이는 한 개였을 때와 같게 */
+  /* 어느 폭에서든 좌우로 나란히 둔다 */
+  .idx3-pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .idx3-col{min-width:0}
+  @media(max-width:520px){
+    .idx3-pair{gap:4px}
+    .idx3-legend{gap:5px;font-size:9.5px}
+    .idx3-legend i{width:9px}
+    .idx3-tip{padding:5px 6px;font-size:10px;line-height:1.55}
+  }
+  .idx3-legend{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 4px;font-size:10.5px}
   .idx3-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink);font-weight:600}
   .idx3-legend i{width:14px;height:0;display:inline-block;border-top:2.5px solid}
-  #idx3Canvas{width:100%;height:150px;display:block;background:var(--panel);
+  #idx3Canvas,#idx3CanvasUS{width:100%;height:112px;display:block;background:var(--panel);
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
-  .idx3-note{font-size:11px;color:var(--mut);font-weight:500;margin:5px 0 -1px}
-  .idx3-tip{margin-top:5px;padding:6px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
-    font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;min-height:52px;
-    display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
-  .tipline{display:flex;align-items:center;gap:6px;white-space:nowrap}
-  .tipline i{width:16px;height:0;flex:none;border-top-width:2.5px;border-top-style:solid;display:inline-block}
-  .tipline b{font-weight:700;min-width:60px}
+  .idx3-note{font-size:11px;color:var(--mut);font-weight:500;margin:0 0 5px}
+  .idx3-tip{margin-top:5px;padding:6px 8px;background:#21262d;border:1px solid #30363d;border-radius:8px;
+    font-size:11px;line-height:1.65;color:var(--ink);font-family:monospace;
+    display:grid;grid-template-rows:repeat(3,auto);column-gap:10px}
+  .tipline{display:flex;align-items:center;gap:3px;white-space:nowrap;min-width:0;overflow:hidden}
+  .tipline b{flex:none}
+  .tipline .tv{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .tipline i{width:12px;height:0;flex:none;border-top-width:2.5px;border-top-style:solid;display:inline-block}
+  .tipline b{font-weight:700}
   /* 증시자금동향 */
   .dep-wrap{margin-top:14px}
   .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin:-3px 0 5px}
@@ -992,10 +1004,15 @@
  <section class="on" id="market">
 
   <!-- 코스피·코스닥·선물 흐름 비교 -->
-  <div class="idx3-wrap">
-    <canvas id="idx3Canvas"></canvas>
-    <div class="idx3-note">52주 최고가 기준 비율</div>
-    <div class="idx3-tip" id="idx3Tip"></div>
+  <div class="idx3-pair">
+    <div class="idx3-col">
+      <canvas id="idx3Canvas" data-mkt="kr"></canvas>
+      <div class="idx3-tip" id="idx3TipKR"></div>
+    </div>
+    <div class="idx3-col">
+      <canvas id="idx3CanvasUS" data-mkt="us"></canvas>
+      <div class="idx3-tip" id="idx3TipUS"></div>
+    </div>
   </div>
 
   <div class="card-grid mk-pinned" id="gridPin"></div>
@@ -6715,15 +6732,17 @@ function pnlUpdateVerdictOnly(){
 //  축은 감추고, 값은 아래 카드에 실제 숫자와 현재 대비 비율로 보여준다.
 // ══════════════════════════════════════
 // src: 'naver'(국내 일별) | 'yahoo'(해외 일별)
+/* 시황 비교 그래프 — 한국·미국을 따로 그린다 (mkt: kr | us) */
 const IDX3 = [
-  { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ef5350' },
-  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#ef5350', dash:true },
-  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff' },
-  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#58a6ff', dash:true },
-  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#ffd54f' },
+  { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ef5350', mkt:'kr' },
+  { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#f0a836', mkt:'kr' },
+  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff', mkt:'us' },
+  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#ef5350', mkt:'us' },
+  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#ffd54f', mkt:'us' },
 ];
+const idx3Of = mkt => IDX3.filter(se=>se.mkt===mkt);
 const IDX3_DAYS = 260;   // 받아오는 총 일수 (약 52주)
-const IDX3_VIEW = 22;    // 한 화면에 보이는 일수 (약 1개월)
+const IDX3_VIEW = 10;    // 한 화면에 보이는 일수
 let idx3Off = 0;         // 오른쪽 끝에서 몇 봉 왼쪽으로 밀었는지
 let IDX3_DATA = null;   // { dates:[], 계열별 종가 배열 }
 let IDX3_MAX = {};      // 계열별 52주 최고가 (비율 기준)
@@ -6750,7 +6769,7 @@ async function loadIdx3(){
       if(o && o.data && o.data.dates && o.data.dates.length){
         IDX3_DATA=o.data;
         IDX3_MAX=idx3CalcMax(IDX3_DATA);
-        idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
+  idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
         if(Date.now()-(o.ts||0) < 10*60*1000) return;   // 아직 신선하면 조회 생략
       }
     }
@@ -6804,8 +6823,10 @@ async function loadIdx3(){
   }catch(e){ if(tip) tip.textContent='불러오기 실패: '+(e.message||e); }
 }
 
-function drawIdx3(){
-  const cv=$('#idx3Canvas'); if(!cv||!IDX3_DATA) return;
+function drawIdx3(){ drawIdx3One('#idx3Canvas','kr'); drawIdx3One('#idx3CanvasUS','us'); }
+function drawIdx3One(sel, mkt){
+  const cv=$(sel); if(!cv||!IDX3_DATA) return;
+  const SER=idx3Of(mkt);
   const d=IDX3_DATA, total=d.dates.length; if(!total) return;
   // 최근 1개월만 보이고, 옆으로 밀면 과거로 이동
   const span=Math.min(IDX3_VIEW, total);
@@ -6820,24 +6841,31 @@ function drawIdx3(){
   cv.width=W*dpr; cv.height=H*dpr;
   const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,W,H);
-  const PAD={l:6,r:6,t:8,b:14};
+  const PAD={l:6,r:6,t:6,b:13};
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const xOf=i=> PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
 
   // 100일 중 최고가를 100으로 놓고 비율(%)로 그린다 → 네 지수가 한 축을 공유
   const pct=(v,k)=> (v==null||!IDX3_MAX[k])?null:(v/IDX3_MAX[k])*100;
-  let mn=100, mx=100;
-  IDX3.forEach(se=>{ for(let i=from;i<to;i++){ const p=pct(d[se.k][i],se.k); if(p==null) continue; if(p<mn)mn=p; if(p>mx)mx=p; } });
-  mn=Math.floor((mn-1)/5)*5; mx=Math.ceil((mx+1)/5)*5;
-  if(mx<=mn) mx=mn+10;
+  /* 세로 범위는 그려지는 자료만으로 정한다.
+     전에는 100% 를 늘 포함시켜 값이 70%대면 위쪽이 통째로 비었다.
+     위아래에 같은 여백을 줘 선이 세로 가운데에 오게 한다. */
+  let mn=Infinity, mx=-Infinity;
+  SER.forEach(se=>{ for(let i=from;i<to;i++){ const p=pct(d[se.k][i],se.k); if(p==null) continue; if(p<mn)mn=p; if(p>mx)mx=p; } });
+  if(!isFinite(mn)||!isFinite(mx)){ mn=95; mx=100; }
+  const span0=Math.max(mx-mn, 1.5);          // 너무 평평하면 최소 폭을 준다
+  const padY=span0*0.22;                     // 위아래 같은 여백 → 가운데 정렬
+  mn=mn-padY; mx=mx+padY;
   const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
 
-  // 100% 기준선 (최고가 자리)
-  ctx.strokeStyle='#ffffff22'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-  ctx.beginPath(); ctx.moveTo(PAD.l,yOf(100)); ctx.lineTo(W-PAD.r,yOf(100)); ctx.stroke();
-  ctx.setLineDash([]);
+  // 100% 기준선 — 범위 안에 들어올 때만 그린다
+  if(100>=mn && 100<=mx){
+    ctx.strokeStyle='#ffffff22'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(PAD.l,yOf(100)); ctx.lineTo(W-PAD.r,yOf(100)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
-  IDX3.forEach(se=>{
+  SER.forEach(se=>{
     ctx.strokeStyle=se.c; ctx.lineWidth=se.dash?1.4:1.9; ctx.lineJoin='round';
     ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let st=false;
@@ -6846,6 +6874,11 @@ function drawIdx3(){
     ctx.stroke(); ctx.setLineDash([]);
   });
 
+  // 기간 안내 — 한국 그래프 안쪽 왼쪽 위에만
+  if(mkt==='kr'){
+    ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='left';
+    ctx.fillText('최근 '+n+'일', PAD.l+3, PAD.t+10);
+  }
   // 날짜 (양끝)
   ctx.fillStyle='#6e7681'; ctx.font='9px monospace';
   const lab=i=>String(d.dates[at(i)]).slice(5).replace('-','/');
@@ -6862,7 +6895,7 @@ function drawIdx3(){
     const x=xOf(idx3Hover-from);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
-    IDX3.forEach(se=>{ const p=pct(d[se.k][idx3Hover],se.k); if(p==null) return;
+    SER.forEach(se=>{ const p=pct(d[se.k][idx3Hover],se.k); if(p==null) return;
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(p),2.8,0,Math.PI*2); ctx.fill(); });
     const dtxt=String(d.dates[idx3Hover]).slice(2);
     ctx.font='bold 9px monospace'; ctx.textAlign='center';
@@ -6876,20 +6909,32 @@ function drawIdx3(){
 
 // 값 카드 — 실제 값 + 현재(마지막) 대비 비율
 function idx3ShowTip(i){
-  const el=$('#idx3Tip'); if(!el||!IDX3_DATA) return;
+  if(!IDX3_DATA) return;
   const d=IDX3_DATA, n=d.dates.length;
   idx3Hover=Math.max(0,Math.min(n-1,i));
+  idx3Tip1('#idx3TipKR','kr'); idx3Tip1('#idx3TipUS','us');
+  drawIdx3();
+}
+function idx3Tip1(sel, mkt){
+  const el=$(sel); if(!el||!IDX3_DATA) return;
+  const d=IDX3_DATA;
   const fmt=v=> v==null?'—':Math.round(v).toLocaleString();
-  el.innerHTML = IDX3.map(se=>{
+  const SER=idx3Of(mkt);
+  const MAXLINE=Math.max(...['kr','us'].map(m=>idx3Of(m).length));   // 가장 많은 줄 수에 맞춘다
+  el.innerHTML = SER.map(se=>{
     const v=d[se.k][idx3Hover];
     const rel = (v!=null && IDX3_MAX[se.k]) ? ' ('+Math.round((v/IDX3_MAX[se.k])*100)+'%)' : '';
     return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
-         + `<b>${se.n}</b>: ${fmt(v)}${rel}</div>`;
-  }).join('');
-  drawIdx3();
+         + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}</span></div>`;
+  }).join('')
+    + (mkt==='kr'
+        ? '<div class="tipline" style="color:#6e7681;font-size:11px">52주 최고가 기준 비율</div>'
+        : '')
+    + '<div class="tipline">&nbsp;</div>'.repeat(Math.max(0, MAXLINE - SER.length - (mkt==='kr'?1:0)));
 }
-function idx3Bind(){
-  const cv=$('#idx3Canvas'); if(!cv||cv._bound) return; cv._bound=true;
+function idx3Bind(){ ['#idx3Canvas','#idx3CanvasUS'].forEach(idx3Bind1); }
+function idx3Bind1(sel){
+  const cv=$(sel); if(!cv||cv._bound) return; cv._bound=true;
   const clientX=ev=>(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX);
   // 화면 좌표 → 전체 배열의 위치 (보이는 구간 기준)
   const idxFrom=ev=>{
