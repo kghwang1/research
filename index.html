@@ -8429,7 +8429,8 @@ function rptOpen(i){
          style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
     </div>
     <div style="display:flex;align-items:center;gap:6px;margin:0 0 6px">
-      <span style="font-size:11px;color:#8b949e">글자 크기</span>
+      <button id="rptBody" class="anl-backbtn">본문 글</button>
+      <span style="font-size:11px;color:#8b949e;margin-left:6px">글자 크기</span>
       <button class="anl-backbtn rptzoom" data-z="-">－</button>
       <span id="rptZoomVal" style="font-size:11.5px;color:#8b949e;min-width:44px;text-align:center">100%</span>
       <button class="anl-backbtn rptzoom" data-z="+">＋</button>
@@ -8443,6 +8444,25 @@ function rptOpen(i){
               style="width:100%;height:100%;border:none;background:#fff"></iframe>
     </div>`;
   const bk=$('#rptBack'); if(bk) bk.onclick=()=>rptRender('ok', (RPT_CACHE[rptCode]||{}).items||[]);
+
+  /* [본문 글] — PDF 대신 네이버가 준 본문을 그대로 읽는다.
+     PDF 가 없는 보고서나, 그림 없이 빠르게 읽고 싶을 때 쓴다. */
+  const bb=$('#rptBody');
+  if(bb) bb.onclick=async()=>{
+    const idm=String(x.link||'').match(/research\/(\d+)/);
+    const wrap=$('#rptViewWrap'); if(!wrap) return;
+    wrap.innerHTML='<div style="padding:18px;color:#8b949e">본문 불러오는 중…</div>';
+    try{
+      const r=await fetch(RPT_URL+'/?rptbody='+rptCode+'&id='+(idm?idm[1]:''));
+      const d=await r.json();
+      if(!d || !d.ok || !d.html){ wrap.innerHTML='<div style="padding:18px;color:#8b949e">본문을 받지 못했습니다.</div>'; return; }
+      const head=[d.broker, d.date, d.opinion, d.goalPrice?('목표주가 '+Number(d.goalPrice).toLocaleString()):'']
+                  .filter(Boolean).join(' · ');
+      wrap.innerHTML=`<div style="padding:14px 16px;overflow:auto;height:100%;background:var(--bg)">
+        <div style="font-size:11.5px;color:#8b949e;margin-bottom:10px">${escHtml(head)}</div>
+        <div style="font-size:13.5px;line-height:1.95;color:var(--ink)">${d.html}</div></div>`;
+    }catch(e){ wrap.innerHTML='<div style="padding:18px;color:#8b949e">본문을 받지 못했습니다 — '+escHtml(e.message)+'</div>'; }
+  };
 
   /* PDF 확대 — 뷰어를 통째로 키우고 넘치는 만큼 스크롤한다.
      PDF 안 글자만 키우는 것은 브라우저 내장 뷰어라 손댈 수 없어, 화면 배율로 대신한다. */
