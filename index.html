@@ -36,17 +36,20 @@
   .tab.on{color:#0c0e14;background:var(--accent);border-color:var(--accent)}
 
 
-  /* 챠트 전체화면 종목 리스트 */
-  #chartStockItems .cs-item{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);display:flex;align-items:center;gap:6px}
-  #chartStockItems .cs-chks{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
-  #chartStockItems .cs-chk{display:flex;margin:0;cursor:pointer}
-  #chartStockItems .cs-chk input{width:14px;height:14px;margin:0;cursor:pointer}
-  #chartStockItems .cs-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
-  #chartStockItems .cs-item:hover{background:var(--panel)}
-  #chartStockItems .cs-item.on{background:var(--accent);color:#0c0e14;font-weight:700}
-  #chartStockItems .cs-item .cs-name{display:block;overflow:hidden;text-overflow:ellipsis}
-  #chartStockItems .cs-item .cs-code{font-size:10px;color:var(--dim);display:block}
-  #chartStockItems .cs-item.on .cs-code{color:#0c0e14aa}
+  /* 종목 목록 — 챠트·분석·장기투자·보고서 공통 */
+  .cs-item{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
+    display:flex;align-items:center;gap:6px;font-size:12px}
+  .cs-chks{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+  .cs-chk{display:flex;margin:0;cursor:pointer}
+  .cs-chk input{width:14px;height:14px;margin:0;cursor:pointer}
+  .cs-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;flex:1}
+  .cs-item:hover{background:var(--panel)}
+  .cs-item.on{background:var(--accent);color:#0c0e14;font-weight:700}
+  .cs-item .cs-name,.cs-item .cs-nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cs-item .cs-code,.cs-item .cs-cd{font-size:10px;color:var(--dim);display:block}
+  .cs-item.on .cs-code,.cs-item.on .cs-cd{color:#0c0e14aa}
+  /* 분석 목록도 같은 모양으로 */
+  .anl-list .ai{font-size:12px}
   section{display:none;padding-top:18px}
   section.on{display:block;animation:fade .25s}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -702,8 +705,9 @@
   .anl-backbtn.on{background:#f2c800;border-color:#f2c800}
   /* 분석 페이지 — 좌측 종목 목록 + 우측 내용 */
   .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
-  .anl-side{width:132px;min-width:60px;flex:none;border-right:1px solid var(--line);
-    display:flex;flex-direction:column;background:var(--panel)}
+  /* 좌측 종목 칸 — 네 화면 공통 (챠트 기준 150px) */
+  .anl-side{width:150px;min-width:80px;max-width:60%;flex:none;flex-shrink:0;
+    border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel)}
   /* 종목 칸 경계 — 끌어서 폭 조절 */
   /* 종목분석 하부 메뉴 */
   .subnav{display:flex;gap:4px;align-items:center}
@@ -727,16 +731,21 @@
   .anl-resize::before{content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
     width:3px;height:44px;border-radius:2px;background:#4a525e}
   .anl-resize:hover::before,.anl-resize.on::before{background:var(--accent)}
-  .anl-side .anl-search{margin:0;padding:6px;border-bottom:1px solid var(--line)}
-  .anl-side .anl-search input{padding:6px 8px;font-size:12px;border-radius:6px}
+  /* 좌측 검색창 — 네 화면 공통 */
+  .anl-side .anl-search{margin:0;padding:5px;border-bottom:1px solid var(--line)}
+  .anl-side .anl-search input{width:100%;box-sizing:border-box;padding:4px 7px;font-size:11px;
+    border-radius:5px;border:1px solid var(--line);background:var(--panel2,#1d212a);color:var(--ink)}
+  #chartSidebar{width:150px;min-width:80px;max-width:60%}
+  #chartStockSearch{margin:5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);
+    background:var(--panel2,#1d212a);color:var(--ink);font-size:11px}
   .anl-side .anl-sug{left:6px;right:auto;min-width:210px;max-height:280px;overflow-y:auto;z-index:60}
   .anl-list{flex:1;overflow-y:auto;font-size:11.5px}
   .anl-list .ai{padding:7px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .anl-list .ai:hover{background:var(--bg)}
-  .anl-list .ai.on{background:var(--accent2);color:#0a0a0a;font-weight:700}
+  .anl-list .ai.on{background:var(--accent);color:#0c0e14;font-weight:700}
   .anl-list .ai .c{color:var(--mut);font-size:10px;margin-left:4px}
-  .anl-list .ai.on .c{color:#0a0a0a}
+  .anl-list .ai.on .c{color:#0c0e14aa}
   .anl-main{flex:1;min-width:0;overflow-y:auto;padding:8px 10px 24px}
   .anl-sect{font-size:12.5px;font-weight:700;color:#d4af00;margin:12px 0 4px}
   .anl-sect span{font-size:10.5px;color:var(--mut);font-weight:500;margin-left:6px}
@@ -1094,8 +1103,8 @@
     </div>
   </div>
   <div style="display:flex;flex:1;overflow:hidden">
-    <div id="chartSidebar" style="width:150px;min-width:80px;max-width:60%;border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0">
-      <input id="chartStockSearch" type="text" placeholder="종목 검색" style="margin:5px;padding:4px 7px;border-radius:5px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:11px">
+    <div id="chartSidebar" style="border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden">
+      <input id="chartStockSearch" type="text" placeholder="종목 검색">
       <div id="chartStockItems" style="flex:1;overflow-y:auto;font-size:11px"></div>
     </div>
     <div id="chartResizer" style="width:6px;cursor:col-resize;background:var(--line);flex-shrink:0;position:relative" title="드래그하여 크기 조절"></div>
@@ -8230,7 +8239,8 @@ function rptBuildList(filter){
     if(seen.has(code)) return; seen.add(code);
     if(f && !name.toLowerCase().includes(f) && !code.includes(f)) return;
     h+=`<div class="cs-item${code===rptCode?' on':''}" data-code="${code}" data-name="${escHtml(name)}">`
-     + `<div class="cs-nm">${escHtml(name)}</div><div class="cs-cd">${code}</div></div>`;
+     + `<span class="cs-txt"><span class="cs-name">${escHtml(name)}</span>`
+     + `<span class="cs-code">${code}</span></span></div>`;
   });
   box.innerHTML = h || '<div style="padding:14px;color:#8b949e;font-size:12px">국내 종목이 없습니다.</div>';
   box.querySelectorAll('.cs-item').forEach(el=>{
@@ -9718,7 +9728,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=28';
+const LONG_URL='kg-long.html?v=29';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -9829,20 +9839,28 @@ function chartPortRows(port){
                 .map(r=>{ const t=String(r[0]).trim(); return [ADR_KR[t.toUpperCase()]||t, r[1]]; })
       : [];
   }
+  /* 지수 포트는 표를 한 번 열어야 메모리에 목록이 생긴다.
+     표를 안 열었어도 저장된 캐시에서 바로 읽어 쓴다. */
+  const poolFrom=(key)=>{
+    try{ const raw=localStorage.getItem(key); if(!raw) return [];
+      const o=JSON.parse(raw);
+      const rows=(o&&Array.isArray(o.rows))?o.rows:(Array.isArray(o)?o:[]);
+      return rows.map(r=>[r.code||r[0], r.name||r[1]||'']).filter(r=>r[0]);
+    }catch(e){ return []; }
+  };
   if(port==='invest'){  // 코스피200
     if(typeof INVEST_ROWS!=='undefined' && INVEST_ROWS.length)
       return INVEST_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']);
-    // 표를 아직 안 열었으면 캐시해 둔 후보 풀을 쓴다
     if(typeof INVEST_POOL!=='undefined' && INVEST_POOL.length)
       return INVEST_POOL.map(r=>[r.code, r.name||'']);
-    return [];
+    return poolFrom('inv_pool');
   }
   if(port==='investkq'){  // 코스닥100
     if(typeof INVEST_KQ_ROWS!=='undefined' && INVEST_KQ_ROWS.length)
       return INVEST_KQ_ROWS.map(r=>[r.code||r[0], r.name||r[1]||'']);
     if(typeof INVEST_KQ_POOL!=='undefined' && INVEST_KQ_POOL.length)
       return INVEST_KQ_POOL.map(r=>[r.code, r.name||'']);
-    return [];
+    return poolFrom('inv_kq_pool');
   }
   if(port==='us'){  // 미국(반)
     // 표의 Symbol 은 'Oracle' 'Block XYZ' '삼성전자' 처럼 티커가 아닌 것이 섞여 있다.
