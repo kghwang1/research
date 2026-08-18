@@ -764,9 +764,10 @@
   .anl-sug div:last-child{border-bottom:none}
   .anl-sug div:active,.anl-sug div:hover{background:#21262d}
   .anl-sug .sc{color:var(--mut);font-size:11px;margin-left:6px}
-  .anl-title{font-size:16px;font-weight:800;color:var(--ink);margin:0 0 8px;
+  .anl-title{font-size:16px;font-weight:800;color:#f2c800;margin:0 0 8px;
     display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .anl-title .code{font-size:12px;font-weight:700;color:#8b949e}
+  .anl-title .plain{color:var(--ink);font-weight:700}
   .anl-title .sub{font-size:11.5px;color:var(--mut);font-weight:500;margin-left:6px}
   #anlCanvas{width:100%;height:200px;display:block;background:#21262d;
     border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
@@ -7441,7 +7442,7 @@ async function anlPick(code, name){
   ANL_CODE=code; ANL_NAME=name||code; ANL_HOVER=-1;
   const sug=$('#anlSuggest'); if(sug){ sug.innerHTML=''; sug.classList.remove('on'); }
   const inp=$('#anlInput'); if(inp) inp.value=ANL_NAME;
-  const t=$('#anlTitle'); if(t) t.innerHTML=escHtml(ANL_NAME)+`<span class="sub">${code}</span>`;
+  const t=$('#anlTitle'); if(t) t.innerHTML=escHtml(ANL_NAME)+`<span class="code">${code}</span>`;
   anlRenderList($('#anlSideSearch') ? $('#anlSideSearch').value : '');   // 선택 표시 갱신
   const cm=$('#anlComment'); if(cm) cm.innerHTML='<p style="color:#8b949e">자료를 불러오는 중…</p>';
   await ensureFin3([code]);
@@ -8306,6 +8307,8 @@ function rptRender(state, items, msg){
 
 /* 보고서 원문을 우측 칸에서 연다 (좌측 종목 목록은 그대로) */
 let RPT_SHOWN=[];
+let RPT_ZOOM=(()=>{ const v=parseInt(localStorage.getItem('kg_rpt_zoom')||'',10);
+  return (v>=60 && v<=250) ? v : 100; })();
 function rptOpen(i){
   const x=RPT_SHOWN[i]; if(!x) return;
   const m=$('#rptMain'); if(!m) return;
@@ -8313,19 +8316,51 @@ function rptOpen(i){
   m.innerHTML=`
     <div class="anl-title" style="margin-bottom:6px">
       <button id="rptBack" class="anl-backbtn">‹ 목록</button>
-      <span style="font-size:14px;font-weight:700">${escHtml(x.title)}</span>
+      <span class="plain" style="font-size:14px">${escHtml(x.title)}</span>
       <span class="code">${escHtml(x.date||'')}${x.broker?' · '+escHtml(x.broker):''}</span>
       <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
          style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
     </div>
-    <div id="rptViewWrap" style="position:relative;height:calc(100% - 42px);min-height:420px;
-         border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)">
+    <div style="display:flex;align-items:center;gap:6px;margin:0 0 6px">
+      <span style="font-size:11px;color:#8b949e">글자 크기</span>
+      <button class="anl-backbtn rptzoom" data-z="-">－</button>
+      <span id="rptZoomVal" style="font-size:11.5px;color:#8b949e;min-width:44px;text-align:center">100%</span>
+      <button class="anl-backbtn rptzoom" data-z="+">＋</button>
+      <button class="anl-backbtn rptzoom" data-z="0">기본</button>
+    </div>
+    <div id="rptViewWrap" style="position:relative;height:calc(100% - 78px);min-height:420px;
+         border:1px solid var(--line);border-radius:8px;overflow:auto;background:var(--panel)">
       <div id="rptViewMsg" style="position:absolute;inset:0;display:flex;align-items:center;
            justify-content:center;color:#8b949e;font-size:12px">원문 여는 중…</div>
       <iframe id="rptViewFrame" src="${escHtml(src)}"
               style="width:100%;height:100%;border:none;background:#fff"></iframe>
     </div>`;
   const bk=$('#rptBack'); if(bk) bk.onclick=()=>rptRender('ok', (RPT_CACHE[rptCode]||{}).items||[]);
+
+  /* PDF 확대 — 뷰어를 통째로 키우고 넘치는 만큼 스크롤한다.
+     PDF 안 글자만 키우는 것은 브라우저 내장 뷰어라 손댈 수 없어, 화면 배율로 대신한다. */
+  let zoom = RPT_ZOOM;
+  const applyZoom=()=>{
+    const f=$('#rptViewFrame'), w=$('#rptViewWrap'), v=$('#rptZoomVal');
+    if(!f||!w) return;
+    f.style.transformOrigin='0 0';
+    f.style.transform='scale('+(zoom/100)+')';
+    f.style.width=(100*100/zoom)+'%';
+    f.style.height=(100*100/zoom)+'%';
+    if(v) v.textContent=zoom+'%';
+    RPT_ZOOM=zoom;
+    try{ localStorage.setItem('kg_rpt_zoom', String(zoom)); }catch(e){}
+  };
+  m.querySelectorAll('.rptzoom').forEach(b=>{
+    b.onclick=()=>{
+      const z=b.dataset.z;
+      if(z==='+') zoom=Math.min(250, zoom+20);
+      else if(z==='-') zoom=Math.max(60, zoom-20);
+      else zoom=100;
+      applyZoom();
+    };
+  });
+  applyZoom();
   const fr=$('#rptViewFrame'), msg=$('#rptViewMsg');
   if(fr){
     fr.onload=()=>{ if(msg) msg.style.display='none'; };
