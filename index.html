@@ -4114,7 +4114,7 @@ function renderWatchTable(){
       }
       // 직접 담은 해외 종목도 종목명 칸을 옅은 노랑으로
       const addedBgUS = (isSel && !isLongSub && _SEL_ADDED.has(String(rawCode).toUpperCase()))
-        ? ' style="background:#f2c8001a"' : '';
+        ? ' style="background:#fff8d6"' : '';
       h+=`<tr><td class="mp-l kr-stk kr-stk-wrap"${addedBgUS}>${stkCell}</td><td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
       return;
     }
@@ -4162,7 +4162,7 @@ function renderWatchTable(){
     h+='<tr>';
     // 직접 담은 종목은 종목명 칸을 옅은 노랑으로 표시한다
     const addedBg = (isSel && !isLongSub && _SEL_ADDED.has(String(rawCode).toUpperCase()))
-      ? ' style="background:#f2c8001a"' : '';
+      ? ' style="background:#fff8d6"' : '';
     h+=`<td class="mp-l kr-stk kr-stk-wrap"${addedBg}>${stkCell}</td>`;
     if(isLongSub) h+=`<td class="mp-c">${longScoreCell(code)}</td>`;
     h+=`<td class="cls-cell">${isLongSub ? lclsCellHtml(rawCode) : clsCellHtml(code, nm||'')}</td>`;
