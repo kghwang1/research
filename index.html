@@ -695,8 +695,11 @@
   .anl-backbtn{padding:4px 12px;border-radius:6px;border:1px solid #6e7681;
     background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
   .anl-backbtn:active{opacity:.6}
-  #anlPortSel,#chartPortSel{padding:4px 10px;border-radius:6px;border:1px solid #6e7681;
-    background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
+  #anlPortSel,#chartPortSel,#rptPortSel,#longPortSel{padding:4px 10px;border-radius:6px;
+    border:1px solid #6e7681;background:#8b949e;color:#0d1117;
+    font-size:12px;font-weight:700;cursor:pointer;flex:none}
+  /* 종목 버튼 — 켜져 있으면 노란색 (네 화면 공통) */
+  .anl-backbtn.on{background:#f2c800;border-color:#f2c800}
   /* 분석 페이지 — 좌측 종목 목록 + 우측 내용 */
   .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
   .anl-side{width:132px;min-width:60px;flex:none;border-right:1px solid var(--line);
@@ -1139,7 +1142,18 @@
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
     </div>
     <div class="anl-row">
-      <span style="font-size:11px;color:#8b93a1">종목·포트폴리오는 왼쪽 목록에서 고릅니다</span>
+      <button id="longSideToggle" class="anl-backbtn on">종목</button>
+      <select id="longPortSel">
+        <option value="kr">한국(체)</option>
+        <option value="invest">코스피200</option>
+        <option value="investkq">코스닥100</option>
+        <option value="invpf">관심보유</option>
+        <option value="long">장기보유</option>
+        <option value="usc">미국(체)</option>
+        <option value="us">미국(반)</option>
+        <option value="etf">한·미 ETF</option>
+        <option value="dividend">배당</option>
+      </select>
     </div>
   </div>
   <div style="flex:1;overflow:hidden;min-width:0">
@@ -8281,7 +8295,7 @@ function rptBind(){
   if(sc && !sc._b){ sc._b=true; sc.oninput=()=>rptBuildList(sc.value); }
   const tg=$('#rptSideToggle'), sd=$('#rptSide');
   if(tg && sd && !tg._b){ tg._b=true;
-    const paint=()=>{ tg.style.background = sd.style.display==='none' ? '#8b949e' : '#f2c800'; };
+    const paint=()=>{ tg.classList.toggle('on', sd.style.display!=='none'); };
     tg.onclick=()=>{ sd.style.display = sd.style.display==='none' ? 'flex' : 'none'; paint(); };
     paint();
   }
@@ -9704,7 +9718,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=27';
+const LONG_URL='kg-long.html?v=28';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -9713,11 +9727,28 @@ function openLongView(port, code){
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
+  const ps=$('#longPortSel'); if(ps) ps.value = port || STK.port || 'kr';
+  longBarBind();
   const ifr=$('#longIframe');
   if(ifr){
     const q = LONG_URL + '&port=' + encodeURIComponent(port||STK.port||'kr')
             + (code ? '&code='+encodeURIComponent(code) : '');
     if(!ifr.src || ifr.src==='about:blank' || ifr._q!==q){ ifr._q=q; ifr.src=q; }
+  }
+}
+function longBarBind(){
+  const ps=$('#longPortSel');
+  if(ps && !ps._b){ ps._b=true;
+    ps.onchange=()=>{ if(typeof stkSetPort==='function') stkSetPort(ps.value);
+      openLongView(ps.value, ''); };          // 포트가 바뀌면 목록을 새로 싣는다
+  }
+  const tg=$('#longSideToggle');
+  if(tg && !tg._b){ tg._b=true;
+    tg.onclick=()=>{
+      tg.classList.toggle('on');
+      const ifr=$('#longIframe');
+      try{ ifr && ifr.contentWindow && ifr.contentWindow.postMessage({kg:'side', on:tg.classList.contains('on')}, '*'); }catch(e){}
+    };
   }
 }
 function closeLongView(keepTab){

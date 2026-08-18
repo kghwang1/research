@@ -200,7 +200,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-18b';
+const BUILD='KG_LONG 2026-08-18c';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -908,6 +908,22 @@ function pick(code,name){
   const c=cache[code];
   if(c&&(c.fin||c.error)) renderMain(); else loadOne(code,name);
 }
+// 부모(종목분석) 안에서 열렸으면 자체 상단 줄을 숨긴다 — 부모 줄과 겹치지 않게
+const EMBEDDED = (()=>{ try{ return window.parent && window.parent!==window; }catch(e){ return false; } })();
+if(EMBEDDED){
+  const top=document.querySelector('.lgtop'); if(top) top.style.display='none';
+  const w=document.querySelector('.wrap'); if(w) w.style.height='100vh';
+}
+// 부모의 [종목] 버튼 신호를 받아 좌측을 접고 편다
+window.addEventListener('message', e=>{
+  const d=e.data;
+  if(!d || d.kg!=='side') return;
+  const sd=document.getElementById('side'), rz=document.getElementById('rsz');
+  if(!sd) return;
+  sd.style.display = d.on ? 'flex' : 'none';
+  if(rz) rz.style.display = d.on ? 'block' : 'none';
+});
+
 (function(){
   const tg=document.getElementById('sideToggle'), sd=document.getElementById('side'), rz=document.getElementById('rsz');
   if(!tg||!sd) return;
