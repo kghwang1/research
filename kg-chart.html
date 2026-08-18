@@ -744,7 +744,7 @@ const IND_CFG = {
   MOM:{color:C.green,lines:[0]},
   WILLR:{color:C.orange,range:[-100,0],lines:[-20,-50,-80]},
   ATR:{color:C.orange},
-  RVI:{color:C.purple,range:[20,80]},
+  RVI:{color:C.purple,range:[0,100]},   // 극단값(바닥·고점)이 잘리지 않도록 전 구간을 보여준다
   INERTIA:{color:C.lime,range:[30,80]},
   CHAIKIN_VOL:{color:C.teal,lines:[0]},
   VOLUME:{color:C.muted},
@@ -2424,8 +2424,8 @@ function drawSub(canvas, key) {
   // ── RVI: 60/40 기준선 + 과열·과매도 색칠 + 매매지점 ──
   if (key === 'RVI') {
     const raw = vals[0];
-    // 표시 범위(20~80)를 벗어난 값은 그리지 않음 — 범위 안에 들어온 값만 표시
-    const arr = raw.map(v => (v == null || v < 20 || v > 80) ? null : v);
+    // 0~100 전 구간을 그린다 (전에는 20~80 밖을 잘라 진짜 바닥·고점이 안 보였다)
+    const arr = raw;
     const y60 = yOf(60), y40 = yOf(40);
 
     // 과열(60↑) 영역 채움 — 빨강
@@ -2478,7 +2478,7 @@ function drawSub(canvas, key) {
     for (let i = 1; i < n; i++) {
       const p = raw[i - 1], v0 = raw[i];
       if (p == null || v0 == null) continue;
-      const v = Math.max(20, Math.min(80, v0));   // 표시 위치만 범위 안으로
+      const v = v0;
       if (p < 40 && v0 >= 40) {         // 매입 — 40 이하에서 40선 상승 돌파
         const x = xOf(i), y = yOf(v);
         ctx.fillStyle = '#2979ff';
@@ -2499,11 +2499,16 @@ function drawSub(canvas, key) {
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
       const hv = raw[state.hoverIdx];
       if (hv != null) {
-        const hy = yOf(Math.max(20, Math.min(80, hv)));
-        ctx.fillStyle = '#2a1a3a'; ctx.fillRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
-        ctx.strokeStyle = '#bc8cff'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
-        ctx.fillStyle = '#bc8cff'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3);
+        drawAxisVal(ctx, W, PAD, yOf(hv), hv.toFixed(1),
+          hv >= 60 ? 'high' : hv <= 40 ? 'low' : 'base');
+      }
+    }
+    /* 짚기 전에는 최근 값을 우측 축에 보여준다 (RSI 와 같은 방식) */
+    if (!(state.hoverIdx >= 0 && state.hoverIdx < n)) {
+      const nowV = raw.filter(v => v != null).slice(-1)[0];
+      if (nowV != null) {
+        drawAxisVal(ctx, W, PAD, yOf(nowV), nowV.toFixed(1),
+          nowV >= 60 ? 'high' : nowV <= 40 ? 'low' : 'base');
       }
     }
 
@@ -2512,7 +2517,7 @@ function drawSub(canvas, key) {
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = C.muted; ctx.fillText('RVI 상대변동성지수', PAD.l + 22, PAD.t + 11);
     if (lastR != null) {
-      ctx.fillStyle = lastR >= 60 ? '#ef5350' : lastR <= 40 ? '#2979ff' : '#bc8cff';
+      ctx.fillStyle = lastR >= 60 ? '#ef5350' : lastR <= 40 ? '#3fb950' : '#bc8cff';
       ctx.fillText(lastR.toFixed(1) + (lastR >= 60 ? ' 과열' : lastR <= 40 ? ' 과매도' : ''), PAD.l + 150, PAD.t + 11);
     }
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
