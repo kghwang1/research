@@ -3371,6 +3371,7 @@ function togglePortMember(key, code, name){
   // 빈 줄 최소 1개 유지
   if(!rows.some(r=>!String(r[0]||''))) rows.push(['','']);
   _portSave(key, rows);
+  if(typeof myServerSave==='function') myServerSave();   // 체크 변경을 서버에도 반영
   // 메모리 슬롯도 동기화 (setWatchPort가 메모리를 쓰므로)
   if(watchPort!=='invpf'){
     if(key==='kg_watch_rows'){ _WATCH_ROWS_watch = rows; WATCH_ROWS = rows; }
@@ -4801,6 +4802,7 @@ function selReadRows(key){
   return [];
 }
 function selWriteRows(key, rows, skipSync){
+  if(typeof myServerSave==='function') setTimeout(()=>myServerSave(), 0);
   if(!Array.isArray(rows)) return;
   try { localStorage.setItem(key, JSON.stringify(rows)); } catch(e){}
   if(skipSync) return;
@@ -5266,7 +5268,10 @@ function myLocal(){
   const g=k=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null }catch(e){ return null } };
   return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{},
-           cls:g('kg_long_cls')||{}, savedAt:new Date().toISOString() };
+           cls:g('kg_long_cls')||{},
+           // 관심·보유 목록도 함께 보관한다 (기기를 바꿔도 체크가 유지되도록)
+           watch:g('kg_watch_rows')||[], invpf:g('kg_invpf_rows')||[],
+           savedAt:new Date().toISOString() };
 }
 let _myLastErr='';
 async function myServerPut(loud){
@@ -5333,6 +5338,11 @@ async function myServerLoad(){
       if(Array.isArray(o.add))    put('kg_addstk_rows', o.add);
       if(o.en && typeof o.en==='object') put('kg_long_en', o.en);
       if(o.cls && typeof o.cls==='object') put('kg_long_cls', o.cls);
+      // 관심·보유는 이 기기에 아직 없을 때만 받는다 (여기서 지운 것을 되살리지 않도록)
+      const hasLocal=k=>{ try{ const a=JSON.parse(localStorage.getItem(k)||'[]');
+        return Array.isArray(a) && a.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()); }catch(e){ return false; } };
+      if(Array.isArray(o.watch) && o.watch.length && !hasLocal('kg_watch_rows')) put('kg_watch_rows', o.watch);
+      if(Array.isArray(o.invpf) && o.invpf.length && !hasLocal('kg_invpf_rows')) put('kg_invpf_rows', o.invpf);
       if(typeof loadAddRows==='function') loadAddRows();
     }
   }catch(e){}
@@ -8408,7 +8418,8 @@ let RPT_ZOOM=(()=>{ const v=parseInt(localStorage.getItem('kg_rpt_zoom')||'',10)
 function rptOpen(i){
   const x=RPT_SHOWN[i]; if(!x) return;
   const m=$('#rptMain'); if(!m) return;
-  const src = RPT_URL+'/?rptview='+encodeURIComponent(x.link||'');
+  // 목록에서 PDF 주소를 이미 받았으면 그걸 바로 중계한다
+  const src = RPT_URL+'/?rptview='+encodeURIComponent(x.pdf || x.link || '');
   m.innerHTML=`
     <div class="anl-title" style="margin-bottom:6px">
       <button id="rptBack" class="anl-backbtn">‹ 목록</button>
