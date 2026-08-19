@@ -5641,8 +5641,8 @@ function renderDividend(box){
    +'</div>';
 
   // 표
-  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','연 배당','주가 수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','6개월 차트'];
-  const W=[64,232,84,100,74,178,96];
+  const cols=['시장','종목명','분류','현재가<br><span style="font-size:9px;color:#8b949e">(변동율)</span>','연 배당','주가 수익률<br><span style="font-size:9px;color:#8b949e">1·3·6·12개월</span>','52주 최고가<br><span style="font-size:9px;color:#8b949e">(상승여력%)</span>','6개월 차트'];
+  const W=[64,206,84,100,74,178,104,96];
   h+='<table class="val-tbl mp div-tbl"><colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
 
@@ -5662,7 +5662,7 @@ function renderDividend(box){
     });
     if(!filtered.length) return;
     // 그룹 헤더 행
-    h+=`<tr class="div-grp"><td colspan="7" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
+    h+=`<tr class="div-grp"><td colspan="8" style="background:${g.color}22;border-left:3px solid ${g.color};font-weight:700;padding:5px 8px">${g.label} <span style="font-size:10px;color:#8b949e;font-weight:400">${g.desc}</span></td></tr>`;
     filtered.forEach((it,i)=>{
       shown++;
       const key=it.isUS?('US:'+it.code.toUpperCase()):it.code;
@@ -5686,6 +5686,18 @@ function renderDividend(box){
         const rateH = (d.rate!=null) ? ` <span style="color:${d.rate>=0?'#ef5350':'#2e9e4f'};font-size:10px">(${(d.rate>=0?'+':'')+d.rate.toFixed(2)}%)</span>` : '';
         priceCell=`${addComma(d.price)}${rateH}`;
       }
+      /* 52주 최고가 (상승여력%) — 최고가까지 얼마나 남았는가 */
+      let hiCell='<span style="color:#6e7681">—</span>';
+      if(d.high52!=null){
+        const hv=parseFloat(String(d.high52).replace(/[^0-9.\-]/g,''));
+        const pv=parseFloat(String(d.price==null?'':d.price).replace(/[^0-9.\-]/g,''));
+        let up='';
+        if(isFinite(hv)&&isFinite(pv)&&pv>0){
+          const u=Math.round((hv-pv)/pv*100);
+          up=` <span style="color:${u>0?'#ef5350':'#2e9e4f'};font-size:10px">(${u>0?'+':''}${u}%)</span>`;
+        }
+        hiCell=`${addComma(d.high52)}${up}`;
+      }
       h+=`<tr>`
         +`<td class="mp-c">${mkt}</td>`
         +`<td class="mp-l div-name">${nameCell}</td>`
@@ -5693,12 +5705,13 @@ function renderDividend(box){
         +`<td class="mp-r div-price" data-code="${escHtml(it.code)}" data-us="${it.isUS?1:''}" data-name="${escHtml(it.name)}" style="cursor:pointer;text-decoration:underline dotted">${priceCell}</td>`
         +`<td class="mp-r" style="color:#3fb950;font-weight:600;font-size:14px">${divYld}</td>`
         +`<td class="mp-c">${retCell}</td>`
+        +`<td class="mp-r">${hiCell}</td>`
         +`<td class="mp-c">${chartCell}</td>`
         +`</tr>`;
     });
   });
   if(!shown){
-    h+='<tr><td colspan="7" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
+    h+='<tr><td colspan="8" style="text-align:center;color:#8b949e;padding:20px">조건에 맞는 ETF가 없습니다. 필터를 확인하세요.</td></tr>';
   }
   h+='</tbody></table>';
   h+='</div>';
@@ -5878,14 +5891,14 @@ async function refreshDivPrices(list){
   if(krCodes.length){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(krCodes.map(c=>'STK:'+c).join(','))); const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const code=String(q.symbol||'').replace(/^STK:/,''); if(divData[code]){ if(q.price!=null)divData[code].price=q.price; if(q.rate!=null)divData[code].rate=q.rate; } } });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const code=String(q.symbol||'').replace(/^STK:/,''); if(divData[code]){ if(q.price!=null)divData[code].price=q.price; if(q.rate!=null)divData[code].rate=q.rate; if(q.high52!=null)divData[code].high52=q.high52; } } });
     }catch(e){}
   }
   // 해외 일괄 (야후 시세)
   if(usCodes.length){
     try{
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(usCodes.join(','))); const d=await r.json();
-      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const key='US:'+String(q.symbol||'').toUpperCase(); if(divData[key]){ if(q.price!=null)divData[key].price=q.price; if(q.rate!=null)divData[key].rate=q.rate; } } });
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok){ const key='US:'+String(q.symbol||'').toUpperCase(); if(divData[key]){ if(q.price!=null)divData[key].price=q.price; if(q.rate!=null)divData[key].rate=q.rate; if(q.high52!=null)divData[key].high52=q.high52; } } });
     }catch(e){}
   }
 }
