@@ -8578,7 +8578,8 @@ function fcstTableHtml(code){
    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
    + '<b style="font-size:13px;color:#f2c800">증권사 전망</b>'
    + '<span style="font-size:10.5px;color:#6e7681">보고서에서 옮겨 적으세요 · 본래 점수와는 별개인 참고 자료입니다</span>'
-   + '<button id="fcstRead" class="anl-backbtn" style="margin-left:auto">PDF 에서 읽기</button>'
+   + '<button id="fcstPaste" class="anl-backbtn" style="margin-left:auto">표 붙여넣기</button>'
+   + '<button id="fcstRead" class="anl-backbtn">PDF 에서 읽기</button>'
    + '<button id="fcstAdd" class="anl-backbtn">＋ 행 추가</button></div>'
    + '<div id="fcstMsg" style="font-size:11px;color:#8b949e;margin:-2px 0 6px;display:none"></div>';
   h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;white-space:nowrap">'
@@ -8633,24 +8634,36 @@ function fcstBind(m, code){
         return;
       }
       const broker=(RPT_SHOWN[0]||items[0]||{});
-      const tag=[broker.broker, broker.date].filter(Boolean).join(' ');
-      const rows=fcstOf(code);
-      d.rows.forEach(nr=>{
-        const i=rows.findIndex(x=>String(x.year)===String(nr.year));
-        const row=Object.assign({}, nr, { broker:tag, at:new Date().toISOString().slice(0,10), auto:1 });
-        if(i>=0) rows[i]=Object.assign({}, rows[i], row); else rows.push(row);
-      });
-      fcstSave(code, rows);
-      const miss=Object.entries(d.found||{}).filter(([,v])=>!v).map(([k])=>k);
-      rptRender('ok', items);
-      const m2=$('#rptMain'); const msg2=m2&&m2.querySelector('#fcstMsg');
-      if(msg2){ msg2.style.display='block';
-        msg2.innerHTML='<b style="color:#f2c800">'+d.rows.length+'개 연도를 읽었습니다.</b> '
-          + '노란 칸은 <b>확인이 필요한 값</b>입니다 — 보고서와 대조해 보세요.'
-          + (miss.length?' <span style="color:#6e7681">못 찾은 항목: '+miss.join(', ')+'</span>':''); }
+      fcstApply(code, d, [broker.broker, broker.date].filter(Boolean).join(' '));
     }catch(e){ show('읽지 못했습니다 — '+escHtml(e.message)); }
     finally{ rd.disabled=false; rd.textContent=t0; }
   };
+  /* 표 붙여넣기 — PDF 뷰어에서 글자를 복사해 넣으면 가장 정확하다 */
+  const pb=m.querySelector('#fcstPaste');
+  if(pb) pb.onclick=()=>{
+    const msg=m.querySelector('#fcstMsg');
+    const wrap=document.createElement('div');
+    wrap.style.cssText='margin:6px 0';
+    wrap.innerHTML='<textarea id="fcstBox" rows="5" placeholder="PDF 뷰어에서 투자지표 표를 끌어 선택하고 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요 (Ctrl+V)"'
+      +' style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
+      +'border-radius:6px;padding:7px 9px;font-size:11.5px;line-height:1.5"></textarea>'
+      +'<div style="margin-top:4px"><button id="fcstBoxGo" class="anl-backbtn">읽기</button>'
+      +'<button id="fcstBoxNo" class="anl-backbtn" style="margin-left:5px">취소</button></div>';
+    pb.parentNode.parentNode.insertBefore(wrap, pb.parentNode.nextSibling);
+    const box=wrap.querySelector('#fcstBox'); box.focus();
+    wrap.querySelector('#fcstBoxNo').onclick=()=>wrap.remove();
+    wrap.querySelector('#fcstBoxGo').onclick=()=>{
+      const res=fcstParse(box.value);
+      if(!res.rows.length){
+        if(msg){ msg.style.display='block';
+          msg.innerHTML='표를 읽지 못했습니다. <span style="color:#6e7681">연도 줄(2026F 2027F …)과 항목 줄이 함께 들어가도록 넓게 복사해 주세요.</span>'; }
+        return;
+      }
+      const cur=RPT_SHOWN[0]||{};
+      fcstApply(code, res, [cur.broker, cur.date].filter(Boolean).join(' '));
+    };
+  };
+
   const add=m.querySelector('#fcstAdd');
   if(add) add.onclick=()=>{
     const rows=fcstOf(code);
@@ -8678,6 +8691,75 @@ function fcstBind(m, code){
       rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
     };
   });
+}
+
+/* 붙여넣은 글에서 투자지표 표를 읽는다 (worker 의 것과 같은 규칙).
+   PDF 뷰어에서 복사한 글은 폰트가 이미 해석돼 있어 가장 정확하다. */
+function fcstParse(txt){
+  txt=String(txt||'').replace(/\s+/g,' ');
+  const headRe=/((?:20\d{2}\s*F?\s+){2,}20\d{2}\s*F?)/g;
+  let head=null,m;
+  while((m=headRe.exec(txt))){
+    const ys=(m[1].match(/20\d{2}\s*F?/g)||[]).map(x=>x.replace(/\s+/g,''));
+    if(!head||ys.length>head.length) head=ys;
+  }
+  if(!head||head.length<2) return {years:[],rows:[],hint:'연도 줄을 찾지 못했습니다'};
+  const total=head.length;
+  const fIdx=head.map((y,i)=>/F$/.test(y)?i:-1).filter(i=>i>=0);
+  const useIdx=fIdx.length?fIdx:head.map((_,i)=>i).slice(-3);
+  const useYears=useIdx.map(i=>head[i]);
+  const rowNums=labels=>{
+    for(const lab of labels){
+      let from=0,k;
+      while((k=txt.indexOf(lab,from))>=0){
+        from=k+lab.length;
+        const seg=txt.slice(from, from+40*total+60);
+        const got=(seg.match(/\(?-?[\d,]+\.?\d*\)?/g)||[]).map(x=>{
+          const neg=/^\(/.test(x); const n=parseFloat(x.replace(/[(),]/g,''));
+          return isFinite(n)?(neg?-n:n):null; }).filter(v=>v!=null);
+        if(got.length>=total) return got.slice(0,total);
+      }
+    }
+    return null;
+  };
+  const pick=labels=>{ const r=rowNums(labels); return r? useIdx.map(i=>r[i]) : null; };
+  const salesAll=rowNums(['매출액','매출']);
+  const opm=pick(['영업이익률']);
+  const roe=pick(['ROE (지배순이익, %)','ROE (지배순이익,%)','ROE(%)','ROE (%)','ROE']);
+  const per=pick(['PER (지배순이익, 배)','PER (당기순이익, 배)','PER (배)','PER(배)','PER']);
+  const pbr=pick(['PBR (지배지분, 배)','PBR (자본총계, 배)','PBR (배)','PBR(배)','PBR']);
+  let growth=null;
+  if(salesAll){
+    const g=salesAll.map((v,i)=>(i===0||!salesAll[i-1])?null
+      :Math.round((v-salesAll[i-1])/Math.abs(salesAll[i-1])*1000)/10);
+    growth=useIdx.map(i=>g[i]);
+  }
+  const rows=useYears.map((y,i)=>({
+    year:y,
+    sales: growth&&growth[i]!=null?String(growth[i]):'',
+    opm: opm&&opm[i]!=null?String(opm[i]):'',
+    roe: roe&&roe[i]!=null?String(roe[i]):'',
+    per: per&&per[i]!=null?String(per[i]):'',
+    pbr: pbr&&pbr[i]!=null?String(pbr[i]):''
+  })).filter(r=>r.opm||r.roe||r.per||r.pbr||r.sales);
+  return {years:useYears, rows, found:{sales:!!salesAll,opm:!!opm,roe:!!roe,per:!!per,pbr:!!pbr}};
+}
+/* 읽은 결과를 표에 넣는다 */
+function fcstApply(code, res, tag){
+  const rows=fcstOf(code);
+  res.rows.forEach(nr=>{
+    const i=rows.findIndex(x=>String(x.year)===String(nr.year));
+    const row=Object.assign({}, nr, {broker:tag||'', at:new Date().toISOString().slice(0,10), auto:1});
+    if(i>=0) rows[i]=Object.assign({}, rows[i], row); else rows.push(row);
+  });
+  fcstSave(code, rows);
+  const miss=Object.entries(res.found||{}).filter(([,v])=>!v).map(([k])=>k);
+  rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
+  const m2=$('#rptMain'), msg=m2&&m2.querySelector('#fcstMsg');
+  if(msg){ msg.style.display='block';
+    msg.innerHTML='<b style="color:#f2c800">'+res.rows.length+'개 연도를 읽었습니다.</b> '
+      +'노란 칸은 <b>확인이 필요한 값</b>입니다 — 보고서와 대조해 보세요.'
+      +(miss.length?' <span style="color:#6e7681">못 찾은 항목: '+miss.join(', ')+'</span>':''); }
 }
 
 function fcstEval(rows){
