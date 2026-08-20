@@ -5295,7 +5295,7 @@ function myLocal(){
   const g=k=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null }catch(e){ return null } };
   return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{},
-           cls:g('kg_long_cls')||{},
+           cls:g('kg_long_cls')||{}, fcst:g('kg_fcst')||{},
            // 관심·보유 목록도 함께 보관한다 (기기를 바꿔도 체크가 유지되도록)
            watch:g('kg_watch_rows')||[], invpf:g('kg_invpf_rows')||[],
            savedAt:new Date().toISOString() };
@@ -5365,6 +5365,7 @@ async function myServerLoad(){
       if(Array.isArray(o.add))    put('kg_addstk_rows', o.add);
       if(o.en && typeof o.en==='object') put('kg_long_en', o.en);
       if(o.cls && typeof o.cls==='object') put('kg_long_cls', o.cls);
+      if(o.fcst && typeof o.fcst==='object') put('kg_fcst', o.fcst);
       // 관심·보유는 이 기기에 아직 없을 때만 받는다 (여기서 지운 것을 되살리지 않도록)
       const hasLocal=k=>{ try{ const a=JSON.parse(localStorage.getItem(k)||'[]');
         return Array.isArray(a) && a.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()); }catch(e){ return false; } };
@@ -7930,6 +7931,23 @@ function anlComment(){
   const gt=trend(d.salesGrowth), bt=trend(d.debt);
   const rt = isUs ? trend(d.roa) : trend(d.roe);
   const P=[];
+  /* 미래 전망 — 보고서에서 옮겨 적은 증권사 예상치.
+     실적이 아니라 전망이므로 판정에는 넣지 않고 참고로만 적는다. */
+  const fev = (typeof fcstEval==='function' && ANL_CODE) ? fcstEval(fcstOf(ANL_CODE)) : null;
+  if(fev && fev.total!=null){
+    const pick=n=>fev.parts.find(x=>x.n===n);
+    const gp=pick('매출 성장'), op=pick('수익성(영업이익률)'), ep=pick('자본효율(ROE)'), vp=pick('밸류에이션');
+    let t=`<p><b>미래 전망</b> <span style="color:#6e7681;font-size:11px">(보고서 기초 · ${escHtml(fev.years)})</span> — `
+        + `전망 종합 <b style="color:#f2c800">${fev.total}점</b>. `;
+    const bits=[];
+    if(gp) bits.push(`성장은 매출증가율 ${gp.v.toFixed(1)}%로 <b>${gp.txt}</b>`);
+    if(op) bits.push(`수익성은 영업이익률 ${op.v.toFixed(1)}%로 <b>${op.txt}</b>`);
+    if(ep) bits.push(`자본효율은 ROE ${ep.v.toFixed(1)}%로 <b>${ep.txt}</b>`);
+    if(vp) bits.push(`밸류에이션은 <b>${vp.txt}</b>`);
+    t += bits.join(', ') + '입니다. ';
+    t += '<span style="color:#8b949e">증권사 전망은 낙관 쪽으로 기우는 경향이 있어, 실적이 나올 때마다 맞았는지 확인해 보세요.</span></p>';
+    P.push(t);
+  }
 
   // 성장성
   if(g==null) P.push('<p><b>성장성</b> — 매출 자료가 없어 판단할 수 없습니다.</p>');
@@ -8511,7 +8529,9 @@ function rptRender(state, items, msg){
       </div>`;
   });
   h+='</div>';
+  h+=fcstTableHtml(rptCode);
   m.innerHTML=h;
+  fcstBind(m, rptCode);
   m.querySelectorAll('.rpt-card').forEach(el=>{
     el.onmouseenter=()=>el.style.borderColor='var(--accent)';
     el.onmouseleave=()=>el.style.borderColor='var(--line)';
@@ -8525,6 +8545,167 @@ const RPT_NARROW = () => (window.innerWidth || 999) < 820;
 
 /* 보고서 원문을 우측 칸에서 연다 (좌측 종목 목록은 그대로) */
 let RPT_SHOWN=[];
+
+/* ───── 증권사 전망치 (보고서에서 직접 옮겨 적는다) ─────
+   자동 추출은 증권사마다 표 형식이 달라 믿기 어려우므로 손으로 넣는다.
+   저장: kg_fcst = { 종목코드: [{year, sales, opm, roe, per, pbr, broker, date, at}] } */
+const FCST_KEY='kg_fcst';
+function fcstAll(){
+  try{ const r=localStorage.getItem(FCST_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
+  catch(e){ return {}; }
+}
+function fcstOf(code){ const a=fcstAll()[String(code||'')]; return Array.isArray(a)?a:[]; }
+function fcstSave(code, rows){
+  const o=fcstAll();
+  if(rows && rows.length) o[String(code)]=rows; else delete o[String(code)];
+  try{ localStorage.setItem(FCST_KEY, JSON.stringify(o)); }catch(e){}
+  if(typeof myServerSave==='function') myServerSave();
+}
+const fcstNum=v=>{ const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:null; };
+
+/* 전망 평가 — 본래 점수와 별개인 참고 지표 */
+const FCST_COLS=[
+  {k:'year',  n:'연도',      w:'62px',  ph:'2027F'},
+  {k:'sales', n:'매출증가%', w:'74px',  ph:'12.0'},
+  {k:'opm',   n:'영업이익률%', w:'80px', ph:'22.5'},
+  {k:'roe',   n:'ROE%',     w:'64px',  ph:'16.0'},
+  {k:'per',   n:'PER',      w:'56px',  ph:'10.5'},
+  {k:'pbr',   n:'PBR',      w:'56px',  ph:'1.6'},
+];
+function fcstTableHtml(code){
+  const rows=fcstOf(code), ev=fcstEval(rows);
+  let h='<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">'
+   + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+   + '<b style="font-size:13px;color:#f2c800">증권사 전망</b>'
+   + '<span style="font-size:10.5px;color:#6e7681">보고서에서 옮겨 적으세요 · 본래 점수와는 별개인 참고 자료입니다</span>'
+   + '<button id="fcstRead" class="anl-backbtn" style="margin-left:auto">PDF 에서 읽기</button>'
+   + '<button id="fcstAdd" class="anl-backbtn">＋ 행 추가</button></div>'
+   + '<div id="fcstMsg" style="font-size:11px;color:#8b949e;margin:-2px 0 6px;display:none"></div>';
+  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;white-space:nowrap">'
+   + '<tr>'+FCST_COLS.map(c=>`<th style="text-align:left;padding:3px 5px;color:#8b949e;font-size:10.5px;font-weight:600">${c.n}</th>`).join('')
+   + '<th style="text-align:left;padding:3px 5px;color:#8b949e;font-size:10.5px;font-weight:600">출처</th><th></th></tr>';
+  if(!rows.length){
+    h+=`<tr><td colspan="${FCST_COLS.length+2}" style="padding:10px 5px;color:#6e7681;font-size:11.5px">`
+     + '아직 입력한 전망이 없습니다. [＋ 행 추가]로 연도별 예상치를 넣어보세요.</td></tr>';
+  }
+  rows.forEach((r,i)=>{
+    h+='<tr>'+FCST_COLS.map(c=>
+      `<td style="padding:2px 3px"><input data-fi="${i}" data-fk="${c.k}" value="${escHtml(r[c.k]==null?'':r[c.k])}"
+        placeholder="${c.ph}" style="width:${c.w};box-sizing:border-box;
+        background:${r.auto?'#3a3300':'#0d1117'};border:1px solid ${r.auto?'#8a7500':'#30363d'};
+        color:#e6edf3;border-radius:5px;padding:3px 5px;font-size:11.5px"></td>`).join('')
+     + `<td style="padding:2px 3px"><input data-fi="${i}" data-fk="broker" value="${escHtml(r.broker||'')}"
+        placeholder="증권사·날짜" style="width:120px;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;
+        color:#8b949e;border-radius:5px;padding:3px 5px;font-size:11px"></td>`
+     + `<td style="padding:2px 5px"><button data-fdel="${i}" style="background:none;border:0;color:#ef5350;cursor:pointer;font-size:13px">✕</button></td></tr>`;
+  });
+  h+='</table></div>';
+  if(ev && ev.total!=null){
+    h+=`<div style="margin-top:8px;font-size:11.5px;color:#8b949e">`
+     + `전망 종합 <b style="color:#f2c800;font-size:13px">${ev.total}</b><span style="font-size:10px">/100</span>`
+     + ` · ${escHtml(ev.years)} 기준 · `
+     + ev.parts.map(p=>`${p.n} ${p.p}/${p.max}`).join(' · ')
+     + '</div>';
+  }
+  h+='</div>';
+  return h;
+}
+function fcstBind(m, code){
+  /* PDF 에서 읽기 — 보고서 목록의 첫 항목(가장 최근)에서 투자지표 표를 뽑는다.
+     읽은 값은 노란 바탕으로 표시해 '확인이 필요하다'는 것을 드러낸다. */
+  const rd=m.querySelector('#fcstRead');
+  if(rd) rd.onclick=async()=>{
+    const msg=m.querySelector('#fcstMsg');
+    const show=t=>{ if(msg){ msg.style.display='block'; msg.innerHTML=t; } };
+    const items=(RPT_CACHE[code]||{}).items||[];
+    const src=(RPT_SHOWN[0]&&(RPT_SHOWN[0].pdf||RPT_SHOWN[0].link)) || (items[0]&&(items[0].pdf||items[0].link));
+    if(!src){ show('읽을 보고서가 없습니다.'); return; }
+    rd.disabled=true; const t0=rd.textContent; rd.textContent='읽는 중…';
+    try{
+      const r=await fetch(RPT_URL+'/?rptfcst='+encodeURIComponent(src));
+      const d=await r.json();
+      if(!d || !d.ok || !d.rows || !d.rows.length){
+        show((d&&d.error)||'표를 찾지 못했습니다.'
+          + ' <span style="color:#6e7681">표가 그림으로 된 보고서는 읽을 수 없습니다 — 직접 입력해 주세요.</span>');
+        return;
+      }
+      const broker=(RPT_SHOWN[0]||items[0]||{});
+      const tag=[broker.broker, broker.date].filter(Boolean).join(' ');
+      const rows=fcstOf(code);
+      d.rows.forEach(nr=>{
+        const i=rows.findIndex(x=>String(x.year)===String(nr.year));
+        const row=Object.assign({}, nr, { broker:tag, at:new Date().toISOString().slice(0,10), auto:1 });
+        if(i>=0) rows[i]=Object.assign({}, rows[i], row); else rows.push(row);
+      });
+      fcstSave(code, rows);
+      const miss=Object.entries(d.found||{}).filter(([,v])=>!v).map(([k])=>k);
+      rptRender('ok', items);
+      const m2=$('#rptMain'); const msg2=m2&&m2.querySelector('#fcstMsg');
+      if(msg2){ msg2.style.display='block';
+        msg2.innerHTML='<b style="color:#f2c800">'+d.rows.length+'개 연도를 읽었습니다.</b> '
+          + '노란 칸은 <b>확인이 필요한 값</b>입니다 — 보고서와 대조해 보세요.'
+          + (miss.length?' <span style="color:#6e7681">못 찾은 항목: '+miss.join(', ')+'</span>':''); }
+    }catch(e){ show('읽지 못했습니다 — '+escHtml(e.message)); }
+    finally{ rd.disabled=false; rd.textContent=t0; }
+  };
+  const add=m.querySelector('#fcstAdd');
+  if(add) add.onclick=()=>{
+    const rows=fcstOf(code);
+    const cur=RPT_SHOWN[0];
+    rows.push({ year:'', sales:'', opm:'', roe:'', per:'', pbr:'',
+                broker: cur ? [cur.broker, cur.date].filter(Boolean).join(' ') : '',
+                at:new Date().toISOString().slice(0,10) });
+    fcstSave(code, rows);
+    rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
+  };
+  m.querySelectorAll('input[data-fi]').forEach(inp=>{
+    inp.onchange=()=>{
+      const rows=fcstOf(code), i=+inp.dataset.fi;
+      if(!rows[i]) return;
+      rows[i][inp.dataset.fk]=inp.value.trim();
+      delete rows[i].auto;                    // 손으로 확인·수정하면 노란 표시를 지운다
+      fcstSave(code, rows);
+      rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
+    };
+  });
+  m.querySelectorAll('button[data-fdel]').forEach(b=>{
+    b.onclick=()=>{
+      const rows=fcstOf(code); rows.splice(+b.dataset.fdel,1);
+      fcstSave(code, rows);
+      rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
+    };
+  });
+}
+
+function fcstEval(rows){
+  const R=(rows||[]).slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
+  if(!R.length) return null;
+  const avg=k=>{ const v=R.map(r=>fcstNum(r[k])).filter(x=>x!=null); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; };
+  const last=k=>{ const v=R.map(r=>fcstNum(r[k])).filter(x=>x!=null); return v.length? v[v.length-1] : null; };
+  const band=(v,st)=>{ if(v==null) return null; for(const [t,p] of st) if(v>=t) return p; return 0; };
+  const g=avg('sales'), o=avg('opm'), e=avg('roe'), pe=last('per'), pb=last('pbr');
+  const parts=[];
+  const push=(n,v,p,max,txt)=>{ if(v!=null) parts.push({n, v, p, max, txt}); };
+  push('매출 성장', g, band(g,[[15,25],[10,20],[5,13],[0,6]]), 25,
+       g==null?'':(g>=15?'높은 성장 전망':g>=10?'견조한 성장':g>=5?'완만한 성장':g>=0?'정체':'역성장 전망'));
+  push('수익성(영업이익률)', o, band(o,[[20,25],[15,20],[10,13],[5,6]]), 25,
+       o==null?'':(o>=20?'매우 높음':o>=15?'높음':o>=10?'양호':o>=5?'보통':'낮음'));
+  push('자본효율(ROE)', e, band(e,[[15,25],[10,20],[7,13],[4,6]]), 25,
+       e==null?'':(e>=15?'우수':e>=10?'양호':e>=7?'보통':'낮음'));
+  const vp=(pe==null&&pb==null)?null:(
+      (pe!=null?band(pe,[[0,0]])||0:0));
+  let vScore=null, vTxt='';
+  if(pe!=null||pb!=null){
+    let sc=0, mx=0;
+    if(pe!=null){ mx+=13; sc+= pe<=10?13: pe<=15?10: pe<=25?6: pe<=40?3:0; }
+    if(pb!=null){ mx+=12; sc+= pb<=1?12: pb<=1.5?9: pb<=2.5?6: pb<=4?3:0; }
+    vScore=Math.round(sc/mx*25); vTxt = vScore>=18?'저평가 구간':vScore>=12?'적정':'비싼 편';
+    parts.push({n:'밸류에이션', v:null, p:vScore, max:25, txt:vTxt});
+  }
+  const got=parts.reduce((a,b)=>a+b.p,0), max=parts.reduce((a,b)=>a+b.max,0);
+  return { total: max? Math.round(got/max*100) : null, got, max, parts, rows:R,
+           years: R.map(r=>r.year).filter(Boolean).join(' · ') };
+}
 
 function rptOpen(i){
   const x=RPT_SHOWN[i]; if(!x) return;
@@ -10035,7 +10216,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=31';
+const LONG_URL='kg-long.html?v=32';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';

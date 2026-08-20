@@ -202,7 +202,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-19a';
+const BUILD='KG_LONG 2026-08-19b';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -571,6 +571,56 @@ function score(fin,m){
    적자 성장주는 PER 이 없고 ROE·부채비율도 안 오는 경우가 많아,
    남은 항목만으로 환산하면 점수가 부풀려진다. */
 const SCORE_MIN_BASE = 45;
+/* ───── 증권사 전망 (보고서 화면에서 입력한 값) ─────
+   실적이 아니라 전망이므로 본래 점수에는 넣지 않고 작게 따로 보여준다. */
+function fcstCard(code){
+  const ev=fcstEval(fcstOf(code));
+  if(!ev || ev.total==null) return '';
+  const rows=ev.parts.map(p=>
+    `<div class="row"><div class="k">${p.n}${p.v!=null?` <span class="sub">${p.v.toFixed(1)}${p.u||''}</span>`:''}</div>`
+   + `<div class="v" style="font-size:13px">${esc(p.txt)}</div>`
+   + `<div class="p">${p.p}/${p.max}</div></div>`).join('');
+  return `<div class="card" style="border-color:#3a3f4b">
+    <div class="sechd">
+      <span>미래 전망 <span style="font-size:10.5px;color:var(--tx3);font-weight:400">보고서 기초 · ${esc(ev.years)}</span></span>
+      <span style="font-size:13px;color:#f2c800">${ev.total}<span style="font-size:10px;color:var(--tx3)">/100</span></span>
+    </div>
+    ${rows}
+    <div class="hint" style="padding:6px 2px 0">본래 점수에는 넣지 않은 <b>참고 지표</b>입니다.
+      증권사 전망은 낙관 쪽으로 기우는 경향이 있으니, 실적이 나올 때마다 맞았는지 확인해 보세요.</div>
+  </div>`;
+}
+function fcstOf(code){
+  try{ const o=JSON.parse(localStorage.getItem('kg_fcst')||'{}');
+    const a=o[String(code||'')]; return Array.isArray(a)?a:[]; }catch(e){ return []; }
+}
+const fnum=v=>{ const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:null; };
+function fcstEval(rows){
+  const R=(rows||[]).slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
+  if(!R.length) return null;
+  const avg=k=>{ const v=R.map(r=>fnum(r[k])).filter(x=>x!=null); return v.length? v.reduce((a,b)=>a+b,0)/v.length : null; };
+  const last=k=>{ const v=R.map(r=>fnum(r[k])).filter(x=>x!=null); return v.length? v[v.length-1] : null; };
+  const bd=(v,st)=>{ if(v==null) return null; for(const [t,p] of st) if(v>=t) return p; return 0; };
+  const g=avg('sales'), o=avg('opm'), e=avg('roe'), pe=last('per'), pb=last('pbr');
+  const parts=[];
+  if(g!=null) parts.push({n:'성장',   v:g, u:'%', p:bd(g,[[15,25],[10,20],[5,13],[0,6]]), max:25,
+    txt:g>=15?'높은 성장 전망':g>=10?'견조한 성장':g>=5?'완만한 성장':g>=0?'정체':'역성장 전망'});
+  if(o!=null) parts.push({n:'수익성', v:o, u:'%', p:bd(o,[[20,25],[15,20],[10,13],[5,6]]), max:25,
+    txt:o>=20?'매우 높음':o>=15?'높음':o>=10?'양호':o>=5?'보통':'낮음'});
+  if(e!=null) parts.push({n:'자본효율', v:e, u:'%', p:bd(e,[[15,25],[10,20],[7,13],[4,6]]), max:25,
+    txt:e>=15?'우수':e>=10?'양호':e>=7?'보통':'낮음'});
+  if(pe!=null||pb!=null){
+    let sc=0, mx=0;
+    if(pe!=null){ mx+=13; sc+= pe<=10?13: pe<=15?10: pe<=25?6: pe<=40?3:0; }
+    if(pb!=null){ mx+=12; sc+= pb<=1?12: pb<=1.5?9: pb<=2.5?6: pb<=4?3:0; }
+    const v=Math.round(sc/mx*25);
+    parts.push({n:'밸류에이션', v:null, p:v, max:25, txt:v>=18?'저평가 구간':v>=12?'적정':'비싼 편'});
+  }
+  const got=parts.reduce((a,b)=>a+b.p,0), max=parts.reduce((a,b)=>a+b.max,0);
+  return { total: max? Math.round(got/max*100):null, parts,
+           years: R.map(r=>r.year).filter(Boolean).join(' · ') };
+}
+
 function verdictOf(t,flags,maxBase,isLoss,lossHow){
   if(isLoss)
     return ['적자 기업','var(--bad)',
@@ -772,6 +822,7 @@ function renderMain(){
   ${s.flags.length?`<div class="flags"><b>결격 검토</b><ul>${s.flags.map(x=>'<li>'+x+'</li>').join('')}</ul></div>`:''}
   <div class="grid">
     ${sec('사업의 질',s.tA,s.detail.A)}
+    ${fcstCard(cur)}
     ${sec(s.bsLabel||'재무 안전성',s.tB,s.detail.B)}
     ${sec('밸류에이션',s.tC,s.detail.C)}
     <div class="card"><h3>장기자금 <em>${s.tD.max?s.tD.got+' / '+s.tD.max:'미확인'}</em></h3>
