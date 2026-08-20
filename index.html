@@ -8644,13 +8644,22 @@ function fcstBind(m, code){
     const msg=m.querySelector('#fcstMsg');
     const wrap=document.createElement('div');
     wrap.style.cssText='margin:6px 0';
-    wrap.innerHTML='<textarea id="fcstBox" rows="5" placeholder="PDF 뷰어에서 투자지표 표를 끌어 선택하고 복사(Ctrl+C)한 뒤 여기에 붙여넣으세요 (Ctrl+V)"'
+    const items0=(RPT_CACHE[code]||{}).items||[];
+    const cur0=RPT_SHOWN[0]||items0[0]||{};
+    const pdfSrc=cur0.pdf||cur0.link||'';
+    wrap.innerHTML='<div style="font-size:11px;color:#8b949e;margin-bottom:4px">'
+      +'① <b>PDF 새 창</b>으로 연다 → ② 투자지표 표를 끌어 선택하고 <b>Ctrl+C</b> → ③ 아래에 <b>Ctrl+V</b> → ④ 읽기</div>'
+      +'<textarea id="fcstBox" rows="5" placeholder="여기에 붙여넣으세요 (Ctrl+V)"'
       +' style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
       +'border-radius:6px;padding:7px 9px;font-size:11.5px;line-height:1.5"></textarea>'
-      +'<div style="margin-top:4px"><button id="fcstBoxGo" class="anl-backbtn">읽기</button>'
+      +'<div style="margin-top:4px">'
+      +(pdfSrc?'<button id="fcstBoxOpen" class="anl-backbtn" style="margin-right:5px">PDF 새 창</button>':'')
+      +'<button id="fcstBoxGo" class="anl-backbtn">읽기</button>'
       +'<button id="fcstBoxNo" class="anl-backbtn" style="margin-left:5px">취소</button></div>';
     pb.parentNode.parentNode.insertBefore(wrap, pb.parentNode.nextSibling);
     const box=wrap.querySelector('#fcstBox'); box.focus();
+    const op=wrap.querySelector('#fcstBoxOpen');
+    if(op) op.onclick=()=>window.open(RPT_URL+'/?rptview='+encodeURIComponent(pdfSrc), '_blank', 'noopener');
     wrap.querySelector('#fcstBoxNo').onclick=()=>wrap.remove();
     wrap.querySelector('#fcstBoxGo').onclick=()=>{
       const res=fcstParse(box.value);
@@ -8805,6 +8814,7 @@ function rptOpen(i){
       <button id="rptBack" class="anl-backbtn">‹ 목록</button>
       <button id="rptBody" class="anl-backbtn">본문 글</button>
       <button id="rptPdf" class="anl-backbtn">PDF</button>
+      <button id="rptPdfNew" class="anl-backbtn" title="새 창에서 열면 글자를 선택·복사할 수 있습니다">PDF 새 창</button>
       <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
          style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
     </div>
@@ -8816,6 +8826,10 @@ function rptOpen(i){
               style="width:100%;height:100%;border:none;background:#fff"></iframe>
     </div>`;
   const bk=$('#rptBack'); if(bk) bk.onclick=()=>rptRender('ok', (RPT_CACHE[rptCode]||{}).items||[]);
+  /* PDF 새 창 — iframe 안에서는 브라우저가 글자 선택·복사를 막는 경우가 있다.
+     표를 복사해 [표 붙여넣기]에 넣으려면 새 창에서 여는 편이 확실하다. */
+  const pn=$('#rptPdfNew');
+  if(pn) pn.onclick=()=>window.open(src, '_blank', 'noopener');
 
   /* [본문 글] — PDF 대신 네이버가 준 본문을 그대로 읽는다.
      PDF 가 없는 보고서나, 그림 없이 빠르게 읽고 싶을 때 쓴다. */
