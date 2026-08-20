@@ -8719,18 +8719,42 @@ function fcstBind(m, code){
 
 /* 붙여넣은 글에서 투자지표 표를 읽는다 (worker 의 것과 같은 규칙).
    PDF 뷰어에서 복사한 글은 폰트가 이미 해석돼 있어 가장 정확하다. */
+/* 연도가 '행'으로 된 표도 읽는다.
+   예) 2026.12E  119.7  52.3  59.5  3.4  1.8
+   (연도 · 매출증가% · 영업이익률% · ROE% · PER · PBR 순서) */
+function fcstParseRows(txt){
+  const rows=[];
+  String(txt||'').split(/[\r\n]+/).forEach(line=>{
+    const t=line.trim().replace(/[\u2212\u2013\u2014]/g,'-');
+    if(!t || /^연도/.test(t)) return;
+    const m=t.match(/^(20\d{2}[.\d]*\s*[AFEP]?)\s+(.+)$/);
+    if(!m) return;
+    const nums=(m[2].match(/-?[\d,]+\.?\d*/g)||[]).map(x=>x.replace(/,/g,''));
+    if(nums.length<3) return;
+    rows.push({ year:m[1].replace(/\s+/g,''),
+      sales:nums[0]??'', opm:nums[1]??'', roe:nums[2]??'', per:nums[3]??'', pbr:nums[4]??'' });
+  });
+  if(!rows.length) return null;
+  return { years:rows.map(r=>r.year), rows,
+           found:{ sales:rows.some(r=>r.sales), opm:rows.some(r=>r.opm), roe:rows.some(r=>r.roe),
+                   per:rows.some(r=>r.per), pbr:rows.some(r=>r.pbr) } };
+}
+
 function fcstParse(txt){
+  // 연도가 행인 형태를 먼저 본다 (직접 정리한 표를 붙여넣는 경우)
+  const byRow=fcstParseRows(txt);
+  if(byRow) return byRow;
   txt = String(txt||'')
     .replace(/[\u2212\u2013\u2014]/g, '-')      // 유니코드 빼기표를 보통 빼기표로
     .replace(/\s+/g, ' ');
 
   /* 표 머리 찾기 — 연도가 '서로 다른' 것이 가장 많은 줄을 쓴다.
      '수정전/수정후' 표처럼 같은 연도가 되풀이되는 줄을 잘못 고르지 않도록 한다. */
-  const headRe=/((?:20\d{2}\s*[AFEP]?\s+){1,}20\d{2}\s*[AFEP]?)/g;
+  const headRe=/((?:20\d{2}(?:\.\d{1,2})?\s*[AFEP]?\s+){1,}20\d{2}(?:\.\d{1,2})?\s*[AFEP]?)/g;
   let head=null, best=-1, headAt=0, m;
   while((m=headRe.exec(txt))){
-    const ys=(m[1].match(/20\d{2}\s*[AFEP]?/g)||[]).map(x=>x.replace(/\s+/g,''));
-    const uniq=new Set(ys.map(y=>y.replace(/[AFEP]$/,''))).size;
+    const ys=(m[1].match(/20\d{2}(?:\.\d{1,2})?\s*[AFEP]?/g)||[]).map(x=>x.replace(/\s+/g,''));
+    const uniq=new Set(ys.map(y=>y.replace(/[AFEP]$/,'').slice(0,4))).size;
     if(ys.length>=3 && uniq===ys.length && uniq>best){ best=uniq; head=ys; headAt=m.index+m[1].length; }
   }
   /* 이 표가 끝나는 지점 — 다음 연도 줄이 시작되면 다른 표다.
@@ -8742,7 +8766,7 @@ function fcstParse(txt){
   if(!head||head.length<2) return {years:[],rows:[],hint:'연도 줄을 찾지 못했습니다'};
 
   const total=head.length;
-  const fIdx=head.map((y,i)=>/F$/.test(y)?i:-1).filter(i=>i>=0);
+  const fIdx=head.map((y,i)=>/[FE]$/.test(y)?i:-1).filter(i=>i>=0);
   const useIdx=fIdx.length?fIdx:head.map((_,i)=>i).slice(-3);
   const useYears=useIdx.map(i=>head[i]);
 
