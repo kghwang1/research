@@ -837,7 +837,7 @@
   .tipline b{font-weight:700}
   /* 증시자금동향 */
   .dep-wrap{margin-top:14px}
-  .dep-sub{font-size:11px;color:var(--mut);font-weight:500;margin:-3px 0 5px}
+  .dep-sub{font-size:inherit;color:var(--mut);font-weight:500;margin-left:6px}
   .pnl-dir .pd-h2{font-size:12.5px;font-weight:600;color:var(--ink);margin:-3px 0 7px}
   .dep-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 6px;font-size:11px}
   .dep-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
@@ -1086,15 +1086,14 @@
         <button class="ft-b" data-idx="kosdaq" data-mode="cumul">누적</button>
       </div>
     </div>
-    <div class="ftrend-legend" id="ftrendLegend"></div>
     <canvas id="ftrendCanvas"></canvas>
+    <div class="ftrend-legend" id="ftrendLegend"></div>
     <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
   </div>
 
   <!-- 증시자금동향 -->
   <div class="dep-wrap">
-    <div class="pnl-chart-title">증시자금동향</div>
-    <div class="dep-sub">1년 최고값 대비 %</div>
+    <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">1년 최고값 대비 %</span></div>
     <canvas id="depCanvas"></canvas>
     <div class="dep-tip" id="depTip"></div>
   </div>
@@ -6340,7 +6339,7 @@ function updateFtrendNote(){
   if(!note) return;
   const idxL = ftrendIdx === 'kospi' ? '코스피' : '코스닥';
   const modeL = ftrendMode === 'cumul' ? '누적 순매수' : '순매수';
-  note.textContent = idxL + ' ' + modeL + ' (억원) · 좌축 금액 / 우축 지수 · 그래프를 누르면 날짜가 표시됩니다 · 네이버';
+  note.textContent = idxL + ' ' + modeL + ' (억원) · 좌축 금액 / 우축 지수';
 }
 
 // 3개 캔버스 모두 그리기
@@ -6459,7 +6458,7 @@ function drawFtrend(canvasId){
   // 0선 — 순매수(위)와 순매도(아래)를 가르는 기준. 분홍색
   ctx.strokeStyle='#ff7eb6'; ctx.lineWidth=1.2; ctx.setLineDash([]);
   ctx.beginPath(); ctx.moveTo(PAD.l,y0); ctx.lineTo(W-PAD.r,y0); ctx.stroke();
-  ctx.fillStyle='#ff7eb6'; ctx.font='9px monospace'; ctx.textAlign='right';
+  ctx.fillStyle='#ff7eb6'; ctx.font='9.9px monospace'; ctx.textAlign='right';
   ctx.fillText('0', PAD.l-3, y0+3);
 
   // 지수 선 (뒤에 깔리도록 먼저)
@@ -6481,7 +6480,7 @@ function drawFtrend(canvasId){
   });
 
   // 좌축 눈금 (억원)
-  ctx.font='9.5px monospace'; ctx.textAlign='right';
+  ctx.font='10.5px monospace'; ctx.textAlign='right';   // 좌축 금액
   const fmtAmt=v=>{ const a=Math.abs(v); return (v<0?'-':'')+(a>=10000?(a/10000).toFixed(1)+'조':Math.round(a).toLocaleString()); };
   [hi,0,lo].forEach(v=>{
     if(v===0) return;                     // 0 은 아래에서 따로 표시
@@ -6495,6 +6494,7 @@ function drawFtrend(canvasId){
   // 우축 눈금 (지수)
   if(iv.length){
     ctx.textAlign='left'; ctx.fillStyle = FT_IDX_COLOR;
+    ctx.font='10.5px monospace';                        // 우축 지수
     ctx.fillText(Math.round(iMax).toLocaleString(), W-PAD.r+3, yIdx(iMax)+3);
     ctx.fillText(Math.round(iMin).toLocaleString(), W-PAD.r+3, yIdx(iMin)+3);
   }
@@ -7071,9 +7071,9 @@ function drawDeposit(){
   const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
 
-  // 단위 안내 — 그래프 안 왼쪽 위
-  ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='left';
-  ctx.fillText('단위: 천 억원', PAD.l+3, PAD.t+10);
+  // 단위 안내 — 그래프 안 오른쪽 위
+  ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='right';
+  ctx.fillText('단위: 천 억원', W-PAD.r-3, PAD.t+10);
 
   // 가로 눈금
   ctx.font='10px monospace'; ctx.textAlign='left';
