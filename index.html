@@ -8547,7 +8547,6 @@ function rptRender(state, items, msg){
 
 /* 폰에서는 크롬이 iframe 안 PDF 를 못 그리고 '열기' 버튼만 보여준다.
    그래서 좁은 화면에서는 본문 글을 기본으로 띄운다. */
-const RPT_NARROW = () => (window.innerWidth || 999) < 820;
 
 /* 보고서 원문을 우측 칸에서 연다 (좌측 종목 목록은 그대로) */
 let RPT_SHOWN=[];
@@ -8855,18 +8854,13 @@ function rptOpen(i){
   m.innerHTML=`
     <div style="display:flex;align-items:center;gap:6px;margin:0 0 6px;flex:none">
       <button id="rptBack" class="anl-backbtn">‹ 목록</button>
-      <button id="rptBody" class="anl-backbtn">본문 글</button>
-      <button id="rptPdf" class="anl-backbtn">PDF</button>
-      <button id="rptPdfNew" class="anl-backbtn" title="새 창에서 열면 글자를 선택·복사할 수 있습니다">PDF 새 창</button>
+      <button id="rptPdfNew" class="anl-backbtn" title="새 창에서 열면 글자를 선택·복사할 수 있습니다">PDF</button>
       <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
          style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
     </div>
     <div id="rptViewWrap" style="position:relative;flex:1;min-height:0;
          border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)">
-      <div id="rptViewMsg" style="position:absolute;inset:0;display:flex;align-items:center;
-           justify-content:center;color:#8b949e;font-size:12px">원문 여는 중…</div>
-      <iframe id="rptViewFrame" src="${escHtml(src)}"
-              style="width:100%;height:100%;border:none;background:#fff"></iframe>
+      <div style="padding:18px;color:#8b949e">본문 불러오는 중…</div>
     </div>`;
   const bk=$('#rptBack'); if(bk) bk.onclick=()=>rptRender('ok', (RPT_CACHE[rptCode]||{}).items||[]);
   /* PDF 새 창 — iframe 안에서는 브라우저가 글자 선택·복사를 막는 경우가 있다.
@@ -8874,8 +8868,8 @@ function rptOpen(i){
   const pn=$('#rptPdfNew');
   if(pn) pn.onclick=()=>window.open(src, '_blank', 'noopener');
 
-  /* [본문 글] — PDF 대신 네이버가 준 본문을 그대로 읽는다.
-     PDF 가 없는 보고서나, 그림 없이 빠르게 읽고 싶을 때 쓴다. */
+  /* 본문 글 — 네이버가 준 본문을 그대로 읽는다.
+     제목을 누르면 이것이 먼저 보이고, 원문 PDF 는 [PDF] 단추로 새 창에서 연다. */
   const showBody = async () => {
     const idm=String(x.link||'').match(/research\/(\d+)/);
     const wrap=$('#rptViewWrap'); if(!wrap) return;
@@ -8892,22 +8886,9 @@ function rptOpen(i){
         <div class="rpt-body" style="font-size:13.5px;line-height:1.95;color:var(--ink)">${d.html}</div></div>`;
     }catch(e){ wrap.innerHTML='<div style="padding:18px;color:#8b949e">본문을 받지 못했습니다 — '+escHtml(e.message)+'</div>'; }
   };
-  const showPdf = () => {
-    const wrap=$('#rptViewWrap'); if(!wrap) return;
-    wrap.innerHTML=`<div id="rptViewMsg" style="position:absolute;inset:0;display:flex;align-items:center;
-        justify-content:center;color:#8b949e;font-size:12px">원문 여는 중…</div>
-      <iframe id="rptViewFrame" src="${escHtml(src)}" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
-    const fr=$('#rptViewFrame'), msg=$('#rptViewMsg');
-    if(fr) fr.onload=()=>{ if(msg) msg.style.display='none'; };
-    applyZoom();
-  };
-  const bb=$('#rptBody'), pb=$('#rptPdf');
-  const mark=(which)=>{ if(bb) bb.classList.toggle('on', which==='body');
-                        if(pb) pb.classList.toggle('on', which==='pdf'); };
-  if(bb) bb.onclick=()=>{ mark('body'); showBody(); };
-  if(pb) pb.onclick=()=>{ mark('pdf'); showPdf(); };
-  // 폰에서는 본문 글이 기본 (크롬이 iframe 안 PDF 를 못 그린다)
-  if(RPT_NARROW()){ mark('body'); showBody(); } else { mark('pdf'); }
+  /* 제목을 누르면 본문 글을 보여준다 (PC·폰 동일).
+     PDF 는 [PDF] 단추로 새 창에서 연다 — 그래야 글자 선택·복사도 된다. */
+  showBody();
 
   // 글자 확대는 PDF 뷰어와 브라우저에 이미 있으므로 앱에서는 두지 않는다
   const fr=$('#rptViewFrame'), msg=$('#rptViewMsg');
