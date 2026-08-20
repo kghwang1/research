@@ -8625,8 +8625,11 @@ function fcstBind(m, code){
       const r=await fetch(RPT_URL+'/?rptfcst='+encodeURIComponent(src));
       const d=await r.json();
       if(!d || !d.ok || !d.rows || !d.rows.length){
-        show((d&&d.error)||'표를 찾지 못했습니다.'
-          + ' <span style="color:#6e7681">표가 그림으로 된 보고서는 읽을 수 없습니다 — 직접 입력해 주세요.</span>');
+        let t=(d&&d.error)||'표를 찾지 못했습니다.';
+        if(d && d.textLen!=null) t+=` <span style="color:#6e7681">(뽑은 글자 ${d.textLen}자`
+          + (d.stat?` · 스트림 ${d.stat.streams}개 중 ${d.stat.inflated}개 해제`:'') + ')</span>';
+        t+=' <span style="color:#6e7681">표가 그림으로 된 보고서는 읽을 수 없습니다 — 직접 입력해 주세요.</span>';
+        show(t);
         return;
       }
       const broker=(RPT_SHOWN[0]||items[0]||{});
