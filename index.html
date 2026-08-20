@@ -768,6 +768,11 @@
   .anl-sug div:last-child{border-bottom:none}
   .anl-sug div:active,.anl-sug div:hover{background:#21262d}
   .anl-sug .sc{color:var(--mut);font-size:11px;margin-left:6px}
+  /* 하부메뉴 줄의 선택 종목 — 이름 + 현재가(변동율) */
+  .stk-now{font-size:13.5px;font-weight:800;color:#f2c800;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .stk-now .px{color:var(--ink);font-weight:700;margin-left:5px}
+  .stk-now .rt{font-size:11.5px;font-weight:700;margin-left:3px}
   .anl-title{font-size:16px;font-weight:800;color:#f2c800;margin:0 0 8px;
     display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .anl-title .code{font-size:12px;font-weight:700;color:#8b949e}
@@ -841,7 +846,6 @@
   .dep-tip{min-height:62px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
-  .dep-note{font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -942,6 +946,7 @@
      <option value="etf">한·미 ETF</option>
      <option value="dividend">배당</option>
     </select>
+      <span class="stk-now"></span>
    </div>
   </div>
   <div class="anl-layout">
@@ -1092,7 +1097,6 @@
     <div class="dep-sub">1년 최고값 대비 %</div>
     <canvas id="depCanvas"></canvas>
     <div class="dep-tip" id="depTip"></div>
-    <div class="dep-note" id="depNote">불러오는 중…</div>
   </div>
 
   <div class="pnl-flow">
@@ -1125,6 +1129,7 @@
       <option value="dividend">배당</option>
       <option value="guide">📖 해석</option>
     </select>
+      <span class="stk-now"></span>
     </div>
   </div>
   <div class="anl-layout" style="height:auto;min-height:0;flex:1">
@@ -1156,6 +1161,7 @@
         <option value="invpf">관심보유</option>
         <option value="long">장기보유</option>
       </select>
+      <span class="stk-now"></span>
       <span style="font-size:11px;color:#8b93a1">국내 종목만 지원됩니다</span>
     </div>
   </div>
@@ -1188,6 +1194,7 @@
         <option value="etf">한·미 ETF</option>
         <option value="dividend">배당</option>
       </select>
+      <span class="stk-now"></span>
     </div>
   </div>
   <div style="flex:1;overflow:hidden;min-width:0">
@@ -7018,7 +7025,7 @@ let DEP_MAX  = {};      // 계열별 1년 최고값
 let depHover = -1;
 
 async function loadDeposit(){
-  const note=$('#depNote');
+  const note=document.querySelector('.dep-sub');   // 실패 알림은 부제목 자리에 표시
   if(!SRV_URL){ if(note) note.textContent='서버 설정이 필요합니다'; return; }
   try{
     const r=await fetch(SRV_URL+'/?deposit=1&pages=13');
@@ -7041,7 +7048,6 @@ async function loadDeposit(){
     if(DEP_VIEW.length<5) DEP_VIEW=DEP_ROWS.slice(-60);
     drawDeposit();
     depShowTip(DEP_VIEW.length-1);
-    if(note) note.textContent='단위 억원 · 세로축은 1년 최고값 대비 % · 최근 3개월 ('+DEP_VIEW.length+'영업일, 1년 자료 '+DEP_ROWS.length+'일) · 네이버 금융';
   }catch(e){ if(note) note.textContent='불러오기 실패: '+(e.message||e); }
 }
 
@@ -7064,6 +7070,10 @@ function drawDeposit(){
   if(mx<=mn) mx=mn+10;
   const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+
+  // 단위 안내 — 그래프 안 왼쪽 위
+  ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='left';
+  ctx.fillText('단위: 천 억원', PAD.l+3, PAD.t+10);
 
   // 가로 눈금
   ctx.font='10px monospace'; ctx.textAlign='left';
@@ -7121,7 +7131,8 @@ function depShowTip(i){
   const el=$('#depTip'); if(!el||!DEP_VIEW.length) return;
   depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
   const r=DEP_VIEW[depHover];
-  const num=v=> v==null?'—':Math.round(v).toLocaleString();
+  // 억원 → 천억원 (자릿수가 길어 읽기 어려워 단위를 올린다)
+  const num=v=> v==null?'—':(v/1000).toFixed(1);
   const rate=(v,k)=> v==null?'':' ('+Math.round((v/DEP_MAX[k])*100)+'%)';
   el.innerHTML = DEP_SERIES.map(se=>
     `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
@@ -7610,7 +7621,7 @@ async function anlPick(code, name){
   ANL_CODE=code; ANL_NAME=name||code; ANL_HOVER=-1;
   const sug=$('#anlSuggest'); if(sug){ sug.innerHTML=''; sug.classList.remove('on'); }
   const inp=$('#anlInput'); if(inp) inp.value=ANL_NAME;
-  const t=$('#anlTitle'); if(t) t.innerHTML=escHtml(ANL_NAME)+`<span class="code">${code}</span>`;
+  const t=$('#anlTitle'); if(t) t.innerHTML='';   // 종목명은 위 하부메뉴 줄에 표시한다
   anlRenderList($('#anlSideSearch') ? $('#anlSideSearch').value : '');   // 선택 표시 갱신
   const cm=$('#anlComment'); if(cm) cm.innerHTML='<p style="color:#8b949e">자료를 불러오는 중…</p>';
   await ensureFin3([code]);
@@ -8344,7 +8355,42 @@ function anlRenderList(filter){
 /* 종목분석 세 화면이 함께 쓰는 좌측 상태 (포트 + 고른 종목) */
 window.STK = { port:'kr', code:'', name:'' };
 function stkSet(code, name){
-  if(code){ STK.code=String(code); STK.name=name||''; }
+  if(code){ STK.code=String(code); STK.name=name||''; stkNowFill(); stkNowFetch(); }
+}
+
+/* 하부메뉴 줄의 '종목명 현재가(변동율)' — 네 화면이 같은 내용을 쓴다 */
+const STK_PX={};        // code -> {price, rate}
+function stkNowFill(){
+  const els=document.querySelectorAll('.stk-now'); if(!els.length) return;
+  const c=STK.code||'';
+  if(!c){ els.forEach(e=>e.innerHTML=''); return; }
+  const nm=STK.name || c.replace(/^US:/i,'');
+  const q=STK_PX[c];
+  let h=`${escHtml(nm)}`;
+  if(q && q.price!=null){
+    h+=`<span class="px">${addComma(q.price)}</span>`;
+    if(q.rate!=null){
+      const col=q.rate>=0?'#ef5350':'#2e9e4f';
+      h+=`<span class="rt" style="color:${col}">(${q.rate>=0?'+':''}${Number(q.rate).toFixed(2)}%)</span>`;
+    }
+  }
+  els.forEach(e=>e.innerHTML=h);
+}
+async function stkNowFetch(){
+  const c=STK.code||''; if(!c || !SRV_URL) return;
+  if(STK_PX[c] && Date.now()-STK_PX[c].at < 60000){ stkNowFill(); return; }
+  const isUs=/^US:/i.test(c) || (typeof isUsCode==='function' && isUsCode(c));
+  const sym=isUs ? c.replace(/^US:/i,'').toUpperCase() : 'STK:'+c;
+  try{
+    const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(sym));
+    const d=await r.json();
+    const q=((d&&d.items)||[])[0];
+    if(q && q.ok && q.price!=null){
+      STK_PX[c]={ price:q.priceStr||q.price, rate:(q.rate!=null?q.rate:null), at:Date.now() };
+      if(!STK.name && q.name) STK.name=q.name;
+      stkNowFill();
+    }
+  }catch(e){}
 }
 function stkSetPort(p){ if(p && p!=='guide'){ STK.port=p; } }
 // 자식 창(kg-long.html)에서 고른 종목·바뀐 목록을 받는다
@@ -8445,8 +8491,7 @@ function rptSelect(items){
 }
 function rptRender(state, items, msg){
   const m=$('#rptMain'); if(!m) return;
-  const head=`<div class="anl-title">${escHtml(rptName||rptCode||'종목 미선택')}`
-    + (rptCode?`<span class="code">${rptCode}</span>`:'') + `</div>`;
+  const head='';   // 종목명은 위 하부메뉴 줄에 표시한다
   if(state==='loading'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">보고서 불러오는 중…</div>'; return; }
   if(state==='empty'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">왼쪽에서 종목을 고르세요.</div>'; return; }
   if(state==='err'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">보고서를 받지 못했습니다 — '+escHtml(msg||'')+'</div>'; return; }
@@ -8629,6 +8674,7 @@ function goSub(which){
     return;
   }
   subPaint(which);
+  stkNowFill(); stkNowFetch();
 }
 function hubHide(){
   const sec=$('#hub'); if(sec) sec.classList.remove('on');
@@ -9989,7 +10035,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=30';
+const LONG_URL='kg-long.html?v=31';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';

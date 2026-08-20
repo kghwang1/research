@@ -202,7 +202,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-18e';
+const BUILD='KG_LONG 2026-08-19a';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -701,17 +701,15 @@ function headHtml(){
   const title = showList ? '장기종목' : (cur ? esc(bestName(cur)||cur) : '종목 미선택');
   const inSaved = cur && saved.some(r=>r.code===cur);
   const en = cur ? enOf(cur) : '';
-  return `<div class="hd1">
-    <span class="nm">${title}</span>
-    ${cur&&!showList?`<span class="c">${cur}</span>`:''}
-    ${showList?`<span class="c">${saved.length}종목</span>`:''}
-    ${cur&&!showList?`<button id="keepBtn" class="enbtn" style="${inSaved?'':'background:var(--acc);border-color:var(--acc);color:#fff'}">${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>`:''}
-    <button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>
-  </div>
-  <div class="hd2">
+  /* 종목명은 부모(종목분석) 하부메뉴 줄에 표시되므로 여기서는 빼고,
+     영문명·복사와 담기/목록 단추만 한 줄로 둔다. */
+  return `<div class="hd2">
     <span class="${en?'en':'en none'}" id="enTxt">${esc(en||'영문명 없음 — NBIM 검색용')}</span>
     ${cur?'<button id="enEdit" class="enbtn">✎</button>':''}
     ${en?'<button id="enCopy" class="enbtn">복사</button>':''}
+    ${cur&&!showList?`<button id="keepBtn" class="enbtn" style="${inSaved?'':'background:var(--acc);border-color:var(--acc);color:#fff'}">${inSaved?'후보에서 빼기':'＋ 후보 담기'}</button>`:''}
+    <button id="longListBtn" class="enbtn">${showList?'종목 채점':'장기종목'}</button>
+    ${showList?`<span class="c">${saved.length}종목</span>`:''}
     <span class="q">${BUILD}</span>
   </div>`;
 }
