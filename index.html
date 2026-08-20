@@ -8732,11 +8732,11 @@ function fcstParse(txt){
     return null;
   };
   const pick=labels=>{ const r=rowNums(labels); return r? useIdx.map(i=>r[i]) : null; };
-  const salesAll=rowNums(['매출액','매출']);
-  const opm=pick(['영업이익률']);
-  const roe=pick(['ROE (지배순이익, %)','ROE (지배순이익,%)','ROE(%)','ROE (%)','ROE']);
-  const per=pick(['PER (지배순이익, 배)','PER (당기순이익, 배)','PER (배)','PER(배)','PER']);
-  const pbr=pick(['PBR (지배지분, 배)','PBR (자본총계, 배)','PBR (배)','PBR(배)','PBR']);
+  const salesAll=rowNums(['매출액','매출','Revenue','Sales']);
+  const opm=pick(['영업이익률','영업이익율','OP Margin','OPM']);
+  const roe=pick(['ROE (지배순이익, %)','ROE (지배순이익,%)','ROE(%)','ROE (%)','ROE','자기자본이익률']);
+  const per=pick(['PER (지배순이익, 배)','PER (당기순이익, 배)','PER (배)','PER(배)','PER','P/E (배)','P/E(배)','P/E(x)','P/E (x)','P/E','PE Ratio','주가수익비율']);
+  const pbr=pick(['PBR (지배지분, 배)','PBR (자본총계, 배)','PBR (배)','PBR(배)','PBR','P/B (배)','P/B(배)','P/B(x)','P/B (x)','P/B','PB Ratio','주가순자산비율']);
   let growth=null;
   if(salesAll){
     const g=salesAll.map((v,i)=>(i===0||!salesAll[i-1])?null
