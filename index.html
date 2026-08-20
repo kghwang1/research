@@ -709,6 +709,11 @@
      고정 높이면 화면 크기에 따라 아래가 잘리거나 남는다 */
   #rptFullScreen .anl-layout,#chartFullScreen .anl-layout{height:auto;flex:1;min-height:0}
   #rptFullScreen .anl-main{display:flex;flex-direction:column;overflow:hidden}
+  /* 좌우 경계 — 끌어서 종목 칸 폭을 조절한다 (챠트 화면과 같은 방식) */
+  .side-rz{width:6px;flex:none;cursor:col-resize;background:var(--line);position:relative;touch-action:none}
+  .side-rz::before{content:'';position:absolute;left:1.5px;top:50%;transform:translateY(-50%);
+    width:3px;height:40px;border-radius:2px;background:#4a525e}
+  .side-rz:hover::before,.side-rz.on::before{background:#f2c800}
   /* 좌측 종목 칸 — 네 화면 공통 (챠트 기준 150px) */
   .anl-side{width:150px;min-width:80px;max-width:60%;flex:none;flex-shrink:0;
     border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--panel)}
@@ -1169,6 +1174,7 @@
       <div class="anl-search"><input id="rptSearch" type="text" placeholder="종목 검색" autocomplete="off"></div>
       <div class="anl-list" id="rptList"></div>
     </div>
+    <div id="rptResizer" class="side-rz" title="드래그하여 크기 조절"></div>
     <div class="anl-main" id="rptMain"></div>
   </div>
 </div>
@@ -8564,13 +8570,15 @@ function fcstSave(code, rows){
 const fcstNum=v=>{ const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:null; };
 
 /* 전망 평가 — 본래 점수와 별개인 참고 지표 */
+/* 입력칸 안내 문구는 숫자로 두지 않는다 —
+   빈 행의 안내가 실제 값처럼 읽히는 일이 있었다. */
 const FCST_COLS=[
-  {k:'year',  n:'연도',      w:'62px',  ph:'2027F'},
-  {k:'sales', n:'매출증가%', w:'74px',  ph:'12.0'},
-  {k:'opm',   n:'영업이익률%', w:'80px', ph:'22.5'},
-  {k:'roe',   n:'ROE%',     w:'64px',  ph:'16.0'},
-  {k:'per',   n:'PER',      w:'56px',  ph:'10.5'},
-  {k:'pbr',   n:'PBR',      w:'56px',  ph:'1.6'},
+  {k:'year',  n:'연도',        w:'62px', ph:'연도'},
+  {k:'sales', n:'매출증가%',   w:'74px', ph:'매출증가'},
+  {k:'opm',   n:'영업이익률%', w:'80px', ph:'영업이익률'},
+  {k:'roe',   n:'ROE%',       w:'64px', ph:'ROE'},
+  {k:'per',   n:'PER',        w:'56px', ph:'PER'},
+  {k:'pbr',   n:'PBR',        w:'56px', ph:'PBR'},
 ];
 function fcstTableHtml(code){
   const rows=fcstOf(code), ev=fcstEval(rows);
@@ -8705,38 +8713,73 @@ function fcstBind(m, code){
 /* 붙여넣은 글에서 투자지표 표를 읽는다 (worker 의 것과 같은 규칙).
    PDF 뷰어에서 복사한 글은 폰트가 이미 해석돼 있어 가장 정확하다. */
 function fcstParse(txt){
-  txt=String(txt||'').replace(/\s+/g,' ');
-  const headRe=/((?:20\d{2}\s*F?\s+){2,}20\d{2}\s*F?)/g;
-  let head=null,m;
+  txt = String(txt||'')
+    .replace(/[\u2212\u2013\u2014]/g, '-')      // 유니코드 빼기표를 보통 빼기표로
+    .replace(/\s+/g, ' ');
+
+  /* 표 머리 찾기 — 연도가 '서로 다른' 것이 가장 많은 줄을 쓴다.
+     '수정전/수정후' 표처럼 같은 연도가 되풀이되는 줄을 잘못 고르지 않도록 한다. */
+  const headRe=/((?:20\d{2}\s*[AFEP]?\s+){1,}20\d{2}\s*[AFEP]?)/g;
+  let head=null, best=-1, headAt=0, m;
   while((m=headRe.exec(txt))){
-    const ys=(m[1].match(/20\d{2}\s*F?/g)||[]).map(x=>x.replace(/\s+/g,''));
-    if(!head||ys.length>head.length) head=ys;
+    const ys=(m[1].match(/20\d{2}\s*[AFEP]?/g)||[]).map(x=>x.replace(/\s+/g,''));
+    const uniq=new Set(ys.map(y=>y.replace(/[AFEP]$/,''))).size;
+    if(ys.length>=3 && uniq===ys.length && uniq>best){ best=uniq; head=ys; headAt=m.index+m[1].length; }
   }
+  /* 이 표가 끝나는 지점 — 다음 연도 줄이 시작되면 다른 표다.
+     '수정전/수정후' 같은 아래 표에서 값을 가져오지 않도록 경계를 둔다. */
+  let nextHeadAt = txt.length;
+  headRe.lastIndex = headAt;
+  const nm2 = headRe.exec(txt);
+  if(nm2) nextHeadAt = nm2.index;
   if(!head||head.length<2) return {years:[],rows:[],hint:'연도 줄을 찾지 못했습니다'};
+
   const total=head.length;
   const fIdx=head.map((y,i)=>/F$/.test(y)?i:-1).filter(i=>i>=0);
   const useIdx=fIdx.length?fIdx:head.map((_,i)=>i).slice(-3);
   const useYears=useIdx.map(i=>head[i]);
-  const rowNums=labels=>{
+
+  /* 한 행의 칸을 읽는다.
+     'NA' '-' 'n.a.' 처럼 값이 없는 칸도 한 칸으로 세야 열이 밀리지 않는다. */
+  const CELL=/(-?[\d,]+\.?\d*%?)|(\bNA\b|\bN\/A\b|\bn\.a\.?|적자유지|적자전환|흑자전환|--|—)/gi;
+  const rowCells=(labels)=>{
     for(const lab of labels){
-      let from=0,k;
-      while((k=txt.indexOf(lab,from))>=0){
+      /* 표 머리 다음 구간에서만 찾는다 —
+         보고서 아래쪽의 다른 표(수정전/수정후 등)에서 잘못 가져오지 않도록. */
+      const LIMIT = Math.min(headAt + 46*total + 1600, nextHeadAt);
+      let from=headAt,k;
+      while((k=txt.indexOf(lab,from))>=0 && k<LIMIT){
         from=k+lab.length;
-        const seg=txt.slice(from, from+40*total+60);
-        const got=(seg.match(/\(?-?[\d,]+\.?\d*\)?/g)||[]).map(x=>{
-          const neg=/^\(/.test(x); const n=parseFloat(x.replace(/[(),]/g,''));
-          return isFinite(n)?(neg?-n:n):null; }).filter(v=>v!=null);
-        if(got.length>=total) return got.slice(0,total);
+        const seg=txt.slice(from, from+46*total+80);
+        const cells=[]; let c;
+        CELL.lastIndex=0;
+        while((c=CELL.exec(seg)) && cells.length<total){
+          if(c[1]!=null){
+            const n=parseFloat(c[1].replace(/[,%]/g,''));
+            cells.push(isFinite(n)?n:null);
+          } else cells.push(null);           // 값 없음
+        }
+        if(cells.length>=total) return cells.slice(0,total);
       }
     }
     return null;
   };
-  const pick=labels=>{ const r=rowNums(labels); return r? useIdx.map(i=>r[i]) : null; };
-  const salesAll=rowNums(['매출액','매출','Revenue','Sales']);
+  const pick=(labels)=>{ const r=rowCells(labels); return r? useIdx.map(i=>r[i]) : null; };
+
+  const salesAll=rowCells(['매출액','매출','Revenue','Sales']);
   const opm=pick(['영업이익률','영업이익율','OP Margin','OPM']);
   const roe=pick(['ROE (지배순이익, %)','ROE (지배순이익,%)','ROE(%)','ROE (%)','ROE','자기자본이익률']);
   const per=pick(['PER (지배순이익, 배)','PER (당기순이익, 배)','PER (배)','PER(배)','PER','P/E (배)','P/E(배)','P/E(x)','P/E (x)','P/E','PE Ratio','주가수익비율']);
   const pbr=pick(['PBR (지배지분, 배)','PBR (자본총계, 배)','PBR (배)','PBR(배)','PBR','P/B (배)','P/B(배)','P/B(x)','P/B (x)','P/B','PB Ratio','주가순자산비율']);
+  // 영업이익률이 표에 없으면 영업이익 ÷ 매출액 으로 직접 계산한다
+  let opmUse = opm;
+  if(!opmUse && salesAll){
+    const op = rowCells(['영업이익','Operating Profit','Operating Income']);
+    if(op){
+      const r = salesAll.map((v,i)=> (v && op[i]!=null) ? Math.round(op[i]/v*1000)/10 : null);
+      opmUse = useIdx.map(i=>r[i]);
+    }
+  }
   let growth=null;
   if(salesAll){
     const g=salesAll.map((v,i)=>(i===0||!salesAll[i-1])?null
@@ -8746,12 +8789,12 @@ function fcstParse(txt){
   const rows=useYears.map((y,i)=>({
     year:y,
     sales: growth&&growth[i]!=null?String(growth[i]):'',
-    opm: opm&&opm[i]!=null?String(opm[i]):'',
+    opm: opmUse&&opmUse[i]!=null?String(opmUse[i]):'',
     roe: roe&&roe[i]!=null?String(roe[i]):'',
     per: per&&per[i]!=null?String(per[i]):'',
     pbr: pbr&&pbr[i]!=null?String(pbr[i]):''
   })).filter(r=>r.opm||r.roe||r.per||r.pbr||r.sales);
-  return {years:useYears, rows, found:{sales:!!salesAll,opm:!!opm,roe:!!roe,per:!!per,pbr:!!pbr}};
+  return {years:useYears, rows, found:{sales:!!salesAll,opm:!!opmUse,roe:!!roe,per:!!per,pbr:!!pbr}};
 }
 /* 읽은 결과를 표에 넣는다 */
 function fcstApply(code, res, tag){
@@ -8891,7 +8934,12 @@ function rptBind(){
   if(sc && !sc._b){ sc._b=true; sc.oninput=()=>rptBuildList(sc.value); }
   const tg=$('#rptSideToggle'), sd=$('#rptSide');
   if(tg && sd && !tg._b){ tg._b=true;
-    const paint=()=>{ tg.classList.toggle('on', sd.style.display!=='none'); };
+    const rz2=$('#rptResizer');
+    const paint=()=>{
+      const off = sd.style.display==='none';
+      if(rz2) rz2.style.display = off ? 'none' : 'block';
+      tg.classList.toggle('on', !off);
+    };
     tg.onclick=()=>{ sd.style.display = sd.style.display==='none' ? 'flex' : 'none'; paint(); };
     paint();
   }
@@ -8982,7 +9030,7 @@ function anlSideInit(){
   const side=$('#anlSide'), rz=$('#anlResize'), tg=$('#anlSideToggle');
   if(!side) return;
   const w=parseInt(localStorage.getItem(ANL_W_KEY)||'',10);
-  if(w>=60 && w<=520) side.style.width=w+'px';
+  if(w>=80 && w<=560) side.style.width=w+'px';
   if(tg && !tg._bound){
     tg._bound=true;
     const paint=()=>{
@@ -8999,14 +9047,16 @@ function anlSideInit(){
   const move=x=>{
     const left=side.getBoundingClientRect().left;
     let nw=Math.round(x-left);
-    nw=Math.max(60, Math.min(520, nw));
+    nw=Math.max(80, Math.min(560, nw));
     side.style.width=nw+'px';
   };
   const stop=()=>{
     if(!dragging) return;
     dragging=false; rz.classList.remove('on'); document.body.style.userSelect='';
-    localStorage.setItem(ANL_W_KEY, parseInt(side.style.width,10)||132);
+    try{ localStorage.setItem(ANL_W_KEY, String(parseInt(side.style.width,10)||150)); }catch(e){}
   };
+  rz.addEventListener('dblclick', ()=>{ side.style.width='150px';
+    try{ localStorage.setItem(ANL_W_KEY,'150'); }catch(e){} });
   rz.addEventListener('mousedown', e=>{
     dragging=true; rz.classList.add('on'); document.body.style.userSelect='none'; e.preventDefault();
   });
@@ -10747,7 +10797,43 @@ document.addEventListener('DOMContentLoaded',()=>{
     };
   }
   // 좌측 프레임 ↔ 우측 경계 드래그로 크기 조절
+  /* 보고서 화면 경계선 — 챠트와 같은 방식.
+     조절한 폭은 저장해 다음에 열어도 유지한다. */
+  (function(){
+    const rz=$('#rptResizer'), sd=$('#rptSide');
+    if(!rz||!sd) return;
+    const KEY='kg_rpt_side_w';
+    const w0=parseInt(localStorage.getItem(KEY)||'',10);
+    if(w0>=80 && w0<=560) sd.style.width=w0+'px';
+    let dragging=false;
+    const move=x=>{
+      const p=sd.parentElement, r=p.getBoundingClientRect();
+      const w=Math.max(80, Math.min(r.width*0.6, x-r.left));
+      sd.style.width=Math.round(w)+'px';
+    };
+    const stop=()=>{ if(!dragging) return; dragging=false;
+      rz.classList.remove('on'); document.body.style.userSelect='';
+      try{ localStorage.setItem(KEY, String(parseInt(sd.style.width,10)||150)); }catch(e){} };
+    rz.addEventListener('mousedown',e=>{ dragging=true; rz.classList.add('on');
+      document.body.style.userSelect='none'; e.preventDefault(); });
+    document.addEventListener('mousemove',e=>{ if(dragging) move(e.clientX); });
+    document.addEventListener('mouseup', stop);
+    rz.addEventListener('touchstart',e=>{ dragging=true; rz.classList.add('on');
+      if(e.touches[0]) move(e.touches[0].clientX); e.preventDefault(); },{passive:false});
+    rz.addEventListener('touchmove',e=>{ if(dragging&&e.touches[0]){ move(e.touches[0].clientX); e.preventDefault(); } },{passive:false});
+    rz.addEventListener('touchend', stop);
+    rz.addEventListener('touchcancel', stop);
+    rz.addEventListener('dblclick', ()=>{ sd.style.width='150px';
+      try{ localStorage.setItem(KEY,'150'); }catch(e){} });
+  })();
+
+  /* 챠트 화면 경계선 — 조절한 폭을 저장해 다음에도 유지한다
+     (분석·장기투자·보고서와 같은 방식) */
   const rz=$('#chartResizer'); if(rz){
+    const KEY='kg_chart_side_w';
+    const sb0=$('#chartSidebar');
+    const w0=parseInt(localStorage.getItem(KEY)||'',10);
+    if(sb0 && w0>=80 && w0<=560) sb0.style.width=w0+'px';
     let dragging=false;
     const onMove=(clientX)=>{
       const sb=$('#chartSidebar'); if(!sb) return;
@@ -10755,15 +10841,26 @@ document.addEventListener('DOMContentLoaded',()=>{
       let w=clientX-rect.left;
       const max=rect.width*0.6, min=80;
       w=Math.max(min, Math.min(max, w));
-      sb.style.width=w+'px';
+      sb.style.width=Math.round(w)+'px';
+    };
+    const stop=()=>{
+      if(!dragging) return;
+      dragging=false; document.body.style.userSelect='';
+      const sb=$('#chartSidebar');
+      if(sb) try{ localStorage.setItem(KEY, String(parseInt(sb.style.width,10)||150)); }catch(e){}
     };
     rz.addEventListener('mousedown',e=>{ dragging=true; e.preventDefault(); document.body.style.userSelect='none'; });
     document.addEventListener('mousemove',e=>{ if(dragging) onMove(e.clientX); });
-    document.addEventListener('mouseup',()=>{ if(dragging){ dragging=false; document.body.style.userSelect=''; } });
+    document.addEventListener('mouseup', stop);
     // 터치(모바일)
     rz.addEventListener('touchstart',e=>{ dragging=true; document.body.style.userSelect='none'; },{passive:true});
     document.addEventListener('touchmove',e=>{ if(dragging && e.touches[0]) onMove(e.touches[0].clientX); },{passive:true});
-    document.addEventListener('touchend',()=>{ if(dragging){ dragging=false; document.body.style.userSelect=''; } });
+    document.addEventListener('touchend', stop);
+    rz.addEventListener('dblclick', ()=>{
+      const sb=$('#chartSidebar'); if(!sb) return;
+      sb.style.width='150px';
+      try{ localStorage.setItem(KEY,'150'); }catch(e){}
+    });
   }
 });
 
