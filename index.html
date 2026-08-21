@@ -8982,6 +8982,9 @@ function fcstParseRows(txt){
     if(!m) return;
     const nums=(m[2].match(/-?[\d,]+\.?\d*/g)||[]).map(x=>x.replace(/,/g,''));
     if(nums.length<3) return;
+    // 값이 대부분 연도처럼 생겼으면 표 머리 줄이다 (2023 2024 2025 …)
+    const yearish=nums.filter(v=>/^20\d{2}$/.test(v)).length;
+    if(yearish>=Math.min(2, nums.length)) return;
     rows.push({ year:m[1].replace(/\s+/g,''),
       sales:nums[0]??'', opm:nums[1]??'', roe:nums[2]??'', per:nums[3]??'', pbr:nums[4]??'' });
   });
@@ -9010,9 +9013,7 @@ function fcstFixOcr(t){
 
 function fcstParse(txt, fromImage){
   if(fromImage) txt=fcstFixOcr(txt);
-  // 연도가 행인 형태를 먼저 본다 (직접 정리한 표를 붙여넣는 경우)
-  const byRow=fcstParseRows(txt);
-  if(byRow) return byRow;
+  const raw=txt;
   txt = String(txt||'')
     .replace(/[\u2212\u2013\u2014]/g, '-')      // 유니코드 빼기표를 보통 빼기표로
     .replace(/\s+/g, ' ');
@@ -9032,7 +9033,11 @@ function fcstParse(txt, fromImage){
   headRe.lastIndex = headAt;
   const nm2 = headRe.exec(txt);
   if(nm2) nextHeadAt = nm2.index;
-  if(!head||head.length<2) return {years:[],rows:[],hint:'연도 줄을 찾지 못했습니다'};
+  if(!head||head.length<2){
+    const byRow=fcstParseRows(raw);
+    if(byRow) return byRow;
+    return {years:[],rows:[],hint:'연도 줄을 찾지 못했습니다'};
+  }
 
   const total=head.length;
   const fIdx=head.map((y,i)=>/[FE]$/.test(y)?i:-1).filter(i=>i>=0);
@@ -9080,10 +9085,16 @@ function fcstParse(txt, fromImage){
       opmUse = useIdx.map(i=>r[i]);
     }
   }
+  /* 매출액이 없는 표라도 SPS(주당매출)가 있으면 증가율은 같다 */
+  let salesUse = salesAll;
+  if(!salesUse){
+    const sps = rowCells(['SPS','주당매출액','주당매출']);
+    if(sps) salesUse = sps;
+  }
   let growth=null;
-  if(salesAll){
-    const g=salesAll.map((v,i)=>(i===0||!salesAll[i-1])?null
-      :Math.round((v-salesAll[i-1])/Math.abs(salesAll[i-1])*1000)/10);
+  if(salesUse){
+    const g=salesUse.map((v,i)=>(i===0||!salesUse[i-1])?null
+      :Math.round((v-salesUse[i-1])/Math.abs(salesUse[i-1])*1000)/10);
     growth=useIdx.map(i=>g[i]);
   }
   const rows=useYears.map((y,i)=>({
@@ -9094,7 +9105,13 @@ function fcstParse(txt, fromImage){
     per: per&&per[i]!=null?String(per[i]):'',
     pbr: pbr&&pbr[i]!=null?String(pbr[i]):''
   })).filter(r=>r.opm||r.roe||r.per||r.pbr||r.sales);
-  return {years:useYears, rows, found:{sales:!!salesAll,opm:!!opmUse,roe:!!roe,per:!!per,pbr:!!pbr}};
+  /* 항목이 행인 보고서 표에서 못 찾았으면,
+     연도가 행인 형태(직접 정리한 표)로 다시 읽어본다. */
+  if(!rows.length){
+    const byRow=fcstParseRows(raw);
+    if(byRow) return byRow;
+  }
+  return {years:useYears, rows, found:{sales:!!salesUse,opm:!!opmUse,roe:!!roe,per:!!per,pbr:!!pbr}};
 }
 /* 읽은 결과를 표에 넣는다 */
 function fcstApply(code, res, tag){
