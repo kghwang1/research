@@ -8788,12 +8788,16 @@ function fcstTableHtml(code){
    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
    + '<b style="font-size:13px;color:#f2c800">증권사 전망</b>'
    + '<span style="font-size:10.5px;color:#6e7681">보고서에서 옮겨 적으세요 · 본래 점수와는 별개인 참고 자료입니다</span>'
-   + '<button id="fcstImg" class="anl-backbtn" style="margin-left:auto">사진에서 읽기</button>'
    + '<input id="fcstFile" type="file" accept="image/*" style="display:none">'
-   + '<button id="fcstPaste" class="anl-backbtn">표 붙여넣기</button>'
+   + '<button id="fcstPaste" class="anl-backbtn" style="margin-left:auto">표 붙여넣기</button>'
    + '<button id="fcstRead" class="anl-backbtn">PDF 에서 읽기</button>'
    + '<button id="fcstAdd" class="anl-backbtn">＋ 행 추가</button></div>'
-   + '<div id="fcstMsg" style="font-size:11px;color:#8b949e;margin:-2px 0 6px;display:none"></div>';
+   + '<div id="fcstMsg" style="font-size:11px;color:#8b949e;margin:-2px 0 6px;display:none"></div>'
+   + '<div id="fcstDrop" tabindex="0" style="margin:0 0 8px;padding:12px;border:2px dashed #6e7681;'
+   + 'border-radius:8px;text-align:center;color:#8b949e;font-size:12px;cursor:pointer;outline:none;background:#0d1117">'
+   + '<b style="color:#f2c800">여기를 누른 뒤 Ctrl+V</b> 로 보고서 표 캡처를 붙여넣으세요'
+   + '<div style="margin-top:4px;font-size:11px;color:#6e7681">그림 파일을 끌어다 놓아도 됩니다'
+   + ' · <span id="fcstPick" style="color:#58a6ff;text-decoration:underline">파일 고르기</span></div></div>';
   h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;white-space:nowrap">'
    + '<tr>'+FCST_COLS.map(c=>`<th style="text-align:left;padding:3px 5px;color:#8b949e;font-size:10.5px;font-weight:600">${c.n}</th>`).join('')
    + '<th style="text-align:left;padding:3px 5px;color:#8b949e;font-size:10.5px;font-weight:600">출처</th><th></th></tr>';
@@ -8856,11 +8860,27 @@ function fcstBind(m, code){
   };
   /* 사진에서 읽기 — 표를 캡처한 그림에서 글자를 뽑아 바로 표에 넣는다.
      글자 인식은 완벽하지 않으므로 넣은 값은 노란색(확인 필요)으로 표시된다. */
-  const ib=m.querySelector('#fcstImg'), fi=m.querySelector('#fcstFile');
-  if(ib && fi){
-    ib.onclick=()=>fi.click();
+  /* 캡처 붙여넣을 자리 — 늘 보인다 */
+  const box=m.querySelector('#fcstDrop'), fi=m.querySelector('#fcstFile');
+  if(box && fi){
     fi.onchange=()=>{ const f=fi.files&&fi.files[0]; if(f) fcstReadImage(code, f, m); fi.value=''; };
-    // 화면에서 Ctrl+V 로 캡처를 바로 붙여넣어도 된다
+    const go=f=>{ if(f) fcstReadImage(code, f, m); };
+    box.onclick=e=>{ if(e.target && e.target.id==='fcstPick') fi.click(); else box.focus(); };
+    box.onfocus=()=>{ box.style.borderColor='#f2c800'; };
+    box.onblur =()=>{ box.style.borderColor='#6e7681'; };
+    box.onpaste=e=>{
+      const it=[...(e.clipboardData&&e.clipboardData.items||[])].find(x=>x.type.startsWith('image/'));
+      if(!it) return;
+      e.preventDefault(); go(it.getAsFile());
+    };
+    box.ondragover=e=>{ e.preventDefault(); box.style.borderColor='#f2c800'; };
+    box.ondragleave=()=>{ box.style.borderColor='#6e7681'; };
+    box.ondrop=e=>{
+      e.preventDefault(); box.style.borderColor='#6e7681';
+      const f=[...(e.dataTransfer&&e.dataTransfer.files||[])].find(x=>x.type.startsWith('image/'));
+      go(f);
+    };
+    // 표 근처 아무 데서나 Ctrl+V 해도 받는다
     if(!m._pasteBound){
       m._pasteBound=true;
       m.addEventListener('paste', e=>{
