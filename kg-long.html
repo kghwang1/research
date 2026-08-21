@@ -202,7 +202,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-19b';
+const BUILD='KG_LONG 2026-08-19c';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -580,7 +580,7 @@ function fcstCard(code){
     `<div class="row"><div class="k">${p.n}${p.v!=null?` <span class="sub">${p.v.toFixed(1)}${p.u||''}</span>`:''}</div>`
    + `<div class="v" style="font-size:13px">${esc(p.txt)}</div>`
    + `<div class="p">${p.p}/${p.max}</div></div>`).join('');
-  return `<div class="card" style="border-color:#3a3f4b">
+  return `<div class="card" style="background:#3d0d0d;border-color:#7a1f1f">
     <div class="sechd">
       <span>미래 전망 <span style="font-size:10.5px;color:var(--tx3);font-weight:400">보고서 기초 · ${esc(ev.years)}</span></span>
       <span style="font-size:13px;color:#f2c800">${ev.total}<span style="font-size:10px;color:var(--tx3)">/100</span></span>

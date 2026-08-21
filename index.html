@@ -7648,27 +7648,72 @@ function anlDraw(){
   ctx.clearRect(0,0,W,H);
   if(!d){ ctx.fillStyle='#6e7681'; ctx.font='12px sans-serif'; ctx.textAlign='center';
     ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
+  /* 보고서에서 넣은 증권사 전망을 실적 뒤에 이어 그린다.
+     같은 색 점선 · 뒤쪽 바탕을 밝게 해서 '전망 구간'임을 드러낸다. */
+  const fRows=(typeof fcstOf==='function' && ANL_CODE) ? fcstOf(ANL_CODE) : [];
+  const fSorted=fRows.slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
+  const fNum=v=>{ const x=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:null; };
+  const FKEY={ salesGrowth:'sales', roe:'roe', roa:'roe', debt:null, opm:'opm', per:'per', pbr:'pbr' };
+
   const per=(d.periods||[]);
-  const n=per.length; if(!n) return;
+  const nHist=per.length; if(!nHist) return;
+  const nF=fSorted.length;
+  const n=nHist+nF;
   const PAD={l:10,r:10,t:26,b:20};   // 위쪽은 범례 자리
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+
+  // 전망 구간 바탕을 밝게
+  if(nF>0){
+    const x0=xOf(nHist-1), x1=xOf(n-1);
+    ctx.fillStyle='#ffffff12';
+    ctx.fillRect(x0, PAD.t, Math.max(2,x1-x0)+PAD.r*0.6, ch);
+    ctx.strokeStyle='#ffffff26'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x0, PAD.t); ctx.lineTo(x0, PAD.t+ch); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#8b949e'; ctx.font='9.5px monospace'; ctx.textAlign='left';
+    ctx.fillText('전망', x0+4, PAD.t+10);
+  }
+
   const SER=seriesFor(d);
   SER.forEach(se=>{
-    const a=d[se.k]||[];
-    const v=a.filter(x=>x!=null);
+    const a=(d[se.k]||[]).slice();
+    // 전망값 이어붙이기 (해당 항목이 있을 때만)
+    const fk=FKEY[se.k];
+    const fv=fSorted.map(r=> fk? fNum(r[fk]) : null);
+    const all=a.concat(fv);
+    const v=all.filter(x=>x!=null);
     if(v.length<2) return;
     let mn=Math.min(...v), mx=Math.max(...v);
     if(mx===mn){ mn-=1; mx+=1; }
     const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
     const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
+
+    // 실적 구간 — 실선
     ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash([]);
     ctx.beginPath(); let st=false;
     a.forEach((x,i)=>{ if(x==null){ st=false; return; }
       const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
     ctx.stroke();
+
+    // 전망 구간 — 같은 색 점선 (마지막 실적에서 이어 붙인다)
+    if(fv.some(x=>x!=null)){
+      ctx.setLineDash([4,3]); ctx.lineWidth=1.8;
+      ctx.beginPath(); st=false;
+      let lastI=-1;
+      for(let i=a.length-1;i>=0;i--){ if(a[i]!=null){ lastI=i; break; } }
+      if(lastI>=0){ ctx.moveTo(xOf(lastI), yOf(a[lastI])); st=true; }
+      fv.forEach((x,k)=>{ if(x==null){ st=false; return; }
+        const px=xOf(nHist+k), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // 점 — 실적은 채우고, 전망은 속을 비운다
     a.forEach((x,i)=>{ if(x==null) return;
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(xOf(i),yOf(x),2.4,0,Math.PI*2); ctx.fill(); });
+    fv.forEach((x,k)=>{ if(x==null) return;
+      ctx.fillStyle='#0d1117'; ctx.strokeStyle=se.c; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(xOf(nHist+k),yOf(x),2.6,0,Math.PI*2); ctx.fill(); ctx.stroke(); });
     se._yOf=yOf;
   });
   // X축 분기
@@ -7677,6 +7722,12 @@ function anlDraw(){
     const lab=perLabel(p);
     if(n>6 && i%2===1) return;
     ctx.fillText(lab, xOf(i), H-5);
+  });
+  // 전망 연도 — 조금 밝게 적어 실적과 구분한다
+  ctx.fillStyle='#8b949e';
+  fSorted.forEach((r,k)=>{
+    const y=String(r.year||'').replace(/\.\d+/,'').replace(/^20/,'');
+    if(y) ctx.fillText(y, xOf(nHist+k), H-5);
   });
   // 범례 — 그래프 안 좌상단
   ctx.font='11px sans-serif'; ctx.textAlign='left';
@@ -10372,7 +10423,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=32';
+const LONG_URL='kg-long.html?v=33';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
