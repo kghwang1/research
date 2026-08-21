@@ -7847,34 +7847,83 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   ctx.clearRect(0,0,W,H);
   if(!d){ ctx.fillStyle='#6e7681'; ctx.font='12px sans-serif'; ctx.textAlign='center';
     ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
-  const per=d.periods||[]; const n=per.length; if(!n) return;
+  const per=d.periods||[]; const nHist=per.length; if(!nHist) return;
   const withPeg = (cvId==='anlCanvas2');
+
+  /* 첫 그래프와 같은 방식으로 증권사 전망을 이어 그린다.
+     같은 색 점선 · 전망 구간 바탕을 밝게 · 점은 속을 비운다. */
+  const fRows=(typeof fcstOf==='function' && ANL_CODE) ? fcstOf(ANL_CODE) : [];
+  const fSorted=fRows.slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
+  const fNum=v=>{ const x=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:null; };
+  const FKEY2={ per:'per', pbr:'pbr', quick:null, roe:'roe', opm:'opm', salesGrowth:'sales' };
+  const nF=fSorted.length, n=nHist+nF;
+
   const PAD={l:10,r:10,t:26,b:20};
   const cw=W-PAD.l-PAD.r;
   const ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
-  // PEG 막대는 선 뒤에 깔리도록 먼저 그린다
-  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, n, hoverIdx, 'bars');
+
+  // 전망 구간 바탕
+  if(nF>0){
+    const x0=xOf(nHist-1), x1=xOf(n-1);
+    ctx.fillStyle='#ffffff12';
+    ctx.fillRect(x0, PAD.t, Math.max(2,x1-x0)+PAD.r*0.6, ch);
+    ctx.strokeStyle='#ffffff26'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(x0, PAD.t); ctx.lineTo(x0, PAD.t+ch); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#8b949e'; ctx.font='9.5px monospace'; ctx.textAlign='left';
+    ctx.fillText('전망', x0+4, PAD.t+10);
+  }
+
+  // PEG 막대는 선 뒤에 깔리도록 먼저 그린다 (실적 구간에만)
+  if(withPeg) anlDrawPegBars(ctx, W, H, PAD, ch, xOf, nHist, hoverIdx, 'bars');
   series.forEach(se=>{
-    const a=d[se.k]||[]; const v=a.filter(x=>x!=null);
+    const a=(d[se.k]||[]).slice();
+    const fk=FKEY2[se.k];
+    const fv=fSorted.map(r=> fk? fNum(r[fk]) : null);
+    const all=a.concat(fv);
+    const v=all.filter(x=>x!=null);
     if(v.length<2){ se._yOf=null; return; }
     let mn=Math.min(...v), mx=Math.max(...v);
     if(mx===mn){ mn-=1; mx+=1; }
     const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
     const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
+
+    // 실적 — 실선
     ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash([]);
     ctx.beginPath(); let st=false;
     a.forEach((x,i)=>{ if(x==null){ st=false; return; }
       const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
     ctx.stroke();
+
+    // 전망 — 같은 색 점선
+    if(fv.some(x=>x!=null)){
+      ctx.setLineDash([4,3]); ctx.lineWidth=1.8;
+      ctx.beginPath(); st=false;
+      let lastI=-1;
+      for(let i=a.length-1;i>=0;i--){ if(a[i]!=null){ lastI=i; break; } }
+      if(lastI>=0){ ctx.moveTo(xOf(lastI), yOf(a[lastI])); st=true; }
+      fv.forEach((x,k)=>{ if(x==null){ st=false; return; }
+        const px=xOf(nHist+k), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+
     a.forEach((x,i)=>{ if(x==null) return;
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(xOf(i),yOf(x),2.4,0,Math.PI*2); ctx.fill(); });
+    fv.forEach((x,k)=>{ if(x==null) return;
+      ctx.fillStyle='#0d1117'; ctx.strokeStyle=se.c; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.arc(xOf(nHist+k),yOf(x),2.6,0,Math.PI*2); ctx.fill(); ctx.stroke(); });
     se._yOf=yOf;
   });
   // X축 분기
   ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
   per.forEach((p,i)=>{ const lab=perLabel(p);
     if(n>6 && i%2===1) return; ctx.fillText(lab, xOf(i), H-5); });
+  ctx.fillStyle='#8b949e';
+  fSorted.forEach((r,k)=>{
+    const y=String(r.year||'').replace(/\.\d+/,'').replace(/^20/,'');
+    if(y) ctx.fillText(y, xOf(nHist+k), H-5);
+  });
   // 범례
   ctx.font='11px sans-serif'; ctx.textAlign='left';
   let lx=PAD.l+2;
@@ -7892,7 +7941,7 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     ctx.fillStyle='#8b949e'; ctx.fillText('PEG', lx+22, PAD.t-2);
   }
   // 선택 지점 + 값 표시 (첫 그래프와 동일)
-  if(hoverIdx>=0 && hoverIdx<n){
+  if(hoverIdx>=0 && hoverIdx<nHist){          // 값 표시는 실적 구간에만
     const x=xOf(hoverIdx);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
