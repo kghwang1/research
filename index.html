@@ -8666,15 +8666,7 @@ function fcstBind(m, code){
     pb.parentNode.parentNode.insertBefore(wrap, pb.parentNode.nextSibling);
     const box=wrap.querySelector('#fcstBox'); box.focus();
     const op=wrap.querySelector('#fcstBoxOpen');
-    if(op) op.onclick=async()=>{
-      if(cur0.pdf){ window.open(cur0.pdf, '_blank', 'noopener'); return; }
-      try{
-        const r=await fetch(RPT_URL+'/?rptpdfurl='+encodeURIComponent(cur0.link||''));
-        const d=await r.json();
-        if(d && d.ok && d.pdf){ cur0.pdf=d.pdf; window.open(d.pdf, '_blank', 'noopener'); return; }
-      }catch(e){}
-      window.open(RPT_URL+'/?rptview='+encodeURIComponent(pdfSrc), '_blank', 'noopener');
-    };
+    if(op) op.onclick=()=>window.open(RPT_URL+'/?rptview='+encodeURIComponent(pdfSrc), '_blank', 'noopener');
     wrap.querySelector('#fcstBoxNo').onclick=()=>wrap.remove();
     wrap.querySelector('#fcstBoxGo').onclick=()=>{
       const res=fcstParse(box.value);
@@ -8895,21 +8887,12 @@ function rptOpen(i){
       <div style="padding:18px;color:#8b949e">본문 불러오는 중…</div>
     </div>`;
   const bk=$('#rptBack'); if(bk) bk.onclick=()=>rptRender('ok', (RPT_CACHE[rptCode]||{}).items||[]);
-  /* PDF 새 창 — 원본 주소를 그대로 연다.
-     worker 로 중계하면 브라우저가 글자 선택·복사를 막는 경우가 있다.
-     주소를 아직 모르면 worker 에 물어본 뒤 연다. */
+  /* PDF 새 창 — worker 중계로 연다.
+     원본 주소(pstatic)는 '내려받기'로 지정돼 있어 그대로 열면 다운로드된다.
+     중계는 '화면에 표시'로 바꿔 보내므로 브라우저 뷰어에서 열리고,
+     새 창이라 글자 선택·복사도 된다. */
   const pn=$('#rptPdfNew');
-  if(pn) pn.onclick=async()=>{
-    if(x.pdf){ window.open(x.pdf, '_blank', 'noopener'); return; }
-    const t0=pn.textContent; pn.textContent='여는 중…'; pn.disabled=true;
-    try{
-      const r=await fetch(RPT_URL+'/?rptpdfurl='+encodeURIComponent(x.link||''));
-      const d=await r.json();
-      if(d && d.ok && d.pdf){ x.pdf=d.pdf; window.open(d.pdf, '_blank', 'noopener'); }
-      else window.open(src, '_blank', 'noopener');   // 못 찾으면 중계로
-    }catch(e){ window.open(src, '_blank', 'noopener'); }
-    finally{ pn.textContent=t0; pn.disabled=false; }
-  };
+  if(pn) pn.onclick=()=>window.open(src, '_blank', 'noopener');
 
   /* 본문 글 — 네이버가 준 본문을 그대로 읽는다.
      제목을 누르면 이것이 먼저 보이고, 원문 PDF 는 [PDF] 단추로 새 창에서 연다. */
