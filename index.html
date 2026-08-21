@@ -7650,7 +7650,13 @@ function anlDraw(){
     ctx.fillText('종목을 검색하세요', W/2, H/2); return; }
   /* 보고서에서 넣은 증권사 전망을 실적 뒤에 이어 그린다.
      같은 색 점선 · 뒤쪽 바탕을 밝게 해서 '전망 구간'임을 드러낸다. */
-  const fRows=(typeof fcstOf==='function' && ANL_CODE) ? fcstOf(ANL_CODE) : [];
+  /* 값이 하나도 없는 행(＋행 추가만 하고 비워둔 줄)은 전망으로 치지 않는다.
+     그대로 두면 선 없는 빈 전망 구간만 생긴다. */
+  const fHas=r=>['sales','opm','roe','per','pbr'].some(k=>{
+    const v=String(r&&r[k]==null?'':r[k]).trim();
+    return v!=='' && isFinite(parseFloat(v.replace(/[^0-9.\-]/g,'')));
+  });
+  const fRows=((typeof fcstOf==='function' && ANL_CODE) ? fcstOf(ANL_CODE) : []).filter(r=>String(r.year||'').trim() && fHas(r));
   const fSorted=fRows.slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
   const fNum=v=>{ const x=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:null; };
   const FKEY={ salesGrowth:'sales', roe:'roe', roa:'roe', debt:null, opm:'opm', per:'per', pbr:'pbr' };
@@ -7662,6 +7668,11 @@ function anlDraw(){
   const PAD={l:10,r:10,t:26,b:20};   // 위쪽은 범례 자리
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+
+  /* 그린 자리의 가로 위치를 캔버스에 남긴다.
+     마우스 계산이 이 값을 그대로 쓰므로 두 계산이 어긋날 수 없다. */
+  cv._xs = Array.from({length:n}, (_,i)=>xOf(i));
+  cv._nHist = nHist;
 
   // 전망 구간 바탕을 밝게
   if(nF>0){
@@ -7747,11 +7758,19 @@ function anlDraw(){
     ctx.font='bold 11px monospace';
     // 점은 먼저 모두 찍는다
     const marks=[];
+    const isF = ANL_HOVER >= nHist;                       // 전망 칸을 짚었나
+    const fRow = isF ? fSorted[ANL_HOVER-nHist] : null;
     seriesFor(d).forEach(se=>{
-      const v=(d[se.k]||[])[ANL_HOVER]; if(v==null||!se._yOf) return;
+      const v = isF
+        ? (FKEY[se.k] ? fNum(fRow && fRow[FKEY[se.k]]) : null)   // 전망값
+        : (d[se.k]||[])[ANL_HOVER];                              // 실적값
+      if(v==null||!se._yOf) return;
       const py=se._yOf(v);
-      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
-      marks.push({ se, v, py });
+      // 전망은 속이 빈 점으로 구분한다
+      if(isF){ ctx.fillStyle='#0d1117'; ctx.strokeStyle=se.c; ctx.lineWidth=2;
+               ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
+      else   { ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill(); }
+      marks.push({ se, v, py, isF });
     });
     // 값 표시 — 선이 겹쳐도 세 개가 모두 보이도록 위에서부터 차례로 자리를 잡는다
     const GAP=13, TOP=PAD.t+10, BOT=PAD.t+ch-3;
@@ -7772,7 +7791,10 @@ function anlDraw(){
       let tx=x+8;
       if(tx+tw+4 > W-PAD.r) tx = x-8-tw-4;        // 오른쪽 끝이면 왼쪽에
       ctx.fillStyle='#0d1117ee'; ctx.fillRect(tx-3, m.ty-9, tw+6, 12);
-      ctx.strokeStyle=m.se.c; ctx.lineWidth=1; ctx.strokeRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.strokeStyle=m.se.c; ctx.lineWidth=1;
+      ctx.setLineDash(m.isF?[3,2]:[]);                    // 전망은 점선 테두리
+      ctx.strokeRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.setLineDash([]);
       ctx.fillStyle=m.se.c; ctx.textAlign='left';
       ctx.fillText(txt, tx, m.ty);
     });
@@ -7782,24 +7804,36 @@ function anlDraw(){
 // 값은 그래프 안에 직접 표시하므로 선택 위치만 기억하고 다시 그린다
 function anlShowTip(i){
   const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return;
-  const per=d.periods||[];
-  ANL_HOVER = (i>=0 && i<per.length) ? i : (per.length-1);
+  const nHist=(d.periods||[]).length;
+  const nF=fcstCount(ANL_CODE);
+  const n=nHist+nF;
+  ANL_HOVER = (i>=0 && i<n) ? i : (n-1);
   anlDraw();
 }
 
 // 두 번째 그래프·PEG 막대에도 터치 연결
+/* 마우스 위치 → 자리 번호.
+   그릴 때 남겨둔 각 자리의 가로 위치(cv._xs) 중 가장 가까운 것을 고른다.
+   여백·개수를 다시 계산하지 않으므로 그림과 어긋날 수 없다. */
+function nearestIdx(cv, ev){
+  const xs = cv && cv._xs;
+  if(!xs || !xs.length) return -1;
+  const rc = cv.getBoundingClientRect();
+  const cx = (ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX) - rc.left;
+  let best=0, bd=Infinity;
+  for(let i=0;i<xs.length;i++){ const dd=Math.abs(xs[i]-cx); if(dd<bd){ bd=dd; best=i; } }
+  return best;
+}
+
 function anlBindCanvas2(){
-  const idxFrom=(cv,ev,padl,padr)=>{
-    const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return -1;
-    const n=(d.periods||[]).length; if(n<=1) return 0;
-    const rc=cv.getBoundingClientRect();
-    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
-    const cw=rc.width-padl-padr;
-    return Math.max(0, Math.min(n-1, Math.round(((cx-padl)/cw)*(n-1))));
-  };
+  /* 마우스 위치 → 자리 번호.
+     그래프는 실적 뒤에 전망 칸을 이어 그리므로, 나눌 때도 그 개수를 합쳐야
+     짚은 자리와 값이 어긋나지 않는다. 값 표시는 실적 구간에서만 하므로
+     전망 칸을 짚으면 -1 을 돌려 아무것도 표시하지 않는다. */
+  const idxFrom=(cv,ev)=>nearestIdx(cv,ev);
   const c2=$('#anlCanvas2');
   if(c2 && !c2._bound){ c2._bound=true;
-    const on=ev=>{ const i=idxFrom(c2,ev,10,32); if(i>=0){ ANL_HOVER2=i; anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); } };
+    const on=ev=>{ const i=idxFrom(c2,ev); if(i>=0){ ANL_HOVER2=i; anlDrawLines('anlCanvas2', FIN2_SERIES, ANL_HOVER2); } };
     c2.addEventListener('mousemove', on);
     c2.addEventListener('touchstart', on, {passive:true});
     c2.addEventListener('touchmove',  on, {passive:true});
@@ -7809,14 +7843,8 @@ function anlBindCanvas2(){
 function anlBindCanvas(){
   anlBindCanvas2();
   const cv=$('#anlCanvas'); if(!cv||cv._bound) return; cv._bound=true;
-  const idxFrom=ev=>{
-    const d=ANL_CODE?FIN3[ANL_CODE]:null; if(!d) return -1;
-    const n=(d.periods||[]).length; if(n<=1) return 0;
-    const rc=cv.getBoundingClientRect();
-    const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
-    const cw=rc.width-20;
-    return Math.max(0, Math.min(n-1, Math.round(((cx-10)/cw)*(n-1))));
-  };
+  /* 첫 그래프도 전망 칸을 합쳐 나눠야 짚은 자리와 값이 맞는다 */
+  const idxFrom=ev=>nearestIdx(cv,ev);
   const on=ev=>{ const i=idxFrom(ev); if(i>=0) anlShowTip(i); };
   cv.addEventListener('mousemove', on);
   cv.addEventListener('touchstart', on, {passive:true});
@@ -7852,7 +7880,13 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
 
   /* 첫 그래프와 같은 방식으로 증권사 전망을 이어 그린다.
      같은 색 점선 · 전망 구간 바탕을 밝게 · 점은 속을 비운다. */
-  const fRows=(typeof fcstOf==='function' && ANL_CODE) ? fcstOf(ANL_CODE) : [];
+  /* 값이 하나도 없는 행(＋행 추가만 하고 비워둔 줄)은 전망으로 치지 않는다.
+     그대로 두면 선 없는 빈 전망 구간만 생긴다. */
+  const fHas=r=>['sales','opm','roe','per','pbr'].some(k=>{
+    const v=String(r&&r[k]==null?'':r[k]).trim();
+    return v!=='' && isFinite(parseFloat(v.replace(/[^0-9.\-]/g,'')));
+  });
+  const fRows=((typeof fcstOf==='function' && ANL_CODE) ? fcstOf(ANL_CODE) : []).filter(r=>String(r.year||'').trim() && fHas(r));
   const fSorted=fRows.slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
   const fNum=v=>{ const x=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:null; };
   const FKEY2={ per:'per', pbr:'pbr', quick:null, roe:'roe', opm:'opm', salesGrowth:'sales' };
@@ -7862,6 +7896,9 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   const cw=W-PAD.l-PAD.r;
   const ch=H-PAD.t-PAD.b;
   const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+
+  cv._xs = Array.from({length:n}, (_,i)=>xOf(i));
+  cv._nHist = nHist;
 
   // 전망 구간 바탕
   if(nF>0){
@@ -7941,17 +7978,24 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     ctx.fillStyle='#8b949e'; ctx.fillText('PEG', lx+22, PAD.t-2);
   }
   // 선택 지점 + 값 표시 (첫 그래프와 동일)
-  if(hoverIdx>=0 && hoverIdx<nHist){          // 값 표시는 실적 구간에만
+  if(hoverIdx>=0 && hoverIdx<n){
     const x=xOf(hoverIdx);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
     ctx.font='bold 11px monospace';
     const marks=[];
+    const isF2 = hoverIdx >= nHist;                      // 전망 칸을 짚었나
+    const fRow2 = isF2 ? fSorted[hoverIdx-nHist] : null;
     series.forEach(se=>{
-      const v=(d[se.k]||[])[hoverIdx]; if(v==null||!se._yOf) return;
+      const v = isF2
+        ? (FKEY2[se.k] ? fNum(fRow2 && fRow2[FKEY2[se.k]]) : null)
+        : (d[se.k]||[])[hoverIdx];
+      if(v==null||!se._yOf) return;
       const py=se._yOf(v);
-      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill();
-      marks.push({se,v,py});
+      if(isF2){ ctx.fillStyle='#0d1117'; ctx.strokeStyle=se.c; ctx.lineWidth=2;
+                ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill(); ctx.stroke(); }
+      else    { ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,py,4,0,Math.PI*2); ctx.fill(); }
+      marks.push({se,v,py,isF:isF2});
     });
     // PEG 값은 막대 위에 이미 글자로 표시하므로 상자에는 넣지 않는다
     const GAP=13, TOP=PAD.t+10, BOT=PAD.t+ch-3;
@@ -7965,7 +8009,10 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
       const tw=ctx.measureText(txt).width;
       let tx=x+8; if(tx+tw+4 > W-PAD.r) tx=x-8-tw-4;
       ctx.fillStyle='#0d1117ee'; ctx.fillRect(tx-3, m.ty-9, tw+6, 12);
-      ctx.strokeStyle=m.se.c; ctx.lineWidth=1; ctx.strokeRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.strokeStyle=m.se.c; ctx.lineWidth=1;
+      ctx.setLineDash(m.isF?[3,2]:[]);
+      ctx.strokeRect(tx-3, m.ty-9, tw+6, 12);
+      ctx.setLineDash([]);
       ctx.fillStyle=m.se.c; ctx.textAlign='left'; ctx.fillText(txt, tx, m.ty);
     });
   }
@@ -8660,6 +8707,16 @@ function fcstAll(){
   catch(e){ return {}; }
 }
 function fcstOf(code){ const a=fcstAll()[String(code||'')]; return Array.isArray(a)?a:[]; }
+/* 그래프에 그릴 수 있는 전망 행 수 — 연도와 값이 하나라도 있어야 센다 */
+function fcstCount(code){
+  return fcstOf(code).filter(r=>{
+    if(!String(r.year||'').trim()) return false;
+    return ['sales','opm','roe','per','pbr'].some(k=>{
+      const v=String(r[k]==null?'':r[k]).trim();
+      return v!=='' && isFinite(parseFloat(v.replace(/[^0-9.\-]/g,'')));
+    });
+  }).length;
+}
 function fcstSave(code, rows){
   const o=fcstAll();
   if(rows && rows.length) o[String(code)]=rows; else delete o[String(code)];
@@ -8709,10 +8766,14 @@ function fcstTableHtml(code){
   });
   h+='</table></div>';
   if(ev && ev.total!=null){
+    const drawn=fcstCount(code), empty=rows.length-drawn;
     h+=`<div style="margin-top:8px;font-size:11.5px;color:#8b949e">`
      + `전망 종합 <b style="color:#f2c800;font-size:13px">${ev.total}</b><span style="font-size:10px">/100</span>`
      + ` · ${escHtml(ev.years)} 기준 · `
      + ev.parts.map(p=>`${p.n} ${p.p}/${p.max}`).join(' · ')
+     + (empty>0 ? ` · <span style="color:#d29922">빈 줄 ${empty}개는 그래프에 그리지 않습니다</span>`
+                  + ' <button id="fcstClean" class="anl-backbtn" style="padding:1px 7px;font-size:10.5px">빈 줄 지우기</button>'
+                : '')
      + '</div>';
   }
   h+='</div>';
@@ -8778,6 +8839,18 @@ function fcstBind(m, code){
       const cur=RPT_SHOWN[0]||{};
       fcstApply(code, res, [cur.broker, cur.date].filter(Boolean).join(' '));
     };
+  };
+
+  // 값이 비어 있는 줄을 한 번에 지운다
+  const cl=m.querySelector('#fcstClean');
+  if(cl) cl.onclick=()=>{
+    const keep=fcstOf(code).filter(r=>String(r.year||'').trim() &&
+      ['sales','opm','roe','per','pbr'].some(k=>{
+        const v=String(r[k]==null?'':r[k]).trim();
+        return v!=='' && isFinite(parseFloat(v.replace(/[^0-9.\-]/g,'')));
+      }));
+    fcstSave(code, keep);
+    rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
   };
 
   const add=m.querySelector('#fcstAdd');
