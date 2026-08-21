@@ -9020,19 +9020,35 @@ function fcstParse(txt, fromImage){
 
   /* 표 머리 찾기 — 연도가 '서로 다른' 것이 가장 많은 줄을 쓴다.
      '수정전/수정후' 표처럼 같은 연도가 되풀이되는 줄을 잘못 고르지 않도록 한다. */
-  const headRe=/((?:20\d{2}(?:\.\d{1,2})?\s*[AFEP]?\s+){1,}20\d{2}(?:\.\d{1,2})?\s*[AFEP]?)/g;
-  let head=null, best=-1, headAt=0, m;
-  while((m=headRe.exec(txt))){
-    const ys=(m[1].match(/20\d{2}(?:\.\d{1,2})?\s*[AFEP]?/g)||[]).map(x=>x.replace(/\s+/g,''));
-    const uniq=new Set(ys.map(y=>y.replace(/[AFEP]$/,'').slice(0,4))).size;
-    if(ys.length>=3 && uniq===ys.length && uniq>best){ best=uniq; head=ys; headAt=m.index+m[1].length; }
-  }
-  /* 이 표가 끝나는 지점 — 다음 연도 줄이 시작되면 다른 표다.
-     '수정전/수정후' 같은 아래 표에서 값을 가져오지 않도록 경계를 둔다. */
-  let nextHeadAt = txt.length;
-  headRe.lastIndex = headAt;
-  const nm2 = headRe.exec(txt);
-  if(nm2) nextHeadAt = nm2.index;
+  /* 표 머리 찾기 — 연도 낱말을 모두 모은 뒤, 가까이 붙어 있는 것끼리 묶는다.
+     사진에서 읽으면 연도 사이에 잡티가 끼어 줄이 쪼개지는 일이 있어,
+     낱말 사이 간격이 조금 벌어져도 같은 줄로 본다. */
+  // 뒤에 글자가 더 붙으면(2027 EPS) 그 글자는 연도 표시가 아니다
+  const yrRe=/20\d{2}(?:\.\d{1,2})?(?:\s*[AFEP](?![A-Za-z0-9]))?/g;
+  const toks=[]; let ym;
+  while((ym=yrRe.exec(txt))) toks.push({ y:ym[0].replace(/\s+/g,''), s:ym.index, e:ym.index+ym[0].length });
+  const groups=[];
+  toks.forEach(t=>{
+    const g=groups[groups.length-1];
+    /* 같은 머리 줄로 보는 조건 —
+       ① 사이가 멀지 않고 ② 사이에 네 자리 수가 없고 ③ 연도가 커지는 차례일 것.
+       (2023A 를 20236 으로 잘못 읽어 자투리 숫자가 끼는 일이 흔하다) */
+    const between = (g ? txt.slice(g.end, t.s) : '');
+    const prevY = g ? parseInt(g.ys[g.ys.length-1].slice(0,4),10) : 0;
+    const curY  = parseInt(t.y.slice(0,4),10);
+    if(g && t.s - g.end <= 40 && !/\d{4}/.test(between) && curY > prevY) { g.ys.push(t.y); g.end=t.e; }
+    else groups.push({ ys:[t.y], start:t.s, end:t.e });
+  });
+  let head=null, best=-1, headAt=0, gi=-1;
+  groups.forEach((g,k)=>{
+    const uniq=new Set(g.ys.map(y=>y.replace(/[AFEP]$/,'').slice(0,4))).size;
+    if(g.ys.length<3 || uniq!==g.ys.length) return;
+    // 전망(F·E)이 들어 있는 줄을 먼저 고르고, 같으면 연도가 많은 줄을 고른다
+    const score=uniq + (g.ys.some(y=>/[FE]$/.test(y)) ? 100 : 0);
+    if(score>best){ best=score; head=g.ys; headAt=g.end; gi=k; }
+  });
+  // 이 표가 끝나는 지점 — 다음 연도 묶음이 시작되면 다른 표다
+  let nextHeadAt = (gi>=0 && groups[gi+1]) ? groups[gi+1].start : txt.length;
   if(!head||head.length<2){
     const byRow=fcstParseRows(raw);
     if(byRow) return byRow;
@@ -9040,13 +9056,20 @@ function fcstParse(txt, fromImage){
   }
 
   const total=head.length;
-  const fIdx=head.map((y,i)=>/[FE]$/.test(y)?i:-1).filter(i=>i>=0);
-  const useIdx=fIdx.length?fIdx:head.map((_,i)=>i).slice(-3);
+  /* 전망 열 고르기 — F·E 표시가 붙었거나, 올해 이후인 연도.
+     사진에서 F 를 놓치는 일이 흔해 연도 자체로도 가른다. */
+  const thisYear = new Date().getFullYear();
+  let useIdx = head.map((y,i)=>{
+    const n = parseInt(String(y).slice(0,4), 10);
+    return (/[FE]$/.test(y) || (isFinite(n) && n >= thisYear)) ? i : -1;
+  }).filter(i=>i>=0);
+  if(!useIdx.length) useIdx = head.map((_,i)=>i).slice(-3);   // 못 가르면 뒤 세 해
   const useYears=useIdx.map(i=>head[i]);
 
   /* 한 행의 칸을 읽는다.
      'NA' '-' 'n.a.' 처럼 값이 없는 칸도 한 칸으로 세야 열이 밀리지 않는다. */
-  const CELL=/(-?[\d,]+\.?\d*%?)|(\bNA\b|\bN\/A\b|\bn\.a\.?|적자유지|적자전환|흑자전환|--|—)/gi;
+  // (15.61) 처럼 괄호로 싼 값은 음수다
+  const CELL=/(\(\s*-?[\d,]+\.?\d*\s*\)%?)|(-?[\d,]+\.?\d*%?)|(\bNA\b|\bN\/A\b|\bn\.a\.?|적자유지|적자전환|흑자전환|--|—)/gi;
   const rowCells=(labels)=>{
     for(const lab of labels){
       /* 표 머리 다음 구간에서만 찾는다 —
@@ -9059,10 +9082,13 @@ function fcstParse(txt, fromImage){
         const cells=[]; let c;
         CELL.lastIndex=0;
         while((c=CELL.exec(seg)) && cells.length<total){
-          if(c[1]!=null){
-            const n=parseFloat(c[1].replace(/[,%]/g,''));
+          if(c[1]!=null){                                   // 괄호 = 음수
+            const n=parseFloat(c[1].replace(/[(),%\s]/g,''));
+            cells.push(isFinite(n)?-n:null);
+          } else if(c[2]!=null){
+            const n=parseFloat(c[2].replace(/[,%]/g,''));
             cells.push(isFinite(n)?n:null);
-          } else cells.push(null);           // 값 없음
+          } else cells.push(null);                          // 값 없음
         }
         if(cells.length>=total) return cells.slice(0,total);
       }
