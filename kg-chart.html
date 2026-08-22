@@ -2962,24 +2962,24 @@ function drawSub(canvas, key) {
     ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
 
-    /* 보유비율 곡선 (녹색) — 잣대 두 가지를 쓴다.
-         낮은 종목: 0~40%  (기준선 20%)
-         높은 종목: 30~70% (기준선 50%)
-       폭이 둘 다 40%p 라 기울기를 종목끼리 그대로 견줄 수 있고,
-       기준선으로 지금 수준이 높은지 낮은지 체감할 수 있다. */
+    /* 보유비율 곡선 (녹색) — 20%p 칸으로 잣대를 나눈다.
+         0~20 · 20~40 · 40~60 · 60~80 …  (지금 값이 든 칸을 쓴다)
+       칸 폭이 늘 20%p 라 기울기를 종목끼리 그대로 견줄 수 있고,
+       칸의 한가운데(10·30·50·70%)를 순매수 막대의 0선에 맞춰 그린다.
+       → 선이 0선 위에 있으면 그 칸에서 높은 쪽, 아래면 낮은 쪽. */
     const validRatio = ratioArr.map((v,i) => v != null && v > 0 ? {x:xOf(i), v, i} : null).filter(Boolean);
     if (validRatio.length >= 2) {
       const cur = validRatio[validRatio.length-1].v;
-      const [lo, hi] = cur > 40 ? [30, 70] : [0, 40];
-      const mid = (lo + hi) / 2;
-      const yOfR = v => PAD.t + ch - 4 - ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (ch - 8);
+      const BAND = 20;
+      const lo = Math.floor(cur / BAND) * BAND;
+      const mid = lo + BAND/2;                    // 10 · 30 · 50 · 70 …
+      const zeroY = PAD.t + ch/2;                 // 순매수 막대의 0선
+      const perPt = (ch - 8) / BAND;              // 1%p 당 높이
+      const yOfR = v => zeroY - (Math.max(lo, Math.min(lo+BAND, v)) - mid) * perPt;
 
-      // 기준선 (20% 또는 50%)
-      const ymid = yOfR(mid);
-      ctx.strokeStyle = '#3fb95040'; ctx.lineWidth = 1; ctx.setLineDash([]);
-      ctx.beginPath(); ctx.moveTo(PAD.l, ymid); ctx.lineTo(W - PAD.r, ymid); ctx.stroke();
+      // 칸 이름 — 0선이 몇 %인지
       ctx.fillStyle = '#3fb95099'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
-      ctx.fillText(mid + '%', W - PAD.r - 3, ymid - 2);
+      ctx.fillText(mid + '%', W - PAD.r - 3, zeroY - 2);
 
       ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
       ctx.beginPath();

@@ -9743,19 +9743,19 @@ function frgnCell(code){
       const col = v>=0 ? '#ef5350' : '#4a90d9';
       bars+=`<rect x="${cx-2.5}" y="${y}" width="5" height="${bh}" fill="${col}" rx="0.5"/>`;
     });
-    /* 보유비율 선그래프 (녹색) — 잣대 두 가지.
-         낮은 종목 0~40% (기준선 20%) · 높은 종목 30~70% (기준선 50%)
-       폭이 둘 다 40%p 라 종목끼리 기울기를 견줄 수 있다. */
+    /* 보유비율 선그래프 (녹색) — 20%p 칸으로 잣대를 나눈다.
+         0~20 · 20~40 · 40~60 · 60~80 …  (지금 값이 든 칸)
+       칸 한가운데를 순매수 막대의 0선에 맞춰, 0선 위면 그 칸에서 높은 쪽이다. */
     let ratioLine='', ratioMid='';
     if(r){
       const vr=r.map((v,i)=>v>0?{x:i*CW+CW/2,v}:null).filter(Boolean);
       if(vr.length>=2){
         const cur=vr[vr.length-1].v;
-        const lo = cur>40 ? 30 : 0, hi = cur>40 ? 70 : 40;
-        const mid=(lo+hi)/2;
-        const yOfR=v=>H-2-((Math.max(lo,Math.min(hi,v))-lo)/(hi-lo))*(H-4);
+        const BAND=20;
+        const lo=Math.floor(cur/BAND)*BAND, mid=lo+BAND/2;
+        const perPt=(H-4)/BAND;
+        const yOfR=v=>zero-(Math.max(lo,Math.min(lo+BAND,v))-mid)*perPt;
         const pts=vr.map(p=>({x:p.x, y:yOfR(p.v)}));
-        ratioMid=`<line x1="0" y1="${yOfR(mid).toFixed(1)}" x2="${W}" y2="${yOfR(mid).toFixed(1)}" stroke="#3fb95040" stroke-width="1"/>`;
         ratioLine=`<polyline points="${pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="none" stroke="#3fb950" stroke-width="1.2" stroke-dasharray="2,1.5"/>`;
       }
     }
