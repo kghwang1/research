@@ -2977,9 +2977,7 @@ function drawSub(canvas, key) {
       const perPt = (ch - 8) / BAND;              // 1%p 당 높이
       const yOfR = v => zeroY - (Math.max(lo, Math.min(lo+BAND, v)) - mid) * perPt;
 
-      // 칸 이름 — 0선이 몇 %인지
-      ctx.fillStyle = '#3fb95099'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
-      ctx.fillText(mid + '%', W - PAD.r - 3, zeroY - 2);
+      // 기준선 값은 위 범례에 적으므로 그래프 안에는 넣지 않는다
 
       ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
       ctx.beginPath();
@@ -3018,8 +3016,12 @@ function drawSub(canvas, key) {
     lx += ctx.measureText(t1).width + 10;
 
     ctx.fillStyle = '#6e7681'; ctx.fillText(',', lx - 6, PAD.t + 11);
+    /* 보유비율 — 지금 값과 함께, 그 값이 든 칸의 기준선(0선) 값을 적는다.
+       기준선보다 위인지 아래인지 한눈에 알 수 있다. */
     ctx.fillStyle = '#3fb950';
-    ctx.fillText('외국인 보유비율 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—'), lx, PAD.t + 11);
+    let t2 = '보유 비율 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—');
+    if (lastR != null) t2 += ' (기준선 ' + (Math.floor(lastR / 20) * 20 + 10) + '%)';
+    ctx.fillText(t2, lx, PAD.t + 11);
 
     return;
   }
