@@ -3396,7 +3396,18 @@ function togglePortMember(key, code, name){
   let rows=_portRows(key);
   const cu=String(code).trim().toUpperCase();
   const idx=rows.findIndex(r=>String(r[0]||'').trim().toUpperCase()===cu);
-  if(idx>=0){ rows.splice(idx,1); }
+  if(idx>=0){
+    rows.splice(idx,1);
+    /* 관심을 풀 때는 추가종목에서도 함께 뺀다.
+       선정주에서 담은 것과 다른 포트에서 체크한 것을 같게 다루기 위함이다. */
+    if(key==='kg_watch_rows'){
+      try{
+        const a=selReadRows('kg_addstk_rows');
+        const b=a.filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim().toUpperCase()!==cu);
+        if(b.length!==a.length) selWriteRows('kg_addstk_rows', b, true);
+      }catch(e){}
+    }
+  }
   else {
     const empIdx=rows.findIndex(r=>!String(r[0]||''));
     if(empIdx>=0) rows.splice(empIdx,0,[code,name||'']); else rows.push([code,name||'']);
@@ -4944,6 +4955,26 @@ function selCountBy(){
   return o;
 }
 
+/* 다른 포트폴리오에 이미 있는 종목인가.
+   있으면 선정주에서 담아도 '관심 체크'와 똑같이 다루고,
+   없으면 추가종목으로 따로 보관하며 노란색으로 표시한다. */
+const SEL_PORTS=['kr','invest','investkq','usc','us','etf','dividend'];
+function inAnyPort(code){
+  const k=String(code||'').trim().toUpperCase();
+  if(!k) return false;
+  const bare=k.replace(/^US:/,'');
+  for(const p of SEL_PORTS){
+    let rows=[];
+    try{ rows=(typeof chartPortRows==='function') ? (chartPortRows(p)||[]) : []; }catch(e){ rows=[]; }
+    for(const r of rows){
+      const c=String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim().toUpperCase();
+      if(!c) continue;
+      if(c===k || c.replace(/^US:/,'')===bare) return true;
+    }
+  }
+  return false;
+}
+
 function selAllRows(){
   const map = new Map();  // key(code) → {code, name, isUS, watch, invest}
   const load = (key, flag) => {
@@ -5073,18 +5104,24 @@ function selAddStock(code, name){
   else if(/^(US:)?[A-Za-z][A-Za-z.\-]{0,6}$/.test(raw)) c='US:'+raw.replace(/^US:/i,'').toUpperCase();
   else { alert('6자리 종목코드 또는 미국 티커를 넣어 주세요.'); return; }
 
-  const rows=selReadRows('kg_addstk_rows');
-  const has=rows.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').toUpperCase()===c.toUpperCase());
-  if(!has){ rows.push([c, name||'']); selWriteRows('kg_addstk_rows', rows, true); }
+  /* 다른 포트에 이미 있는 종목이면 그 포트에서 관심을 체크한 것과 같게 다룬다.
+     (추가종목으로 따로 두지 않으므로, 어디서 관심을 풀든 함께 사라진다) */
+  const known = inAnyPort(c);
+  if(!known){
+    const rows=selReadRows('kg_addstk_rows');
+    const has=rows.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').toUpperCase()===c.toUpperCase());
+    if(!has){ rows.push([c, name||'']); selWriteRows('kg_addstk_rows', rows, true); }
+  }
 
-  // 관심에도 체크해 관심보유 표에 나오게 한다
+  // 관심 체크 (두 경우 모두)
   if(typeof inPort==='function' && !inPort('kg_watch_rows', c)) togglePortMember('kg_watch_rows', c, name||'');
   if(typeof myEnsureWatch==='function') myEnsureWatch();
   if(typeof myServerSave==='function') myServerSave();
 
   _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
   selSyncRows(); renderWatchTable(); fetchWatchLive();
-  toast('담았습니다: '+(name||c));
+  toast(known ? ('관심에 담았습니다: '+(name||c))
+              : ('새 종목으로 담았습니다: '+(name||c)));
 }
 function bindSelAddInput(t){
   const inp=t.querySelector('#selAddInput'); if(!inp || inp._b) return; inp._b=true;
