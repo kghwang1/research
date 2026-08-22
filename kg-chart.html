@@ -2962,20 +2962,24 @@ function drawSub(canvas, key) {
     ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
 
-    /* 보유비율 곡선 (녹색) — 잣대를 종목마다 다르게 잡으면 서로 견줄 수 없다.
-       0~40% 고정을 기본으로 하고, 40% 를 넘는 종목만 0~80% 로 넓힌다. */
+    /* 보유비율 곡선 (녹색) — 잣대 두 가지를 쓴다.
+         낮은 종목: 0~40%  (기준선 20%)
+         높은 종목: 30~70% (기준선 50%)
+       폭이 둘 다 40%p 라 기울기를 종목끼리 그대로 견줄 수 있고,
+       기준선으로 지금 수준이 높은지 낮은지 체감할 수 있다. */
     const validRatio = ratioArr.map((v,i) => v != null && v > 0 ? {x:xOf(i), v, i} : null).filter(Boolean);
     if (validRatio.length >= 2) {
-      const FRGN_SCALE = 40;
-      const top = Math.max(...validRatio.map(p=>p.v)) > FRGN_SCALE ? FRGN_SCALE*2 : FRGN_SCALE;
-      const yOfR = v => PAD.t + ch - 4 - (Math.max(0, Math.min(top, v)) / top) * (ch - 8);
+      const cur = validRatio[validRatio.length-1].v;
+      const [lo, hi] = cur > 40 ? [30, 70] : [0, 40];
+      const mid = (lo + hi) / 2;
+      const yOfR = v => PAD.t + ch - 4 - ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * (ch - 8);
 
-      // 가운데 기준선 (20% 또는 40%)
-      const ymid = yOfR(top/2);
-      ctx.strokeStyle = '#3fb95033'; ctx.lineWidth = 1; ctx.setLineDash([]);
+      // 기준선 (20% 또는 50%)
+      const ymid = yOfR(mid);
+      ctx.strokeStyle = '#3fb95040'; ctx.lineWidth = 1; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(PAD.l, ymid); ctx.lineTo(W - PAD.r, ymid); ctx.stroke();
-      ctx.fillStyle = '#3fb95088'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
-      ctx.fillText((top/2) + '%', W - PAD.r - 3, ymid - 2);
+      ctx.fillStyle = '#3fb95099'; ctx.font = '9px monospace'; ctx.textAlign = 'right';
+      ctx.fillText(mid + '%', W - PAD.r - 3, ymid - 2);
 
       ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
       ctx.beginPath();
