@@ -1383,7 +1383,30 @@ function P(key, idx, def) {
 }
 
 // 기본 조합 (일목·DMI·ADXR·RSI·RVI·OBV·외국인순매수) — 순서 중요
-const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'RVI', 'OBV', 'FRGN_NET'];
+const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'RVI', 'FRGN_NET'];
+
+/* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
+   폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
+const SUB_SWAP = { FRGN_NET:'OBV', OBV:'FRGN_NET', INST_NET:'SHORT_SELL', SHORT_SELL:'INST_NET' };
+const SWAP_KEY = 'kg_sub_swap';
+function swapMapGet(){
+  try{ const r=localStorage.getItem(SWAP_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
+  catch(e){ return {}; }
+}
+function swapShown(key){ const m=swapMapGet(); return m[key] || key; }
+/* 지표 이름 — 사이드바 표시명에서 가져온다 */
+function indName(key){
+  const el=document.querySelector(`.ind-label[data-key="${key}"] span.nm`);
+  return (el && el.textContent.trim()) || key;
+}
+function swapToggle(key){
+  const cur=swapShown(key), next=SUB_SWAP[cur];
+  if(!next) return null;
+  const m=swapMapGet();
+  if(next===key) delete m[key]; else m[key]=next;
+  try{ localStorage.setItem(SWAP_KEY, JSON.stringify(m)); }catch(e){}
+  return next;
+}
 function loadDefaults() {
   try {
     const saved = localStorage.getItem('kgchart_defaults');
@@ -1853,7 +1876,7 @@ function drawCandle() {
   // 호버 수직선 + 날짜 라벨 (26-06-03 형식)
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
     const hx = xOf(state.hoverIdx);
-    ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
     ctx.beginPath(); ctx.moveTo(hx, PAD.t); ctx.lineTo(hx, PAD.t + ch); ctx.stroke();
     // 날짜 라벨 (하단)
     const hd = slice[state.hoverIdx];
@@ -2214,7 +2237,7 @@ function drawSub(canvas, key) {
     ctx.fillText(maxV.toFixed(1), W - PAD.r + 3, PAD.t + 9);
     ctx.fillText(minV.toFixed(1), W - PAD.r + 3, PAD.t + ch - 1);
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     return;
@@ -2284,7 +2307,7 @@ function drawSub(canvas, key) {
 
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
 
@@ -2391,7 +2414,7 @@ function drawSub(canvas, key) {
 
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
       const hv = inrRaw[state.hoverIdx];
       if (hv != null) {
@@ -2495,7 +2518,7 @@ function drawSub(canvas, key) {
 
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
       const hv = raw[state.hoverIdx];
       if (hv != null) {
@@ -2613,7 +2636,7 @@ function drawSub(canvas, key) {
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
       const hv = adxr[state.hoverIdx];
       if (hv != null) {
@@ -2678,7 +2701,7 @@ function drawSub(canvas, key) {
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // 레이블 — 선 색과 같게 맞춘다
@@ -2782,7 +2805,7 @@ function drawSub(canvas, key) {
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // 레이블
@@ -2897,7 +2920,7 @@ function drawSub(canvas, key) {
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // 레이블
@@ -2957,7 +2980,7 @@ function drawSub(canvas, key) {
 
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t+ch); ctx.stroke();
       // 호버 위치 순매수값 y축 표시
       const hv = netArr[state.hoverIdx];
@@ -2968,13 +2991,22 @@ function drawSub(canvas, key) {
       }
     }
 
-    // 레이블
-    const lastVN = netArr.filter(v=>v!=null).slice(-1)[0];
-    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = C.cyan;
-    ctx.fillText('외국인 순매수  ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) + '주' : ''), PAD.l + 22, PAD.t + 11);
+    /* 레이블 — 짚은 자리가 있으면 그 날 값, 없으면 최근 값.
+       순매수(막대)와 보유비율(녹색 점선)을 한 줄에 나란히 적는다. */
+    const hi = (state.hoverIdx >= 0 && state.hoverIdx < netArr.length) ? state.hoverIdx : -1;
+    const lastVN = hi >= 0 ? netArr[hi] : netArr.filter(v=>v!=null).slice(-1)[0];
+    const lastR  = hi >= 0 ? ratioArr[hi] : ratioArr.filter(v=>v!=null&&v>0).slice(-1)[0];
 
-    // 보유율 레이블 (녹색)
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    let lx = PAD.l + 22;
+    const t1 = '외국인 순매수 ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) + '주' : '—');
+    ctx.fillStyle = C.cyan;
+    ctx.fillText(t1, lx, PAD.t + 11);
+    lx += ctx.measureText(t1).width + 10;
+
+    ctx.fillStyle = '#6e7681'; ctx.fillText(',', lx - 6, PAD.t + 11);
+    ctx.fillStyle = '#3fb950';
+    ctx.fillText('외국인 보유비율 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—'), lx, PAD.t + 11);
 
     return;
   }
@@ -3018,7 +3050,7 @@ function drawSub(canvas, key) {
 
     // 호버
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t+ch); ctx.stroke();
       const hv = instArr[state.hoverIdx];
       if (hv != null) {
@@ -3085,7 +3117,7 @@ function drawSub(canvas, key) {
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // 레이블
@@ -3138,7 +3170,7 @@ function drawSub(canvas, key) {
     ctx.stroke();
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // y축 레이블: max / 0 / min
@@ -3214,7 +3246,7 @@ function drawSub(canvas, key) {
     ctx.stroke();
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // y축 레이블: max / 0(있으면) / min
@@ -3274,7 +3306,7 @@ function drawSub(canvas, key) {
     }
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
     // 레이블
@@ -3319,7 +3351,7 @@ function drawSub(canvas, key) {
 
   // 호버 수직선
   if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-    ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 1;
+    ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
     ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
   }
 
@@ -3536,8 +3568,37 @@ function renderAll() {
     };
     wrap.appendChild(closeBtn);
 
+    /* 짝이 있는 칸은 좌우로 밀어(또는 ⇄ 를 눌러) 바꿔 볼 수 있다 */
+    const shown = swapShown(key);
+    if (SUB_SWAP[key]) {
+      const sw = document.createElement('div');
+      sw.className = 'sub-swap';
+      sw.textContent = '⇄';
+      sw.title = '옆으로 밀거나 눌러서 ' + indName(SUB_SWAP[shown]) + ' 보기';
+      sw.style.cssText = 'position:absolute;top:2px;right:22px;z-index:5;cursor:pointer;'
+        + 'color:#8b949e;font-size:13px;line-height:1;padding:2px 4px;border-radius:4px;background:#0d1117aa';
+      const doSwap = () => { swapToggle(key); renderAll(); };
+      sw.onclick = e => { e.stopPropagation(); doSwap(); };
+      wrap.appendChild(sw);
+
+      // 손가락으로 좌우로 밀기
+      let sx = null, sy = null;
+      canvas.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { sx = null; return; }
+        sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+      }, { passive: true });
+      canvas.addEventListener('touchend', e => {
+        if (sx == null) return;
+        const t = e.changedTouches && e.changedTouches[0];
+        if (!t) { sx = null; return; }
+        const dx = t.clientX - sx, dy = t.clientY - sy;
+        sx = null;
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.8) doSwap();
+      }, { passive: true });
+    }
+
     chartArea.appendChild(wrap);
-    wrap._canvas = canvas; wrap._key = key;
+    wrap._canvas = canvas; wrap._key = shown;   // 그릴 때는 지금 보여줄 지표
   });
 
   // 높이를 먼저 배분한 뒤에 그려야 캔버스 크기가 맞는다
@@ -3615,7 +3676,8 @@ function setupMouseEvent() {
   function redrawAll() {
     drawCandle();
     document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
-      const key = getActiveKeys()[i];
+      const base = getActiveKeys()[i];
+      const key = base ? swapShown(base) : null;   // 밀어서 바꾼 지표를 그대로 유지한다
       if (key) drawSub(cv, key);
     });
   }
@@ -3673,7 +3735,8 @@ function setupMouseEvent() {
         updateOHLC(state.data[state.range[0] + idx]);
         drawCandle();
         document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
-          const key = getActiveKeys()[i];
+          const base = getActiveKeys()[i];
+          const key = base ? swapShown(base) : null;
           if (key) drawSub(cv, key);
         });
       }
