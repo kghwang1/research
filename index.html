@@ -10124,7 +10124,10 @@ function renderAddStk(){
   })();
 
   disp.forEach(r=>{
-    const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
+    /* 52주최고가 옆 괄호 — 한국(체)와 같은 '상승여력'.
+       현재가에서 몇 % 올라야 최고가에 닿는지. (낙폭이 아니다) */
+    const hiUp = krUpside(r.hi, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
+    const dropHtml = hiUp!=='' ? ` <span class="diffp${parseFloat(hiUp)>=0?'':' neg'}">(${hiUp}%)</span>` : '';
     const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
     const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
     let roeTxt='—';
@@ -10383,7 +10386,10 @@ function renderInvestKq(){
     return pfTopSort(arr, r=>r.code);   // 관심·투자 체크 시 위로
   })();
   invKqDisp.forEach((r,i)=>{
-    const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
+    /* 52주최고가 옆 괄호 — 한국(체)와 같은 '상승여력'.
+       현재가에서 몇 % 올라야 최고가에 닿는지. (낙폭이 아니다) */
+    const hiUp = krUpside(r.hi, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
+    const dropHtml = hiUp!=='' ? ` <span class="diffp${parseFloat(hiUp)>=0?'':' neg'}">(${hiUp}%)</span>` : '';
     const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
     const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
     let roeTxt='—';
@@ -10487,7 +10493,10 @@ function renderInvest(){
     return pfTopSort(arr, r=>r.code);   // 관심·투자 체크 시 위로
   })();
   invDisp.forEach((r,i)=>{
-    const dropHtml = r.drop!=null ? ` <span class="rchg ${r.drop>=0?'up':'down'}">(${(r.drop>=0?'+':'')+r.drop.toFixed(1)}%)</span>` : '';
+    /* 52주최고가 옆 괄호 — 한국(체)와 같은 '상승여력'.
+       현재가에서 몇 % 올라야 최고가에 닿는지. (낙폭이 아니다) */
+    const hiUp = krUpside(r.hi, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
+    const dropHtml = hiUp!=='' ? ` <span class="diffp${parseFloat(hiUp)>=0?'':' neg'}">(${hiUp}%)</span>` : '';
     const up=krUpside(r.tgt, parseFloat(String(r.price||'').replace(/[^0-9.\-]/g,'')));
     const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
     let roeTxt='—';
@@ -11232,12 +11241,32 @@ document.addEventListener('DOMContentLoaded',()=>{
       else buildChartStockList();
     };
   }
+  /* [종목] — 좌측 목록을 접고 편다.
+     챠트(iframe)에도 알려 준다: 넘기기 단추는 목록을 닫았을 때만 보인다. */
+  const chartPaneMsg=(open)=>{
+    try{
+      const f=$('#chartIframe');
+      if(f && f.contentWindow) f.contentWindow.postMessage({kg:'stockPane', open}, '*');
+    }catch(e){}
+  };
   const st=$('#chartSideToggle'); if(st) st.onclick=()=>{
     const sb=$('#chartSidebar'); if(!sb) return;
     sb.style.display=sb.style.display==='none'?'flex':'none';
-    st.style.background=sb.style.display==='none'?'var(--panel)':'var(--accent)';
-    st.style.color=sb.style.display==='none'?'var(--ink)':'#0c0e14';
+    const open = sb.style.display!=='none';
+    st.classList.toggle('on', open);
+    st.style.background=open?'var(--accent)':'var(--panel)';
+    st.style.color=open?'#0c0e14':'var(--ink)';
+    chartPaneMsg(open);
   };
+  // 챠트를 새로 띄울 때도 지금 상태를 알려 준다
+  const cif=$('#chartIframe');
+  if(cif && !cif._paneMsg){
+    cif._paneMsg=true;
+    cif.addEventListener('load', ()=>{
+      const sb=$('#chartSidebar');
+      chartPaneMsg(!sb || sb.style.display!=='none');
+    });
+  }
   // 포트폴리오 드롭다운 → 좌측 종목 목록 갱신 ('해석'이면 우측에 해설 표시)
   const ps=$('#chartPortSel'); if(ps){
     ps.onchange=()=>{
