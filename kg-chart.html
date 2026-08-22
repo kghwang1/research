@@ -1399,6 +1399,12 @@ const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'RVI', 'FRGN_NET'];
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
 const SUB_SWAP = { FRGN_NET:'OBV', OBV:'FRGN_NET', INST_NET:'SHORT_SELL', SHORT_SELL:'INST_NET' };
+
+/* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
+function frgnRatioColor(v){
+  if (v == null) return '#8b949e';
+  return v > 40 ? '#ef5350' : v > 20 ? '#3fb950' : '#58a6ff';
+}
 const SWAP_KEY = 'kg_sub_swap';
 function swapMapGet(){
   try{ const r=localStorage.getItem(SWAP_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
@@ -2991,9 +2997,12 @@ function drawSub(canvas, key) {
       const perPt = half / (BAND/2);              // 1%p 당 높이
       const yOfR = v => zeroY - (Math.max(lo, Math.min(lo+BAND, v)) - mid) * perPt;
 
-      // 기준선 값은 위 범례에 적으므로 그래프 안에는 넣지 않는다
+      /* 0선이 보유비중으로는 몇 %인지 함께 적는다.
+         같은 선이 '순매수 0' 이자 '보유비중 10%(또는 30·50·70%)' 임을 드러낸다. */
+      ctx.fillStyle = frgnRatioColor(cur); ctx.font = '9px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(mid + '%', PAD.l + 3, zeroY - 3);
 
-      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
+      ctx.strokeStyle = frgnRatioColor(cur); ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
       ctx.beginPath();
       validRatio.forEach((p, i) => {
         const y = yOfR(p.v);
@@ -3043,7 +3052,7 @@ function drawSub(canvas, key) {
       base = Math.floor(lastR / 20) * 20 + 10;
       t2 += ' (기준선 ' + base + '%)';
     }
-    ctx.fillStyle = (base != null && base >= 40) ? '#ef5350' : '#3fb950';
+    ctx.fillStyle = frgnRatioColor(lastR);
     ctx.fillText(t2, lx, PAD.t + 11);
 
     return;
