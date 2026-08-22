@@ -3445,6 +3445,37 @@ function lclsCellHtml(code){
   return `<div class="cls-wrap">${box('watch','관망',c.watch)}${box('inv','투자',c.inv)}</div>`;
 }
 
+/* ───── 투자 (증권사별 보유 표시) ─────
+   저장: kg_invcorp = { 종목코드: {mirae:1, kiwoom:1, shinhan:1} } */
+const INV_KEY='kg_invcorp';
+const INV_CORPS=[['mirae','미래'],['kiwoom','키움'],['shinhan','신한']];
+function invAll(){
+  try{ const r=localStorage.getItem(INV_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
+  catch(e){ return {}; }
+}
+function invOf(code){ return invAll()[String(code||'').toUpperCase()] || {}; }
+function invSet(code, corp, on){
+  const o=invAll(), k=String(code||'').toUpperCase();
+  const cur=Object.assign({}, o[k]||{});
+  if(on) cur[corp]=1; else delete cur[corp];
+  if(Object.keys(cur).length) o[k]=cur; else delete o[k];
+  try{ localStorage.setItem(INV_KEY, JSON.stringify(o)); }catch(e){}
+  if(typeof myServerSave==='function') myServerSave();
+}
+/* 정렬 차례 — 미래 → 키움 → 신한 → 미체크 */
+function invRank(code){
+  const v=invOf(code);
+  for(let i=0;i<INV_CORPS.length;i++) if(v[INV_CORPS[i][0]]) return i;
+  return INV_CORPS.length;
+}
+function invCellHtml(code){
+  if(!code) return '';
+  const v=invOf(code);
+  return '<div class="cls-wrap">' + INV_CORPS.map(([k,lbl])=>
+    `<label class="cls-chk"><input type="checkbox" data-inv="${k}" data-invcode="${escHtml(code)}"${v[k]?' checked':''}><span>${lbl}</span></label>`
+  ).join('') + '</div>';
+}
+
 function clsCellHtml(code, name){
   if(!code) return '';
   const inW=inPort('kg_watch_rows', code), inI=inPort('kg_invpf_rows', code);
@@ -4012,11 +4043,14 @@ function renderWatchTable(){
   const displayRows = [...sorted, ...empties];
   const isLongSub = (watchPort==='invpf' && isLongTab());
   const isLongUs  = (isLongSub && selSub==='long2');
+  const isSel     = (watchPort==='invpf');
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
   const W = isLongUs
     ? [40,110,64,92,104,104,58,64,100,104,84]           // 국외: 미국(반) 적정주가 표와 같은 항목
     : isLongSub
     ? [40,96,64,92,92,76,100,100,84]                    // 장기종목: 점수 추가 · 매수액/공매도/보고서 제외
+    : isSel
+    ? [40,96,78,92,76,90,90,90,100,100,84,200]      // 선정주: 분류 없음 · 투자 있음
     : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
@@ -4025,10 +4059,11 @@ function renderWatchTable(){
     ? ["종목","장기<br>점수","분류","현재가<br>(전일대비%)","적정주가<br>(상승여력%)","PEG","P/E(F)","52주최고가<br>(낙폭)","목표주가<br>(상승여력%)","컨센서스"]
     : isLongSub
     ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스"]
+    : isSel
+    ? ["종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(낙폭)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
-  const isSel = (watchPort==='invpf');
   const capTitle = isSel ? '선정주' : '관심 종목';
   let capFilter = '';
   if(isSel){
@@ -4036,7 +4071,6 @@ function renderWatchTable(){
     const ci = selReadRows('kg_invpf_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
     const ck=(id,lbl,on)=>`<label class="div-chk" style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-weight:500"><input type="checkbox" id="${id}"${on?' checked':''}><span>${lbl}</span></label>`;
     capFilter = ck('selKr','국내',selFilter.kr) + ck('selUs','국외',selFilter.us)
-              + ck('selWatch','관심',selFilter.watch) + ck('selInvest','보유',selFilter.invest)
               + `<span style="font-size:10.5px;color:#8b949e;margin-left:4px">관심 ${cw} · 보유 ${ci} · 추가 ${selReadRows('kg_addstk_rows').filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length}</span>`;
   }
   // 관심보유 · 장기종목 · 새로고침 순서로 한 줄에 둔다
@@ -4149,14 +4183,18 @@ function renderWatchTable(){
       // 직접 담은 해외 종목도 종목명 칸을 옅은 노랑으로
       const addedBgUS = (isSel && !isLongSub && _SEL_ADDED.has(String(rawCode).toUpperCase()))
         ? ' style="background:#fff8d6"' : '';
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap"${addedBgUS}>${stkCell}</td><td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td><td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
+      const clsTdUS = (isSel && !isLongSub) ? `<td class="cls-cell">${invCellHtml(rawCode)}</td>`
+                                            : `<td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap"${addedBgUS}>${stkCell}</td>${clsTdUS}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
       return;
     }
     if(isIdxRow){
       // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}">${stkInner}</a><span class="wdel" data-idx="${ri}" data-wcode="${escHtml(rawCode)}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td><td class="cls-cell">${clsCellHtml(code, nm||'')}</td><td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td></tr>`;
+      const clsTdEmpty = (isSel && !isLongSub) ? `<td class="cls-cell">${invCellHtml(code)}</td>`
+                                               : `<td class="cls-cell">${clsCellHtml(code, nm||'')}</td>`;
+      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${clsTdEmpty}<td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td></tr>`;
       return;
     }
     const live=watchLive[code];
@@ -4199,7 +4237,9 @@ function renderWatchTable(){
       ? ' style="background:#fff8d6"' : '';
     h+=`<td class="mp-l kr-stk kr-stk-wrap"${addedBg}>${stkCell}</td>`;
     if(isLongSub) h+=`<td class="mp-c">${longScoreCell(code)}</td>`;
-    h+=`<td class="cls-cell">${isLongSub ? lclsCellHtml(rawCode) : clsCellHtml(code, nm||'')}</td>`;
+    // 선정주는 분류 대신 투자 칸만 둔다 (관심·보유는 다른 포트에서 체크한다)
+    if(isSel && !isLongSub) h+=`<td class="cls-cell">${invCellHtml(rawCode)}</td>`;
+    else h+=`<td class="cls-cell">${isLongSub ? lclsCellHtml(rawCode) : clsCellHtml(code, nm||'')}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
     if(isLongUs){
@@ -4265,6 +4305,14 @@ function renderWatchTable(){
     sel.onchange=()=>{ if(sel.value) WATCH_GRADES.set(sel.dataset.code, parseInt(sel.value)); else WATCH_GRADES.delete(sel.dataset.code); saveWatchGrades(); sel.classList.toggle('neg', parseInt(sel.value)<0); };
   });
   // 초기화 (색칠된 종목은 보존)
+  // 투자 칸 체크 — 바꾸면 저장하고 차례를 다시 맞춘다
+  t.querySelectorAll('input[data-inv]').forEach(cb=>{
+    cb.onchange=()=>{
+      invSet(cb.dataset.invcode, cb.dataset.inv, cb.checked);
+      _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
+      selSyncRows(); renderWatchTable(); fetchWatchLive();
+    };
+  });
   bindSelAddInput(t);
   t.querySelectorAll('.selnav button[data-selsub]').forEach(b=>{
     b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setSelSub(b.dataset.selsub); };
@@ -4294,7 +4342,7 @@ function renderWatchTable(){
   // 선정주 필터 (시장 국내/국외 · 보기 관심/투자)
   if(watchPort==='invpf'){
     const bindF=(id,key)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>{ selFilter[key]=el.checked; renderWatchTable(); }; };
-    bindF('selKr','kr'); bindF('selUs','us'); bindF('selWatch','watch'); bindF('selInvest','invest');
+    bindF('selKr','kr'); bindF('selUs','us');
   }
   bindPinEvents(t, renderWatchTable, 'watch');
   // 입력창: 입력 시 자동완성 검색, 코드 6자리 직접입력도 지원, 후보 클릭 시 확정
@@ -4826,7 +4874,8 @@ function etfResetMarket(market, tableEl, cfg, btn){
   });
 }
 // ══════ 선정주 포트폴리오 (관심·투자 통합, 배당 페이지와 동일 구조) ══════
-let selFilter = { kr:true, us:true, watch:false, invest:false };  // 국내/국외/관심/투자
+/* 선정주 거르기 — 국내·국외 둘 다 해제면 전부 보여준다 (기본값) */
+let selFilter = { kr:false, us:false };
 let selData = {};  // code → {price, rate, roe, ...}
 
 // 통합 종목 목록: kg_watch_rows(관심) + kg_invpf_rows(투자) 전부 병합
@@ -5109,20 +5158,21 @@ function selSyncRows(){
   }
   const f = selFilter;
   const vis = selAllRows().filter(it => {
-    if(it.isUS && !f.us) return false;
-    if(!it.isUS && !f.kr) return false;
-    if(f.watch || f.invest){
-      if(!((f.watch && it.watch) || (f.invest && it.invest))) return false;
-    }
-    return true;
+    if(!f.kr && !f.us) return true;          // 둘 다 해제 = 전부
+    return it.isUS ? !!f.us : !!f.kr;
   });
   /* 직접 담은 종목(추가종목)은 각 묶음의 맨 아래로 보낸다.
      국내 → 국내 추가 → 해외 → 해외 추가 순서. */
   const added = new Set(selReadRows('kg_addstk_rows')
     .map(r => String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim().toUpperCase())
     .filter(Boolean));
+  /* 정렬 차례 — ① 투자(미래·키움·신한·미체크) ② 국내→해외 ③ 직접 담은 종목은 뒤 */
   const rank = it => (it.isUS?2:0) + (added.has(String(it.code).toUpperCase()) ? 1 : 0);
-  vis.sort((a,b) => rank(a) - rank(b));
+  vis.sort((a,b) => {
+    const ia=invRank(a.code), ib=invRank(b.code);
+    if(ia!==ib) return ia-ib;
+    return rank(a) - rank(b);
+  });
   _SEL_ADDED = added;
   _SEL_VISIBLE = new Set(vis.map(it => it.code.toUpperCase()));
   const rows = vis.map(it => [it.code, it.name]);
@@ -5196,8 +5246,7 @@ function renderSelect(box){
      + `<label class="div-chk"><input type="checkbox" id="selKr"${f.kr?' checked':''}><span>국내</span></label>`
      + `<label class="div-chk"><input type="checkbox" id="selUs"${f.us?' checked':''}><span>국외</span></label></div>`;
   h += '<div class="div-filter-row"><span class="div-fl-label">보기</span>'
-     + `<label class="div-chk"><input type="checkbox" id="selWatch"${f.watch?' checked':''}><span>관심</span></label>`
-     + `<label class="div-chk"><input type="checkbox" id="selInvest"${f.invest?' checked':''}><span>보유</span></label></div>`;
+     + '</div>';
   h += '<button id="selRefresh" class="rfr" style="width:auto;border-radius:6px;padding:4px 12px;font-size:11.5px;color:#58a6ff">🔄 시세 조회</button>';
   h += '</div>';
 
@@ -5266,7 +5315,7 @@ function renderSelect(box){
 
   // 필터 이벤트
   const bind = (id,key) => { const el=document.getElementById(id); if(el) el.onchange=()=>{ selFilter[key]=el.checked; renderSelect(box); }; };
-  bind('selKr','kr'); bind('selUs','us'); bind('selWatch','watch'); bind('selInvest','invest');
+  bind('selKr','kr'); bind('selUs','us');
   // 분류 체크박스 (관심/투자 저장소 연동)
   box.querySelectorAll('input[data-selcls]').forEach(cb=>{
     cb.onchange=(e)=>{ e.stopPropagation(); selToggle(cb.dataset.selcls, cb.dataset.selcode, cb.dataset.selname); renderSelect(box); };
@@ -5301,7 +5350,7 @@ function myLocal(){
   const g=k=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null }catch(e){ return null } };
   return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{},
-           cls:g('kg_long_cls')||{}, fcst:g('kg_fcst')||{},
+           cls:g('kg_long_cls')||{}, fcst:g('kg_fcst')||{}, invcorp:g('kg_invcorp')||{},
            // 관심·보유 목록도 함께 보관한다 (기기를 바꿔도 체크가 유지되도록)
            watch:g('kg_watch_rows')||[], invpf:g('kg_invpf_rows')||[],
            savedAt:new Date().toISOString() };
@@ -5372,6 +5421,7 @@ async function myServerLoad(){
       if(o.en && typeof o.en==='object') put('kg_long_en', o.en);
       if(o.cls && typeof o.cls==='object') put('kg_long_cls', o.cls);
       if(o.fcst && typeof o.fcst==='object') put('kg_fcst', o.fcst);
+      if(o.invcorp && typeof o.invcorp==='object') put('kg_invcorp', o.invcorp);
       // 관심·보유는 이 기기에 아직 없을 때만 받는다 (여기서 지운 것을 되살리지 않도록)
       const hasLocal=k=>{ try{ const a=JSON.parse(localStorage.getItem(k)||'[]');
         return Array.isArray(a) && a.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()); }catch(e){ return false; } };
@@ -6763,9 +6813,9 @@ function pnlUpdateVerdictOnly(){
 const IDX3 = [
   { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ef5350', mkt:'kr' },
   { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#f0a836', mkt:'kr' },
-  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#58a6ff', mkt:'us' },
-  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#ef5350', mkt:'us' },
-  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#ffd54f', mkt:'us' },
+  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#ef5350', mkt:'us' },
+  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#ffd54f', mkt:'us' },
+  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#58a6ff', mkt:'us' },
 ];
 const idx3Of = mkt => IDX3.filter(se=>se.mkt===mkt);
 const IDX3_DAYS = 260;   // 받아오는 총 일수 (약 52주)
