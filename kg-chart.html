@@ -2984,8 +2984,11 @@ function drawSub(canvas, key) {
       const BAND = 20;
       const lo = Math.floor(cur / BAND) * BAND;
       const mid = lo + BAND/2;                    // 10 · 30 · 50 · 70 …
-      const zeroY = PAD.t + ch/2;                 // 순매수 막대의 0선
-      const perPt = (ch - 8) / BAND;              // 1%p 당 높이
+      /* 순매수 막대와 같은 0선·같은 높이를 쓴다.
+         막대는 0선에서 위아래로 (ch/2 - 2)px 씩 뻗으므로 그 폭에 20%p 를 담는다. */
+      const zeroY = ch/2 + PAD.t;                 // 순매수 막대의 0선과 같은 식
+      const half  = ch/2 - 2;                     // 막대가 뻗는 높이
+      const perPt = half / (BAND/2);              // 1%p 당 높이
       const yOfR = v => zeroY - (Math.max(lo, Math.min(lo+BAND, v)) - mid) * perPt;
 
       // 기준선 값은 위 범례에 적으므로 그래프 안에는 넣지 않는다
@@ -3011,7 +3014,8 @@ function drawSub(canvas, key) {
         const BAND = 20;
         const rlo = Math.floor(hr / BAND) * BAND;
         const rmid = rlo + BAND/2;
-        const hy = (PAD.t + ch/2) - (Math.max(rlo, Math.min(rlo+BAND, hr)) - rmid) * ((ch-8)/BAND);
+        // 선을 그린 식과 똑같이 (0선 기준 · 막대와 같은 높이)
+        const hy = (ch/2 + PAD.t) - (Math.max(rlo, Math.min(rlo+BAND, hr)) - rmid) * ((ch/2 - 2)/(BAND/2));
         drawAxisVal(ctx, W, PAD, hy, hr.toFixed(1),
           hr > rmid ? 'high' : hr < rmid ? 'low' : 'base');
       }
@@ -3031,11 +3035,15 @@ function drawSub(canvas, key) {
     lx += ctx.measureText(t1).width + 10;
 
     ctx.fillStyle = '#6e7681'; ctx.fillText(',', lx - 6, PAD.t + 11);
-    /* 보유비율 — 지금 값과 함께, 그 값이 든 칸의 기준선(0선) 값을 적는다.
-       기준선보다 위인지 아래인지 한눈에 알 수 있다. */
-    ctx.fillStyle = '#3fb950';
-    let t2 = '보유 비율 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—');
-    if (lastR != null) t2 += ' (기준선 ' + (Math.floor(lastR / 20) * 20 + 10) + '%)';
+    /* 보유비중 — 지금 값과 그 값이 든 칸의 기준선(0선) 값.
+       기준선이 40% 이상이면 외국인 비중이 높은 종목이므로 붉게 적는다. */
+    let t2 = '보유비중 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—');
+    let base = null;
+    if (lastR != null) {
+      base = Math.floor(lastR / 20) * 20 + 10;
+      t2 += ' (기준선 ' + base + '%)';
+    }
+    ctx.fillStyle = (base != null && base >= 40) ? '#ef5350' : '#3fb950';
     ctx.fillText(t2, lx, PAD.t + 11);
 
     return;
