@@ -4365,11 +4365,18 @@ function renderWatchTable(){
       const nw=(o.watch||[]).filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
       const ni=(o.invpf||[]).filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
       const na=(o.add||[]).length;
+      const nc=Object.keys(o.invcorp||{}).length;          // 투자 체크가 있는 종목 수
+      const nl=(o.long||[]).length;
       const when=o.savedAt? String(o.savedAt).replace('T',' ').slice(0,16) : '시각 모름';
       const cw=selReadRows('kg_watch_rows').filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
       const ci=selReadRows('kg_invpf_rows').filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
-      if(!confirm('서버 저장본 ('+when+')\n  관심 '+nw+' · 보유 '+ni+' · 추가 '+na+'\n\n'
-                 +'지금 이 기기\n  관심 '+cw+' · 보유 '+ci+'\n\n서버 것으로 되돌릴까요?')) return;
+      const cc=Object.keys(invAll()).length;
+      if(!confirm('서버 저장본 ('+when+')\n'
+                 +'  관심 '+nw+' · 보유 '+ni+' · 추가 '+na+'\n'
+                 +'  투자 체크 '+nc+'종목 · 장기후보 '+nl+'\n\n'
+                 +'지금 이 기기\n'
+                 +'  관심 '+cw+' · 보유 '+ci+' · 투자 체크 '+cc+'종목\n\n'
+                 +'서버 것으로 되돌릴까요?')) return;
       const put=(k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
       if(Array.isArray(o.watch)) put('kg_watch_rows', o.watch);
       if(Array.isArray(o.invpf)) put('kg_invpf_rows', o.invpf);
