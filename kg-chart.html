@@ -730,7 +730,9 @@ const IND_CFG = {
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink},
-  FRGN_NET:{color:C.cyan,lines:[0]},
+  /* 0선은 이 칸 안에서 따로 그린다 (막대·보유비중이 함께 쓰는 선).
+     여기에 lines:[0] 을 두면 잣대가 다른 선이 하나 더 생긴다. */
+  FRGN_NET:{color:C.cyan},
   INST_NET:{color:'#ff9800',lines:[0]},
   SHORT_SELL:{color:'#ef5350',lines:[0]},
   ELDER:{color:'#ef5350'},
@@ -2975,8 +2977,9 @@ function drawSub(canvas, key) {
       if (v > 0) ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t - bh, bw, bh);
       else ctx.fillRect(xOf(i) - bw/2, ch/2 + PAD.t, bw, bh);
     }
-    // 0선
-    ctx.strokeStyle = '#ffffff22'; ctx.lineWidth = 0.5;
+    /* 0선 — 순매수 막대의 0이자 보유비중 칸의 한가운데.
+       둘이 함께 쓰는 선이므로 또렷하게 긋는다. */
+    ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
 
     /* 보유비율 곡선 (녹색) — 20%p 칸으로 잣대를 나눈다.
