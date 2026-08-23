@@ -850,6 +850,13 @@
   .dep-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
   .dep-legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
   #depCanvas{width:100%;height:210px;display:block;background:var(--panel);border:1px solid var(--line);border-radius:8px;touch-action:pan-y}
+  /* 증시자금동향 해설 */
+  .dep-read{margin-top:6px;padding:8px 10px;background:#161b22;border:1px solid var(--line);
+    border-radius:8px;font-size:11.5px;line-height:1.7;color:var(--ink)}
+  .dep-read b{color:#f2c800}
+  .dep-read .k{color:#8b949e}
+  .dep-read .row{margin-top:5px}
+  .dep-read .num{font-family:monospace;font-weight:700}
   .dep-tip{min-height:62px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
@@ -1103,6 +1110,7 @@
     <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">1년 최고값 대비 %</span></div>
     <canvas id="depCanvas"></canvas>
     <div class="dep-tip" id="depTip"></div>
+    <div class="dep-read" id="depRead"></div>
   </div>
 
   <div class="pnl-flow">
@@ -4095,6 +4103,7 @@ function renderWatchTable(){
       + `<button type="button" data-selsub="long2"${selSub==='long2'?' class="on"':''}>장기보유2 <b>${lc.us}</b></button>`
 
       + '<button type="button" id="watchDataBtn" class="rfr selrfr">↻ 새로</button>'
+      + '<button type="button" id="selRestoreBtn" class="rfr selrfr" title="서버에 저장된 관심·보유 목록을 확인하고 되돌립니다">⛁ 서버</button>'
       + '</span>'
     : '';
   const capBtns = isSel
@@ -4326,6 +4335,40 @@ function renderWatchTable(){
       selSyncRows(); renderWatchTable(); fetchWatchLive();
     };
   });
+  /* 서버에 저장된 목록 확인·되돌리기.
+     기기에 남은 옛 자료 때문에 담아둔 종목이 안 보일 때 쓴다. */
+  const srb=t.querySelector('#selRestoreBtn');
+  if(srb) srb.onclick=async()=>{
+    if(!SRV_URL){ toast('서버 주소가 없습니다'); return; }
+    const t0=srb.textContent; srb.textContent='읽는 중…'; srb.disabled=true;
+    try{
+      const r=await fetch(SRV_URL+'/?data='+MY_SRV_KEY);
+      const d=await r.json();
+      let o=null;
+      try{ o=JSON.parse((d&&d.value)||'{}')[MY_FIELD]||null; }catch(e){}
+      if(!o){ toast('서버에 저장된 목록이 없습니다'); return; }
+      const nw=(o.watch||[]).filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
+      const ni=(o.invpf||[]).filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
+      const na=(o.add||[]).length;
+      const when=o.savedAt? String(o.savedAt).replace('T',' ').slice(0,16) : '시각 모름';
+      const cw=selReadRows('kg_watch_rows').filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
+      const ci=selReadRows('kg_invpf_rows').filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
+      if(!confirm('서버 저장본 ('+when+')\n  관심 '+nw+' · 보유 '+ni+' · 추가 '+na+'\n\n'
+                 +'지금 이 기기\n  관심 '+cw+' · 보유 '+ci+'\n\n서버 것으로 되돌릴까요?')) return;
+      const put=(k,v)=>{ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+      if(Array.isArray(o.watch)) put('kg_watch_rows', o.watch);
+      if(Array.isArray(o.invpf)) put('kg_invpf_rows', o.invpf);
+      if(Array.isArray(o.add))   put('kg_addstk_rows', o.add);
+      if(o.invcorp && typeof o.invcorp==='object') put('kg_invcorp', o.invcorp);
+      if(o.savedAt){ try{ localStorage.setItem('kg_my_saved_at', o.savedAt); }catch(e){} }
+      _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
+      if(typeof loadAddRows==='function') loadAddRows();
+      selSyncRows(); renderWatchTable(); fetchWatchLive();
+      toast('서버 목록으로 되돌렸습니다');
+    }catch(e){ toast('불러오지 못했습니다 — '+(e.message||e)); }
+    finally{ srb.textContent=t0; srb.disabled=false; }
+  };
+
   bindSelAddInput(t);
   t.querySelectorAll('.selnav button[data-selsub]').forEach(b=>{
     b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setSelSub(b.dataset.selsub); };
@@ -5402,6 +5445,7 @@ async function myServerPut(loud){
     const cur = (await selFetchKey(MY_SRV_KEY)) || {};
     cur[MY_FIELD] = myLocal();
     cur.savedAt = new Date().toISOString();
+    try{ localStorage.setItem('kg_my_saved_at', cur.savedAt); }catch(e){}
     const r = await fetch(SRV_URL+'/?data='+MY_SRV_KEY,
       {method:'POST', headers:{'Content-Type':'text/plain'}, body:JSON.stringify(cur)});
     const txt = await r.text();
@@ -5462,10 +5506,18 @@ async function myServerLoad(){
       if(o.fcst && typeof o.fcst==='object') put('kg_fcst', o.fcst);
       if(o.invcorp && typeof o.invcorp==='object') put('kg_invcorp', o.invcorp);
       // 관심·보유는 이 기기에 아직 없을 때만 받는다 (여기서 지운 것을 되살리지 않도록)
+      /* 관심·보유 되살리기.
+         ① 이 기기에 아무것도 없으면 받는다.
+         ② 있어도 서버 자료가 더 나중에 저장된 것이면 받는다.
+            (다른 기기에서 담은 종목이 오래된 자료에 막혀 사라지던 문제) */
       const hasLocal=k=>{ try{ const a=JSON.parse(localStorage.getItem(k)||'[]');
         return Array.isArray(a) && a.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()); }catch(e){ return false; } };
-      if(Array.isArray(o.watch) && o.watch.length && !hasLocal('kg_watch_rows')) put('kg_watch_rows', o.watch);
-      if(Array.isArray(o.invpf) && o.invpf.length && !hasLocal('kg_invpf_rows')) put('kg_invpf_rows', o.invpf);
+      const mySaved = (()=>{ try{ return localStorage.getItem('kg_my_saved_at')||''; }catch(e){ return ''; } })();
+      const srvNewer = !!(o.savedAt && (!mySaved || o.savedAt > mySaved));
+      const takeIt = k => !hasLocal(k) || srvNewer;
+      if(Array.isArray(o.watch) && o.watch.length && takeIt('kg_watch_rows')) put('kg_watch_rows', o.watch);
+      if(Array.isArray(o.invpf) && o.invpf.length && takeIt('kg_invpf_rows')) put('kg_invpf_rows', o.invpf);
+      if(o.savedAt){ try{ localStorage.setItem('kg_my_saved_at', o.savedAt); }catch(e){} }
       if(typeof loadAddRows==='function') loadAddRows();
     }
   }catch(e){}
@@ -7144,6 +7196,7 @@ async function loadDeposit(){
     if(DEP_VIEW.length<5) DEP_VIEW=DEP_ROWS.slice(-60);
     drawDeposit();
     depShowTip(DEP_VIEW.length-1);
+    depReadOut();
   }catch(e){ if(note) note.textContent='불러오기 실패: '+(e.message||e); }
 }
 
@@ -7223,6 +7276,56 @@ function drawDeposit(){
 }
 
 // 터치·마우스로 값 보기
+/* ───── 증시자금동향 해설 ─────
+   숫자를 그대로 읽어주는 대신, 무엇을 뜻하는지와 무엇을 확인해야 하는지를 적는다. */
+function depReadOut(){
+  const el=$('#depRead'); if(!el) return;
+  if(!DEP_VIEW.length){ el.innerHTML=''; return; }
+  const last=DEP_VIEW[DEP_VIEW.length-1];
+  const first=DEP_VIEW[0];
+  const g=k=> (last && last[k]!=null && first && first[k]!=null) ? (last[k]-first[k])/Math.abs(first[k])*100 : null;
+  const dep=g('deposit'), cre=g('credit'), stk=g('stock'), bnd=g('bond');
+  const ratio=(last.credit!=null && last.deposit) ? last.credit/last.deposit*100 : null;
+  const pct1=v=> v==null?'—':(v>=0?'+':'')+v.toFixed(1)+'%';
+  const upDown=v=> v==null?'':(v>0.5?'늘고':(v<-0.5?'줄고':'제자리'));
+
+  let h='<b>[해설]</b> ';
+  h+='<span class="k">고객예탁금은 아직 주식을 사지 않은 대기자금, 신용잔고는 빚내서 산 주식입니다.</span>';
+
+  h+='<div class="row">· 최근 구간에서 <b>고객예탁금</b>은 '+upDown(dep)+' <span class="num">'+pct1(dep)+'</span>, '
+   + '<b>신용잔고</b>는 '+upDown(cre)+' <span class="num">'+pct1(cre)+'</span> 입니다.</div>';
+
+  if(ratio!=null){
+    const warn = ratio>=30;
+    h+='<div class="row">· <b>신용 ÷ 예탁금</b> = <span class="num" style="color:'+(warn?'#ef5350':'#3fb950')+'">'
+      + ratio.toFixed(1)+'%</span> '
+      + '<span class="k">— 대기자금 대비 빚의 크기. 30%를 넘으면 부담 구간으로 봅니다.</span></div>';
+  }
+
+  // 예탁금과 신용의 방향 조합
+  if(dep!=null && cre!=null){
+    let t='';
+    if(dep>0.5 && cre>0.5) t='자금이 들어오면서 빚도 함께 늘고 있습니다. 상승 초·중반이면 힘이 되지만, 주가가 밀리면 반대매매로 하락이 커집니다.';
+    else if(dep>0.5 && cre<=0.5) t='대기자금은 느는데 빚은 늘지 않습니다. 조심스럽게 들어오는 모습입니다.';
+    else if(dep<=-0.5 && cre>0.5) t='대기자금이 줄면서 빚만 늘고 있습니다. 여력 없이 위험을 키우는 국면이라 주의가 필요합니다.';
+    else if(dep<=-0.5 && cre<=-0.5) t='자금이 빠지고 빚도 줄고 있습니다. 위험을 덜어내는 국면입니다.';
+    else t='두 자금 모두 큰 변화가 없습니다.';
+    h+='<div class="row">· '+t+'</div>';
+  }
+
+  // 펀드 — 기관 자금의 무게중심
+  if(stk!=null && bnd!=null){
+    const t = (stk>bnd)
+      ? '주식형이 채권형보다 더 늘어, 기관 자금도 위험자산 쪽으로 옮겨오고 있습니다.'
+      : '채권형이 주식형보다 낫습니다. 기관 자금은 아직 안전자산에 머물러 있습니다.';
+    h+='<div class="row">· <b>펀드</b> — 주식형 <span class="num">'+pct1(stk)+'</span>, 채권형 <span class="num">'+pct1(bnd)+'</span>. '+t+'</div>';
+  }
+
+  h+='<div class="row k">· 판단은 주가와 함께 보세요. 주가가 오르며 신용이 느는 것은 정상이지만, '
+   + '주가가 정체·하락인데 신용만 늘면 위험 신호입니다.</div>';
+  el.innerHTML=h;
+}
+
 function depShowTip(i){
   const el=$('#depTip'); if(!el||!DEP_VIEW.length) return;
   depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
@@ -9721,6 +9824,12 @@ function frgnStarCount(code){
 
 
 
+/* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
+function frgnRatioColor(v){
+  if(v==null) return '#8b949e';
+  return v>40 ? '#ef5350' : v>20 ? '#3fb950' : '#58a6ff';
+}
+
 function frgnCell(code){
   const f=FRGN[code];
   if(f===undefined) return '<span class="rsub">…</span>';
@@ -9756,7 +9865,7 @@ function frgnCell(code){
         const perPt=(H-4)/BAND;
         const yOfR=v=>zero-(Math.max(lo,Math.min(lo+BAND,v))-mid)*perPt;
         const pts=vr.map(p=>({x:p.x, y:yOfR(p.v)}));
-        ratioLine=`<polyline points="${pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="none" stroke="#3fb950" stroke-width="1.2" stroke-dasharray="2,1.5"/>`;
+        ratioLine=`<polyline points="${pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="none" stroke="${frgnRatioColor(cur)}" stroke-width="1.2" stroke-dasharray="2,1.5"/>`;
       }
     }
     // 툴팁
@@ -9765,7 +9874,7 @@ function frgnCell(code){
     const title = (lastR ? '보유율 '+lastR.toFixed(2)+'%' : '');
     // 그래프 아래에 현재 외국인 보유비율을 적는다 (선그래프와 같은 초록색)
     const ratioTxt = lastR!=null
-      ? `<div style="font-size:10px;color:#3fb950;line-height:1.1;margin-top:1px">${lastR.toFixed(1)}%</div>`
+      ? `<div style="font-size:10px;color:${frgnRatioColor(lastR)};line-height:1.1;margin-top:1px">${lastR.toFixed(1)}%</div>`
       : '';
     return `<svg class="frgn-svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" title="${escHtml(title)}">${ratioMid}${bars}${ratioLine}</svg>${ratioTxt}`;
   }
