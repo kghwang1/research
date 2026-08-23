@@ -4103,6 +4103,7 @@ function renderWatchTable(){
       + `<button type="button" data-selsub="long2"${selSub==='long2'?' class="on"':''}>장기보유2 <b>${lc.us}</b></button>`
 
       + '<button type="button" id="watchDataBtn" class="rfr selrfr">↻ 새로</button>'
+      + '<button type="button" id="selSaveBtn" class="rfr selrfr" title="서버에 저장합니다">💾 저장</button>'
       + '<button type="button" id="selRestoreBtn" class="rfr selrfr" title="서버에 저장된 관심·보유 목록을 확인하고 되돌립니다">⛁ 서버</button>'
       + '</span>'
     : '';
@@ -4335,6 +4336,20 @@ function renderWatchTable(){
       selSyncRows(); renderWatchTable(); fetchWatchLive();
     };
   });
+  /* [💾 저장] — 이 기기 목록을 서버에 올린다 (누를 때만) */
+  const ssb=t.querySelector('#selSaveBtn');
+  if(ssb) ssb.onclick=async()=>{
+    if(!SRV_URL){ toast('서버 주소가 없습니다'); return; }
+    const cw=selReadRows('kg_watch_rows').filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
+    const ci=selReadRows('kg_invpf_rows').filter(x=>String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim()).length;
+    if(cw===0 && ci===0 && !confirm('지금 목록이 비어 있습니다.\n이대로 저장하면 서버 자료가 지워집니다.\n\n계속할까요?')) return;
+    const t0=ssb.textContent; ssb.textContent='저장 중…'; ssb.disabled=true;
+    try{
+      await myServerPut(true);        // 성공하면 그 안에서 바뀜 표시를 지운다
+    } finally { ssb.disabled=false; ssb.textContent=t0; myMarkSaveBtn(); }
+  };
+  myMarkSaveBtn();
+
   /* 서버에 저장된 목록 확인·되돌리기.
      기기에 남은 옛 자료 때문에 담아둔 종목이 안 보일 때 쓴다. */
   const srb=t.querySelector('#selRestoreBtn');
@@ -4363,6 +4378,7 @@ function renderWatchTable(){
       if(o.savedAt){ try{ localStorage.setItem('kg_my_saved_at', o.savedAt); }catch(e){} }
       _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
       if(typeof loadAddRows==='function') loadAddRows();
+      _myDirty=false;
       selSyncRows(); renderWatchTable(); fetchWatchLive();
       toast('서버 목록으로 되돌렸습니다');
     }catch(e){ toast('불러오지 못했습니다 — '+(e.message||e)); }
@@ -5452,6 +5468,8 @@ async function myServerPut(loud){
     let d=null; try{ d=JSON.parse(txt); }catch(e){}
     if(d && d.ok){
       _myLastErr='';
+      // 저장 뒤 표를 다시 그리는 동작이 남아 있을 수 있어, 그다음 순번에 확정한다
+      setTimeout(()=>{ _myDirty=false; myMarkSaveBtn(); }, 0);
       if(loud) toast('서버에 저장했습니다 (장기종목 '+(cur[MY_FIELD].long||[]).length
                     +' · 추가종목 '+(cur[MY_FIELD].add||[]).length+'종목)');
       return true;
@@ -5478,19 +5496,27 @@ function myEnsureWatch(){
   if(added) selWriteRows('kg_watch_rows', w, true);
   return added;
 }
-function myServerSave(delay){
-  if(!_myLoaded) return;                        // 불러오기 전에는 덮어쓰지 않는다
-  clearTimeout(_mySaveTimer);
-  _mySaveTimer=setTimeout(()=>myServerPut(false), delay===0?0:1200);
+/* 서버 저장은 [💾 저장] 을 누를 때만 한다.
+   자동 저장은 목록이 빈 상태로 서버를 덮어쓸 위험이 있어 쓰지 않는다.
+   여기서는 '아직 저장 안 한 변경이 있다'는 표시만 남긴다. */
+let _myDirty=false;
+function myServerSave(){
+  if(!_myLoaded) return;
+  _myDirty=true;
+  myMarkSaveBtn();
 }
-// 창을 닫거나 화면을 벗어날 때 남은 변경을 확실히 보낸다
-function myFlush(){
-  if(!_myLoaded || !SRV_URL) return;
-  clearTimeout(_mySaveTimer);
-  myServerPut(false);          // 기존 내용을 읽어 합쳐야 하므로 일반 저장을 쓴다
+function myMarkSaveBtn(){
+  const b=document.getElementById('selSaveBtn');
+  if(!b) return;
+  b.textContent = _myDirty ? '💾 저장*' : '💾 저장';
+  b.style.color = _myDirty ? '#f2c800' : '';
+  b.title = _myDirty ? '저장하지 않은 변경이 있습니다' : '서버에 저장되어 있습니다';
 }
-window.addEventListener('pagehide', myFlush);
-document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') myFlush(); });
+// 저장하지 않고 떠나려 하면 알려 준다
+window.addEventListener('beforeunload', e=>{
+  if(!_myDirty) return;
+  e.preventDefault(); e.returnValue='';
+});
 async function myServerLoad(){
   if(!SRV_URL){ _myLoaded=true; return; }
   try{
