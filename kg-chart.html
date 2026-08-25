@@ -2600,9 +2600,9 @@ function drawSub(canvas, key) {
       /* 25 — 추세가 살아 있다고 보는 기준(와일더 원안).
          세로 범위에 늘 포함되므로 조건 없이 그린다. */
       const y25 = yOf(25);
-      ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
+      ctx.strokeStyle = '#ef5350'; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(PAD.l, y25); ctx.lineTo(W - PAD.r, y25); ctx.stroke();
-      ctx.fillStyle = REF_LABEL_COLOR; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = '#ef5350'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
       ctx.fillText('25', W - PAD.r + 3, y25 + 3);
     }
     // 기준선 40 — 추세가 무르익은 구간. 고점·저점 판단에 쓴다
