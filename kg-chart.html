@@ -270,8 +270,6 @@ body.stock-closed #step-pad { display: flex; }
     </div>
     <button id="iframe-sidebar-btn" onclick="toggleSidebar()" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">☰ 지표</button>
     <span id="iframe-stock-name" style="font-weight:700;font-size:13px;color:#e6edf3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-    <button id="btn-mon" class="side-tg" title="월봉 보기">월봉</button>
-    <button id="btn-flow" class="side-tg" title="투자자별 매매동향 보기">매매동향</button>
     <select id="interval-select" style="margin-left:auto;background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
       <option value="5m">5분</option>
       <option value="60m">1시간</option>
@@ -279,6 +277,8 @@ body.stock-closed #step-pad { display: flex; }
       <option value="1wk">주봉</option>
       <option value="1mo">월봉</option>
     </select>
+    <button id="btn-mon" class="side-tg" title="월봉 보기">월봉</button>
+    <button id="btn-flow" class="side-tg" title="투자자별 매매동향 보기">매매동향</button>
     <span id="header-date" style="display:none"></span>
   </div>
 </div>
@@ -813,6 +813,7 @@ let state = {
   hoverIdx: -1,
   clickPrice: null,  // 캔들 클릭 시 y축 표시할 가격
   frgnData: null,   // 외국인 일별 순매수 { date: net } 맵 (한국 종목만)
+  dailyData: null,  // 일봉 자료 — 우측 패널(월봉·매매동향) 전용 (드롭다운과 무관)
   shortData: null,  // 공매도 일별 { date: {vol, bal} } 맵 (한국 종목만)
   keepZoom: null,   // 사용자가 확대/축소한 표시 봉 개수 (종목 변경 시 유지)
   keepFrom: null,   // 보고 있던 구간 시작 날짜 (종목 변경 시 같은 기간 복원)
@@ -1133,7 +1134,10 @@ async function loadStock(stock) {
       return;
     }
     state.data = result.ohlcv;
-    if(typeof spApply==='function') setTimeout(spApply, 0);   // 우측 패널(월봉·매매동향) 갱신
+    /* 우측 패널(월봉·매매동향)은 늘 일봉 자료로 그린다.
+       드롭다운으로 주봉·월봉을 골라도 오른쪽은 바뀌지 않는다. */
+    if(state.interval === '1d') state.dailyData = result.ohlcv;
+    if(typeof spApply==='function') setTimeout(spApply, 0);
     state.isReal = true;
     state.stock = { ...stock, fullName: result.name || stock.name, currency: result.currency };
     const selEl2 = document.getElementById('selected-stock');
@@ -3575,9 +3579,14 @@ function spApply(){
   const bm=document.getElementById('btn-mon'), bf=document.getElementById('btn-flow');
   if(bm) bm.classList.toggle('on', v.mon);
   if(bf) bf.classList.toggle('on', v.flow);
-  if(v.mon) drawMonthly();
-  if(v.flow) renderFlowTable();
-  if(typeof renderAll==='function') setTimeout(renderAll, 0);   // 폭이 바뀌었으니 다시 그린다
+  /* 폭이 바뀌었으니 배치가 끝난 뒤 다시 그린다.
+     바로 그리면 캔버스 폭이 예전 값이라 그림이 비어 보인다. */
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(typeof fitPanels==='function') fitPanels();
+    if(typeof renderAll==='function') renderAll();
+    if(v.mon) drawMonthly();
+    if(v.flow) renderFlowTable();
+  }));
 }
 function bindSidePane(){
   const bm=document.getElementById('btn-mon'), bf=document.getElementById('btn-flow');
@@ -3604,7 +3613,8 @@ function toMonthly(d){
 }
 function drawMonthly(){
   const cv=document.getElementById('mon-canvas'); if(!cv) return;
-  const mon=toMonthly(state.data).slice(-24);
+  const src = (state.dailyData && state.dailyData.length) ? state.dailyData : state.data;
+  const mon=toMonthly(src).slice(-24);
   const sub=document.getElementById('mon-sub');
   if(sub) sub.textContent = mon.length ? '최근 '+mon.length+'개월' : '';
   const dpr=window.devicePixelRatio||1;
@@ -3645,7 +3655,8 @@ function drawMonthly(){
 /* 투자자별 매매동향 — 날짜·종가·대비·기관·외국인 */
 function renderFlowTable(){
   const box=document.getElementById('flow-tbl'); if(!box) return;
-  const d=state.data||[], fd=state.frgnData;
+  const d=(state.dailyData && state.dailyData.length) ? state.dailyData : (state.data||[]);
+  const fd=state.frgnData;
   if(!fd || !d.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">한국 종목·일봉에서만 나옵니다.</div>'; return; }
   const rows=d.slice(-20).reverse();
   const num=v=>{ if(v==null) return '—';
