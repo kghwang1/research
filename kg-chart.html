@@ -2995,19 +2995,19 @@ function drawSub(canvas, key) {
     ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
 
-    /* 보유비율 곡선 (녹색) — 20%p 칸으로 잣대를 나눈다.
-         0~20 · 20~40 · 40~60 · 60~80 …  (지금 값이 든 칸을 쓴다)
-       칸 폭이 늘 20%p 라 기울기를 종목끼리 그대로 견줄 수 있고,
-       칸의 한가운데(10·30·50·70%)를 순매수 막대의 0선에 맞춰 그린다.
+    /* 보유비중 곡선 (녹색) — 10%p 칸으로 잣대를 나눈다.
+         0~10 · 10~20 · 20~30 · 30~40 …  (지금 값이 든 칸을 쓴다)
+       칸 폭이 늘 10%p 라 기울기를 종목끼리 그대로 견줄 수 있고,
+       칸의 한가운데(5·15·25·35…%)를 순매수 막대의 0선에 맞춰 그린다.
        → 선이 0선 위에 있으면 그 칸에서 높은 쪽, 아래면 낮은 쪽. */
     const validRatio = ratioArr.map((v,i) => v != null && v > 0 ? {x:xOf(i), v, i} : null).filter(Boolean);
     if (validRatio.length >= 2) {
       const cur = validRatio[validRatio.length-1].v;
-      const BAND = 20;
+      const BAND = 10;                            // 0~10 · 10~20 · 20~30 …
       const lo = Math.floor(cur / BAND) * BAND;
-      const mid = lo + BAND/2;                    // 10 · 30 · 50 · 70 …
+      const mid = lo + BAND/2;                    // 5 · 15 · 25 · 35 …
       /* 순매수 막대와 같은 0선·같은 높이를 쓴다.
-         막대는 0선에서 위아래로 (ch/2 - 2)px 씩 뻗으므로 그 폭에 20%p 를 담는다. */
+         막대는 0선에서 위아래로 (ch/2 - 2)px 씩 뻗으므로 그 폭에 10%p 를 담는다. */
       const zeroY = ch/2 + PAD.t;                 // 순매수 막대의 0선과 같은 식
       const half  = ch/2 - 2;                     // 막대가 뻗는 높이
       const perPt = half / (BAND/2);              // 1%p 당 높이
@@ -3036,7 +3036,7 @@ function drawSub(canvas, key) {
          선이 그려진 자리와 같은 높이에 두어야 어느 값인지 헷갈리지 않는다. */
       const hr = ratioArr[state.hoverIdx];
       if (hr != null && hr > 0) {
-        const BAND = 20;
+        const BAND = 10;
         const rlo = Math.floor(hr / BAND) * BAND;
         const rmid = rlo + BAND/2;
         // 선을 그린 식과 똑같이 (0선 기준 · 막대와 같은 높이)
@@ -3065,7 +3065,7 @@ function drawSub(canvas, key) {
     let t2 = '보유비중 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—');
     let base = null;
     if (lastR != null) {
-      base = Math.floor(lastR / 20) * 20 + 10;
+      base = Math.floor(lastR / 10) * 10 + 5;     // 5 · 15 · 25 · 35 …
       t2 += ' (기준선 ' + base + '%)';
     }
     ctx.fillStyle = frgnRatioColor(lastR);
