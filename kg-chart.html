@@ -726,7 +726,9 @@ const CALC = {
 const IND_CFG = {
   MACD:{color:C.accent,lines:[0]},
   ADX:{color:C.green},
-  ADXR:{color:'#e0b341'},
+  /* 25(추세장 기준)를 늘 보이게 하려고 세로 범위에 반드시 넣는다.
+     자료 범위만 쓰면 ADXR 이 30~50 일 때 25선이 화면 밖으로 나간다. */
+  ADXR:{color:'#e0b341', must:[25]},
   CCI:{color:C.orange,lines:[100,0,-100]},
   AROON:{color:C.purple,range:[0,100],lines:[70,50,30]},
   FORCE:{color:C.pink},
@@ -2120,6 +2122,9 @@ function drawSub(canvas, key) {
 
   let minV = cfg.range ? cfg.range[0] : Math.min(...allVals);
   let maxV = cfg.range ? cfg.range[1] : Math.max(...allVals);
+  /* 늘 보여야 하는 기준값(cfg.must)은 세로 범위 안에 반드시 넣는다.
+     예) ADXR 의 25선 — 값이 30~50 이어도 화면에서 사라지지 않게 한다. */
+  if (cfg.must) cfg.must.forEach(v => { if (v < minV) minV = v; if (v > maxV) maxV = v; });
   if (!cfg.range) { const p = (maxV - minV) * 0.1; minV -= p; maxV += p; }
   else if (allVals.length) {
     // 고정 범위여도 값이 벗어나면 그만큼 넓힌다 (잘려서 안 보이는 일 방지)
@@ -2591,12 +2596,13 @@ function drawSub(canvas, key) {
     ctx.fillText('20', W - PAD.r + 3, y20 + 3);
     /* 기준선 25 — 추세가 실제로 살아 있다고 보는 통상 기준.
        20 은 횡보 탈출, 25 위부터 DI 교차 신호를 신뢰한다. */
-    if (25 >= minV && 25 <= maxV) {
-      /* 25 — 추세가 살아 있다고 보는 기준(와일더 원안). 실선으로 또렷하게. */
+    {
+      /* 25 — 추세가 살아 있다고 보는 기준(와일더 원안).
+         세로 범위에 늘 포함되므로 조건 없이 그린다. */
       const y25 = yOf(25);
-      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.4; ctx.setLineDash([]);
+      ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(PAD.l, y25); ctx.lineTo(W - PAD.r, y25); ctx.stroke();
-      ctx.fillStyle = '#ffd54f'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillStyle = REF_LABEL_COLOR; ctx.font = '10px monospace'; ctx.textAlign = 'left';
       ctx.fillText('25', W - PAD.r + 3, y25 + 3);
     }
     // 기준선 40 — 추세가 무르익은 구간. 고점·저점 판단에 쓴다
