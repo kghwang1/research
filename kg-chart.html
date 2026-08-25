@@ -358,7 +358,7 @@ body.stock-closed #step-pad { display: flex; }
       <canvas id="mon-canvas"></canvas>
     </div>
     <div id="flow-box">
-      <div class="sp-h">투자자별 매매동향 <span class="sp-k">(주)</span></div>
+      <div class="sp-h">투자자별 매매동향 <span class="sp-k">(주) · 개인은 어림값</span></div>
       <div id="flow-tbl"></div>
     </div>
   </div>
@@ -3662,17 +3662,26 @@ function renderFlowTable(){
   const num=v=>{ if(v==null) return '—';
     const a=Math.abs(v);
     return (v<0?'-':'') + (a>=1e4 ? (a/1e4).toFixed(1)+'만' : Math.round(a).toLocaleString()); };
-  let h='<table><tr><th>날짜</th><th>종가</th><th>대비</th><th>기관</th><th>외국인</th></tr>';
+  let h='<table><tr><th>날짜</th><th>외국인</th><th>기관</th><th>개인</th></tr>';
   rows.forEach((x,i)=>{
-    const prev=d[d.length-1-i-1];
-    const diff=prev? x.close-prev.close : null;
     const f=fd[x.date]||{};
     const cls=v=> v==null?'':(v>0?'up':(v<0?'dn':''));
+    /* 개인은 자료가 없어 외국인·기관의 반대편으로 셈한다.
+       기타법인이 빠져 있어 어림값이다. */
+    const per = (f.net!=null && f.inst!=null) ? -(f.net + f.inst) : null;
+    /* 보유비율 — 전날보다 늘면 붉은색, 줄면 푸른색.
+       rows 는 최신이 먼저이므로 다음 칸(i+1)이 전날이다. */
+    let rt='';
+    if(f.ratio!=null && f.ratio>0){
+      const pv=rows[i+1] ? (fd[rows[i+1].date]||{}).ratio : null;
+      const col = (pv==null || Math.abs(f.ratio-pv)<0.005) ? '#8b949e'
+                : (f.ratio>pv ? '#ef5350' : '#58a6ff');
+      rt = ` <span style="color:${col};font-size:9.5px">${f.ratio.toFixed(1)}%</span>`;
+    }
     h+='<tr><td>'+String(x.date).slice(5).replace('-','/')+'</td>'
-     + '<td>'+Math.round(x.close).toLocaleString()+'</td>'
-     + '<td class="'+cls(diff)+'">'+(diff==null?'—':(diff>0?'▲':diff<0?'▼':'')+Math.abs(Math.round(diff)).toLocaleString())+'</td>'
+     + '<td class="'+cls(f.net)+'">'+num(f.net)+rt+'</td>'
      + '<td class="'+cls(f.inst)+'">'+num(f.inst)+'</td>'
-     + '<td class="'+cls(f.net)+'">'+num(f.net)+'</td></tr>';
+     + '<td class="'+cls(per)+'">'+num(per)+'</td></tr>';
   });
   h+='</table>';
   box.innerHTML=h;
