@@ -1398,7 +1398,9 @@ function P(key, idx, def) {
 }
 
 // 기본 조합 (일목·DMI·ADXR·RSI·RVI·OBV·외국인순매수) — 순서 중요
-const DEFAULT_COMBO = ['ICHIMOKU', 'ADX', 'ADXR', 'RSI', 'RVI', 'FRGN_NET'];
+/* 기본 조합 — 보여줄 차례대로 적는다.
+   ADXR(국면) → DMI(방향) → RSI·RVI(시점) → 외국인 순매수(수급) */
+const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
 
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
@@ -1512,6 +1514,13 @@ function setupSidebar() {
   // 그냥 뒤로 보내면 새 지표가 항상 맨 아래로 밀린다.
   let orderPref = DEFAULT_COMBO.slice();
   try {
+    /* 기본 조합의 차례를 바꾸면 저장된 옛 차례를 버린다.
+       그러지 않으면 새 차례가 적용되지 않는다. (직접 끌어 바꾼 차례는 그 뒤부터 다시 쌓인다) */
+    const stamp = DEFAULT_COMBO.join(',');
+    if (localStorage.getItem('kgchart_order_base') !== stamp) {
+      localStorage.removeItem('kgchart_order');
+      localStorage.setItem('kgchart_order_base', stamp);
+    }
     const so = localStorage.getItem('kgchart_order');
     if (so) {
       const a = JSON.parse(so);
