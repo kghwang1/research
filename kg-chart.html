@@ -2149,7 +2149,36 @@ function drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch) {
 }
 
 function drawSub(canvas, key) {
-  if (!canvas || !state.data.length) return;
+  try { drawSubInner(canvas, key); }
+  catch (e) {
+    /* 한 칸이 실패해도 나머지 칸은 그린다.
+       무엇이 잘못됐는지 그 칸에 적어 둔다. */
+    try {
+      const W = canvas.parentElement.clientWidth, H = canvas.parentElement.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+      ctx.fillStyle = C.panel2; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ef5350'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+      ctx.fillText(key + ' 그리기 오류', 8, 16);
+      ctx.fillStyle = '#8b949e';
+      ctx.fillText(String(e && e.message || e).slice(0, 60), 8, 30);
+    } catch (e2) {}
+    console.error('[drawSub]', key, e);
+  }
+}
+function drawSubInner(canvas, key) {
+  if (!canvas) return;
+  if (!state.data.length) {
+    const W0 = canvas.parentElement.clientWidth, H0 = canvas.parentElement.clientHeight;
+    const dpr0 = window.devicePixelRatio || 1;
+    canvas.width = W0 * dpr0; canvas.height = H0 * dpr0;
+    const c0 = canvas.getContext('2d'); c0.scale(dpr0, dpr0);
+    c0.fillStyle = C.panel2; c0.fillRect(0, 0, W0, H0);
+    c0.fillStyle = '#6e7681'; c0.font = '10px monospace'; c0.textAlign = 'left';
+    c0.fillText(key + ' — 자료를 기다리는 중', 8, 16);
+    return;
+  }
   const cfg = IND_CFG[key];
   const result = CALC[key](state.data);
   const vals = Object.values(result).map(arr => arr.slice(...state.range));
@@ -2168,7 +2197,12 @@ function drawSub(canvas, key) {
   // ELDER는 세 번째 값이 EMA(주가 수준)이라 축 계산에 섞이면 선이 0 근처로 눌린다 → Bull/Bear만 사용
   const scaleVals = (key === 'FRGN_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'INST_NET') ? (vals[0] || []).filter(v => v != null) : (key === 'SHORT_SELL') ? (vals[0] || []).filter(v => v != null && v > 0) : (key === 'ELDER') ? [...(vals[0] || []), ...(vals[1] || [])].filter(v => v != null) : vals.flat().filter(v => v != null);
   const allVals = scaleVals;
-  if (!allVals.length) return;
+  if (!allVals.length) {
+    // 그릴 값이 없다 — 왜 비었는지 칸에 적어 둔다
+    ctx.fillStyle = '#6e7681'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillText(key + ' — 값 없음 (봉 ' + state.data.length + '개, 구간 ' + n + ')', PAD.l, PAD.t + 14);
+    return;
+  }
 
   let minV = cfg.range ? cfg.range[0] : Math.min(...allVals);
   let maxV = cfg.range ? cfg.range[1] : Math.max(...allVals);
