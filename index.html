@@ -428,6 +428,16 @@
   .val-tbl .rchg.down{color:#2e9e4f}
   .val-note{padding:10px 12px 16px;color:var(--dim);font-size:11px;line-height:1.55;border-top:1px solid rgba(255,255,255,.06)}
   #valNote{font-size:14.3px;line-height:1.6;position:sticky;left:0;width:100vw;box-sizing:border-box;background:var(--bg)}
+  /* 한국(체) 이번 주 바뀐 내용 */
+  .kr-change{margin:8px 0 10px;padding:9px 11px;background:#161b22;border:1px solid var(--line);
+    border-radius:8px;font-size:12.5px;line-height:1.75;color:var(--ink);max-width:900px}
+  .kr-change .ttl{font-weight:800;color:#f2c800;margin-bottom:3px;font-size:13px}
+  .kr-change .row{margin-top:3px}
+  .kr-change .in{color:#ef5350;margin-right:5px}
+  .kr-change .out{color:#2e9e4f;margin-right:5px}
+  .kr-change .chg{color:#58a6ff;margin-right:5px}
+  .kr-change .w{font-size:11.5px;color:#8b949e}
+  .kr-change .k{color:#8b949e;font-size:11.5px}
   .signbtn{flex:0 0 auto;width:40px;padding:8px 0;border-radius:8px;border:1px solid #777;background:#222634;color:#eee;font-size:16px;font-weight:700}
   .signbtn:active{background:#333a4d}
   .pnl-futman{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:11px 13px}
@@ -2472,40 +2482,67 @@ const KRETF_CFG={
    현재가(라이브)·상승여력(계산)은 표시 시 추가됨 */
 const KR_PF={
   rows:[
-    ["005930","삼성전자",22.56,-3.2,"",""],
-    ["009150","삼성전기",9.93,0.74,"",""],
-    ["069500","KODEX 200",9.27,-1.93,"",""],
-    ["000660","SK하이닉스",8.93,1.82,"",""],
-    ["108490","로보티즈",2.62,1.92,"",""],
-    ["396500","TIGER 반도체TOP10",2.57,-0.81,"",""],
-    ["001820","삼화콘덴서",2.29,0.39,"",""],
-    ["006400","삼성SDI",1.78,1.78,"",""],
-    ["079550","LIG디펜스앤에어로스페이스",1.73,0.21,"",""],
-    ["005935","삼성전자우",1.51,-0.09,"",""],
-    ["102970","KODEX 증권",1.5,1.5,"",""],
-    ["058470","리노공업",1.48,-0.07,"",""],
-    ["039490","키움증권",1.43,1.43,"",""],
-    ["229200","KODEX 코스닥150",1.43,-0.46,"",""],
-    ["494670","TIGER 조선TOP10",1.41,-0.14,"",""],
-    ["237350","KODEX 코스피100",1.41,-0.01,"",""],
-    ["222800","심텍",1.33,0.14,"",""],
-    ["232080","TIGER 코스닥150",1.26,-0.89,"",""],
-    ["466920","SOL 조선TOP3플러스",1.21,-0.02,"",""],
-    ["329180","HD현대중공업",1.17,-0.14,"",""],
-    ["214450","파마리서치",1.16,-0.08,"",""],
-    ["006800","미래에셋증권",1.07,1.07,"",""],
-    ["091160","KODEX 반도체",0.82,0.03,"",""],
-    ["252990","샘씨엔에스",0.82,-0.01,"",""],
-    ["131290","티에스이",0.79,0.08,"",""],
-    ["039030","이오테크닉스",0.77,0.07,"",""],
-    ["067310","하나마이크론",0.7,0.7,"",""],
-    ["084370","유진테크",0.66,0.66,"",""],
-    ["023530","롯데쇼핑",0.66,0.66,"",""],
-    ["107640","한중엔시에스",0.64,0.64,"",""],
-  ],
+    ["005930","삼성전자",24,22.56,"",""],
+    ["069500","KODEX 200",13.9,9.27,"",""],
+    ["000660","SK하이닉스",9.7,8.93,"",""],
+    ["009150","삼성전기",6.5,9.93,"",""],
+    ["396500","TIGER 반도체TOP10",2.7,2.57,"",""],
+    ["108490","로보티즈",2.5,2.62,"",""],
+    ["001820","삼화콘덴서",2.4,2.29,"",""],
+    ["0167A0","SOL AI반도체TOP2플러스",2.3,0,"",""],
+    ["006400","삼성SDI",1.9,1.8,"",""],
+    ["005935","삼성전자우",1.7,1.5,"",""],
+    ["079550","LIG디펜스앤에어로스페이스",1.5,1.7,"",""],
+    ["237350","KODEX 코스피100",1.5,1.4,"",""],
+    ["058470","리노공업",1.4,1.5,"",""],
+    ["494670","TIGER 조선TOP10",1.3,1.4,"",""],
+    ["222800","심텍",1.3,1.3,"",""],
+    ["232080","TIGER 코스닥150",1.2,1.3,"",""],
+    ["214450","파마리서치",1.2,1.2,"",""],
+    ["466920","SOL 조선TOP3플러스",1.1,1.2,"",""],
+    ["329180","HD현대중공업",1.1,1.2,"",""],
+    ["091160","KODEX 반도체",0.9,0.8,"",""],
+    ["039030","이오테크닉스",0.8,0.8,"",""],
+    ["131290","티에스이",0.7,0.79,"",""],
+    ["067310","하나마이크론",0.69,0.7,"",""],
+    ["252990","샘씨엔에스",0.69,0.82,"",""],
+    ["084370","유진테크",0.67,0.66,"",""],
+    ["023530","롯데쇼핑",0.64,0.66,"",""],
+    ["017670","SK텔레콤",0.64,0.6,"",""],
+    ["000810","삼성화재",0.61,0.55,"",""],
+    ["192080","더블유게임즈",0.58,0.58,"",""]
+  ]
 };
 VAL_DEFAULT.kr = KR_PF.rows;  // 한국 탭도 저장/서버 동기화 대상
-const KR_LABEL = "8월 14일 포트폴리오 (MP 30위)";  // 한국 표 상단 라벨(매달 갱신)
+const KR_LABEL = "8월 4주 포트폴리오 (MP 30위)";
+/* 이번 주 바뀐 내용 — 사진 자료를 옮길 때 함께 적는다 */
+const KR_CHANGE = {
+  added:   [["SOL AI반도체TOP2플러스","2.3%"], ["SK텔레콤","0.64%"], ["삼성화재","0.61%"], ["더블유게임즈","0.58%"]],
+  removed: ["KODEX 증권","키움증권","KODEX 코스닥150","미래에셋증권","한중엔시에스"],
+  moved:   [["KODEX 200","9.27","13.9"], ["삼성전기","9.93","6.5"], ["삼성전자","22.56","24"]],
+  note:    "현금 0.9%는 시세 조회 대상이 아니라 표에서 뺐습니다."
+};
+function krChangeHtml(){
+  const c=KR_CHANGE; if(!c) return '';
+  const up=v=>parseFloat(v[2])-parseFloat(v[1]);
+  let h='<div class="kr-change">';
+  h+='<div class="ttl">이번 주 바뀐 내용</div>';
+  if(c.added && c.added.length)
+    h+='<div class="row"><b class="in">새 종목</b> '
+      + c.added.map(a=>escHtml(a[0])+' <span class="w">'+a[1]+'</span>').join(' · ') + '</div>';
+  if(c.removed && c.removed.length)
+    h+='<div class="row"><b class="out">빠진 종목</b> ' + c.removed.map(escHtml).join(' · ') + '</div>';
+  if(c.moved && c.moved.length)
+    h+='<div class="row"><b class="chg">비중 변화</b> '
+      + c.moved.slice().sort((a,b)=>Math.abs(up(b))-Math.abs(up(a)))
+          .map(m=>{ const d=up(m); const col=d>=0?'#ef5350':'#2e9e4f';
+            return escHtml(m[0])+' '+m[1]+'% → <span style="color:'+col+'">'+m[2]+'%</span>'
+                 + ' <span class="w" style="color:'+col+'">('+(d>=0?'+':'')+d.toFixed(1)+'%p)</span>'; })
+          .join(' · ') + '</div>';
+  if(c.note) h+='<div class="row k">'+escHtml(c.note)+'</div>';
+  h+='</div>';
+  return h;
+}  // 한국 표 상단 라벨(매달 갱신)
 const US_LABEL = "기준일 : 8월 8일 (전체 반영)";  // 미국(반) 표 상단 라벨
 let valMarket='us', VAL=[];
 function krExtraLoad(){ try{ const r=localStorage.getItem('kg_kr_extra'); const a=r?JSON.parse(r):[]; return Array.isArray(a)?a:[]; }catch(e){ return []; } }
@@ -2594,7 +2631,15 @@ const VAL_NOTES={
  addstk:'• 포트에 없는 종목을 직접 담아 두는 표입니다.  • 표 위 [종목 추가] 칸에 종목명이나 6자리 코드를 넣으면 목록에 들어갑니다.  • 여기 담은 종목은 선정주 표에 관심으로 함께 나옵니다.  • 표의 항목과 기능은 코스피200 표와 같습니다.',
  invest:'수집·계산 과정\n• 모집단: 네이버 코스피 시가총액 상위 200종목.\n• 낙폭: (현재가−52주최고가)/52주최고가 — 큰 순으로 상위 50을 추려 ROE 조회.\n• ROE: 네이버 재무(분기) 최근값 + 전분기 대비 증감. 기준은 ROE 필터(전체/5/10/상승).\n• 외국인: 네이버 외국인 순매매 최근 5거래일(★=순매수, 과거→최근). 장 마감(18:30) 기준 1일 저장.\n• 목표가: 네이버 증권사 컨센서스 → 상승여력 자동 계산.\n• 보고서: 네이버 종목분석 최근 1건(제목·발표일·분야 자동분류, 원문 링크). 1일 저장.\n• 시세·ROE·외국인·보고서는 하루 1회 수집, ↻ 새로고침 시 다시 수집합니다.'
 };
-function applyValNote(m){ const el=$('#valNote'); if(!el) return; const txt=VAL_NOTES[m]; if(!txt){ el.style.display='none'; el.textContent=''; return; } el.style.display=''; el.innerHTML=escHtml(txt).replace(/\n/g,'<br>'); }
+function applyValNote(m){
+  const el=$('#valNote'); if(!el) return;
+  const txt=VAL_NOTES[m];
+  // 한국(체)는 이번 주 바뀐 내용을 안내 위에 함께 보여준다
+  const chg = (m==='kr' && typeof krChangeHtml==='function') ? krChangeHtml() : '';
+  if(!txt && !chg){ el.style.display='none'; el.textContent=''; return; }
+  el.style.display='';
+  el.innerHTML = chg + (txt ? escHtml(txt).replace(/\n/g,'<br>') : '');
+}
 function renderVal(){
   const sc=$('#valScroll'), em=$('#valEmpty'), multi=$('#valMulti'), foot=$('#valFoot');
   const t=$('#valTbl');
@@ -2602,7 +2647,8 @@ function renderVal(){
   applyValNote(valMarket);
   // 점수표 버튼: 점수를 쓰는 국내 탭에서만 표시
   const scb=$('#scoreCardBtn');
-  if(scb) scb.style.display=(['kr','watch','invest','investkq'].includes(valMarket))?'block':'none';
+  // 한국(체)는 사진 자료를 그대로 보여주는 표라 점수표를 쓰지 않는다
+  if(scb) scb.style.display=(['watch','invest','investkq'].includes(valMarket))?'block':'none';
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
@@ -11145,9 +11191,10 @@ const CHART_GUIDE_HTML = `
   </table>
 
   <h3 style="font-size:14px;font-weight:800;color:#f2c800;margin:20px 0 8px">2. 읽는 순서</h3>
-  <p><b>① ADXR 20선으로 추세 유무를 먼저 가른다</b><br>
-    <b>횡보장</b> (ADXR 20 아래) → RSI 30/70, RVI 40/60 으로 매매<br>
-    <b>추세장</b> (ADXR 20 위) → RSI·RVI 신호는 무시. 다이버전스와 DMI 교차로 매매</p>
+  <p><b>① ADXR 로 추세 유무를 먼저 가른다</b><br>
+    <b>횡보장</b> (20 아래) → RSI 30/70, RVI 40/60 으로 매매<br>
+    <b>경계 구간</b> (20~25) → 어느 쪽 신호도 약하다. 방향이 확실해질 때까지 기다린다<br>
+    <b>추세장</b> (25 위) → RSI·RVI 신호는 무시. 다이버전스와 DMI 교차로 매매</p>
   <p><b>② ADXR 40 위에서 꺾이면</b> 고점·저점 경계. RVI로 그 신호에 변동성이 실렸는지 확인한다</p>
   <p><b>③ OBV·외국인이 주가와 어긋나면</b> 신호를 낮춰 본다</p>
 
@@ -11178,7 +11225,7 @@ const CHART_GUIDE_HTML = `
     매수 — RSI 30 아래에서 위로 올라올 때, RVI 40 상향 돌파<br>
     매도 — RSI 70 위에서 내려올 때, RVI 60 하향 돌파<br>
     구름에 붙어 있어도 팔지 않습니다.</p>
-  <p><b>② 추세장</b> (ADXR 20 위)<br>
+  <p><b>② 추세장</b> (ADXR 25 위)<br>
     매수 — +DI가 −DI를 상향 돌파 + 주가가 구름 위<br>
     매도 — +DI/−DI 재역전, 또는 ADX가 고점에서 꺾일 때<br>
     눌림 매수는 전환선·기준선 부근에서.</p>
@@ -11199,7 +11246,7 @@ const CHART_GUIDE_HTML = `
     <tr><th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);color:var(--sub);font-size:11.5px;width:96px">성격</th>
         <th style="text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);color:var(--sub);font-size:11.5px">신호</th></tr>
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line);color:#ef5350"><b>건강한 상승</b></td>
-        <td style="padding:5px 8px;border-bottom:1px solid var(--line)">ADXR 20↑ · +DI 우위 · OBV 동반 상승 · 외국인 순매수</td></tr>
+        <td style="padding:5px 8px;border-bottom:1px solid var(--line)">ADXR 25↑ · +DI 우위 · OBV 동반 상승 · 외국인 순매수</td></tr>
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line);color:#f0a836"><b>힘 빠진 상승</b></td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--line)">주가는 오르나 OBV·외국인 정체 → 다이버전스 경계</td></tr>
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line);color:#8b949e"><b>에너지 응축</b></td>
@@ -11215,7 +11262,7 @@ const CHART_GUIDE_HTML = `
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line)"><b>DMI</b></td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--line)">+DI/−DI 교차로 방향</td></tr>
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line)"><b>ADXR</b></td>
-        <td style="padding:5px 8px;border-bottom:1px solid var(--line)">20선으로 국면 구분, 40선으로 고점·저점 경계</td></tr>
+        <td style="padding:5px 8px;border-bottom:1px solid var(--line)">25선으로 국면 구분(20~25는 경계), 40선으로 고점·저점 경계</td></tr>
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line)"><b>RSI</b></td>
         <td style="padding:5px 8px;border-bottom:1px solid var(--line)">70/30 절대 기준으로 시점</td></tr>
     <tr><td style="padding:5px 8px;border-bottom:1px solid var(--line)"><b>RVI</b></td>

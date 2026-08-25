@@ -2571,29 +2571,31 @@ function drawSub(canvas, key) {
   // ── ADXR: 20 기준으로 추세장/횡보장 구분 (책 스타일) ──
   if (key === 'ADXR') {
     const adxr = vals[0], adxLine = vals[1], pdi = vals[2], ndi = vals[3];
-    // 배경 색칠: 추세장(ADXR≥20)이면 DMI 방향에 따라 상승=빨강 / 하락=파랑 (횡보는 색 없음)
+    // 배경 색칠: 추세장(ADXR≥25)이면 DMI 방향에 따라 상승=빨강 / 하락=파랑 (그 아래는 색 없음)
     if (pdi && ndi) {
       const colW = cw / n;
       for (let i = 0; i < n; i++) {
         if (adxr[i] == null || pdi[i] == null || ndi[i] == null) continue;
-        if (adxr[i] < 20) continue;                    // 횡보장은 색칠 안 함
+        if (adxr[i] < 25) continue;                    // 추세장(25 위)만 색칠한다
         ctx.fillStyle = (pdi[i] >= ndi[i]) ? 'rgba(239,83,80,0.10)' : 'rgba(41,121,255,0.10)';
         ctx.fillRect(PAD.l + i * colW, PAD.t, colW + 0.5, ch);
       }
     }
     // 기준선 20 — 추세장/횡보장 구분. 가로 점선
+    /* 20 — 횡보 탈출 참고선. 점선으로 둔다. */
     const y20 = yOf(20);
-    ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
+    ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([4,3]);
     ctx.beginPath(); ctx.moveTo(PAD.l, y20); ctx.lineTo(W - PAD.r, y20); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.fillStyle = '#f0a836'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText('20', W - PAD.r + 3, y20 + 3);
     /* 기준선 25 — 추세가 실제로 살아 있다고 보는 통상 기준.
        20 은 횡보 탈출, 25 위부터 DI 교차 신호를 신뢰한다. */
     if (25 >= minV && 25 <= maxV) {
+      /* 25 — 추세가 살아 있다고 보는 기준(와일더 원안). 실선으로 또렷하게. */
       const y25 = yOf(25);
-      ctx.strokeStyle = '#ffd54f88'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+      ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1.4; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(PAD.l, y25); ctx.lineTo(W - PAD.r, y25); ctx.stroke();
-      ctx.setLineDash([]);
       ctx.fillStyle = '#ffd54f'; ctx.font = '10px monospace'; ctx.textAlign = 'left';
       ctx.fillText('25', W - PAD.r + 3, y25 + 3);
     }
@@ -2645,9 +2647,14 @@ function drawSub(canvas, key) {
       if (pdi && ndi) {
         for (let i = n - 1; i >= 0; i--) { if (pdi[i] != null && ndi[i] != null) { dir = pdi[i] >= ndi[i] ? '상승' : '하락'; break; } }
       }
-      if (lastV >= 20) {
+      /* 25 위라야 추세장으로 본다 (와일더 원안).
+         20~25 는 어느 쪽 신호도 강하게 믿기 어려운 경계 구간이다. */
+      if (lastV >= 25) {
         ctx.fillStyle = dir === '상승' ? '#ef5350' : dir === '하락' ? '#2979ff' : '#e0b341';
         ctx.fillText((dir ? dir + ' ' : '') + '추세장', PAD.l + 5, PAD.t + 22);
+      } else if (lastV >= 20) {
+        ctx.fillStyle = '#f0a836';
+        ctx.fillText('경계 구간', PAD.l + 5, PAD.t + 22);
       } else {
         ctx.fillStyle = '#8b949e';
         ctx.fillText('횡보장', PAD.l + 5, PAD.t + 22);
