@@ -223,14 +223,17 @@ body.stock-closed #step-pad { display: flex; }
   touch-action: pan-y; -webkit-user-select: none; user-select: none;
   -webkit-tap-highlight-color: transparent; }
 .sub-close {
-  position: absolute; top: 3px; left: 3px;
-  width: 16px; height: 16px;
+  position: absolute; top: 2px; left: 2px;
+  width: 22px; height: 22px;
   display: flex; align-items: center; justify-content: center;
-  background: #21262dcc; color: #8b949e;
+  background: #21262de6; color: #8b949e;
   border: 1px solid #30363d; border-radius: 4px;
-  font-size: 10px; cursor: pointer; z-index: 5;
+  font-size: 12px; cursor: pointer; z-index: 40;
   line-height: 1; user-select: none;
+  /* 캔버스가 손가락 신호를 가져가지 못하도록 이 단추만 따로 지정 */
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent;
 }
+.sub-close:active { background: #da3633; color: #fff; border-color: #da3633; }
 .sub-close:hover { background: #da3633; color: #fff; border-color: #da3633; }
 
 /* 스크롤바 */
@@ -296,10 +299,11 @@ body.stock-closed #step-pad { display: flex; }
   <div id="sidebar">
     <div class="sidebar-help">
       <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
-      아래 <b>기본 조합</b> 버튼으로 추천 지표를 한 번에 표시<br>
+      아래 <b>기본 조합</b>·<b>간단 조합</b> 버튼으로 한 번에 표시<br>
       <span style="color:#6e7681;font-size:10px">버전 <b id="buildTag">-</b></span>
     </div>
-    <button id="defaultComboBtn" style="width:calc(100% - 12px);margin:6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#1f6feb;color:#fff;font-weight:700;font-size:12px;cursor:pointer">📊 기본 조합 표시</button>
+    <button id="defaultComboBtn" style="width:calc(100% - 12px);margin:6px 6px 0;padding:7px;border-radius:6px;border:1px solid #30363d;background:#1f6feb;color:#fff;font-weight:700;font-size:12px;cursor:pointer">📊 기본 조합 표시</button>
+    <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:5px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 간단 조합 표시</button>
     <div class="group-title">▶ 오버레이</div>
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
@@ -1453,6 +1457,10 @@ function P(key, idx, def) {
    ADXR(국면) → DMI(방향) → RSI·RVI(시점) → 외국인 순매수(수급) */
 const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
 
+/* 간단 조합 — 칸을 적게 써서 한 화면에 다 들어오게 한 묶음.
+   일목(국면·지지저항) → ADXR(추세 세기) → RSI(시점) → 외국인 순매수(수급) → 거래량 */
+const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'FRGN_NET', 'VOLUME'];
+
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
 const SUB_SWAP = { FRGN_NET:'OBV', OBV:'FRGN_NET', INST_NET:'SHORT_SELL', SHORT_SELL:'INST_NET' };
@@ -1493,6 +1501,55 @@ function loadDefaults() {
 }
 function saveDefaults(defs) {
   try { localStorage.setItem('kgchart_defaults', JSON.stringify(defs)); } catch(e) {}
+}
+
+/* ── 지금 보고 있는 조합을 그대로 기억해 둔다 ─────────────────────
+   종목을 바꾸면 차트 페이지가 통째로 다시 열리기 때문에,
+   저장해 두지 않으면 손으로 켠 지표가 모두 사라지고 기본값으로 돌아간다. */
+function saveCurrentCombo() {
+  const defs = {};
+  document.querySelectorAll('.ind-label').forEach(l => {
+    const cb = l.querySelector('.cb-show');
+    if (cb && cb.checked && l.dataset.key) defs[l.dataset.key] = true;
+  });
+  saveDefaults(defs);
+  try { localStorage.setItem('kgchart_order', JSON.stringify(state.selectedOrder)); } catch(e) {}
+}
+
+/* 짝 지표(⇄)로 바꿔 둔 것을 되돌린다 — 조합 단추를 누르면 적힌 지표가 그대로 나오게 */
+function swapResetFor(list) {
+  const m = swapMapGet();
+  let hit = false;
+  list.forEach(k => { if (m[k]) { delete m[k]; hit = true; } });
+  if (hit) { try { localStorage.setItem(SWAP_KEY, JSON.stringify(m)); } catch(e) {} }
+}
+
+/* 조합 단추 공통 처리 — 전부 끄고 적힌 차례대로 켠다 */
+function applyCombo(list) {
+  Object.keys(state.selected).forEach(k => state.selected[k] = false);
+  state.selectedOrder = [];
+  Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
+  list.forEach(key => {
+    if (OVERLAY_KEYS.includes(key)) state.overlays[key] = true;
+    else { state.selected[key] = true; state.selectedOrder.push(key); }
+  });
+  // 체크박스·라벨 맞추기
+  document.querySelectorAll('.ind-label').forEach(label => {
+    const key = label.dataset.key;
+    const cbShow = label.querySelector('.cb-show');
+    const span = label.querySelector('span.nm');
+    const col = getComputedStyle(label).getPropertyValue('--col').trim();
+    const on = list.includes(key);
+    if (cbShow) cbShow.checked = on;
+    if (on) { label.classList.add('active'); if (span) span.style.color = col; }
+    else { label.classList.remove('active'); if (span) span.style.color = ''; }
+  });
+  swapResetFor(list);
+  const defs = {};
+  list.forEach(k => defs[k] = true);
+  saveDefaults(defs);
+  try { localStorage.setItem('kgchart_order', JSON.stringify(list)); } catch(e) {}
+  renderAll();
 }
 
 function setupSidebar() {
@@ -1549,6 +1606,7 @@ function setupSidebar() {
       }
       if (cbShow.checked) { label.classList.add('active'); span.style.color = col; }
       else { label.classList.remove('active'); span.style.color = ''; }
+      saveCurrentCombo();   // 종목을 바꿔도 이 조합 그대로
       renderAll();
     });
 
@@ -1597,38 +1655,11 @@ function setupSidebar() {
     return va - vb;
   });
 
-  // 기본 조합 버튼: 보조차트 모두 지우고 지정 조합만 순서대로 표시 + 기본으로 저장
+  // 조합 버튼: 보조차트 모두 지우고 지정 조합만 순서대로 표시 + 기본으로 저장
   const comboBtn = document.getElementById('defaultComboBtn');
-  if (comboBtn) {
-    comboBtn.addEventListener('click', () => {
-      // 현재 표시된 모든 지표 끄기
-      Object.keys(state.selected).forEach(k => state.selected[k] = false);
-      state.selectedOrder = [];
-      Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
-      // 기본 조합을 순서대로 켜기
-      DEFAULT_COMBO.forEach(key => {
-        if (OVERLAY_KEYS.includes(key)) state.overlays[key] = true;
-        else { state.selected[key] = true; state.selectedOrder.push(key); }
-      });
-      // 체크박스·라벨 UI 동기화
-      document.querySelectorAll('.ind-label').forEach(label => {
-        const key = label.dataset.key;
-        const cbShow = label.querySelector('.cb-show');
-        const span = label.querySelector('span.nm');
-        const col = getComputedStyle(label).getPropertyValue('--col').trim();
-        const on = DEFAULT_COMBO.includes(key);
-        if (cbShow) cbShow.checked = on;
-        if (on) { label.classList.add('active'); if (span) span.style.color = col; }
-        else { label.classList.remove('active'); if (span) span.style.color = ''; }
-      });
-      // 이 조합을 기본값으로 저장
-      const defs = {};
-      DEFAULT_COMBO.forEach(k => defs[k] = true);
-      saveDefaults(defs);
-      try { localStorage.setItem('kgchart_order', JSON.stringify(DEFAULT_COMBO)); } catch(e) {}
-      renderAll();
-    });
-  }
+  if (comboBtn) comboBtn.addEventListener('click', () => applyCombo(DEFAULT_COMBO));
+  const simpleBtn = document.getElementById('simpleComboBtn');
+  if (simpleBtn) simpleBtn.addEventListener('click', () => applyCombo(SIMPLE_COMBO));
 }
 
 // ══════════════════════════════════════
@@ -3568,7 +3599,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-26 좌우이동+월봉MA';
+const KG_CHART_BUILD = '2026-08-26 X단추수정';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -3661,10 +3692,34 @@ function toMonthly(d){
 const MON_MA = [
   { p:5,  col:'#f0a836' },
   { p:10, col:'#39d353' },
-  { p:24, col:'#58a6ff' },
-  { p:60, col:'#d2a8ff' },
+  { p:24, col:'#d2a8ff' },
+  { p:60, col:'#58a6ff' },
 ];
 const MON_VIEW = 24;   // 화면에 보여줄 개월 수
+let monGeo = null;     // 마지막으로 그린 배치 (마우스 위치 → 몇 번째 달 계산용)
+let monHover = -1;     // 마우스가 올라간 달 (-1이면 없음)
+
+/* 월봉 칸 위에 마우스(손가락)를 올리면 그 달을 세로선으로 표시한다 */
+function bindMonHover(cv){
+  if(!cv || cv._mb) return;
+  cv._mb = true;
+  cv.style.touchAction = 'pan-y';
+  const pick = (clientX) => {
+    if(!monGeo || !monGeo.count) return -1;
+    const rect = cv.getBoundingClientRect();
+    const i = Math.floor((clientX - rect.left - monGeo.left) / (monGeo.cw / monGeo.count));
+    return (i >= 0 && i < monGeo.count) ? i : -1;
+  };
+  const move = (e) => {
+    const i = pick(e.clientX);
+    if(i === monHover) return;
+    monHover = i;
+    drawMonthly();
+  };
+  cv.addEventListener('pointermove', move);
+  cv.addEventListener('pointerdown', move);
+  cv.addEventListener('pointerleave', () => { if(monHover !== -1){ monHover = -1; drawMonthly(); } });
+}
 
 /* 우측 월봉은 10년치를 따로 받아 온다.
    왼쪽 큰 차트의 일봉은 3년치뿐이라 24·60개월 이동평균을 만들 수 없다. */
@@ -3707,6 +3762,7 @@ async function loadMonthlySeries(){
   });
   state.monData = [...map.values()].sort((a,b)=> a.ym < b.ym ? -1 : 1);
   state.monCode = code;
+  monHover = -1;
   if(document.body.classList.contains('sp-mon')) drawMonthly();
 }
 
@@ -3770,6 +3826,9 @@ function drawMonthly(){
   const yOf=v=>PAD.t+ch-((v-mn)/(mx-mn))*ch;
   const xOf=i=>PAD.l+(i+0.5)*(cw/mon.length);
   const bw=Math.max(2, cw/mon.length*0.62);
+  monGeo = { left:PAD.l, cw, count:mon.length };
+  bindMonHover(cv);
+  const hv = (monHover >= 0 && monHover < mon.length) ? monHover : -1;
 
   // 캔들
   mon.forEach((m,i)=>{
@@ -3797,13 +3856,26 @@ function drawMonthly(){
     ctx.stroke();
   });
 
-  // 위쪽 색 안내 (MA5 MA10 MA24 MA60)
+  // 세로선 — 마우스가 올라간 달
+  if(hv >= 0){
+    const hx = xOf(hv);
+    ctx.save();
+    ctx.strokeStyle='#8b949e'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(hx, PAD.t); ctx.lineTo(hx, PAD.t+ch); ctx.stroke();
+    ctx.restore();
+  }
+
+  // 위쪽 색 안내 (MA5 MA10 MA24 MA60) — 마우스를 올리면 그 달의 값도 함께
   ctx.font='9px monospace'; ctx.textAlign='left';
   let lx=PAD.l+1;
+  const room = W - PAD.l - 2;
   lines.forEach(l=>{
     const on = l.v && l.v.some(v=>v!=null);
     ctx.fillStyle = on ? l.col : '#3d444d';
-    const t='MA'+l.p;
+    let t='MA'+l.p;
+    if(hv >= 0 && l.v && l.v[hv]!=null) t += ' '+Math.round(l.v[hv]).toLocaleString();
+    const wd = ctx.measureText(t).width;
+    if(lx + wd > room){ t='MA'+l.p; }            // 자리가 모자라면 이름만
     ctx.fillText(t, lx, 10);
     lx += ctx.measureText(t).width + 7;
   });
@@ -3816,8 +3888,24 @@ function drawMonthly(){
   ctx.fillStyle=last.close>=last.open?'#ef5350':'#58a6ff';
   ctx.fillText(Math.round(last.close).toLocaleString(), W-PAD.r+3, yOf(last.close)+3);
   ctx.fillStyle='#6e7681'; ctx.textAlign='center';
-  ctx.fillText(mon[0].ym.replace('-','.'), PAD.l+20, H-4);
-  ctx.fillText(last.ym.replace('-','.'), PAD.l+cw-20, H-4);
+  if(hv < 0){
+    ctx.fillText(mon[0].ym.replace('-','.'), PAD.l+20, H-4);
+    ctx.fillText(last.ym.replace('-','.'), PAD.l+cw-20, H-4);
+  } else {
+    /* 마우스가 올라간 달 — x축에 '연.월 종가' 를 상자로 표시.
+       양끝 날짜와 겹치지 않도록 그때는 양끝을 숨긴다 */
+    const m = mon[hv];
+    const txt = m.ym.replace('-','.') + '  ' + Math.round(m.close).toLocaleString();
+    ctx.font='9px monospace';
+    const tw = ctx.measureText(txt).width;
+    let bx = Math.min(Math.max(xOf(hv) - tw/2 - 4, 1), W - tw - 9);
+    ctx.fillStyle='#21262d';
+    ctx.fillRect(bx, H-13, tw+8, 12);
+    ctx.strokeStyle='#30363d'; ctx.lineWidth=1; ctx.strokeRect(bx+0.5, H-12.5, tw+7, 11);
+    ctx.fillStyle = m.close>=m.open ? '#ef5350' : '#58a6ff';
+    ctx.textAlign='left';
+    ctx.fillText(txt, bx+4, H-4);
+  }
 }
 
 /* 투자자별 매매동향 — 날짜·종가·대비·기관·외국인 */
@@ -3954,8 +4042,12 @@ function renderAll() {
     closeBtn.className = 'sub-close';
     closeBtn.textContent = '✕';
     closeBtn.title = '이 보조차트 지우기';
-    closeBtn.onclick = (e) => {
-      e.stopPropagation();
+    /* 예전에는 click 만 받았는데, 차트를 끌기 위해 붙여 둔 손가락 처리와
+       겹쳐 눌러도 반응이 없는 일이 있었다. 누르는 순간(pointerdown)에 처리한다. */
+    const doClose = (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      if (closeBtn._busy) return;
+      closeBtn._busy = true;
       // 상태에서 제거
       state.selected[key] = false;
       state.selectedOrder = state.selectedOrder.filter(k => k !== key);
@@ -3968,8 +4060,11 @@ function renderAll() {
         const span = label.querySelector('span.nm');
         if (span) span.style.color = '';
       }
+      if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
       renderAll();
     };
+    closeBtn.addEventListener('pointerdown', doClose);
+    closeBtn.addEventListener('click', doClose);
     wrap.appendChild(closeBtn);
 
     /* 짝이 있는 칸은 좌우로 밀어(또는 ⇄ 를 눌러) 바꿔 볼 수 있다 */
@@ -3979,10 +4074,18 @@ function renderAll() {
       sw.className = 'sub-swap';
       sw.textContent = '⇄';
       sw.title = '누르거나 칸을 두 번 톡 해서 ' + indName(SUB_SWAP[shown]) + ' 보기';
-      sw.style.cssText = 'position:absolute;top:2px;right:22px;z-index:5;cursor:pointer;'
-        + 'color:#8b949e;font-size:13px;line-height:1;padding:2px 4px;border-radius:4px;background:#0d1117aa';
+      sw.style.cssText = 'position:absolute;top:2px;right:22px;z-index:40;cursor:pointer;'
+        + 'color:#8b949e;font-size:15px;line-height:1;padding:3px 7px;border-radius:4px;background:#0d1117cc;'
+        + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent';
       const doSwap = () => { swapToggle(key); renderAll(); };
-      sw.onclick = e => { e.stopPropagation(); doSwap(); };
+      const onSwapTap = e => {
+        if (e) { e.stopPropagation(); e.preventDefault(); }
+        if (sw._busy) return;
+        sw._busy = true;
+        doSwap();
+      };
+      sw.addEventListener('pointerdown', onSwapTap);
+      sw.addEventListener('click', onSwapTap);
       wrap.appendChild(sw);
 
       /* 예전에는 '옆으로 밀기'로 지표를 바꿨는데,
@@ -4156,6 +4259,15 @@ function setupMouseEvent() {
      ====================================================================== */
   const pts = new Map();          // 눌려 있는 손가락/버튼
   let mode = null;                // null | 'aim'(십자선) | 'pan'(이동) | 'pinch'(확대)
+  /* 붙잡기는 '실제로 미는 순간'에만 건다.
+     누르자마자 붙잡으면, 그 뒤에 ✕ 같은 작은 단추를 눌러도
+     신호가 캔버스로 끌려가 단추가 반응하지 않는 일이 생긴다. */
+  let capEl = null, capId = null;
+  function grab(el, id) { try { el.setPointerCapture(id); capEl = el; capId = id; } catch (_) {} }
+  function release() {
+    if (capEl != null && capId != null) { try { capEl.releasePointerCapture(capId); } catch (_) {} }
+    capEl = null; capId = null;
+  }
   let panBaseX = 0, panRange = null;
   let pinch = null;
   let lastTapAt = 0;
@@ -4209,7 +4321,6 @@ function setupMouseEvent() {
     const el = e.currentTarget;
     if (e.pointerType === 'mouse' && e.button !== 0) return;   // 왼쪽 단추만
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    try { el.setPointerCapture(e.pointerId); } catch (_) {}
     if (pts.size === 2) { startPinch(el); return; }
     if (pts.size > 2) return;
     mode = 'aim';
@@ -4238,6 +4349,7 @@ function setupMouseEvent() {
       /* 이동 시작 — 기준을 '지금 위치'로 다시 잡는다.
          예전에는 20px 을 넘긴 순간 그 20px 만큼 차트가 확 튀었다. */
       mode = 'pan';
+      grab(el, e.pointerId);      // 이때부터 화면 밖으로 나가도 계속 따라온다
       panBaseX = e.clientX;
       panRange = [...state.range];
       state.hoverIdx = -1;
@@ -4252,7 +4364,7 @@ function setupMouseEvent() {
 
   function finish(el, e, canceled) {
     pts.delete(e.pointerId);
-    try { el.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (capId === e.pointerId) release();
 
     if (mode === 'pinch' && pts.size < 2) {
       pinch = null;
@@ -4301,7 +4413,10 @@ function setupMouseEvent() {
     el.addEventListener('pointermove', onMove);
     el.addEventListener('pointerup',     e => finish(e.currentTarget, e, false));
     el.addEventListener('pointercancel', e => finish(e.currentTarget, e, true));
-    el.addEventListener('lostpointercapture', e => { if (pts.has(e.pointerId)) finish(e.currentTarget, e, true); });
+    el.addEventListener('lostpointercapture', e => {
+      if (capId === e.pointerId) { capEl = null; capId = null; }
+      if (pts.has(e.pointerId)) finish(e.currentTarget, e, true);
+    });
     el.addEventListener('pointerleave', e => {
       // 손가락은 떼어도 십자선을 남겨 둔다(날짜 확인용). 마우스만 지운다
       if (e.pointerType !== 'mouse') return;
@@ -4310,6 +4425,16 @@ function setupMouseEvent() {
     el.addEventListener('dragstart', e => e.preventDefault());
     el.ondblclick = e => e.preventDefault();   // 두 번 누름은 위에서 직접 처리
     el.addEventListener('contextmenu', e => { if (mode === 'pan') e.preventDefault(); });
+  }
+
+  /* 안전망: 창 밖에서 손을 떼거나 다른 창으로 넘어가도
+     붙잡기가 남아 다음 누름을 가로채지 않게 한다 */
+  if (!window._panSafety) {
+    window._panSafety = true;
+    const clear = () => { if (pts.size === 0) release(); };
+    window.addEventListener('pointerup', clear, true);
+    window.addEventListener('pointercancel', clear, true);
+    window.addEventListener('blur', () => { pts.clear(); mode = null; release(); });
   }
 
   bindPan(canvas);
