@@ -159,6 +159,16 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 #chart-area::-webkit-scrollbar-track { background: #0d1117; }
 #chart-area::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
 
+/* 메인 차트 교대 단추 — 일목균형표 ⇄ 매물대+이동평균 */
+#main-swap {
+  position: absolute; top: 3px; right: 66px; z-index: 20;
+  padding: 3px 7px; border-radius: 4px;
+  background: #0d1117cc; border: 1px solid #30363d;
+  color: #8b949e; font-size: 15px; line-height: 1; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+#main-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+
 /* 메인 캔들 - 고정 높이 */
 #candle-wrap {
   flex: 0 0 320px; height: 320px;
@@ -360,6 +370,7 @@ body.stock-closed #step-pad { display: flex; }
   <div id="chart-area">
     <div id="candle-wrap">
       <canvas id="candle-canvas"></canvas>
+      <div id="main-swap" title="일목균형표 ⇄ 매물대+이동평균">⇄</div>
     </div>
   </div>
   <!-- 우측 패널: 월봉 · 투자자별 매매동향 -->
@@ -1457,13 +1468,26 @@ function P(key, idx, def) {
    ADXR(국면) → DMI(방향) → RSI·RVI(시점) → 외국인 순매수(수급) */
 const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
 
-/* 간단 조합 — 칸을 적게 써서 한 화면에 다 들어오게 한 묶음.
-   일목(국면·지지저항) → ADXR(추세 세기) → RSI(시점) → 외국인 순매수(수급) → 거래량 */
-const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'FRGN_NET', 'VOLUME'];
+/* 간단 조합 — 둘씩 짝지어 ⇄ 로 번갈아 보는 5조.
+   1조 일목균형표 ⇄ 매물대+이동평균  (주가차트 위에 겹쳐 그림)
+   2조 ADXR ⇄ DMI      3조 RSI ⇄ RVI
+   4조 MACD ⇄ SlowStoch 5조 외국인순매수 ⇄ OBV */
+const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'MACD', 'FRGN_NET'];
 
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
-const SUB_SWAP = { FRGN_NET:'OBV', OBV:'FRGN_NET', INST_NET:'SHORT_SELL', SHORT_SELL:'INST_NET' };
+const SUB_SWAP = {
+  FRGN_NET:'OBV',        OBV:'FRGN_NET',
+  INST_NET:'SHORT_SELL', SHORT_SELL:'INST_NET',
+  ADXR:'ADX',            ADX:'ADXR',          // ADXR ⇄ DMI
+  RSI:'RVI',             RVI:'RSI',
+  MACD:'SLOWSTOCH',      SLOWSTOCH:'MACD',
+};
+
+/* 메인 주가차트에 겹쳐 그리는 두 묶음 — ⇄ 로 번갈아 본다.
+   가: 일목균형표 / 나: 매물대 + 이동평균(5·20·60) */
+const MAIN_OV_A = ['ICHIMOKU'];
+const MAIN_OV_B = ['VPROFILE', 'MA'];
 
 /* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
 function frgnRatioColor(v){
@@ -1514,6 +1538,36 @@ function saveCurrentCombo() {
   });
   saveDefaults(defs);
   try { localStorage.setItem('kgchart_order', JSON.stringify(state.selectedOrder)); } catch(e) {}
+}
+
+/* 오버레이 하나 켜기/끄기 (사이드바 표시도 같이 맞춘다) */
+function setOverlay(key, on) {
+  state.overlays[key] = !!on;
+  const label = document.querySelector(`.ind-label[data-key="${key}"]`);
+  if (!label) return;
+  const cb = label.querySelector('.cb-show');
+  const span = label.querySelector('span.nm');
+  if (cb) cb.checked = !!on;
+  if (on) { label.classList.add('active'); if (span) span.style.color = getComputedStyle(label).getPropertyValue('--col').trim(); }
+  else { label.classList.remove('active'); if (span) span.style.color = ''; }
+}
+
+/* 지금 주가차트에 겹쳐 있는 쪽이 '가'(일목)인지 '나'(매물대+이동평균)인지 */
+function mainOvIsB() {
+  return !state.overlays.ICHIMOKU && (state.overlays.VPROFILE || state.overlays.MA);
+}
+/* ⇄ — 일목균형표와 매물대+이동평균을 맞바꾼다 */
+function mainOvToggle() {
+  const toB = !mainOvIsB();
+  MAIN_OV_A.forEach(k => setOverlay(k, !toB));
+  MAIN_OV_B.forEach(k => setOverlay(k, toB));
+  if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
+  renderAll();
+}
+function syncMainSwapBtn() {
+  const b = document.getElementById('main-swap');
+  if (!b) return;
+  b.title = mainOvIsB() ? '⇄ 일목균형표 보기' : '⇄ 매물대 + 이동평균(5·20·60) 보기';
 }
 
 /* 짝 지표(⇄)로 바꿔 둔 것을 되돌린다 — 조합 단추를 누르면 적힌 지표가 그대로 나오게 */
@@ -1660,6 +1714,21 @@ function setupSidebar() {
   if (comboBtn) comboBtn.addEventListener('click', () => applyCombo(DEFAULT_COMBO));
   const simpleBtn = document.getElementById('simpleComboBtn');
   if (simpleBtn) simpleBtn.addEventListener('click', () => applyCombo(SIMPLE_COMBO));
+
+  // 메인 주가차트 ⇄ (일목균형표 ⇄ 매물대+이동평균)
+  const msw = document.getElementById('main-swap');
+  if (msw) {
+    const tap = (e) => {
+      if (e) { e.stopPropagation(); e.preventDefault(); }
+      if (msw._busy) return;
+      msw._busy = true;
+      setTimeout(() => { msw._busy = false; }, 250);
+      mainOvToggle();
+    };
+    msw.addEventListener('pointerdown', tap);
+    msw.addEventListener('click', tap);
+  }
+  syncMainSwapBtn();
 }
 
 // ══════════════════════════════════════
@@ -1773,9 +1842,11 @@ function drawCandle() {
   // MA
   if (overlays.MA) {
     const ma = CALC.MA(data);
-    const cols = {ma5:'#ef5350cc', ma20:'#f59e0bcc', ma60:'#3fb950cc', ma120:'#58a6ffcc'};
-    const labels = {ma5:'5', ma20:'20', ma60:'60', ma120:'120'};
+    /* 기본은 5·20·60. 120일선은 설명 페이지에서 켤 때만 그린다 */
+    const cols = {ma5:'#ef5350cc', ma20:'#f59e0bcc', ma60:'#3fb950cc'};
+    if (OPT('MA', 'ma120', false)) cols.ma120 = '#58a6ffcc';
     Object.entries(cols).forEach(([k, col]) => {
+      if (!ma[k]) return;
       const sl = ma[k].slice(...range);
       ctx.strokeStyle = col; ctx.lineWidth = 1;
       ctx.beginPath(); let s = false;
@@ -2030,6 +2101,10 @@ function drawCandle() {
 
   // 오버레이 범례 (세로로) — 이동평균(MA) 정보는 제외
   const legends = [];
+  if (overlays.MA) {
+    legends.push({t:'MA5', c:'#ef5350'}, {t:'MA20', c:'#f59e0b'}, {t:'MA60', c:'#3fb950'});
+    if (OPT('MA', 'ma120', false)) legends.push({t:'MA120', c:'#58a6ff'});
+  }
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
   if (overlays.ICHIMOKU) {
     const ichSub = [{t:'기준선', c:'#ef5350'}, {t:'전환선', c:'#ffd54f'}, {t:'선행A', c:'#3fb950'}, {t:'선행B', c:'#bc8cff'}];
@@ -3599,7 +3674,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-26 X단추층수정';
+const KG_CHART_BUILD = '2026-08-26 간단조합 5조교대';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4436,6 +4511,8 @@ function setupMouseEvent() {
     window.addEventListener('pointercancel', clear, true);
     window.addEventListener('blur', () => { pts.clear(); mode = null; release(); });
   }
+
+  if (typeof syncMainSwapBtn === 'function') syncMainSwapBtn();
 
   bindPan(canvas);
   document.querySelectorAll('.sub-canvas').forEach(bindPan);
