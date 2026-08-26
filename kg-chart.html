@@ -228,7 +228,7 @@ body.stock-closed #step-pad { display: flex; }
   display: flex; align-items: center; justify-content: center;
   background: #21262de6; color: #8b949e;
   border: 1px solid #30363d; border-radius: 4px;
-  font-size: 12px; cursor: pointer; z-index: 40;
+  font-size: 12px; cursor: pointer; z-index: 20;   /* 지표 패널(사이드바 40)보다 낮게 — 목록을 가리지 않도록 */
   line-height: 1; user-select: none;
   /* 캔버스가 손가락 신호를 가져가지 못하도록 이 단추만 따로 지정 */
   touch-action: manipulation; -webkit-tap-highlight-color: transparent;
@@ -3599,7 +3599,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-26 X단추수정';
+const KG_CHART_BUILD = '2026-08-26 X단추층수정';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4074,7 +4074,7 @@ function renderAll() {
       sw.className = 'sub-swap';
       sw.textContent = '⇄';
       sw.title = '누르거나 칸을 두 번 톡 해서 ' + indName(SUB_SWAP[shown]) + ' 보기';
-      sw.style.cssText = 'position:absolute;top:2px;right:22px;z-index:40;cursor:pointer;'
+      sw.style.cssText = 'position:absolute;top:2px;right:22px;z-index:20;cursor:pointer;'
         + 'color:#8b949e;font-size:15px;line-height:1;padding:3px 7px;border-radius:4px;background:#0d1117cc;'
         + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent';
       const doSwap = () => { swapToggle(key); renderAll(); };
