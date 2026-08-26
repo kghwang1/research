@@ -186,7 +186,7 @@ body.sp-mon #mon-box{ display:block }
 body.sp-flow #flow-box{ display:block }
 .sp-h{ font-size:11.5px;font-weight:700;color:#f2c800;margin:0 0 4px }
 .sp-h .sp-k{ color:#6e7681;font-weight:400 }
-#mon-canvas{ width:100%;height:150px;display:block;background:#161b22;
+#mon-canvas{ width:100%;height:172px;display:block;background:#161b22;
   border:1px solid #30363d;border-radius:6px }
 #flow-tbl table{ width:100%;border-collapse:collapse;font-size:10.5px;font-family:monospace }
 #flow-tbl th{ color:#8b949e;font-weight:600;text-align:right;padding:2px 3px;border-bottom:1px solid #30363d }
@@ -821,6 +821,9 @@ let state = {
   clickPrice: null,  // 캔들 클릭 시 y축 표시할 가격
   frgnData: null,   // 외국인 일별 순매수 { date: net } 맵 (한국 종목만)
   dailyData: null,  // 일봉 자료 — 우측 패널(월봉·매매동향) 전용 (드롭다운과 무관)
+  monData: null,    // 우측 월봉 자료(10년치) — 24·60개월 이동평균 계산용
+  monCode: null,    // monData 가 어느 종목 것인지
+  monLoading: null, // 지금 받아오는 중인 종목
   shortData: null,  // 공매도 일별 { date: {vol, bal} } 맵 (한국 종목만)
   keepZoom: null,   // 사용자가 확대/축소한 표시 봉 개수 (종목 변경 시 유지)
   keepFrom: null,   // 보고 있던 구간 시작 날짜 (종목 변경 시 같은 기간 복원)
@@ -3565,7 +3568,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-26 좌우이동개선';
+const KG_CHART_BUILD = '2026-08-26 좌우이동+월봉MA';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -3635,7 +3638,7 @@ function bindSidePane(){
   spApply(true);
 }
 
-/* 일봉을 달별로 묶어 월봉을 만든다 */
+/* 일봉을 달별로 묶어 월봉을 만든다 (월봉 자료를 못 받았을 때의 대비책) */
 function toMonthly(d){
   const out=[];
   (d||[]).forEach(x=>{
@@ -3651,28 +3654,126 @@ function toMonthly(d){
   });
   return out;
 }
+
+/* ── 월봉 이동평균 설정 ─────────────────────────────────────────────
+   월봉은 한 칸이 한 달이므로 숫자를 그대로 '개월'로 읽는다.
+   5개월·10개월(추세) · 24개월(2년, 중기) · 60개월(5년, 대세) */
+const MON_MA = [
+  { p:5,  col:'#f0a836' },
+  { p:10, col:'#39d353' },
+  { p:24, col:'#58a6ff' },
+  { p:60, col:'#d2a8ff' },
+];
+const MON_VIEW = 24;   // 화면에 보여줄 개월 수
+
+/* 우측 월봉은 10년치를 따로 받아 온다.
+   왼쪽 큰 차트의 일봉은 3년치뿐이라 24·60개월 이동평균을 만들 수 없다. */
+async function loadMonthlySeries(){
+  const st = state.stock;
+  if(!st || !st.code) return;
+  const code = st.code;
+  if(state.monCode === code || state.monLoading === code) return;
+  state.monLoading = code;
+  let rows = null;
+  const get = async (url) => {
+    const r = await fetch(url, { cache:'no-store' });
+    const j = await r.json();
+    if(j && j.ok){
+      const a = j.data || j.ohlcv;
+      if(a && a.length >= 6) return a;
+    }
+    return null;
+  };
+  try{
+    const isKr = /^\d{6}$/.test(code);
+    const IDX = { 'KOSPI':'KOSPI','KOSDAQ':'KOSDAQ','^KS11':'KOSPI','^KQ11':'KOSDAQ','^KS200':'KPI200' };
+    const nCode = isKr ? code : IDX[String(code).toUpperCase()];
+    if(nCode) rows = await get(`${WORKER}/?naverChart=${nCode}&timeframe=month&days=4000&_t=${Date.now()}`);
+    if(!rows && /^[A-Za-z]/.test(String(code)) && !/^\^/.test(String(code)))
+      rows = await get(`${WORKER}/?naverWorldChart=${encodeURIComponent(code)}&timeframe=month&days=4000&_t=${Date.now()}`);
+    if(!rows)
+      rows = await get(`${WORKER}/?yahooChart=${encodeURIComponent(toYahooSymbol(st))}&range=10y&interval=1mo&_t=${Date.now()}`);
+  }catch(e){ console.warn('월봉 자료 실패:', e); }
+  state.monLoading = null;
+  if(!rows) return;
+  /* 같은 달이 여러 줄로 올 수도 있어 달별로 한 줄만 남긴다 */
+  const map = new Map();
+  rows.forEach(x=>{
+    const ym = String(x.date||'').slice(0,7);
+    if(!ym) return;
+    const m = map.get(ym);
+    if(m){ m.high=Math.max(m.high,x.high); m.low=Math.min(m.low,x.low); m.close=x.close; m.vol+=(x.volume||0); }
+    else map.set(ym, { ym, open:x.open, high:x.high, low:x.low, close:x.close, vol:x.volume||0 });
+  });
+  state.monData = [...map.values()].sort((a,b)=> a.ym < b.ym ? -1 : 1);
+  state.monCode = code;
+  if(document.body.classList.contains('sp-mon')) drawMonthly();
+}
+
+/* 이동평균 (자료가 모자란 앞부분은 null) */
+function monMA(arr, p){
+  const out = new Array(arr.length).fill(null);
+  let sum = 0;
+  for(let i=0;i<arr.length;i++){
+    sum += arr[i].close;
+    if(i >= p) sum -= arr[i-p].close;
+    if(i >= p-1) out[i] = sum/p;
+  }
+  return out;
+}
+
 function drawMonthly(){
   const cv=document.getElementById('mon-canvas'); if(!cv) return;
-  const src = (state.dailyData && state.dailyData.length) ? state.dailyData : state.data;
-  const mon=toMonthly(src).slice(-24);
-  const sub=document.getElementById('mon-sub');
-  if(sub) sub.textContent = mon.length ? '최근 '+mon.length+'개월' : '';
+
+  /* 이동평균은 화면에 보이지 않는 과거까지 있어야 계산되므로
+     전체(full)로 계산하고, 그림은 뒤쪽 24개월만 그린다 */
+  let full;
+  if(state.monData && state.monCode === (state.stock && state.stock.code)){
+    full = state.monData;
+  } else {
+    const src = (state.dailyData && state.dailyData.length) ? state.dailyData : state.data;
+    full = toMonthly(src);
+    loadMonthlySeries();            // 10년치를 받아 오면 다시 그린다
+  }
+  const off = Math.max(0, full.length - MON_VIEW);
+  const mon = full.slice(off);
+
   const dpr=window.devicePixelRatio||1;
-  const W=cv.clientWidth||280, H=cv.clientHeight||150;
+  const W=cv.clientWidth||280, H=cv.clientHeight||172;
   cv.width=W*dpr; cv.height=H*dpr;
   const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,W,H);
   if(mon.length<2){ ctx.fillStyle='#6e7681'; ctx.font='11px sans-serif'; ctx.textAlign='center';
     ctx.fillText('자료 없음', W/2, H/2); return; }
-  const PAD={l:4,r:44,t:6,b:16};
+
+  /* 이동평균 계산 — 자료가 모자라면 그 선은 건너뛴다 */
+  const lines = MON_MA.map(m => ({
+    p: m.p, col: m.col,
+    v: (full.length >= m.p) ? monMA(full, m.p).slice(off) : null
+  }));
+
+  const sub=document.getElementById('mon-sub');
+  if(sub){
+    const have = lines.filter(l=>l.v && l.v.some(x=>x!=null)).map(l=>l.p);
+    sub.textContent = '최근 '+mon.length+'개월'+(have.length ? ' · MA '+have.join('·') : '');
+  }
+
+  const PAD={l:4,r:44,t:15,b:16};
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
-  const hi=Math.max(...mon.map(m=>m.high)), lo=Math.min(...mon.map(m=>m.low));
+
+  /* 세로 범위는 캔들과 이동평균을 모두 담는다 */
+  let hi=Math.max(...mon.map(m=>m.high)), lo=Math.min(...mon.map(m=>m.low));
+  const hiC=hi, loC=lo;
+  lines.forEach(l=>{ if(!l.v) return; l.v.forEach(v=>{ if(v==null) return; if(v>hi) hi=v; if(v<lo) lo=v; }); });
   const pad=(hi-lo)*0.08 || 1;
   const mx=hi+pad, mn=lo-pad;
   const yOf=v=>PAD.t+ch-((v-mn)/(mx-mn))*ch;
+  const xOf=i=>PAD.l+(i+0.5)*(cw/mon.length);
   const bw=Math.max(2, cw/mon.length*0.62);
+
+  // 캔들
   mon.forEach((m,i)=>{
-    const x=PAD.l+(i+0.5)*(cw/mon.length);
+    const x=xOf(i);
     const up=m.close>=m.open;
     ctx.strokeStyle=up?'#ef5350':'#58a6ff'; ctx.fillStyle=up?'#ef5350':'#58a6ff';
     ctx.lineWidth=1;
@@ -3680,10 +3781,37 @@ function drawMonthly(){
     const y1=yOf(Math.max(m.open,m.close)), y2=yOf(Math.min(m.open,m.close));
     ctx.fillRect(x-bw/2, y1, bw, Math.max(1, y2-y1));
   });
+
+  // 이동평균선
+  ctx.lineWidth=1.3; ctx.lineJoin='round';
+  lines.forEach(l=>{
+    if(!l.v) return;
+    ctx.strokeStyle=l.col;
+    ctx.beginPath();
+    let started=false;
+    l.v.forEach((v,i)=>{
+      if(v==null){ started=false; return; }
+      const x=xOf(i), y=yOf(v);
+      if(started) ctx.lineTo(x,y); else { ctx.moveTo(x,y); started=true; }
+    });
+    ctx.stroke();
+  });
+
+  // 위쪽 색 안내 (MA5 MA10 MA24 MA60)
+  ctx.font='9px monospace'; ctx.textAlign='left';
+  let lx=PAD.l+1;
+  lines.forEach(l=>{
+    const on = l.v && l.v.some(v=>v!=null);
+    ctx.fillStyle = on ? l.col : '#3d444d';
+    const t='MA'+l.p;
+    ctx.fillText(t, lx, 10);
+    lx += ctx.measureText(t).width + 7;
+  });
+
   // 오른쪽 값 · 아래 연도
   ctx.fillStyle='#8b949e'; ctx.font='9px monospace'; ctx.textAlign='left';
-  ctx.fillText(Math.round(hi).toLocaleString(), W-PAD.r+3, yOf(hi)+3);
-  ctx.fillText(Math.round(lo).toLocaleString(), W-PAD.r+3, yOf(lo)+3);
+  ctx.fillText(Math.round(hiC).toLocaleString(), W-PAD.r+3, yOf(hiC)+3);
+  ctx.fillText(Math.round(loC).toLocaleString(), W-PAD.r+3, yOf(loC)+3);
   const last=mon[mon.length-1];
   ctx.fillStyle=last.close>=last.open?'#ef5350':'#58a6ff';
   ctx.fillText(Math.round(last.close).toLocaleString(), W-PAD.r+3, yOf(last.close)+3);
