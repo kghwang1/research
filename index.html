@@ -4141,7 +4141,9 @@ function renderWatchTable(){
     : isLongSub
     ? [40,96,64,92,92,76,100,100,84]                    // 장기종목: 점수 추가 · 매수액/공매도/보고서 제외
     : isSel
-    ? [40,96,78,92,76,90,90,90,100,100,84,200]      // 선정주: 분류 없음 · 투자 있음
+    /* 선정주: 종목 · 투자 · 현재가 · ROE · 외국인 · 5일매수액 · 공매도 · 52주최고가 · 목표가 · 컨센서스 · 보고서
+       종목 열은 종전(200px)의 절반인 100px */
+    ? [100,78,92,92,76,90,90,90,100,84,200]
     : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
@@ -7459,23 +7461,103 @@ function drawDeposit(){
 
 // 터치·마우스로 값 보기
 /* ───── 증시자금동향 해설 ─────
-   숫자를 그대로 읽어주는 대신, 무엇을 뜻하는지와 무엇을 확인해야 하는지를 적는다. */
+   숫자를 그대로 읽어주는 대신, 무엇을 뜻하는지와 무엇을 확인해야 하는지를 적는다.
+   ── 2026-08-26 개정 ────────────────────────────────────────────
+   예전에는 표시 구간의 '첫날 대 마지막날'만 비교해서, 한 달 내내 신용잔고가
+   늘고 있어도 구간 처음보다 낮으면 '줄고 있다'고 잘못 적었다.
+   이제 ① 오늘 ② 이번 주 ③ 이달 변화를 따로 적고,
+   ④ 구간 안에서 방향이 꺾인 자리(최고·최저)를 찾아 흐름을 서술한다. */
+
+/* 이번 주가 시작되기 직전의 자료 (한 주 동안의 변화를 재는 기준) */
+function depBaseWeek(){
+  const V=DEP_VIEW; if(V.length<2) return null;
+  const d=new Date(V[V.length-1].date);
+  const mon=new Date(d); mon.setDate(d.getDate() - ((d.getDay()+6)%7));  // 그 주 월요일
+  const ms=mon.toISOString().slice(0,10);
+  let base=null;
+  for(const r of V){ if(r.date < ms) base=r; else break; }
+  return base || V[Math.max(0, V.length-6)];
+}
+/* 지난달 마지막 자료 (이달 변화를 재는 기준) */
+function depBaseMonth(){
+  const V=DEP_VIEW; if(V.length<2) return null;
+  const ym=V[V.length-1].date.slice(0,7);
+  let base=null;
+  for(const r of V){ if(r.date.slice(0,7) < ym) base=r; else break; }
+  return base;
+}
+
+/* 구간 안에서 방향이 꺾인 자리를 찾아 흐름을 문장으로 만든다 */
+function depTrendText(k, nm){
+  const V=DEP_VIEW;
+  const idx=[]; V.forEach((x,i)=>{ if(x[k]!=null) idx.push(i); });
+  if(idx.length<5) return '';
+  let iMax=idx[0], iMin=idx[0];
+  idx.forEach(i=>{ if(V[i][k]>V[iMax][k]) iMax=i; if(V[i][k]<V[iMin][k]) iMin=i; });
+  const lastI=idx[idx.length-1];
+  const pc=(a,b)=> (V[b][k]-V[a][k])/Math.abs(V[a][k])*100;
+  const D=i=> V[i].date.slice(5).replace('-','/');
+  const N=v=> '<span class="num">'+(v>=0?'+':'')+v.toFixed(1)+'%</span>';
+  const gapDays=(a,b)=> Math.round((new Date(V[b].date)-new Date(V[a].date))/86400000);
+  /* 받침에 따라 '은/는' 을 고른다 — 신용잔고'는' · 고객예탁금'은' */
+  const jo=(w)=>{ const c=w.charCodeAt(w.length-1)-0xAC00; return (c>=0 && c<11172 && c%28) ? '은' : '는'; };
+  const NM='<b>'+nm+'</b>'+jo(nm)+' ';
+
+  if(iMin>iMax){                      // 내려가다 바닥을 친 모양
+    const down=pc(iMax,iMin), up=pc(iMin,lastI);
+    if(gapDays(iMin,lastI)>=5 && up>0.3)
+      return NM+D(iMax)+' 고점에서 '+D(iMin)+' 저점까지 '+N(down)
+           + ' 줄다가, 그 뒤 '+N(up)+' 늘어 <b style="color:#ef5350">다시 증가</b>하고 있습니다.';
+    return NM+D(iMax)+' 고점 이후 '+N(down)+' 줄어 아직 감소 흐름입니다.';
+  }
+  const up=pc(iMin,iMax), down=pc(iMax,lastI);   // 올라가다 꼭대기를 친 모양
+  if(gapDays(iMax,lastI)>=5 && down<-0.3)
+    return NM+D(iMin)+' 저점에서 '+D(iMax)+' 고점까지 '+N(up)
+         + ' 늘다가, 그 뒤 '+N(down)+' 줄어 <b style="color:#3fb950">감소로 돌아섰</b>습니다.';
+  return NM+D(iMin)+' 저점 이후 '+N(up)+' 늘어 <b style="color:#ef5350">증가 흐름</b>입니다.';
+}
+
 function depReadOut(){
   const el=$('#depRead'); if(!el) return;
   if(!DEP_VIEW.length){ el.innerHTML=''; return; }
-  const last=DEP_VIEW[DEP_VIEW.length-1];
-  const first=DEP_VIEW[0];
-  const g=k=> (last && last[k]!=null && first && first[k]!=null) ? (last[k]-first[k])/Math.abs(first[k])*100 : null;
-  const dep=g('deposit'), cre=g('credit'), stk=g('stock'), bnd=g('bond');
-  const ratio=(last.credit!=null && last.deposit) ? last.credit/last.deposit*100 : null;
+  const V=DEP_VIEW;
+  const last=V[V.length-1];
+  const prev=V.length>1 ? V[V.length-2] : null;
+  const first=V[0];
+  const wBase=depBaseWeek(), mBase=depBaseMonth();
+
+  const pc=(a,b,k)=> (a&&b&&a[k]!=null&&b[k]!=null&&b[k]!=0) ? (a[k]-b[k])/Math.abs(b[k])*100 : null;
+  const df=(a,b,k)=> (a&&b&&a[k]!=null&&b[k]!=null) ? (a[k]-b[k])/1000 : null;   // 억원 → 천억원
   const pct1=v=> v==null?'—':(v>=0?'+':'')+v.toFixed(1)+'%';
-  const upDown=v=> v==null?'':(v>0.5?'늘고':(v<-0.5?'줄고':'제자리'));
+  const one=(a,b,k)=>{
+    const p=pc(a,b,k), q=df(a,b,k);
+    if(p==null) return '—';
+    const col = p>0.05 ? '#ef5350' : p<-0.05 ? '#3fb950' : '#8b949e';
+    return '<span class="num" style="color:'+col+'">'+(q>=0?'+':'')+q.toFixed(1)+'천억 ('+pct1(p)+')</span>';
+  };
+  const line=(base,ttl)=> base
+    ? '<div class="row">· <b>'+ttl+'</b> — 예탁금 '+one(last,base,'deposit')
+      + ', 신용잔고 '+one(last,base,'credit')+'</div>'
+    : '';
+
+  const ratio=(last.credit!=null && last.deposit) ? last.credit/last.deposit*100 : null;
+  const dM=pc(last,mBase,'deposit'), cM=pc(last,mBase,'credit');
+  const stk=pc(last,first,'stock'), bnd=pc(last,first,'bond');
 
   let h='<b>[해설]</b> ';
   h+='<span class="k">고객예탁금은 아직 주식을 사지 않은 대기자금, 신용잔고는 빚내서 산 주식입니다.</span>';
 
-  h+='<div class="row">· 최근 구간에서 <b>고객예탁금</b>은 '+upDown(dep)+' <span class="num">'+pct1(dep)+'</span>, '
-   + '<b>신용잔고</b>는 '+upDown(cre)+' <span class="num">'+pct1(cre)+'</span> 입니다.</div>';
+  // ① 오늘 ② 이번 주 ③ 이달
+  h+=line(prev,  '오늘 ('+String(last.date).slice(5).replace('-','/')+', 전일 대비)');
+  h+=line(wBase, '이번 주');
+  h+=line(mBase, '이달 ('+Number(String(last.date).slice(5,7))+'월)');
+
+  // ④ 구간 흐름 — 방향이 꺾인 자리까지 짚어준다
+  const t1=depTrendText('credit','신용잔고'), t2=depTrendText('deposit','고객예탁금');
+  const span='<span class="k">(최근 3개월: '+String(first.date).slice(2).replace(/-/g,'/')
+           + '~'+String(last.date).slice(2).replace(/-/g,'/')+')</span> ';
+  if(t1) h+='<div class="row">· '+span+t1+'</div>';
+  if(t2) h+='<div class="row">· '+t2+'</div>';
 
   if(ratio!=null){
     const warn = ratio>=30;
@@ -7484,23 +7566,23 @@ function depReadOut(){
       + '<span class="k">— 대기자금 대비 빚의 크기. 30%를 넘으면 부담 구간으로 봅니다.</span></div>';
   }
 
-  // 예탁금과 신용의 방향 조합
-  if(dep!=null && cre!=null){
+  // 이달 기준 방향 조합 (지금 국면을 말해야 하므로 구간 처음이 아니라 이달을 기준으로 본다)
+  if(dM!=null && cM!=null){
     let t='';
-    if(dep>0.5 && cre>0.5) t='자금이 들어오면서 빚도 함께 늘고 있습니다. 상승 초·중반이면 힘이 되지만, 주가가 밀리면 반대매매로 하락이 커집니다.';
-    else if(dep>0.5 && cre<=0.5) t='대기자금은 느는데 빚은 늘지 않습니다. 조심스럽게 들어오는 모습입니다.';
-    else if(dep<=-0.5 && cre>0.5) t='대기자금이 줄면서 빚만 늘고 있습니다. 여력 없이 위험을 키우는 국면이라 주의가 필요합니다.';
-    else if(dep<=-0.5 && cre<=-0.5) t='자금이 빠지고 빚도 줄고 있습니다. 위험을 덜어내는 국면입니다.';
-    else t='두 자금 모두 큰 변화가 없습니다.';
+    if(dM>0.5 && cM>0.5) t='이달 들어 자금이 들어오면서 빚도 함께 늘고 있습니다. 상승 초·중반이면 힘이 되지만, 주가가 밀리면 반대매매로 하락이 커집니다.';
+    else if(dM>0.5 && cM<=0.5) t='이달 들어 대기자금은 느는데 빚은 늘지 않습니다. 조심스럽게 들어오는 모습입니다.';
+    else if(dM<=-0.5 && cM>0.5) t='이달 들어 대기자금이 줄면서 빚만 늘고 있습니다. 여력 없이 위험을 키우는 국면이라 주의가 필요합니다.';
+    else if(dM<=-0.5 && cM<=-0.5) t='이달 들어 자금이 빠지고 빚도 줄고 있습니다. 위험을 덜어내는 국면입니다.';
+    else t='이달 들어 두 자금 모두 큰 변화가 없습니다.';
     h+='<div class="row">· '+t+'</div>';
   }
 
-  // 펀드 — 기관 자금의 무게중심
+  // 펀드 — 기관 자금의 무게중심 (느리게 움직이므로 3개월로 본다)
   if(stk!=null && bnd!=null){
     const t = (stk>bnd)
       ? '주식형이 채권형보다 더 늘어, 기관 자금도 위험자산 쪽으로 옮겨오고 있습니다.'
       : '채권형이 주식형보다 낫습니다. 기관 자금은 아직 안전자산에 머물러 있습니다.';
-    h+='<div class="row">· <b>펀드</b> — 주식형 <span class="num">'+pct1(stk)+'</span>, 채권형 <span class="num">'+pct1(bnd)+'</span>. '+t+'</div>';
+    h+='<div class="row">· <b>펀드</b>(3개월) — 주식형 <span class="num">'+pct1(stk)+'</span>, 채권형 <span class="num">'+pct1(bnd)+'</span>. '+t+'</div>';
   }
 
   h+='<div class="row k">· 판단은 주가와 함께 보세요. 주가가 오르며 신용이 느는 것은 정상이지만, '
