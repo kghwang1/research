@@ -159,15 +159,16 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 #chart-area::-webkit-scrollbar-track { background: #0d1117; }
 #chart-area::-webkit-scrollbar-thumb { background: #30363d; border-radius: 2px; }
 
-/* 메인 차트 교대 단추 — 일목균형표 ⇄ 매물대+이동평균 */
-#main-swap {
+/* 교대(⇄) 단추 — 주가차트와 보조차트가 모두 같은 자리(위쪽, 세로축 왼편)에 놓이도록
+   한 가지 모양을 함께 쓴다 */
+#main-swap, .chart-swap {
   position: absolute; top: 3px; right: 66px; z-index: 20;
   padding: 3px 7px; border-radius: 4px;
   background: #0d1117cc; border: 1px solid #30363d;
   color: #8b949e; font-size: 15px; line-height: 1; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
 }
-#main-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
+#main-swap:active, .chart-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
 
 /* 메인 캔들 - 고정 높이 */
 #candle-wrap {
@@ -1842,16 +1843,24 @@ function drawCandle() {
   // MA
   if (overlays.MA) {
     const ma = CALC.MA(data);
-    /* 기본은 5·20·60. 120일선은 설명 페이지에서 켤 때만 그린다 */
-    const cols = {ma5:'#ef5350cc', ma20:'#f59e0bcc', ma60:'#3fb950cc'};
-    if (OPT('MA', 'ma120', false)) cols.ma120 = '#58a6ffcc';
-    Object.entries(cols).forEach(([k, col]) => {
+    /* 기본은 5·20·60. 120일선은 설명 페이지에서 켤 때만 그린다.
+       w  = 선 두께 (20·60일선은 눈에 띄게 1.5배)
+       dash = 점선 (60일선) */
+    const maStyle = {
+      ma5:  { c:'#ef5350cc', w:1 },
+      ma20: { c:'#f59e0bcc', w:1.5 },
+      ma60: { c:'#3fb950cc', w:1.5, dash:[6,4] },
+    };
+    if (OPT('MA', 'ma120', false)) maStyle.ma120 = { c:'#58a6ffcc', w:1 };
+    Object.entries(maStyle).forEach(([k, st]) => {
       if (!ma[k]) return;
       const sl = ma[k].slice(...range);
-      ctx.strokeStyle = col; ctx.lineWidth = 1;
+      ctx.strokeStyle = st.c; ctx.lineWidth = st.w; ctx.lineJoin = 'round';
+      ctx.setLineDash(st.dash || []);
       ctx.beginPath(); let s = false;
       sl.forEach((v,i) => { if (!v) return; s ? ctx.lineTo(xOf(i), yOf(v)) : (ctx.moveTo(xOf(i), yOf(v)), s=true); });
       ctx.stroke();
+      ctx.setLineDash([]);
     });
   }
 
@@ -2102,7 +2111,7 @@ function drawCandle() {
   // 오버레이 범례 (세로로) — 이동평균(MA) 정보는 제외
   const legends = [];
   if (overlays.MA) {
-    legends.push({t:'MA5', c:'#ef5350'}, {t:'MA20', c:'#f59e0b'}, {t:'MA60', c:'#3fb950'});
+    legends.push({t:'MA5', c:'#ef5350'}, {t:'MA20', c:'#f59e0b'}, {t:'MA60(점선)', c:'#3fb950'});
     if (OPT('MA', 'ma120', false)) legends.push({t:'MA120', c:'#58a6ff'});
   }
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
@@ -3674,7 +3683,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-26 간단조합 5조교대';
+const KG_CHART_BUILD = '2026-08-26 이동평균선 굵기·점선';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4146,12 +4155,9 @@ function renderAll() {
     const shown = swapShown(key);
     if (SUB_SWAP[key]) {
       const sw = document.createElement('div');
-      sw.className = 'sub-swap';
       sw.textContent = '⇄';
       sw.title = '누르거나 칸을 두 번 톡 해서 ' + indName(SUB_SWAP[shown]) + ' 보기';
-      sw.style.cssText = 'position:absolute;top:2px;right:22px;z-index:20;cursor:pointer;'
-        + 'color:#8b949e;font-size:15px;line-height:1;padding:3px 7px;border-radius:4px;background:#0d1117cc;'
-        + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent';
+      sw.className = 'chart-swap';   // 주가차트 ⇄ 와 같은 모양·같은 자리
       const doSwap = () => { swapToggle(key); renderAll(); };
       const onSwapTap = e => {
         if (e) { e.stopPropagation(); e.preventDefault(); }
