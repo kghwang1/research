@@ -109,6 +109,44 @@ body {
 .ed-input:focus, .ed-area:focus { outline: none; border-color: #1f6feb; }
 .ed-hint { font-size: 11px; color: #8b949e; margin-bottom: 5px; line-height: 1.5; }
 .ed-hint b { color: #58a6ff; }
+/* 설명 전체를 한 박스에서 고치는 편집기 */
+.rich-view { font-size: 13.5px; color: #c9d1d9; line-height: 1.7; }
+.rich-view > *:first-child { margin-top: 0; }
+.rich-view h4, .rich-editor h4 {
+  font-size: 13px; font-weight: 700; color: var(--c, #58a6ff);
+  margin: 16px 0 6px;
+}
+.rich-view p, .rich-editor p { margin: 0 0 8px; }
+.rich-view ul, .rich-view ol, .rich-editor ul, .rich-editor ol { margin: 4px 0 10px; padding-left: 22px; }
+.rich-view li, .rich-editor li { margin-bottom: 4px; }
+.rich-view table, .rich-editor table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; }
+
+.rich-editor {
+  min-height: 340px; background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+  padding: 14px 16px; font-size: 13.5px; line-height: 1.7; color: #e6edf3;
+  outline: none; font-family: inherit;
+}
+.rich-editor:focus { border-color: #1f6feb; }
+.rich-editor h4 { color: #58a6ff; }
+
+.rt-bar {
+  display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  position: sticky; top: 108px; z-index: 8;
+  background: #161b22; padding: 8px 0; margin-bottom: 6px;
+  border-bottom: 1px solid #21262d;
+}
+.rt {
+  background: #21262d; border: 1px solid #30363d; color: #c9d1d9;
+  border-radius: 6px; padding: 5px 9px; font-size: 12px; line-height: 1; cursor: pointer;
+}
+.rt:hover { background: #30363d; }
+.rt:active { opacity: .7; }
+.rt.sw { width: 25px; height: 25px; padding: 0; font-size: 0; }
+.rt.sw i { display: block; width: 11px; height: 11px; border-radius: 50%; margin: auto; }
+.rt.sym { font-size: 14px; padding: 3px 9px; }
+.rt-sep { width: 1px; align-self: stretch; background: #30363d; margin: 0 3px; }
+.rt-tip { font-size: 11px; color: #6e7681; margin: 6px 0 0; line-height: 1.6; }
+
 .no-result { text-align: center; color: #6e7681; padding: 40px; }
 </style>
 </head>
@@ -192,22 +230,54 @@ function clearDescEdit(key) {
   try { localStorage.setItem(DESC_KEY, JSON.stringify(all)); } catch (e) {}
 }
 // 원본 + 사용자 편집본을 합친 최종 표시 데이터
+// ── 2026-08-27 개정 ─────────────────────────────────────────────
+//   예전에는 옵션·설명·매매타이밍·상세설명이 각각 다른 칸으로 나뉘어 있어
+//   고치기 불편했다. 이제 넷을 이어 붙여 '한 덩어리 HTML' 하나로 다룬다.
+function buildFull(ind) {
+  const out = [];
+  const hasParam = IND_PARAMS[ind.key] && IND_PARAMS[ind.key].length;
+  if (ind.opt && !hasParam) out.push('<div class="opt-box">' + ind.opt + '</div>');
+  if (ind.desc) out.push('<h4>📖 설명</h4><p>' + ind.desc + '</p>');
+
+  const sigs = ind.signals || [];
+  if (sigs.length) {
+    out.push('<h4>💡 매매 타이밍</h4>');
+    sigs.forEach(sg => {
+      let type, text;
+      if (Array.isArray(sg)) { type = sg[0]; text = sg[1]; }
+      else {
+        type = sg.type === 'buy' ? 'b' : sg.type === 'sell' ? 's' : 'n';
+        text = (sg.label ? '<b>' + sg.label + '</b> — ' : '') + (sg.text || '');
+      }
+      if (type !== 'b' && type !== 's') type = 'n';
+      const tag = type === 'b' ? '매수' : type === 's' ? '매도' : '참고';
+      out.push('<div class="signal-row"><span class="tag ' + type + '">' + tag
+             + '</span><span class="desc">' + text + '</span></div>');
+    });
+  }
+
+  const det = [];
+  if (ind.detail) det.push(ind.detail);
+  if (ind.tip) det.push('<b>⭐ 활용 팁</b><br>' + ind.tip);
+  if (det.length) out.push('<h4>🔍 상세 설명</h4><div class="detail-box">' + det.join('<br><br>') + '</div>');
+
+  return out.join('\n');
+}
+
 function mergedInd(ind) {
   const e = loadDescEdits()[ind.key];
-  if (!e) {
-    // 편집본이 없으면 기존 detail + tip을 '상세설명'으로 통합
-    const m = [];
-    if (ind.detail) m.push(ind.detail);
-    if (ind.tip) m.push('<b>⭐ 활용 팁</b><br>' + ind.tip);
-    return { opt: ind.opt || '', desc: ind.desc || '', signals: ind.signals || [], detail: m.join('<br><br>'), edited: false };
-  }
-  return {
-    opt: e.opt != null ? e.opt : (ind.opt || ''),
-    desc: e.desc != null ? e.desc : (ind.desc || ''),
-    signals: e.signals != null ? e.signals : (ind.signals || []),
-    detail: e.detail != null ? e.detail : (ind.detail || ''),
-    edited: true
+  if (!e) return { full: buildFull(ind), edited: false };
+  if (e.full != null) return { full: e.full, edited: true };
+  // 예전 방식(칸을 나눠 저장)으로 저장된 것 → 한 덩어리로 이어 붙인다
+  const old = {
+    key: ind.key,
+    opt:     e.opt     != null ? e.opt     : ind.opt,
+    desc:    e.desc    != null ? e.desc    : ind.desc,
+    signals: e.signals != null ? e.signals : ind.signals,
+    detail:  e.detail  != null ? e.detail  : ind.detail,
+    tip:     e.detail  != null ? ''        : ind.tip,   // 팁은 그때 이미 상세설명에 합쳐졌다
   };
+  return { full: buildFull(old), edited: true };
 }
 
 // 저장된 사용자 옵션값 로드/저장 (차트와 공유)
@@ -572,14 +642,7 @@ function render() {
     const c = CAT[ind.cat].color;
     const catLabel = CAT[ind.cat].label;
     const M = mergedInd(ind);
-    const sigRows = M.signals.map(s => {
-      const [type, text] = s;
-      const cls = type === 'b' ? 'b' : type === 's' ? 's' : 'n';
-      const tag = type === 'b' ? '매수' : type === 's' ? '매도' : '참고';
-      return `<div class="signal-row"><span class="tag ${cls}">${tag}</span><span class="desc">${text}</span></div>`;
-    }).join('') || '<div class="section-content" style="color:#6e7681">등록된 매매 타이밍이 없습니다</div>';
-    // 편집용 텍스트: 매매타이밍은 "b|텍스트" 한 줄씩
-    const sigText = M.signals.map(s => `${s[0]}|${s[1]}`).join('\n');
+    const paramHtml = renderParamInputs(ind.key);
 
     return `
       <div class="card" style="--c:${c}" data-ikey="${ind.key}">
@@ -591,51 +654,26 @@ function render() {
         </div>
         <div class="card-body">
 
-          <!-- 보기 모드 -->
+          <!-- 보기 -->
           <div class="view-mode">
+            ${paramHtml ? `
             <div class="section">
               <div class="section-title"><span class="ico">⚙️</span>옵션값 설정</div>
-              ${renderParamInputs(ind.key, M.opt)}
-            </div>
-            <div class="section">
-              <div class="section-title"><span class="ico">📖</span>설명</div>
-              <div class="section-content">${nl2br(M.desc)}</div>
-            </div>
-            <div class="section">
-              <div class="section-title"><span class="ico">💡</span>매매 타이밍</div>
-              ${sigRows}
-            </div>
-            ${M.detail ? `
-            <div class="section">
-              <div class="section-title"><span class="ico">🔍</span>상세 설명</div>
-              <div class="section-content detail-box">${nl2br(M.detail)}</div>
+              ${paramHtml}
             </div>` : ''}
+            <div class="section rich-view">${M.full}</div>
             <div class="edit-bar">
               <button class="ebtn edit" data-act="edit">✏️ 설명 수정</button>
               ${M.edited ? `<button class="ebtn reset" data-act="reset">↩ 원본 복원</button>` : ''}
             </div>
           </div>
 
-          <!-- 편집 모드 -->
+          <!-- 편집 — 설명 전체가 이 박스 하나 -->
           <div class="edit-mode" style="display:none">
-            <div class="section">
-              <div class="section-title"><span class="ico">⚙️</span>1. 옵션</div>
-              <input type="text" class="ed-input" data-f="opt" value="${escAttr(M.opt)}" placeholder="예: 기간 14일">
-            </div>
-            <div class="section">
-              <div class="section-title"><span class="ico">📖</span>2. 설명 (구성 기본자료·계산법)</div>
-              <textarea class="ed-area" data-f="desc" rows="4" placeholder="지표의 구성과 계산 방법">${escHtmlT(htmlToEdit(M.desc))}</textarea>
-            </div>
-            <div class="section">
-              <div class="section-title"><span class="ico">💡</span>3. 매매 타이밍</div>
-              <div class="ed-hint">한 줄에 하나씩 · 맨 앞에 <b>b</b>(매수) / <b>s</b>(매도) / <b>n</b>(참고) 와 <b>|</b> 기호<br>예) b|골든크로스 발생 시 매수</div>
-              <textarea class="ed-area" data-f="signals" rows="4" placeholder="b|매수 조건&#10;s|매도 조건&#10;n|참고 사항">${escHtmlT(sigText)}</textarea>
-            </div>
-            <div class="section">
-              <div class="section-title"><span class="ico">🔍</span>4. 상세 설명</div>
-              <div class="ed-hint">줄바꿈은 그냥 Enter · <b>*굵게*</b>는 별표로 감싸기 (예: *중요*) · <b>_밑줄_</b>은 밑줄표로 감싸기</div>
-              <textarea class="ed-area" data-f="detail" rows="8" placeholder="자세한 해설·활용 팁">${escHtmlT(htmlToEdit(M.detail))}</textarea>
-            </div>
+            ${rtBar()}
+            <div class="rich-editor" contenteditable="true" spellcheck="false">${M.full}</div>
+            <p class="rt-tip">글자를 끌어 선택한 뒤 위 단추를 누르면 크기·색·굵기가 바뀝니다.
+              기호 단추는 커서 자리에 바로 넣습니다.</p>
             <div class="edit-bar">
               <button class="ebtn save" data-act="save">💾 저장</button>
               <button class="ebtn cancel" data-act="cancel">취소</button>
@@ -676,12 +714,123 @@ function editToHtml(s) {
 function escAttr(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function escHtmlT(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+// ══════════════════════════════════════
+// 편집 도구 모음
+// ══════════════════════════════════════
+const RT_COLORS = [
+  { c:'#58a6ff', n:'파랑' }, { c:'#ef5350', n:'빨강' },
+  { c:'#3fb950', n:'초록' }, { c:'#f0a836', n:'주황' },
+  { c:'#8b949e', n:'회색' },
+];
+const RT_SYMBOLS = ['·', '▸', '★', '※', '✔', '→'];
+
+function rtBar() {
+  let h = '<div class="rt-bar">';
+  h += '<button class="rt" data-rt="size" data-v="11.5" title="작은 글씨">작게</button>';
+  h += '<button class="rt" data-rt="size" data-v="13.5" title="보통 글씨">보통</button>';
+  h += '<button class="rt" data-rt="size" data-v="16" title="큰 글씨">크게</button>';
+  h += '<span class="rt-sep"></span>';
+  h += '<button class="rt" data-rt="bold" title="굵게"><b>굵게</b></button>';
+  h += '<button class="rt" data-rt="head" title="소제목 줄로">소제목</button>';
+  h += '<button class="rt" data-rt="para" title="보통 문단으로">문단</button>';
+  h += '<span class="rt-sep"></span>';
+  RT_COLORS.forEach(x => {
+    h += '<button class="rt sw" data-rt="color" data-v="' + x.c + '" title="' + x.n + '"><i style="background:' + x.c + '"></i></button>';
+  });
+  h += '<button class="rt" data-rt="clear" title="색·굵기를 지웁니다">모양 지움</button>';
+  h += '<span class="rt-sep"></span>';
+  h += '<button class="rt" data-rt="ul" title="점 목록">• 목록</button>';
+  h += '<button class="rt" data-rt="ol" title="번호 목록">1. 목록</button>';
+  RT_SYMBOLS.forEach(sy => {
+    h += '<button class="rt sym" data-rt="sym" data-v="' + sy + '" title="' + sy + ' 넣기">' + sy + '</button>';
+  });
+  h += '<span class="rt-sep"></span>';
+  h += '<button class="rt" data-rt="row" data-v="b" title="매수 줄 넣기">＋매수줄</button>';
+  h += '<button class="rt" data-rt="row" data-v="s" title="매도 줄 넣기">＋매도줄</button>';
+  h += '<button class="rt" data-rt="row" data-v="n" title="참고 줄 넣기">＋참고줄</button>';
+  h += '</div>';
+  return h;
+}
+
+/* 글자 크기 — execCommand 는 1~7 단계만 되므로, 7로 칠한 뒤 원하는 px 로 바꿔 넣는다 */
+function rtSize(ed, px) {
+  document.execCommand('fontSize', false, '7');
+  ed.querySelectorAll('font[size="7"]').forEach(f => {
+    const sp = document.createElement('span');
+    sp.style.fontSize = px + 'px';
+    while (f.firstChild) sp.appendChild(f.firstChild);
+    f.replaceWith(sp);
+  });
+}
+
+function rtCmd(ed, act, val) {
+  ed.focus();
+  try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+  switch (act) {
+    case 'bold':  document.execCommand('bold'); break;
+    case 'color': document.execCommand('foreColor', false, val); break;
+    case 'size':  rtSize(ed, val); break;
+    case 'head':  document.execCommand('formatBlock', false, '<h4>'); break;
+    case 'para':  document.execCommand('formatBlock', false, '<p>'); break;
+    case 'ul':    document.execCommand('insertUnorderedList'); break;
+    case 'ol':    document.execCommand('insertOrderedList'); break;
+    case 'sym':   document.execCommand('insertText', false, val + ' '); break;
+    case 'clear': document.execCommand('removeFormat'); break;
+    case 'row': {
+      const tag = val === 'b' ? '매수' : val === 's' ? '매도' : '참고';
+      document.execCommand('insertHTML', false,
+        '<div class="signal-row"><span class="tag ' + val + '">' + tag
+        + '</span><span class="desc">내용을 적으세요</span></div>');
+      break;
+    }
+  }
+}
+
+/* 저장 전 정리 — 위험한 태그와 이벤트 속성만 걷어낸다 (표·색·크기는 그대로 둔다) */
+function cleanRich(html) {
+  const box = document.createElement('div');
+  box.innerHTML = html;
+  box.querySelectorAll('script,style,iframe,object,embed,link,meta').forEach(el => el.remove());
+  box.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(a => {
+      if (/^on/i.test(a.name)) el.removeAttribute(a.name);
+      if (a.name === 'href' && /^\s*javascript:/i.test(a.value)) el.removeAttribute('href');
+      if (a.name === 'contenteditable') el.removeAttribute(a.name);
+    });
+    if (el.tagName === 'FONT') {          // 옛 방식 태그를 span 으로
+      const sp = document.createElement('span');
+      if (el.getAttribute('color')) sp.style.color = el.getAttribute('color');
+      while (el.firstChild) sp.appendChild(el.firstChild);
+      el.replaceWith(sp);
+    }
+  });
+  return box.innerHTML.trim();
+}
+
 // 편집 버튼 이벤트
 function bindDescEdit() {
   document.querySelectorAll('.card[data-ikey]').forEach(card => {
     const key = card.dataset.ikey;
     const viewEl = card.querySelector('.view-mode');
     const editEl = card.querySelector('.edit-mode');
+    const rich   = card.querySelector('.rich-editor');
+    if (rich) {
+      card.querySelectorAll('.rt').forEach(b => {
+        // 단추를 누르는 순간 선택이 풀리지 않게 막는다
+        b.addEventListener('mousedown', e => e.preventDefault());
+        b.addEventListener('click', e => {
+          e.stopPropagation();
+          rtCmd(rich, b.dataset.rt, b.dataset.v);
+        });
+      });
+      rich.addEventListener('click', e => e.stopPropagation());
+      // 다른 곳에서 복사해 붙이면 글자만 들어오게 한다
+      rich.addEventListener('paste', e => {
+        e.preventDefault();
+        const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+        document.execCommand('insertText', false, t);
+      });
+    }
     card.querySelectorAll('.ebtn').forEach(btn => {
       btn.onclick = (ev) => {
         ev.stopPropagation();
@@ -694,27 +843,9 @@ function bindDescEdit() {
           return;
         }
         if (act === 'save') {
-          const val = (f) => {
-            const el = editEl.querySelector(`[data-f="${f}"]`);
-            return el ? el.value : '';
-          };
-          // 매매타이밍 파싱: "b|텍스트" 한 줄씩
-          const signals = val('signals').split('\n').map(line => {
-            const t = line.trim();
-            if (!t) return null;
-            const i = t.indexOf('|');
-            if (i < 0) return ['n', t];
-            const type = t.slice(0, i).trim().toLowerCase();
-            const text = t.slice(i + 1).trim();
-            if (!text) return null;
-            return [(type === 'b' || type === 's') ? type : 'n', text];
-          }).filter(Boolean);
-          const ok = saveDescEdit(key, {
-            opt: val('opt').trim(),
-            desc: editToHtml(val('desc').trim()),
-            signals,
-            detail: editToHtml(val('detail').trim())
-          });
+          const ed = editEl.querySelector('.rich-editor');
+          if (!ed) return;
+          const ok = saveDescEdit(key, { full: cleanRich(ed.innerHTML) });
           if (ok) { render(); toastMsg('저장되었습니다'); }
           else alert('저장에 실패했습니다. 저장 공간을 확인해 주세요.');
         }
@@ -753,12 +884,11 @@ function renderToggles(key) {
   return h;
 }
 
-function renderParamInputs(key, optText) {
+function renderParamInputs(key) {
   const params = IND_PARAMS[key];
   const toggles = renderToggles(key);
-  if (!params || !params.length) {
-    return `<div class="opt-box">${optText}</div>` + toggles;
-  }
+  // 옵션 설명글은 본문(한 박스) 안으로 옮겼다. 여기서는 값 입력칸만 그린다
+  if (!params || !params.length) return toggles;
   let html = '<div class="param-grid">';
   params.forEach((p, i) => {
     const cur = getParam(key, i, p.d);
