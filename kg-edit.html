@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>해설 편집기 — KG리서치보드</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --line:#30363d; --line2:#21262d;
+  --tx:#c9d1d9; --dim:#8b949e; --faint:#6e7681;
+  --blue:#58a6ff; --red:#ef5350; --green:#3fb950; --amber:#f59e0b;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans)}
+body{padding-bottom:60px}
+
+/* ── 위쪽 고정 줄 ── */
+header{
+  position:sticky;top:0;z-index:30;background:#0d1117f2;
+  border-bottom:1px solid var(--line);backdrop-filter:blur(6px);
+}
+.bar{max-width:1180px;margin:0 auto;padding:9px 16px}
+.row1{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand{font-size:14px;font-weight:700;letter-spacing:.02em}
+.brand em{font-style:normal;color:var(--blue)}
+.stat{font-family:var(--mono);font-size:11px;color:var(--faint);margin-left:auto}
+.tools{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;align-items:center}
+button{
+  font-family:inherit;font-size:12.5px;color:var(--tx);
+  background:var(--line2);border:1px solid var(--line);
+  border-radius:6px;padding:6px 11px;cursor:pointer;line-height:1;
+}
+button:hover{border-color:#484f58;background:#2a3038}
+button:active{transform:translateY(1px)}
+button:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.sep{width:1px;height:20px;background:var(--line);margin:0 4px}
+.sw{width:26px;height:26px;padding:0;border-radius:6px;font-size:0}
+.sw i{display:block;width:12px;height:12px;border-radius:50%;margin:auto}
+.go{background:#1f6feb;border-color:#1f6feb;color:#fff;font-weight:700}
+.go:hover{background:#388bfd;border-color:#388bfd}
+.ghost{background:transparent}
+
+/* ── 넓은 한 박스 ── */
+main{max-width:1180px;margin:0 auto;padding:20px 16px 0}
+#paper{
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:34px 44px 46px;min-height:60vh;
+  font-size:15.5px;line-height:1.85;
+}
+#paper:focus{outline:none;border-color:#3f4b5b}
+#paper h3{font-size:19px;color:var(--blue);margin:26px 0 10px;font-weight:700}
+#paper h3:first-child{margin-top:0}
+#paper h4{font-size:15.5px;color:var(--amber);margin:20px 0 8px;font-weight:700}
+#paper p{margin:0 0 12px}
+#paper ul,#paper ol{margin:0 0 12px;padding-left:24px}
+#paper li{margin:0 0 5px}
+#paper strong{color:#fff;font-weight:700}
+#paper a{color:var(--blue)}
+#paper::selection,#paper *::selection{background:#1f6feb55}
+
+/* ── 아래 서랍 ── */
+.drawer{max-width:1180px;margin:16px auto 0;padding:0 16px}
+.dh{
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  color:var(--dim);font-size:12.5px;padding:8px 2px;user-select:none;
+}
+.dh:hover{color:var(--tx)}
+.dh .cv{transition:transform .18s}
+.open .cv{transform:rotate(90deg)}
+.db{display:none;gap:14px;padding:4px 0 10px}
+.open .db{display:flex;flex-wrap:wrap}
+.col{flex:1 1 420px;min-width:280px}
+.col h5{margin:0 0 6px;font-size:12px;color:var(--dim);font-weight:600}
+textarea{
+  width:100%;height:210px;resize:vertical;
+  background:#010409;color:#a8ff78;border:1px solid var(--line);
+  border-radius:8px;padding:12px 14px;
+  font-family:var(--mono);font-size:12px;line-height:1.6;
+}
+textarea:focus{outline:none;border-color:var(--blue)}
+.hint{font-size:11.5px;color:var(--faint);margin:7px 0 0;line-height:1.6}
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);
+  background:#1c2128;border:1px solid var(--line);color:var(--tx);
+  padding:9px 18px;border-radius:8px;font-size:12.5px;
+  opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:50;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:640px){
+  #paper{padding:22px 18px 32px;font-size:15px}
+  .bar{padding:8px 12px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <div class="row1">
+      <div class="brand">해설 편집기 <em>·</em> KG리서치보드</div>
+      <div class="stat" id="stat">문단 0 · 글자 0</div>
+    </div>
+    <div class="tools">
+      <button data-blk="h3"  title="큰 제목으로 (&lt;h3&gt;)">큰 제목</button>
+      <button data-blk="h4"  title="작은 제목으로 (&lt;h4&gt;)">작은 제목</button>
+      <button data-blk="p"   title="보통 문단으로 (&lt;p&gt;)">문단</button>
+      <button data-cmd="insertUnorderedList" title="점 목록 (&lt;ul&gt;)">• 목록</button>
+      <button data-cmd="insertOrderedList"   title="번호 목록 (&lt;ol&gt;)">1. 목록</button>
+      <span class="sep"></span>
+      <button data-cmd="bold" title="굵게 (Ctrl+B)"><b>굵게</b></button>
+      <button class="sw" data-col="#58a6ff" title="파랑"><i style="background:#58a6ff"></i></button>
+      <button class="sw" data-col="#ef5350" title="빨강"><i style="background:#ef5350"></i></button>
+      <button class="sw" data-col="#3fb950" title="초록"><i style="background:#3fb950"></i></button>
+      <button class="sw" data-col="#f59e0b" title="주황"><i style="background:#f59e0b"></i></button>
+      <button data-col="" title="색과 굵기를 지웁니다">모양 지우기</button>
+      <span class="sep"></span>
+      <button class="ghost" id="undo" title="되돌리기 (Ctrl+Z)">되돌리기</button>
+      <button class="go" id="out">HTML 내보내기</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="paper" contenteditable="true" spellcheck="false"></div>
+</main>
+
+<div class="drawer" id="drawer">
+  <div class="dh" id="dh"><span class="cv">▸</span><span>HTML 불러오기 · 내보내기</span></div>
+  <div class="db">
+    <div class="col">
+      <h5>kg-guide.html 에서 복사한 부분을 붙여넣고 [불러오기]</h5>
+      <textarea id="inBox" placeholder="&lt;h3&gt;RSI&lt;/h3&gt;&#10;&lt;p&gt;70을 넘으면 ...&lt;/p&gt;"></textarea>
+      <p class="hint">
+        <button id="load" style="margin-right:8px">불러오기</button>
+        위 칸의 내용이 편집 화면을 덮어씁니다.
+      </p>
+    </div>
+    <div class="col">
+      <h5>고친 결과 — 이걸 kg-guide.html 의 원래 자리에 붙여넣으세요</h5>
+      <textarea id="outBox" readonly placeholder="[HTML 내보내기] 를 누르면 여기에 나옵니다"></textarea>
+      <p class="hint">
+        <button id="copy" style="margin-right:8px">복사</button>
+        허용한 태그만 남기고 정리해서 내보냅니다.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const paper = $('#paper'), toast = $('#toast');
+const DRAFT = 'kg_guide_draft';
+
+function say(m){ toast.textContent = m; toast.classList.add('on');
+  clearTimeout(say._t); say._t = setTimeout(()=>toast.classList.remove('on'), 1600); }
+
+/* ── 처음 열 때 ── */
+let start = '';
+try { start = localStorage.getItem(DRAFT) || ''; } catch(e){}
+paper.innerHTML = start || '<h3>제목</h3><p>여기에 해설을 씁니다.</p>';
+try { document.execCommand('styleWithCSS', false, true); } catch(e){}
+try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e){}
+
+/* ── 글자 수 세기 · 임시 보관 ── */
+function tick(){
+  const n = paper.querySelectorAll('p,h3,h4,li').length;
+  const c = (paper.innerText || paper.textContent || '').replace(/\s/g,'').length;
+  $('#stat').textContent = '문단 ' + n + ' · 글자 ' + c.toLocaleString();
+  clearTimeout(tick._t);
+  tick._t = setTimeout(()=>{ try{ localStorage.setItem(DRAFT, paper.innerHTML); }catch(e){} }, 600);
+}
+paper.addEventListener('input', tick);
+tick();
+
+/* ── 단추 ── */
+function run(cmd, val){ paper.focus(); try{ document.execCommand(cmd, false, val); }catch(e){} tick(); }
+
+document.querySelectorAll('[data-blk]').forEach(b =>
+  b.addEventListener('click', () => run('formatBlock', '<' + b.dataset.blk + '>')));
+document.querySelectorAll('[data-cmd]').forEach(b =>
+  b.addEventListener('click', () => run(b.dataset.cmd)));
+document.querySelectorAll('[data-col]').forEach(b =>
+  b.addEventListener('click', () => {
+    const c = b.dataset.col;
+    if (c) run('foreColor', c);
+    else { run('removeFormat'); }   // 색·굵기를 한꺼번에 지운다
+  }));
+$('#undo').addEventListener('click', () => run('undo'));
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b'){ e.preventDefault(); run('bold'); }
+});
+
+/* 붙여넣기는 글자만 — 다른 곳에서 딸려오는 서식을 막는다 */
+paper.addEventListener('paste', e => {
+  e.preventDefault();
+  const t = (e.clipboardData || window.clipboardData).getData('text/plain');
+  document.execCommand('insertText', false, t);
+});
+
+/* ══ HTML 정리 ══════════════════════════════════════════════
+   남기는 태그: h3 h4 p ul ol li strong em br span(색) a(주소)
+   나머지는 글자만 남기고 벗겨낸다. */
+const BLOCK  = ['H3','H4','P','UL','OL','LI'];
+const DROP   = ['SCRIPT','STYLE','IFRAME','LINK','META','OBJECT','EMBED'];  // 통째로 버린다
+const KEEP   = ['H3','H4','P','UL','OL','LI','STRONG','EM','BR','SPAN','A'];
+const RENAME = { B:'STRONG', I:'EM', DIV:'P', FONT:'SPAN',
+                 H1:'H3', H2:'H3', H5:'H4', H6:'H4' };   // 제목 단계를 두 가지로 모은다
+
+function tidy(node){
+  [...node.childNodes].forEach(ch => {
+    if (ch.nodeType === 3) return;                 // 글자
+    if (ch.nodeType !== 1) { ch.remove(); return; }
+    let tag = ch.tagName;
+    if (DROP.includes(tag)) { ch.remove(); return; }   // 안쪽 글자까지 함께 버린다
+
+    if (RENAME[tag]) {                              // b→strong, div→p 등
+      const el = document.createElement(RENAME[tag]);
+      if (tag === 'FONT' && ch.getAttribute('color')) el.style.color = ch.getAttribute('color');
+      else if (ch.style && ch.style.color) el.style.color = ch.style.color;
+      while (ch.firstChild) el.appendChild(ch.firstChild);
+      ch.replaceWith(el);
+      ch = el; tag = el.tagName;
+    }
+
+    if (!KEEP.includes(tag)) {                      // 모르는 태그는 벗겨낸다
+      const f = document.createDocumentFragment();
+      while (ch.firstChild) f.appendChild(ch.firstChild);
+      ch.replaceWith(f);
+      return tidy(node);
+    }
+
+    const color = ch.style ? ch.style.color : '';
+    const href  = tag === 'A' ? ch.getAttribute('href') : null;
+    [...ch.attributes].forEach(a => ch.removeAttribute(a.name));
+    if (tag === 'SPAN' && color) ch.style.color = color;
+    if (href) ch.setAttribute('href', href);
+
+    tidy(ch);
+
+    // 알맹이 없는 껍데기 지우기
+    if (tag !== 'BR' && !ch.textContent.trim() && !ch.querySelector('br')) ch.remove();
+    else if (tag === 'SPAN' && !ch.style.color) {   // 아무 색도 없는 span 은 필요 없다
+      const f = document.createDocumentFragment();
+      while (ch.firstChild) f.appendChild(ch.firstChild);
+      ch.replaceWith(f);
+    }
+  });
+}
+
+/* 보기 좋게 줄을 나눠 글자로 만든다 */
+function write(node, depth){
+  let s = '';
+  const pad = '  '.repeat(depth);
+  [...node.childNodes].forEach(ch => {
+    if (ch.nodeType === 3){ s += ch.textContent.replace(/\s+/g,' '); return; }
+    const tag = ch.tagName.toLowerCase();
+    const at  = [...ch.attributes].map(a => ' ' + a.name + '="' + a.value + '"').join('');
+    if (tag === 'br'){ s += '<br>'; return; }
+    if (BLOCK.includes(ch.tagName)){
+      const inner = write(ch, depth + 1);
+      const multi = /^(ul|ol)$/.test(tag);
+      s += '\n' + pad + '<' + tag + at + '>'
+         + (multi ? inner + '\n' + pad : inner.trim())
+         + '</' + tag + '>';
+    } else {
+      s += '<' + tag + at + '>' + write(ch, depth) + '</' + tag + '>';
+    }
+  });
+  return s;
+}
+
+/* style="color: rgb(88,166,255)" → style="color:#58a6ff" (읽기 쉽게) */
+function hexColors(t){
+  return t.replace(/color:\s*rgb\((\d+),\s*(\d+),\s*(\d+)\)\s*;?/g,
+    (m,r,g,b) => 'color:#' + [r,g,b].map(v => (+v).toString(16).padStart(2,'0')).join(''));
+}
+
+/* 어느 문단에도 안 들어간 떠도는 글자를 <p> 로 감싼다 */
+function wrapLoose(box){
+  [...box.childNodes].forEach(ch => {
+    const loose = (ch.nodeType === 3 && ch.textContent.trim())
+               || (ch.nodeType === 1 && !BLOCK.includes(ch.tagName));
+    if (!loose) return;
+    const p = document.createElement('p');
+    ch.replaceWith(p);
+    p.appendChild(ch);
+  });
+}
+
+function exportHTML(){
+  const box = document.createElement('div');
+  box.innerHTML = paper.innerHTML;
+  tidy(box);
+  wrapLoose(box);
+  return hexColors(write(box, 0)).replace(/^\n/, '').replace(/\n{2,}/g, '\n');
+}
+
+$('#out').addEventListener('click', () => {
+  $('#outBox').value = exportHTML();
+  $('#drawer').classList.add('open');
+  if ($('#outBox').scrollIntoView) $('#outBox').scrollIntoView({ behavior:'smooth', block:'center' });
+  say('정리해서 내보냈습니다');
+});
+
+$('#copy').addEventListener('click', async () => {
+  const t = $('#outBox').value;
+  if (!t){ say('먼저 [HTML 내보내기] 를 누르세요'); return; }
+  try { await navigator.clipboard.writeText(t); say('복사했습니다'); }
+  catch(e){ $('#outBox').select(); document.execCommand('copy'); say('복사했습니다'); }
+});
+
+$('#load').addEventListener('click', () => {
+  const t = $('#inBox').value.trim();
+  if (!t){ say('붙여넣을 HTML 이 없습니다'); return; }
+  const box = document.createElement('div');
+  box.innerHTML = t;
+  tidy(box);
+  paper.innerHTML = box.innerHTML || '<p></p>';
+  tick();
+  if (paper.scrollIntoView) paper.scrollIntoView({ behavior:'smooth', block:'start' });
+  say('불러왔습니다');
+});
+
+$('#dh').addEventListener('click', () => $('#drawer').classList.toggle('open'));
+</script>
+</body>
+</html>
