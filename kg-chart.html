@@ -162,12 +162,16 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 /* 교대(⇄) 단추 — 주가차트와 보조차트가 모두 같은 자리(위쪽, 세로축 왼편)에 놓이도록
    한 가지 모양을 함께 쓴다 */
 #main-swap, .chart-swap {
-  position: absolute; top: 3px; right: 66px; z-index: 20;
+  position: absolute; z-index: 20;
   padding: 3px 7px; border-radius: 4px;
   background: #0d1117cc; border: 1px solid #30363d;
   color: #8b949e; font-size: 15px; line-height: 1; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
 }
+/* 주가차트 — 세로축 왼편 위 */
+#main-swap { top: 3px; right: 66px; }
+/* 보조차트 — ✕ 바로 아래에 세로로 붙인다 (지표 이름과 겹치지 않게) */
+.chart-swap { top: 26px; left: 2px; width: 22px; padding: 3px 0; text-align: center; }
 #main-swap:active, .chart-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
 
 /* 메인 캔들 - 고정 높이 */
@@ -2511,11 +2515,11 @@ function drawSubInner(canvas, key) {
     const lr = bear.filter(v => v != null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = '#ef5350';
-    ctx.fillText('Elder Ray 엘더레이(' + P('ELDER',0,13) + ')   Bull ' + (lb != null ? lb.toFixed(1) : '—'), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('Elder Ray 엘더레이(' + P('ELDER',0,13) + ')   Bull ' + (lb != null ? lb.toFixed(1) : '—'), PAD.l + 32, PAD.t + 11);
     ctx.fillStyle = '#58a6ff';
-    ctx.fillText('Bear ' + (lr != null ? lr.toFixed(1) : '—'), PAD.l + 22, PAD.t + 23);
+    ctx.fillText('Bear ' + (lr != null ? lr.toFixed(1) : '—'), PAD.l + 32, PAD.t + 23);
     ctx.font = '9px monospace'; ctx.fillStyle = C.muted;
-    ctx.fillText('▲매입(약세지수)  ▼매도(강세지수)', PAD.l + 22, PAD.t + 34);
+    ctx.fillText('▲매입(약세지수)  ▼매도(강세지수)', PAD.l + 32, PAD.t + 34);
     // 우측 축 최대/최소
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
     ctx.fillText(maxV.toFixed(1), W - PAD.r + 3, PAD.t + 9);
@@ -2599,7 +2603,7 @@ function drawSubInner(canvas, key) {
     const lastP = arr.filter(v => v != null).slice(-1)[0];
     const fmtN = v => Math.abs(v) >= 1e8 ? (v / 1e8).toFixed(1) + '억' : Math.abs(v) >= 1e4 ? (v / 1e4).toFixed(1) + '만' : v.toFixed(0);
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = C.muted; ctx.fillText('PVT 거래량추세지수', PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.fillText('PVT 거래량추세지수', PAD.l + 32, PAD.t + 11);
     if (lastP != null) { ctx.fillStyle = '#4ecdc4'; ctx.fillText(fmtN(lastP), PAD.l + 150, PAD.t + 11); }
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
     ctx.fillText(fmtN(maxV), W - PAD.r + 3, PAD.t + 10);
@@ -2714,7 +2718,7 @@ function drawSubInner(canvas, key) {
     const lastI = inrRaw.filter(v => v != null).slice(-1)[0];
     const lastS = sigRaw ? sigRaw.filter(v => v != null).slice(-1)[0] : null;
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = C.muted; ctx.fillText('Inertia 관성지수', PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.fillText('Inertia 관성지수', PAD.l + 32, PAD.t + 11);
     if (lastI != null) { ctx.fillStyle = '#ffd54f'; ctx.fillText('Inertia ' + lastI.toFixed(1), PAD.l + 128, PAD.t + 11); }
     if (lastS != null) { ctx.fillStyle = '#ef5350'; ctx.fillText('Signal ' + lastS.toFixed(1), PAD.l + 218, PAD.t + 11); }
     if (lastI != null && lastS != null) {
@@ -2822,7 +2826,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastR = raw.filter(v => v != null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = C.muted; ctx.fillText('RVI 상대변동성지수', PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.fillText('RVI 상대변동성지수', PAD.l + 32, PAD.t + 11);
     if (lastR != null) {
       ctx.fillStyle = lastR >= 60 ? '#ef5350' : lastR <= 40 ? '#3fb950' : '#bc8cff';
       ctx.fillText(lastR.toFixed(1) + (lastR >= 60 ? ' 과열' : lastR <= 40 ? ' 과매도' : ''), PAD.l + 150, PAD.t + 11);
@@ -2940,7 +2944,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastA = adxLine ? adxLine.filter(v=>v!=null).slice(-1)[0] : null;
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = C.muted; ctx.fillText('ADXR 평균방향성지표순위', PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.fillText('ADXR 평균방향성지표순위', PAD.l + 32, PAD.t + 11);
     ctx.fillStyle = '#e0b341'; ctx.fillText('ADXR ' + (lastV!=null?lastV.toFixed(1):''), PAD.l + 178, PAD.t + 11);
     if (lastA != null) { ctx.fillStyle = '#3fb950'; ctx.fillText('ADX ' + lastA.toFixed(1), PAD.l + 248, PAD.t + 11); }
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
@@ -3000,7 +3004,7 @@ function drawSubInner(canvas, key) {
     const lastP = pdi.filter(v=>v!=null).slice(-1)[0];
     const lastN = ndi.filter(v=>v!=null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillStyle = C.muted; ctx.fillText('DMI 방향성지수', PAD.l + 22, PAD.t + 11);
+    ctx.fillStyle = C.muted; ctx.fillText('DMI 방향성지수', PAD.l + 32, PAD.t + 11);
     ctx.fillStyle = '#ef5350'; ctx.fillText('+DI ' + (lastP!=null?lastP.toFixed(0):''), PAD.l + 118, PAD.t + 11);
     ctx.fillStyle = '#58a6ff'; ctx.fillText('-DI ' + (lastN!=null?lastN.toFixed(0):''), PAD.l + 174, PAD.t + 11);
     ctx.fillStyle = C.muted; ctx.font = '10px monospace';
@@ -3103,7 +3107,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastVM = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = C.lime; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('MFI 자금수급지수(14)  ' + (lastVM != null ? lastVM.toFixed(1) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('MFI 자금수급지수(14)  ' + (lastVM != null ? lastVM.toFixed(1) : ''), PAD.l + 32, PAD.t + 11);
     ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.font = '10px monospace';
     ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
     ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
@@ -3218,7 +3222,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastV = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('RSI 상대강도지수(' + P('RSI',0,14) + ')  ' + (lastV != null ? lastV.toFixed(1) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('RSI 상대강도지수(' + P('RSI',0,14) + ')  ' + (lastV != null ? lastV.toFixed(1) : ''), PAD.l + 32, PAD.t + 11);
     {
       const sg = vals[1], lastS = sg ? [...sg].reverse().find(v=>v!=null) : null;
       if (lastS != null) {
@@ -3313,7 +3317,7 @@ function drawSubInner(canvas, key) {
     const lastR  = hi >= 0 ? ratioArr[hi] : ratioArr.filter(v=>v!=null&&v>0).slice(-1)[0];
 
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    let lx = PAD.l + 22;
+    let lx = PAD.l + 32;
     const t1 = '외국인 순매수 ' + (lastVN != null ? (lastVN>=0?'+':'') + fmt(lastVN) + '주' : '—');
     ctx.fillStyle = C.cyan;
     ctx.fillText(t1, lx, PAD.t + 11);
@@ -3387,7 +3391,7 @@ function drawSubInner(canvas, key) {
     const lastI = instArr.filter(v=>v!=null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
     ctx.fillStyle = '#ff9800';
-    ctx.fillText('기관 순매수  ' + (lastI != null ? (lastI>=0?'+':'') + fmt(lastI) + '주' : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('기관 순매수  ' + (lastI != null ? (lastI>=0?'+':'') + fmt(lastI) + '주' : ''), PAD.l + 32, PAD.t + 11);
 
     return;
   }
@@ -3502,10 +3506,10 @@ function drawSubInner(canvas, key) {
     const showR = (hi>=0 && rtoArr[hi]!=null) ? rtoArr[hi] : lastRto;
     const showV = (hi>=0 && volArr[hi]!=null) ? volArr[hi] : lastOf(volArr);
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    let tx = PAD.l + 22;
+    let tx = PAD.l + 32;
     if (showV != null) {
-      const t = '공매도 ' + fmt(showV) + '주'
-              + (showW != null ? ' (' + showW.toFixed(1) + '%)' : '');
+      const t = '일공매도량  ' + fmt(showV) + '주'
+              + (showW != null ? '  ' + showW.toFixed(1) + '%' : '');
       if (showW != null && showW >= 10) {       // 공격이 센 날은 붉은 상자
         const wd = ctx.measureText(t).width + 8;
         ctx.fillStyle = '#ef535033'; ctx.fillRect(tx-4, PAD.t+2, wd, 13);
@@ -3515,7 +3519,7 @@ function drawSubInner(canvas, key) {
       tx += ctx.measureText(t).width + 14;
     }
     if (showR != null) {
-      const t2 = '잔고 ' + showR.toFixed(2) + '%';
+      const t2 = '누적비율 ' + showR.toFixed(2) + '%';
       if (showR >= 2) {                        // 잔고가 쌓인 종목도 붉은 상자
         const wd = ctx.measureText(t2).width + 8;
         ctx.fillStyle = '#ef535033'; ctx.fillRect(tx-4, PAD.t+2, wd, 13);
@@ -3525,10 +3529,10 @@ function drawSubInner(canvas, key) {
       ctx.fillText(t2, tx, PAD.t + 11);
     } else if (line.length) {
       ctx.fillStyle = '#3fb950';
-      ctx.fillText('잔고 ' + fmt(line[line.length-1].v) + '주', tx, PAD.t + 11);
+      ctx.fillText('누적잔고 ' + fmt(line[line.length-1].v) + '주', tx, PAD.t + 11);
     } else {
       ctx.fillStyle = '#6e7681';
-      ctx.fillText('잔고 자료 없음', tx, PAD.t + 11);
+      ctx.fillText('누적비율 자료 없음', tx, PAD.t + 11);
     }
     return;
   }
@@ -3590,7 +3594,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastVF = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = C.pink; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('Force 포스인덱스  ' + (lastVF != null ? fmt(lastVF) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('Force 포스인덱스  ' + (lastVF != null ? fmt(lastVF) : ''), PAD.l + 32, PAD.t + 11);
     return;
   }
 
@@ -3666,7 +3670,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastVO = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = C.cyan; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('OBV 누적거래량  ' + (lastVO != null ? fmt(lastVO) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('OBV 누적거래량  ' + (lastVO != null ? fmt(lastVO) : ''), PAD.l + 32, PAD.t + 11);
     // 매수/매도 화살표 (전고점/전저점 돌파)
     drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch);
     return;
@@ -3714,7 +3718,7 @@ function drawSubInner(canvas, key) {
     // 레이블
     const lastV = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    ctx.fillText('Disparity 이격도  ' + (lastV != null ? lastV.toFixed(1) : ''), PAD.l + 22, PAD.t + 11);
+    ctx.fillText('Disparity 이격도  ' + (lastV != null ? lastV.toFixed(1) : ''), PAD.l + 32, PAD.t + 11);
     ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.font = '10px monospace';
     ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
     ctx.fillText(minV.toFixed(0), W - PAD.r + 3, PAD.t + ch);
@@ -3765,7 +3769,7 @@ function drawSubInner(canvas, key) {
     CHAIKIN_VOL:'Chaikin Vol 차이킨변동성', VOLUME:'거래량', OBV:'OBV 누적거래량', CMF:'CMF 차이킨자금흐름', MFI:'MFI 자금수급지수', PVT:'PVT 거래량추세지수', WILLIAMS_AD:'Williams AD 윌리엄스누적확산지수'};
   const lastVal = vals[0].filter(v => v != null).slice(-1)[0];
   ctx.fillStyle = cfg.color; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(`${lastName[key] || key}  ${lastVal != null ? lastVal.toFixed(1) : ''}`, PAD.l + 22, PAD.t + 11);
+  ctx.fillText(`${lastName[key] || key}  ${lastVal != null ? lastVal.toFixed(1) : ''}`, PAD.l + 32, PAD.t + 11);
   // max/min 우측 축
   ctx.fillStyle = C.muted; ctx.textAlign = 'left'; ctx.font = '10px monospace';
   ctx.fillText(maxV.toFixed(0), W - PAD.r + 3, PAD.t + 10);
@@ -3813,7 +3817,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-28 공매도 비율표시';
+const KG_CHART_BUILD = '2026-08-28 교대단추 아래로';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
