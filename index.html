@@ -5613,6 +5613,7 @@ function myLocal(){
   return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{},
            cls:g('kg_long_cls')||{}, fcst:g('kg_fcst')||{}, invcorp:g('kg_invcorp')||{},
+           fnote:g('kg_fcst_note')||{}, fseed:g('kg_fcst_seed')||{},
            // 관심·보유 목록도 함께 보관한다 (기기를 바꿔도 체크가 유지되도록)
            watch:g('kg_watch_rows')||[], invpf:g('kg_invpf_rows')||[],
            wait:g('kg_wait_rows')||[],
@@ -5695,6 +5696,11 @@ async function myServerLoad(){
       if(o.en && typeof o.en==='object') put('kg_long_en', o.en);
       if(o.cls && typeof o.cls==='object') put('kg_long_cls', o.cls);
       if(o.fcst && typeof o.fcst==='object') put('kg_fcst', o.fcst);
+      if(o.fnote && typeof o.fnote==='object') put('kg_fcst_note', o.fnote);
+      if(o.fseed && typeof o.fseed==='object') put('kg_fcst_seed', o.fseed);
+      /* 서버 자료로 덮어쓴 뒤라 이 파일에 담아 온 전망이 사라졌을 수 있다.
+         여기서 한 번 더 맞춰 준다. */
+      try{ if(typeof fcstSeedApply==='function') fcstSeedApply(); }catch(e){}
       if(o.invcorp && typeof o.invcorp==='object') put('kg_invcorp', o.invcorp);
       if(Array.isArray(o.wait)) put('kg_wait_rows', o.wait);
       // 관심·보유는 이 기기에 아직 없을 때만 받는다 (여기서 지운 것을 되살리지 않도록)
@@ -9705,7 +9711,8 @@ function fcstSeedPut(code){
     localStorage.setItem(FNOTE_KEY, JSON.stringify(notes));
   }catch(e){}
   fseedSet(mark);
-  if(typeof myServerSave==='function') myServerSave();
+  // 서버 보관은 곁다리다 — 여기서 실패해도 나머지 종목 처리를 멈추지 않는다
+  try{ if(typeof myServerSave==='function') myServerSave(); }catch(e){}
   return true;
 }
 
@@ -9725,7 +9732,12 @@ function fcstSeedApply(){
       if(have) { fseedMine(code); return; }   // 손님이 손수 넣어 둔 것 — 지킨다
       fcstSeedPut(code); return;              // 아무것도 없으면 넣는다
     }
-    if(m.v >= sd.v) return;                   // 이미 같은 판
+    if(m.v >= sd.v){
+      /* 같은 판인데 표만 사라졌으면(서버 동기화로 덮인 경우) 다시 넣는다.
+         다만 손님이 손수 지운 종목은 되살리지 않는다. */
+      if(!have && !m.mine) fcstSeedPut(code);
+      return;
+    }
     if(m.mine) return;                        // 고친 종목 — 화면에서 알리고 손님이 고른다
     fcstSeedPut(code);                        // 손대지 않은 종목은 새 판으로 바꾼다
   });
