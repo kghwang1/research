@@ -8588,6 +8588,9 @@ function anlComment(){
     t += bits.join(', ') + '입니다. ';
     t += '<span style="color:#8b949e">증권사 전망은 낙관 쪽으로 기우는 경향이 있어, 실적이 나올 때마다 맞았는지 확인해 보세요.</span></p>';
     P.push(t);
+    // 표의 모양을 말로 풀어 덧붙인다
+    const shape = (typeof fcstShapeText==='function') ? fcstShapeText(fcstDrawRows(ANL_CODE)) : '';
+    if(shape) P.push(shape);
   }
 
   // 성장성
@@ -9608,16 +9611,25 @@ function fcstTableHtml(code){
      + `<td style="padding:2px 5px"><button data-fdel="${i}" style="background:none;border:0;color:#ef5350;cursor:pointer;font-size:13px">✕</button></td></tr>`;
   });
   h+='</table></div>';
-  if(ev && ev.total!=null){
+  /* ── [ 표 해석 ] ─────────────────────────────────────────────
+     점수와 표의 흐름을 한자리에 모아 아래쪽에 크고 밝게 적는다. */
+  const bits = (typeof fcstShapeBits==='function') ? fcstShapeBits(rows) : [];
+  if((ev && ev.total!=null) || bits.length){
     const drawn=fcstCount(code), empty=rows.length-drawn;
-    h+=`<div style="margin-top:8px;font-size:11.5px;color:#8b949e">`
-     + `전망 종합 <b style="color:#f2c800;font-size:13px">${ev.total}</b><span style="font-size:10px">/100</span>`
-     + ` · ${escHtml(ev.years)} 기준 · `
-     + ev.parts.map(p=>`${p.n} ${p.p}/${p.max}`).join(' · ')
-     + (empty>0 ? ` · <span style="color:#d29922">빈 줄 ${empty}개는 그래프에 그리지 않습니다</span>`
-                  + ' <button id="fcstClean" class="anl-backbtn" style="padding:1px 7px;font-size:10.5px">빈 줄 지우기</button>'
-                : '')
-     + '</div>';
+    h+='<div style="margin-top:14px;border-top:1px solid #30363d;border-bottom:1px solid #30363d;'
+     + 'padding:11px 2px 13px;color:#e6edf3;font-size:14.5px;line-height:1.8">'
+     + '<div style="font-weight:700;color:#f2c800;margin-bottom:6px">[ 표 해석 ]</div>';
+    if(ev && ev.total!=null){
+      h+= `<div>전망 종합 <b style="color:#f2c800;font-size:17px">${ev.total}</b>`
+       + `<span style="font-size:13px">/100</span> · ${escHtml(ev.years)} 기준 · `
+       + ev.parts.map(p=>`${p.n} ${p.p}/${p.max}`).join(' · ')
+       + (empty>0 ? ` · <span style="color:#d29922">빈 줄 ${empty}개는 그래프에 그리지 않습니다</span>`
+                    + ' <button id="fcstClean" class="anl-backbtn" style="padding:2px 9px;font-size:13px">빈 줄 지우기</button>'
+                  : '')
+       + '</div>';
+    }
+    bits.forEach(b=>{ h+='<div style="margin-top:3px">· '+b+'</div>'; });
+    h+='</div>';
   }
   h+='</div>';
   return h;
@@ -9966,6 +9978,100 @@ function fcstApply(code, res, tag, confirmed, dropped){
     if(dropped) msg.innerHTML+=' <span style="color:#d29922">'+escHtml(dropped)
       +' 은 네이버 실적이 이미 있어 넣지 않았습니다.</span>';
     if(miss.length) msg.innerHTML+=' <span style="color:#6e7681">빈 항목: '+miss.join(', ')+'</span>'; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   전망 표 읽기 — 점수와 별개로, 표의 '모양'을 말로 풀어준다.
+   정점을 언제 찍는지, 방향이 어디서 꺾이는지, 이익과 배수가
+   서로 어긋나지 않는지처럼 숫자 하나만 봐서는 안 보이는 것들이다.
+   ═══════════════════════════════════════════════════════════════ */
+function fcstShapeBits(rows){
+  const R=(rows||[]).slice().sort((a,b)=>String(a.year).localeCompare(String(b.year)));
+  if(R.length<2) return '';
+  const num=v=>{ const x=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:null; };
+  const ser=k=>R.map(r=>num(r[k]));
+  const yr =i=>String(R[i].year||'').replace(/^20/,'').replace(/[AEFP]$/,'');
+  const has=a=>a.filter(x=>x!=null).length>=2;
+  const first=a=>{ for(const x of a) if(x!=null) return x; return null; };
+  const last =a=>{ for(let i=a.length-1;i>=0;i--) if(a[i]!=null) return a[i]; return null; };
+  const argmax=a=>{ let b=-1; a.forEach((x,i)=>{ if(x!=null && (b<0||x>a[b])) b=i; }); return b; };
+  const lastIdx=a=>{ for(let i=a.length-1;i>=0;i--) if(a[i]!=null) return i; return -1; };
+  const P=v=>`<b>${v>=0?'+':''}${v.toFixed(1)}%</b>`;
+
+  const g=ser('sales'), o=ser('opm'), e=ser('roe'), pe=ser('per'), pb=ser('pbr');
+  const bits=[];
+
+  // ① 성장의 정점과 둔화
+  if(has(g)){
+    const mi=argmax(g), li=lastIdx(g);
+    if(mi>=0 && li>mi && g[li] < g[mi]*0.5)
+      bits.push(`매출 증가는 <b>${yr(mi)}년</b> ${P(g[mi])} 로 정점을 찍고 <b>${yr(li)}년</b> ${P(g[li])} 까지 낮아집니다`);
+    else if(mi===li && li>0)
+      bits.push(`매출 증가가 마지막 해까지 ${P(g[li])} 로 계속 높아집니다`);
+    else if(g[li]!=null && g[li]<0)
+      bits.push(`마지막 해 매출이 ${P(g[li])} 로 <b>줄어드는</b> 전망입니다`);
+    if(g.some(x=>x!=null && x>=80))
+      bits.push('한 해 증가율이 80%를 넘습니다 — 한 번뿐인 이익인지, 이어지는 성장인지 본문에서 확인하세요');
+  }
+
+  // ② 이익률의 방향
+  if(has(o)){
+    const mi=argmax(o), li=lastIdx(o), f=first(o), l=last(o);
+    if(li>mi && o[mi]-o[li] >= 3)
+      bits.push(`영업이익률도 <b>${yr(mi)}년</b> ${o[mi].toFixed(1)}% 를 정점으로 ${o[li].toFixed(1)}% 까지 내려옵니다`);
+    else if(l-f >= 3) bits.push(`영업이익률은 ${f.toFixed(1)}% → ${l.toFixed(1)}% 로 <b>좋아지는</b> 흐름입니다`);
+    else if(f-l >= 3) bits.push(`영업이익률은 ${f.toFixed(1)}% → ${l.toFixed(1)}% 로 <b>나빠지는</b> 흐름입니다`);
+  }
+
+  // ③ 이익은 뛰는데 배수는 낮아진다 — 시장이 지속성을 의심한다는 신호
+  let saidRoe=false;
+  if(has(e) && has(pe)){
+    const ef=first(e), el=last(e), pf=first(pe), pl=last(pe);
+    const eMax=Math.max.apply(null, e.filter(x=>x!=null));
+    if(eMax-ef >= 10 && pl < pf*0.6)
+      { bits.push(`ROE 가 ${ef.toFixed(1)}% 에서 ${eMax.toFixed(1)}% 까지 뛰는데 PER 은 ${pf.toFixed(1)}배 → ${pl.toFixed(1)}배로 낮아집니다. `
+              + '<b>시장이 그 이익을 오래 갈 것으로 보지 않는다</b>는 뜻일 수 있습니다'); saidRoe=true; }
+    else if(el-ef >= 5 && pl < pf)
+      bits.push(`ROE 는 오르고 PER 은 ${pf.toFixed(1)}배 → ${pl.toFixed(1)}배로 낮아져, 이익이 늘수록 값이 싸지는 모양입니다`);
+  }
+
+  // ④ ROE 의 방향
+  if(has(e) && !saidRoe){
+    const mi=argmax(e), li=lastIdx(e), f=first(e), l=last(e);
+    if(li>mi && e[mi]-e[li] >= 10)
+      bits.push(`ROE 는 <b>${yr(mi)}년</b> ${e[mi].toFixed(1)}% 에서 ${e[li].toFixed(1)}% 로 내려옵니다`);
+    else if(l-f >= 3) bits.push(`ROE 는 ${f.toFixed(1)}% → ${l.toFixed(1)}% 로 <b>오르는</b> 전망입니다`);
+    else if(f-l >= 3) bits.push(`ROE 는 ${f.toFixed(1)}% → ${l.toFixed(1)}% 로 <b>내리는</b> 전망입니다`);
+  }
+
+  // ⑤ PBR 이 낮아지는 이유
+  if(has(pb)){
+    const f=first(pb), l=last(pb);
+    if(l < f*0.7) bits.push(`PBR 은 ${f.toFixed(1)}배 → ${l.toFixed(1)}배로 낮아집니다 — 이익이 쌓여 자본이 불어나기 때문입니다`);
+  }
+
+  // ⑥ 이익은 큰데 배수가 매우 낮을 때
+  if(has(pe) && has(e) && !saidRoe){
+    const pv=pe.filter(x=>x!=null), ev2=e.filter(x=>x!=null);
+    const peMin=Math.min.apply(null,pv), eMax=Math.max.apply(null,ev2);
+    if(peMin<=7 && eMax>=20)
+      bits.push(`PER 이 <b>${peMin.toFixed(1)}배</b>까지 낮아집니다 — ROE ${eMax.toFixed(1)}% 에 견주면 값이 매우 싸게 매겨져 있습니다. `
+              + '<b>시장이 이 이익을 오래 갈 것으로 보지 않는다</b>는 뜻일 수 있습니다');
+  }
+
+  // ⑦ 이익률과 ROE 가 어긋날 때
+  if(has(o) && has(e)){
+    const od=last(o)-first(o), ed=last(e)-first(e);
+    if(od>2 && ed<-5) bits.push('이익률은 좋아지는데 ROE 는 내려갑니다 — 자본이 이익보다 빨리 불어난다는 뜻입니다');
+  }
+
+  return bits;
+}
+function fcstShapeText(rows){
+  const bits=fcstShapeBits(rows);
+  if(!bits.length) return '';
+  return '<p><b>표 읽기</b> <span style="color:#6e7681;font-size:11px">(전망의 흐름)</span> — '
+       + bits.join('. ') + '.</p>';
 }
 
 function fcstEval(rows){
