@@ -702,6 +702,14 @@
   /* 분석 탭에서는 앱 헤더(제목·탭)를 숨겨 화면을 넓게 쓴다 */
   body.anl-mode header{display:none}
   body.anl-mode #hub{padding-top:0}
+  /* 분석 화면도 챠트·보고서·장기투자와 같은 폭·높이를 쓴다.
+     .wrap 의 760px 제한 때문에 챠트에서 넘어오면 폭이 갑자기 좁아졌다.
+     (챠트·보고서·장기투자는 전체화면 오버레이라 .wrap 밖에 있다) */
+  body.anl-mode{padding-bottom:0}
+  body.anl-mode .wrap{max-width:none;padding:0}
+  body.anl-mode section{padding-top:0}
+  body.anl-mode #hub.on{display:flex;flex-direction:column;height:100vh;height:100dvh}
+  body.anl-mode #hub .anl-layout{flex:1;height:auto;min-height:0}
   .anl-top{display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:6px 10px;
     background:var(--panel);border-bottom:1px solid var(--line)}
   .anl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
