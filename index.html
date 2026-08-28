@@ -728,7 +728,7 @@
   /* 전체화면 오버레이(보고서·챠트)에서는 남은 높이를 그대로 채운다 —
      고정 높이면 화면 크기에 따라 아래가 잘리거나 남는다 */
   #rptFullScreen .anl-layout,#chartFullScreen .anl-layout{height:auto;flex:1;min-height:0}
-  #rptFullScreen .anl-main{display:flex;flex-direction:column;overflow:hidden}
+  #rptFullScreen .anl-main{display:flex;flex-direction:column;overflow:hidden;min-height:0}
   /* 좌우 경계 — 끌어서 종목 칸 폭을 조절한다 (챠트 화면과 같은 방식) */
   .side-rz{width:6px;flex:none;cursor:col-resize;background:var(--line);position:relative;touch-action:none}
   .side-rz::before{content:'';position:absolute;left:1.5px;top:50%;transform:translateY(-50%);
@@ -9170,7 +9170,11 @@ function rptRender(state, items, msg){
   if(state==='err'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">보고서를 받지 못했습니다 — '+escHtml(msg||'')+'</div>'; return; }
   if(state==='none'){ m.innerHTML=head+'<div style="padding:18px;color:#8b949e">등록된 리서치 보고서가 없습니다.</div>'; return; }
 
-  m.style.display=''; m.style.flexDirection=''; m.style.overflow='';   // 목록은 원래대로
+  /* 보고서 원문(PDF)을 볼 때는 이 칸이 flex·overflow:hidden 으로 바뀐다.
+     목록으로 돌아올 때 빈 값('')을 넣으면 CSS 의 overflow:hidden 이 다시 살아나
+     아래 내용(증권사 전망 표)이 잘려 보이지 않았다. 값을 분명히 지정한다. */
+  m.style.display='block'; m.style.flexDirection='';
+  m.style.overflowY='auto'; m.style.overflowX='hidden';
   const {list, mode}=rptSelect(items);
   RPT_SHOWN=list;
   let h=head+`<div style="padding:2px 0 10px;color:#8b949e;font-size:11.5px">${mode} ${list.length}건 · 전체 ${items.length}건 · 제목을 누르면 이 자리에서 열립니다</div>`;
