@@ -9289,7 +9289,7 @@ function fcstParseSimple(txt){
    ① 연도가 3개 이상 있는 줄을 표 머리로 잡고
    ② 그 아래 줄에서 항목 이름을 찾아 뒤쪽 숫자를 연도 수만큼 가져온다.
    기존 방식은 값을 스스로 계산해 넣는 바람에 엉뚱한 숫자가 들어갔다. */
-function fcstParseTable(txt){
+function fcstParseTable(txt, keepYears){
   const lines=String(txt||'').replace(/[\u2212\u2013\u2014]/g,'-').split(/[\r\n]+/);
   const nums=t=>(String(t).match(/-?\(?[\d,]+\.?\d*\)?/g)||[]).map(v=>{
     let neg=/^\(/.test(v);
@@ -9306,14 +9306,17 @@ function fcstParseTable(txt){
     const uniq=new Set(ys.map(y=>y.slice(0,4)));
     if(ys.length>=3 && uniq.size===ys.length){ years=ys; yAt=i; }
   });
+  /* 표가 길어 두 번에 나눠 찍으면 아래쪽 그림에는 연도 줄이 없다.
+     그럴 때는 앞서 읽은 연도를 그대로 이어 쓴다. */
+  if(!years && keepYears && keepYears.length>=3){ years=keepYears.slice(); yAt=-1; }
   if(!years) return null;
   const N=years.length;
 
   // ② 항목 줄 — 이름이 맞고 숫자가 연도 수만큼 있는 줄
   const want=[
-    { k:'sales', re:/매출.*(증가|성장)|매출액\s*증가/ },
-    { k:'sales', re:/^\s*매출액/, sect:'growth' },
-    { k:'opm',   re:/영업이익률|영업\s*마진|OPM/i },
+    { k:'sales', re:/매출.*(증가|성장)|매출액\s*증가|(sales|revenue).*(growth|gr\b)/i },
+    { k:'sales', re:/^\s*(매출액|sales|revenue)/i, sect:'growth' },
+    { k:'opm',   re:/영업이익률|영업\s*마진|OPM|operating\s*margin/i },
     { k:'roe',   re:/\bROE\b/i },
     { k:'per',   re:/\bPER\b/i },
     { k:'pbr',   re:/\bPBR\b/i },
@@ -9329,23 +9332,51 @@ function fcstParseTable(txt){
     else if(/수익성|안정성|주당|Valuation|밸류/i.test(ln)) sect='';
     const v=nums(ln);
     if(v.length<N) continue;
-    const tail=v.slice(v.length-N);          // 뒤쪽 N개가 연도별 값
+    const tail=v.slice(0, N);                // 앞에서부터 N개가 연도별 값
+                                             // (뒤에 합계·평균 열이 붙어도 밀리지 않는다)
     for(const wnt of want){
       if(got[wnt.k]) continue;
       if(wnt.sect && wnt.sect!==sect) continue;
       if(wnt.re.test(ln)){ got[wnt.k]=tail; break; }
     }
   }
-  let note='';
-  if(!got.opm && got._ebitda){ got.opm=got._ebitda; note='영업이익률이 없어 EBITDA마진을 넣었습니다'; }
+  const notes=[];
+  if(!got.opm && got._ebitda){ got.opm=got._ebitda; notes.push('영업이익률이 없어 EBITDA마진을 넣었습니다'); }
   delete got._ebitda;
   if(!Object.keys(got).length) return null;
+
+  /* 소수점이 거의 없으면 사진에서 점을 놓친 것일 수 있다 (29.2 → 292) */
+  const all=[].concat.apply([], Object.values(got));
+  const dot=all.filter(v=>String(v).indexOf('.')>=0).length;
+  if(all.length>=5 && dot < all.length*0.4)
+    notes.push('소수점이 거의 없습니다 — 292 처럼 점이 빠지지 않았는지 꼭 보세요');
+  const note=notes.join(' · ');
 
   const rows=years.map((y,i)=>({
     year:y, sales:(got.sales||[])[i]||'', opm:(got.opm||[])[i]||'',
     roe:(got.roe||[])[i]||'', per:(got.per||[])[i]||'', pbr:(got.pbr||[])[i]||''
   }));
   return { rows, years, note };
+}
+
+/* 열려 있는 대조 상자의 내용을 읽는다 (없으면 null) */
+function fcstBoxRows(m){
+  const b=m && m.querySelector('#fcstCheckBox');
+  if(!b || !b.value.trim()) return null;
+  const r=fcstParseSimple(b.value);
+  return (r && r.rows.length) ? r.rows : null;
+}
+
+/* 앞서 읽은 값에 새로 읽은 값을 채워 넣는다 — 표를 나눠 찍었을 때 */
+function fcstMergeRows(base, add){
+  const out=base.map(r=>Object.assign({}, r));
+  add.forEach((nr,i)=>{
+    let t=out.find(r=>String(r.year)===String(nr.year));
+    if(!t) t=out[i];                       // 연도 이름이 조금 달라도 자리로 맞춘다
+    if(!t) { out.push(Object.assign({}, nr)); return; }
+    ['sales','opm','roe','per','pbr'].forEach(k=>{ if(nr[k]) t[k]=nr[k]; });
+  });
+  return out;
 }
 
 /* 대조 상자에 넣을 글로 바꾼다 */
@@ -9439,8 +9470,12 @@ async function fcstReadImage(code, file, m){
     const lines=String(d.text||'').split(/[\r\n]+/);
     const note=lines.filter(x=>x.trim()[0]==='#').map(x=>x.replace(/^#\s*/,'')).join(' · ');
     const body=lines.filter(x=>x.trim() && x.trim()[0]!=='#').join('\n');
+    const prev=fcstBoxRows(m);
+    const now=fcstParseSimple(body);
+    const rows=(prev && now) ? fcstMergeRows(prev, now.rows) : (now?now.rows:null);
     if(msg) msg.style.display='none';
-    fcstShowCheck(code, m, body, note);
+    fcstShowCheck(code, m, rows?fcstRowsToText(rows):body,
+      (prev?'앞서 읽은 값에 이어 채웠습니다 · ':'')+note);
   }catch(e){
     /* 연결 자체가 막힌 경우(창구 없음·CORS 등)도 기다리게 하지 말고 기본 방식으로 */
     window._fcstAI=false;
@@ -9462,14 +9497,17 @@ async function fcstReadImageLocal(code, file, m){
         show('사진에서 글자를 읽는 중… '+Math.round((p.progress||0)*100)+'%'); }
     });
     const txt=String((data&&data.text)||'').replace(/[|]/g,' ');
-    const res=fcstParseTable(txt) || fcstParse(txt, true);
+    const prev=fcstBoxRows(m);                       // 이미 읽어 둔 것이 있으면 이어 붙인다
+    const res=fcstParseTable(txt, prev&&prev.map(r=>r.year)) || fcstParse(txt, true);
     if(!res || !res.rows || !res.rows.length){
       show('표를 찾지 못했습니다. <span style="color:#6e7681">연도 줄(2026F 2027F …)이 함께 보이도록 넓게 캡처해 주세요.</span>');
       return;
     }
+    const rows=prev ? fcstMergeRows(prev, res.rows) : res.rows;
     if(msg) msg.style.display='none';
-    fcstShowCheck(code, m, fcstRowsToText(res.rows),
-      '브라우저에서 읽었습니다 — 소수점이 빠질 수 있으니 꼼꼼히 대조해 주세요'
+    fcstShowCheck(code, m, fcstRowsToText(rows),
+      (prev ? '앞서 읽은 값에 이어 채웠습니다 · ' : '')
+      + '브라우저에서 읽었습니다 — 소수점이 빠질 수 있으니 꼼꼼히 대조해 주세요'
       + (res.note ? ' · '+res.note : ''));
   }catch(e){ show('읽지 못했습니다 — '+escHtml(e.message)); }
 }
@@ -9490,6 +9528,7 @@ function fcstTableHtml(code){
    + 'border-radius:8px;text-align:center;color:#8b949e;font-size:12px;cursor:pointer;outline:none;background:#0d1117">'
    + '<b style="color:#f2c800">여기를 누른 뒤 Ctrl+V</b> 로 보고서 표 캡처를 붙여넣으세요'
    + '<div style="margin-top:4px;font-size:11px;color:#6e7681">읽은 값을 글로 보여드립니다 — 대조·수정한 뒤 [확인] 을 누르면 표에 들어갑니다'
+   + '<br>표가 길면 <b>위·아래로 나눠 두 번</b> 붙여넣으세요 — 뒤엣것이 이어서 채워집니다'
    + '<br>잘 안 읽히면 [글로 넣기] 로 직접 적어 넣어도 됩니다'
    + '<br>그림 파일을 끌어다 놓아도 됩니다'
    + ' · <span id="fcstPick" style="color:#58a6ff;text-decoration:underline">파일 고르기</span></div></div>';
@@ -9617,7 +9656,8 @@ function fcstBind(m, code){
     if(op) op.onclick=()=>window.open(RPT_URL+'/?rptview='+encodeURIComponent(pdfSrc), '_blank', 'noopener');
     wrap.querySelector('#fcstBoxNo').onclick=()=>wrap.remove();
     wrap.querySelector('#fcstBoxGo').onclick=()=>{
-      const res=fcstParseTable(box.value) || fcstParse(box.value);
+      const prev=fcstBoxRows(m);
+      const res=fcstParseTable(box.value, prev&&prev.map(r=>r.year)) || fcstParse(box.value);
       if(!res || !res.rows || !res.rows.length){
         if(msg){ msg.style.display='block';
           msg.innerHTML='표를 읽지 못했습니다. <span style="color:#6e7681">연도 줄(2026F 2027F …)과 항목 줄이 함께 들어가도록 넓게 복사해 주세요.</span>'; }
@@ -9626,8 +9666,10 @@ function fcstBind(m, code){
       /* 바로 표에 넣지 않고, 그림 읽기와 똑같이 대조 상자를 거친다.
          PDF 에서 복사한 글도 표 모양에 따라 자리가 밀릴 수 있기 때문이다. */
       wrap.remove();
-      fcstShowCheck(code, m, fcstRowsToText(res.rows),
-        'PDF 에서 복사한 글을 읽었습니다 — 자리가 밀리지 않았는지 확인해 주세요'
+      const rows2=prev ? fcstMergeRows(prev, res.rows) : res.rows;
+      fcstShowCheck(code, m, fcstRowsToText(rows2),
+        (prev?'앞서 읽은 값에 이어 채웠습니다 · ':'')
+        + 'PDF 에서 복사한 글을 읽었습니다 — 자리가 밀리지 않았는지 확인해 주세요'
         + (res.note ? ' · '+res.note : ''));
     };
   };
