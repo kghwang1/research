@@ -5215,8 +5215,12 @@ function selLongAll(){
   try{
     const r=localStorage.getItem('kg_long_rows'); const a=r?JSON.parse(r):[];
     if(!Array.isArray(a)) return [];
-    return a.map(x=>[String((x&&x.code)||'').trim(), (x&&x.name)||''])
-            .filter(x=>x[0]);
+    return a.map(x=>{
+      const c=String((x&&x.code)||'').trim();
+      let n=String((x&&x.name)||'').trim();
+      if(c && (!n || n===c) && typeof kgNameOf==='function') n = kgNameOf(c) || n;
+      return [c, n];
+    }).filter(x=>x[0]);
   }catch(e){ return []; }
 }
 function selLongRows(mkt){
@@ -5609,12 +5613,38 @@ const MY_FIELD    = 'mylists';
 /* 장기 후보(kg_long_rows·점수)와 추가종목(kg_addstk_rows)을 서버에 보관한다.
    담거나 뺄 때마다 자동 저장하고, 앱을 시작할 때 자동으로 불러온다. */
 let _mySaveTimer=null, _myLoaded=false;
+
+/* ── 차트 설정도 서버에 함께 보관한다 ─────────────────────────────
+   차트 화면(kg-chart.html)은 같은 사이트라 저장 공간을 함께 쓴다.
+   그래서 여기서 그 값을 읽어 올리고, 받아서 되돌려 놓을 수 있다.
+   보던 기간(kg_chart_view)은 기기마다 다른 게 자연스러워 뺐다. */
+const CHART_KEYS=['kgchart_defaults','kgchart_order','kgchart_order_base',
+                  'kg_sub_swap','kgchart_params','kgchart_opts','kg_guide_desc'];
+function chartSnap(){
+  const o={};
+  CHART_KEYS.forEach(k=>{ try{ const v=localStorage.getItem(k); if(v!=null) o[k]=v; }catch(e){} });
+  return o;
+}
+let _chartLast=JSON.stringify(chartSnap());
+/* 차트에서 설정을 바꾸면 여기서 알아채 서버 저장을 예약한다 */
+setInterval(()=>{
+  let now;
+  try{ now=JSON.stringify(chartSnap()); }catch(e){ return; }
+  if(now===_chartLast) return;
+  _chartLast=now;
+  if(!_myLoaded) return;                       // 서버 자료를 받기 전이면 건드리지 않는다
+  try{ localStorage.setItem('kg_chart_changed_at', new Date().toISOString()); }catch(e){}
+  if(typeof myServerSave==='function') myServerSave();
+}, 3000);
+
 function myLocal(){
   const g=k=>{ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):null }catch(e){ return null } };
   return { long:g('kg_long_rows')||[], scores:g('kg_long_scores')||{},
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{},
            cls:g('kg_long_cls')||{}, fcst:g('kg_fcst')||{}, invcorp:g('kg_invcorp')||{},
            fnote:g('kg_fcst_note')||{}, fts:g('kg_fcst_ts')||{},
+           chart:chartSnap(),
+           chartAt:(()=>{ try{ return localStorage.getItem('kg_chart_changed_at')||''; }catch(e){ return ''; } })(),
            // 관심·보유 목록도 함께 보관한다 (기기를 바꿔도 체크가 유지되도록)
            watch:g('kg_watch_rows')||[], invpf:g('kg_invpf_rows')||[],
            wait:g('kg_wait_rows')||[],
@@ -5764,11 +5794,27 @@ async function myServerLoad(){
       const takeIt = k => (!hasLocal(k) || srvNewer) && !localNewer;
       if(Array.isArray(o.watch) && o.watch.length && takeIt('kg_watch_rows')) put('kg_watch_rows', o.watch);
       if(Array.isArray(o.invpf) && o.invpf.length && takeIt('kg_invpf_rows')) put('kg_invpf_rows', o.invpf);
+      /* 차트 설정 — 서버 것이 더 나중일 때만 되돌려 놓는다 */
+      try{
+        if(o.chart && typeof o.chart==='object'){
+          const sAt=String(o.chartAt||'');
+          const lAt=(()=>{ try{ return localStorage.getItem('kg_chart_changed_at')||''; }catch(e){ return ''; } })();
+          if(!lAt || (sAt && sAt > lAt)){
+            Object.keys(o.chart).forEach(k=>{
+              if(CHART_KEYS.indexOf(k)<0) return;
+              try{ localStorage.setItem(k, o.chart[k]); }catch(e){}
+            });
+            if(sAt){ try{ localStorage.setItem('kg_chart_changed_at', sAt); }catch(e){} }
+            _chartLast=JSON.stringify(chartSnap());   // 방금 받은 것을 '바뀐 것'으로 세지 않는다
+          }
+        }
+      }catch(e){ console.warn('차트 설정 합치기 실패:', e); }
       if(o.savedAt){ try{ localStorage.setItem('kg_my_saved_at', o.savedAt); }catch(e){} }
       /* 이 기기 변경이 더 나중이면 서버에도 올려 둔다 — 다른 기기와 어긋나지 않게 */
       if(localNewer) myPushSoon();
       else { try{ localStorage.removeItem('kg_my_changed_at'); }catch(e){} }
       if(typeof loadAddRows==='function') loadAddRows();
+      try{ setTimeout(()=>{ if(typeof kgFixLongNames==='function') kgFixLongNames(); }, 900); }catch(e){}
     }
   }catch(e){}
   try{ myEnsureWatch(); }catch(e){}
@@ -11950,6 +11996,53 @@ const CHART_IDX_ROWS = [
   ['KRW=X','원/달러 환율'], ['DX-Y.NYB','달러인덱스'], ['^TNX','미국 10년물'],
   ['BTC-USD','비트코인'], ['ETH-USD','이더리움']
 ];
+/* ── 종목 이름 찾기 ─────────────────────────────────────────────
+   장기종목에 이름 없이 코드만 담긴 줄이 생기는 일이 있다.
+   다른 목록에서 이름을 찾아 채운다. */
+const NAME_SRC_KEYS=['kg_watch_rows','kg_invpf_rows','kg_wait_rows','kg_addstk_rows','kg_long_rows'];
+function kgNameOf(code){
+  const c0=String(code||'').trim(); if(!c0) return '';
+  for(const k of NAME_SRC_KEYS){
+    try{
+      const a=JSON.parse(localStorage.getItem(k)||'[]');
+      if(!Array.isArray(a)) continue;
+      for(const r of a){
+        const c=String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim();
+        const n=String((Array.isArray(r)?r[1]:(r&&r.name))||'').trim();
+        if(c===c0 && n && n!==c0) return n;
+      }
+    }catch(e){}
+  }
+  try{
+    for(const pt of ['kr','invest','investkq','invpf','usc','us','etf','dividend','idx']){
+      const rows=chartPortRows(pt)||[];
+      for(const r of rows){
+        const c=String(r[0]||'').trim(), n=String(r[1]||'').trim();
+        if(c===c0 && n && n!==c0) return n;
+      }
+    }
+  }catch(e){}
+  return '';
+}
+/* 장기종목 줄에 이름이 비어 있으면 채워 넣는다 */
+function kgFixLongNames(){
+  try{
+    const raw=localStorage.getItem('kg_long_rows'); if(!raw) return;
+    const a=JSON.parse(raw); if(!Array.isArray(a)) return;
+    let hit=false;
+    const out=a.map(x=>{
+      const c=String((x&&x.code)||'').trim();
+      let n=String((x&&x.name)||'').trim();
+      if(c && (!n || n===c)){ const f=kgNameOf(c); if(f){ n=f; hit=true; } }
+      return Object.assign({}, x, {code:c, name:n});
+    });
+    if(hit){
+      localStorage.setItem('kg_long_rows', JSON.stringify(out));
+      if(typeof myServerSave==='function') myServerSave();
+    }
+  }catch(e){}
+}
+
 function chartPortRows(port){
   // 표에서 넘어온 '보이는 종목만' 목록이 있으면 그것을 사용
   if(chartRowsOverride && chartRowsOverride.port===port) return chartRowsOverride.rows;
@@ -11971,7 +12064,12 @@ function chartPortRows(port){
   }
   if(port==='long'){   // 장기보유 — 장기투자에서 담은 후보 (국내+해외)
     try{ const r=localStorage.getItem('kg_long_rows'); if(r){ const a=JSON.parse(r);
-      if(Array.isArray(a)) return a.map(x=>[String((x&&x.code)||'').trim(), (x&&x.name)||'']).filter(x=>x[0]); } }catch(e){}
+      if(Array.isArray(a)) return a.map(x=>{
+        const c=String((x&&x.code)||'').trim();
+        let n=String((x&&x.name)||'').trim();
+        if(c && (!n || n===c) && typeof kgNameOf==='function') n = kgNameOf(c) || n;
+        return [c, n];
+      }).filter(x=>x[0]); } }catch(e){}
     return [];
   }
   if(port==='idx'){ return CHART_IDX_ROWS.map(r=>[r[0], r[1]]); }
