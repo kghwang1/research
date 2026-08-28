@@ -9345,6 +9345,26 @@ function fcstParseTable(txt, keepYears){
   delete got._ebitda;
   if(!Object.keys(got).length) return null;
 
+  /* 매출 줄이 '증가율(%)' 이 아니라 '금액' 인 표가 있다.
+     그대로 넣으면 증가율 칸에 매출액이 들어가 버리므로,
+     값의 크기로 금액인지 알아보고 증가율을 직접 계산한다. */
+  if(got.sales){
+    const v=got.sales.map(x=>parseFloat(x));
+    const mid=v.slice().sort((a,b)=>Math.abs(a)-Math.abs(b))[Math.floor(v.length/2)];
+    if(Math.abs(mid)>=500){
+      const g=v.map((x,i)=> (i===0 || !isFinite(v[i-1]) || v[i-1]===0) ? ''
+        : ((x-v[i-1])/Math.abs(v[i-1])*100).toFixed(1));
+      got.sales=g;
+      notes.push('매출 줄이 금액이라 증가율을 직접 계산했습니다 (첫 해는 비교할 앞 해가 없어 비어 있습니다)');
+    }
+  }
+
+  /* 소수점을 놓치면 배수가 터무니없이 커진다 */
+  const big=k=>(got[k]||[]).some(x=>Math.abs(parseFloat(x))>60);
+  if(big('pbr')) notes.push('PBR 값이 비정상적으로 큽니다 — 소수점을 확인하세요');
+  if(big('per')&&(got.per||[]).some(x=>Math.abs(parseFloat(x))>200))
+    notes.push('PER 값이 비정상적으로 큽니다 — 소수점을 확인하세요');
+
   /* 소수점이 거의 없으면 사진에서 점을 놓친 것일 수 있다 (29.2 → 292) */
   const all=[].concat.apply([], Object.values(got));
   const dot=all.filter(v=>String(v).indexOf('.')>=0).length;
