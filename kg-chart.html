@@ -633,11 +633,32 @@ const CALC = {
     return { inst, cum };
   },
   SHORT_SELL:(d)=>{
-    // 공매도 거래량 + 순보유잔고 (한국 종목 전용, state.shortData에서 날짜 매칭)
+    /* 공매도 거래량 + 순보유잔고 (한국 종목 전용)
+       ─ wgt : 그날 공매도 비중(%) = 공매도 거래량 ÷ 그날 전체 거래량
+       ─ rto : 잔고비율(%)        = 순보유잔고 ÷ 상장주식수
+       규모가 다른 종목끼리도 견줄 수 있게 비율로 바꾼다. */
     const sd = state.shortData;
     const vol = d.map(x => (sd && sd[x.date]) ? sd[x.date].vol : null);
     const bal = d.map(x => (sd && sd[x.date]) ? sd[x.date].bal : null);
-    return { vol, bal };
+    const wgt = d.map(x => {
+      const s = sd && sd[x.date];
+      if (!s || !x.volume) return null;
+      return s.vol / x.volume * 100;
+    });
+    /* 상장주식수를 못 받았으면, 비율이 함께 온 날이 하나라도 있으면 거기서 되짚어 구한다 */
+    let shares = 0;
+    if (sd) for (const k in sd) {
+      const s = sd[k];
+      if (s.shares) { shares = s.shares; break; }
+      if (s.rto && s.bal) { shares = s.bal / (s.rto/100); break; }
+    }
+    const rto = d.map(x => {
+      const s = sd && sd[x.date];
+      if (!s) return null;
+      if (s.rto != null) return s.rto;
+      return shares ? s.bal / shares * 100 : null;
+    });
+    return { vol, bal, wgt, rto };
   },
   ELDER:(d)=>{
     // 엘더레이 강세지수 (차트의 정석 p.195)
@@ -1266,7 +1287,13 @@ async function fetchShortDaily(code) {
         const date = (d.TRD_DD || d.date || '').replace(/\//g, '-');
         const vol = parseInt(String(d.CVSRTSELL_TRDVOL || d.vol || 0).replace(/,/g, ''), 10) || 0;
         const bal = parseInt(String(d.STR_CONST_VAL1 || d.bal || '0').replace(/[^0-9]/g, ''), 10) || 0;
-        if (date) map[date] = { vol, bal };
+        /* 잔고비율(잔고 ÷ 상장주식수)을 쓰려고 상장주식수와 비율도 함께 챙긴다.
+           자료 제공처마다 이름이 달라 여러 이름을 살펴본다. */
+        const shares = parseInt(String(d.LIST_SHRS || d.listShares || d.shares || d.STR_CONST_VAL2 || 0)
+                        .replace(/[^0-9]/g, ''), 10) || 0;
+        const rtoRaw = d.BAL_RTO != null ? d.BAL_RTO : (d.ratio != null ? d.ratio : d.rto);
+        const rto = parseFloat(String(rtoRaw == null ? '' : rtoRaw).replace(/[^0-9.\-]/g, ''));
+        if (date) map[date] = { vol, bal, shares, rto: isFinite(rto) ? rto : null };
       });
       state.shortData = map;
       renderAll();
@@ -3346,10 +3373,12 @@ function drawSubInner(canvas, key) {
     return;
   }
 
-  // ── 공매도: 거래량 막대(빨강) + 잔고 선(녹색) ──
+  // ── 공매도: 비중 막대(빨강) + 잔고비율 선(녹색) ──
   if (key === 'SHORT_SELL') {
-    const volArr = vals[0] || [];  // 거래량
-    const balArr = vals[1] || [];  // 잔고
+    const volArr = vals[0] || [];   // 공매도 거래량(주)
+    const balArr = vals[1] || [];   // 순보유잔고(주)
+    const wgtArr = vals[2] || [];   // 그날 공매도 비중(%)
+    const rtoArr = vals[3] || [];   // 잔고비율(%)
     const fmt = v => { const a=Math.abs(v); return a>=1e8?(v/1e8).toFixed(1)+'억':a>=1e4?(v/1e4).toFixed(1)+'만':v.toFixed(0); };
 
     if (!state.shortData) {
@@ -3357,53 +3386,126 @@ function drawSubInner(canvas, key) {
       ctx.fillText('공매도 데이터 로딩중…', (PAD.l + W - PAD.r) / 2, PAD.t + ch / 2);
       return;
     }
-    // 거래량 막대 (빨강, 바닥에서 위로)
-    const maxVol = Math.max(1, ...volArr.filter(v=>v!=null&&v>0));
+
+    const hasRto = rtoArr.some(v => v != null);
+    const hasWgt = wgtArr.some(v => v != null);
+
+    /* 세로축은 잔고비율(%) 기준. 대부분 0~2% 안에서 움직이므로
+       3% 를 기본으로 두고, 넘으면 5·10·20·30% 로 한 칸씩 넓힌다.
+       잔고비율을 못 구하면 공매도 비중(%) 을 축으로 쓴다. */
+    const STEPS = [1, 1.5, 2, 3, 4, 5, 7, 10, 15, 20, 30, 50, 100];
+    const axisArr = hasRto ? rtoArr : (hasWgt ? wgtArr : null);
+    let axMax = 3;
+    if (axisArr) {
+      const mx = Math.max(...axisArr.filter(v => v != null));
+      axMax = STEPS.find(t => t >= mx * 1.08) || 100;
+      if (!hasRto) axMax = STEPS.find(t => t >= mx * 1.08 && t >= 10) || 100;   // 비중은 보통 10% 이상
+    }
+    const yPct = v => PAD.t + ch - (Math.max(0, Math.min(axMax, v)) / axMax) * ch;
+
+    /* 눈금선 — 0.5%(공시 기준) · 1% · 2% 처럼 뜻이 있는 자리에 긋는다 */
+    const MARKS = hasRto ? [0.5, 1, 2, 3, 5, 10, 20] : [5, 10, 20, 30, 50];
+    ctx.save();
+    ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+    ctx.font = '9px monospace'; ctx.textAlign = 'left';
+    MARKS.forEach(m => {
+      if (m >= axMax) return;
+      const y = yPct(m);
+      const warn = hasRto ? (m >= 2) : (m >= 10);
+      ctx.strokeStyle = warn ? '#ef535055' : '#8b949e33';
+      ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke();
+      ctx.fillStyle = warn ? '#ef535099' : '#6e768199';
+      ctx.fillText(m + '%', PAD.l + 2, y - 2);
+    });
+    ctx.restore();
+
+    /* 막대 = 그날 공매도 거래량(주). 외국인 순매수 칸과 같은 방식으로,
+       구간 안 최대값에 맞춰 바닥에서 위로 그린다(칸의 55%까지만 써서 선을 가리지 않는다).
+       비중이 10%를 넘은 날은 진하게 칠해 눈에 띄게 한다. */
     const bw = Math.max(1, (xOf(1) - xOf(0)) * 0.6);
+    const maxVol = Math.max(1, ...volArr.filter(v => v != null && v > 0));
     for (let i = 0; i < volArr.length; i++) {
-      if (!volArr[i]) continue;
-      const bh = Math.max(1, volArr[i] / maxVol * (ch - 4));
-      ctx.fillStyle = '#ef535088';
+      const v = volArr[i];
+      if (!v || !(v > 0)) continue;
+      const bh = Math.max(1, v / maxVol * (ch * 0.55));
+      const hot = wgtArr[i] != null && wgtArr[i] >= 10;
+      ctx.fillStyle = hot ? '#ef5350bb' : '#ef535055';
       ctx.fillRect(xOf(i) - bw/2, PAD.t + ch - bh, bw, bh);
     }
-    // 잔고 선 (노랑, 별도 스케일)
-    const validBal = [];
-    balArr.forEach((v, i) => { if (v > 0) validBal.push({ x: xOf(i), v, i }); });
-    if (validBal.length >= 2) {
-      const maxB = Math.max(...validBal.map(p=>p.v));
-      const minB = Math.min(...validBal.map(p=>p.v));
-      const rangeB = Math.max(1, maxB - minB);
-      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
-      ctx.beginPath();
-      validBal.forEach((p, i) => {
-        const y = PAD.t + ch - 4 - ((p.v - minB) / rangeB) * (ch - 8);
-        i === 0 ? ctx.moveTo(p.x, y) : ctx.lineTo(p.x, y);
-      });
-      ctx.stroke();
-      // 점 + 꼭지점 마커
-      const peakIdx = validBal.reduce((mi, p, i) => p.v > validBal[mi].v ? i : mi, 0);
-      validBal.forEach((p, i) => {
-        const y = PAD.t + ch - 4 - ((p.v - minB) / rangeB) * (ch - 8);
-        ctx.fillStyle = i === peakIdx ? '#ff6b6b' : '#3fb950';
-        ctx.beginPath(); ctx.arc(p.x, y, i === peakIdx ? 3 : 1.5, 0, Math.PI * 2); ctx.fill();
-        if (i === peakIdx) {
-          ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
-          ctx.fillText('★ ' + fmt(p.v), p.x, y - 6);
-        }
-      });
+
+    // 잔고비율 선 — 세로축 그대로 (비율을 못 구하면 예전처럼 수량을 상대 높이로)
+    const line = [];
+    if (hasRto) rtoArr.forEach((v, i) => { if (v != null) line.push({ x: xOf(i), y: yPct(v), v, i }); });
+    else {
+      const valid = []; balArr.forEach((v, i) => { if (v > 0) valid.push({ v, i }); });
+      if (valid.length >= 2) {
+        const maxB = Math.max(...valid.map(p=>p.v)), minB = Math.min(...valid.map(p=>p.v));
+        const rangeB = Math.max(1, maxB - minB);
+        valid.forEach(p => line.push({ x: xOf(p.i), y: PAD.t + ch - 4 - ((p.v-minB)/rangeB)*(ch-8), v: p.v, i: p.i }));
+      }
     }
+    if (line.length >= 2) {
+      ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1.8; ctx.setLineDash([]);
+      ctx.beginPath();
+      line.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.stroke();
+      // 꼭지점 — 잔고가 가장 높았던 날. 여기서 꺾이면 되갚기 매수가 들어온 것
+      const pk = line.reduce((mi, p, i) => p.v > line[mi].v ? i : mi, 0);
+      line.forEach((p, i) => {
+        ctx.fillStyle = i === pk ? '#ff6b6b' : '#3fb950';
+        ctx.beginPath(); ctx.arc(p.x, p.y, i === pk ? 3 : 1.4, 0, Math.PI*2); ctx.fill();
+      });
+      const pkTxt = hasRto ? ('★ ' + line[pk].v.toFixed(2) + '%') : ('★ ' + fmt(line[pk].v));
+      ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center';
+      ctx.fillText(pkTxt, line[pk].x, Math.max(PAD.t + 10, line[pk].y - 6));
+    }
+
     // 호버선
     if (state.hoverIdx >= 0 && state.hoverIdx < n) {
-      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
+      ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3; ctx.setLineDash([]);
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
-    // 레이블
-    ctx.fillStyle = '#ef5350'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
-    const lastVol = volArr.filter(v=>v!=null&&v>0).slice(-1)[0];
-    ctx.fillText('공매도  ' + (lastVol ? fmt(lastVol) + '주' : ''), PAD.l + 22, PAD.t + 11);
-    if (validBal.length) {
+
+    /* 세로축 값 — 부담 구간이면 붉은 상자로 못을 박는다
+       잔고비율 2% 이상 · 공매도 비중 10% 이상 을 부담으로 본다 */
+    const lastOf = a => { for (let i=a.length-1; i>=0; i--) if (a[i]!=null) return a[i]; return null; };
+    const lastRto = hasRto ? lastOf(rtoArr) : null;
+    const lastWgt = hasWgt ? lastOf(wgtArr) : null;
+    if (lastRto != null)
+      drawAxisVal(ctx, W, PAD, yPct(lastRto), lastRto.toFixed(2) + '%', lastRto >= 2 ? 'high' : 'base');
+    if (lastWgt != null && !hasRto)
+      drawAxisVal(ctx, W, PAD, yPct(lastWgt), lastWgt.toFixed(1) + '%', lastWgt >= 10 ? 'high' : 'base');
+
+    // 왼쪽 위 표시
+    const hi = state.hoverIdx;
+    const showW = (hi>=0 && wgtArr[hi]!=null) ? wgtArr[hi] : lastWgt;
+    const showR = (hi>=0 && rtoArr[hi]!=null) ? rtoArr[hi] : lastRto;
+    const showV = (hi>=0 && volArr[hi]!=null) ? volArr[hi] : lastOf(volArr);
+    ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+    let tx = PAD.l + 22;
+    if (showV != null) {
+      const t = '공매도 ' + fmt(showV) + '주'
+              + (showW != null ? ' (' + showW.toFixed(1) + '%)' : '');
+      if (showW != null && showW >= 10) {       // 공격이 센 날은 붉은 상자
+        const wd = ctx.measureText(t).width + 8;
+        ctx.fillStyle = '#ef535033'; ctx.fillRect(tx-4, PAD.t+2, wd, 13);
+        ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1; ctx.strokeRect(tx-3.5, PAD.t+2.5, wd-1, 12);
+      }
+      ctx.fillStyle = '#ef5350'; ctx.fillText(t, tx, PAD.t + 11);
+      tx += ctx.measureText(t).width + 14;
+    }
+    if (showR != null) {
+      const t2 = '잔고 ' + showR.toFixed(2) + '%';
+      if (showR >= 2) {                        // 잔고가 쌓인 종목도 붉은 상자
+        const wd = ctx.measureText(t2).width + 8;
+        ctx.fillStyle = '#ef535033'; ctx.fillRect(tx-4, PAD.t+2, wd, 13);
+        ctx.strokeStyle = '#ef5350'; ctx.lineWidth = 1; ctx.strokeRect(tx-3.5, PAD.t+2.5, wd-1, 12);
+        ctx.fillStyle = '#ef5350';
+      } else ctx.fillStyle = '#3fb950';
+      ctx.fillText(t2, tx, PAD.t + 11);
+    } else if (line.length) {
       ctx.fillStyle = '#3fb950';
-      ctx.fillText('잔고 ' + fmt(validBal[validBal.length-1].v), PAD.l + 22, PAD.t + 23);
+      ctx.fillText('잔고 ' + fmt(line[line.length-1].v) + '주', tx, PAD.t + 11);
     }
     return;
   }
@@ -3688,7 +3790,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-27 외국인⇄공매도';
+const KG_CHART_BUILD = '2026-08-28 공매도 비율표시';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
