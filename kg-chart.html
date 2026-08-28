@@ -655,8 +655,8 @@ const CALC = {
     const rto = d.map(x => {
       const s = sd && sd[x.date];
       if (!s) return null;
-      if (s.rto != null) return s.rto;
-      return shares ? s.bal / shares * 100 : null;
+      if (s.rto != null && s.rto > 0) return s.rto;
+      return (shares > 0 && s.bal > 0) ? s.bal / shares * 100 : null;
     });
     return { vol, bal, wgt, rto };
   },
@@ -1293,7 +1293,8 @@ async function fetchShortDaily(code) {
                         .replace(/[^0-9]/g, ''), 10) || 0;
         const rtoRaw = d.BAL_RTO != null ? d.BAL_RTO : (d.ratio != null ? d.ratio : d.rto);
         const rto = parseFloat(String(rtoRaw == null ? '' : rtoRaw).replace(/[^0-9.\-]/g, ''));
-        if (date) map[date] = { vol, bal, shares, rto: isFinite(rto) ? rto : null };
+        // 0 은 값이 없다는 뜻으로 본다 (자료가 안 오면 0 으로 채워져 오는 경우가 있다)
+        if (date) map[date] = { vol, bal, shares, rto: (isFinite(rto) && rto > 0) ? rto : null };
       });
       state.shortData = map;
       renderAll();
@@ -3387,14 +3388,15 @@ function drawSubInner(canvas, key) {
       return;
     }
 
-    const hasRto = rtoArr.some(v => v != null);
-    const hasWgt = wgtArr.some(v => v != null);
+    const hasRto = rtoArr.some(v => v != null && v > 0);
+    const hasWgt = wgtArr.some(v => v != null && v > 0);
+    const hasBal = balArr.some(v => v != null && v > 0);
 
     /* 세로축은 잔고비율(%) 기준. 대부분 0~2% 안에서 움직이므로
        3% 를 기본으로 두고, 넘으면 5·10·20·30% 로 한 칸씩 넓힌다.
        잔고비율을 못 구하면 공매도 비중(%) 을 축으로 쓴다. */
     const STEPS = [1, 1.5, 2, 3, 4, 5, 7, 10, 15, 20, 30, 50, 100];
-    const axisArr = hasRto ? rtoArr : (hasWgt ? wgtArr : null);
+    const axisArr = hasRto ? rtoArr : (hasWgt ? wgtArr : null);   // 잔고비율이 없으면 비중을 축으로
     let axMax = 3;
     if (axisArr) {
       const mx = Math.max(...axisArr.filter(v => v != null));
@@ -3506,6 +3508,9 @@ function drawSubInner(canvas, key) {
     } else if (line.length) {
       ctx.fillStyle = '#3fb950';
       ctx.fillText('잔고 ' + fmt(line[line.length-1].v) + '주', tx, PAD.t + 11);
+    } else {
+      ctx.fillStyle = '#6e7681';
+      ctx.fillText('잔고 자료 없음', tx, PAD.t + 11);
     }
     return;
   }
