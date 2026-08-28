@@ -202,7 +202,7 @@ table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-19c';
+const BUILD='KG_LONG 2026-08-28 채점설명';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -862,6 +862,7 @@ function renderMain(){
     <div class="scroll"><table class="fin"><thead><tr><th>항목</th>${cols.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead>
     <tbody>${fr('ROE','roe','%')}${fr('영업이익률','opm','%')}${fr('순이익률','npm','%')}
     ${fr('부채비율','debt','%')}${fr('당좌비율','quick','%')}${fr('PER','per','')}${fr('PBR','pbr','')}</tbody></table></div></div>
+  ${howHtml()}
   <details class="dbg"><summary>원자료 보기</summary><pre>${esc(JSON.stringify(c.raw,null,1)).slice(0,20000)}</pre></details>`);
 
   document.getElementById('m_nbim').value=(m0.nbim===null||m0.nbim===undefined)?'':String(m0.nbim);
@@ -875,6 +876,63 @@ function renderMain(){
                     nps: np==='_'?null:(np==='1') });
     rescore(cur); renderList(); renderMain();
   });
+}
+
+/* ───── 채점 방법 안내 (채점 화면 맨 아래) ─────
+   점수가 어떻게 나왔는지 화면에서 바로 확인할 수 있게 적어 둔다.
+   기준을 고치면 이 글도 함께 고쳐야 한다. */
+function howHtml(){
+  const t = (a,b,c) => `<tr><td style="text-align:left">${a}</td><td>${b}</td><td style="text-align:left;color:var(--tx2)">${c}</td></tr>`;
+  return `<details class="card" style="margin-top:12px">
+    <summary style="cursor:pointer;font-weight:700;color:var(--tx);padding:2px 0">
+      점수는 이렇게 매깁니다 <span style="font-weight:400;color:var(--tx3);font-size:11.5px">눌러서 펼치기</span></summary>
+
+    <div class="hint" style="padding:8px 2px 10px">
+      <b>85점 만점</b>을 네 묶음으로 나눠 매기고 100점으로 환산합니다.
+      자료가 없는 항목은 0점이 아니라 <b>만점에서 아예 뺍니다</b>.
+      그래서 화면 위에 <b>획득 ○ / 가능 ○점 → 100점 환산</b> 이라고 적혀 있습니다.
+      수익성·재무는 <b>최근 6분기</b>를 봅니다.
+    </div>
+
+    <div class="scroll"><table class="fin" style="font-size:12px">
+      <thead><tr><th style="text-align:left">항목</th><th>배점</th><th style="text-align:left">기준</th></tr></thead>
+      <tbody>
+      <tr><td colspan="3" style="text-align:left;color:var(--acc);font-weight:700;padding-top:6px">① 사업의 질 — 40점</td></tr>
+      ${t('ROE 평균','12','15%↑ 12 · 10%↑ 10 · 7%↑ 6 · 4%↑ 3')}
+      ${t('ROE 안정성','12','변동계수 0.15↓ 12 · 0.30↓ 9 · 0.50↓ 5 <b>· 적자가 한 번이라도 있으면 0</b>')}
+      ${t('영업이익률 수준','10','20%↑ 10 · 15%↑ 8 · 10%↑ 6 · 5%↑ 3')}
+      ${t('영업이익률 추세','6','앞 절반과 뒤 절반의 평균 비교 — 개선 6 · 유지 4 · 소폭악화 2')}
+
+      <tr><td colspan="3" style="text-align:left;color:var(--acc);font-weight:700;padding-top:6px">② 재무 안전성 — 30점</td></tr>
+      ${t('부채비율','15','50%↓ 15 · 100%↓ 12 · 150%↓ 8 · 200%↓ 4')}
+      ${t('당좌비율','15','150%↑ 15 · 100%↑ 12 · 70%↑ 8 · 50%↑ 4')}
+      <tr><td colspan="3" style="text-align:left;color:var(--tx3);font-size:11.5px">해외 종목은 이 둘이 공시되지 않아 <b>이익의 질</b>로 대신합니다 —
+        순이익÷EBIT (0.6~1.1 이면 15점, 1.3 초과면 본업 밖 이익으로 보아 2점) 과 EBIT÷EBITDA (0.7↑ 15점).</td></tr>
+
+      <tr><td colspan="3" style="text-align:left;color:var(--acc);font-weight:700;padding-top:6px">③ 밸류에이션 — 15점</td></tr>
+      ${t('PER','8','10배↓ 8 · 15배↓ 6 · 25배↓ 4 · 40배↓ 2 · 적자면 0')}
+      ${t('PBR','7','1배↓ 7 · 1.5배↓ 5 · 2.5배↓ 3 · 4배↓ 1')}
+
+      <tr><td colspan="3" style="text-align:left;color:var(--acc);font-weight:700;padding-top:6px">④ 장기자금 — 9점 <span style="font-weight:400;color:var(--tx3)">(손으로 고르는 항목)</span></td></tr>
+      ${t('NBIM 연속 증가','6','0회 0 · 1회 2 · 2회 4 · 3회↑ 6')}
+      ${t('액티브 운용사 5% 공시','6','액티브 6 · 패시브 2')}
+      ${t('국민연금 5% 이상','3','해당하면 3')}
+      </tbody></table></div>
+
+    <div class="hint" style="padding:10px 2px 0">
+      <b>경고 딱지</b>는 점수와 별개로 붙습니다 — 부채비율 200% 초과 · 최근 6기 중 적자 2회 이상 ·
+      순이익이 EBIT 의 1.5배 초과 · 영업이익률 60% 초과(자료 오류 의심) · 당좌비율 50% 미만 ·
+      ROE 변동계수 0.6 초과.
+    </div>
+    <div class="hint" style="padding:6px 2px 0">
+      <b>판정</b> — 80점↑ 후보 · 65점↑ 관찰 · 그 아래 제외.
+      적자면 <b>적자</b>, 경고가 있으면 <b>보류</b>, 채점 가능 만점이 45점 미만이면 <b>자료부족</b>으로 표시합니다.
+    </div>
+    <div class="hint" style="padding:6px 2px 0">
+      붉은 칸의 <b>미래 전망</b> 점수는 증권사 보고서로 매긴 값이라 <b>이 점수에 들어가지 않습니다</b>.
+      두 숫자의 간격이 곧 "얼마나 큰 변화를 기대하고 있는가" 입니다.
+    </div>
+  </details>`;
 }
 
 /* ---------- 우측 종목 검색 ---------- */
