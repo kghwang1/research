@@ -8256,7 +8256,7 @@ function anlDraw(){
      그대로 두면 선 없는 빈 전망 구간만 생긴다. */
   const fSorted=fcstDrawRows(ANL_CODE);   // 실적이 덮은 연도는 빠져 있다
   const fNum=v=>{ const x=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(x)?x:null; };
-  const FKEY={ salesGrowth:'sales', roe:'roe', roa:'roe', debt:null, opm:'opm', per:'per', pbr:'pbr' };
+  const FKEY={ salesGrowth:'sales', roe:'roe', roa:'roe', debt:'debt', opm:'opm', per:'per', pbr:'pbr' };
 
   const per=(d.periods||[]);
   const nHist=per.length; if(!nHist) return;
@@ -9403,12 +9403,13 @@ function fcstParseSimple(txt){
       if(/^\(/.test(raw) && c && c[0]!=='-') c='-'+c;   // (3.2) → -3.2
       return (c===''||c==='-'||c==='.') ? '' : c;
     };
-    rows.push({ year:p[0], sales:v(1), opm:v(2), roe:v(3), per:v(4), pbr:v(5) });
+    rows.push({ year:p[0], sales:v(1), opm:v(2), roe:v(3), per:v(4), pbr:v(5), debt:v(6) });
   });
   if(!rows.length) return null;
   const has=k=>rows.some(r=>r[k]!=='');
   return { rows, years:rows.map(r=>r.year),
-           found:{ sales:has('sales'), opm:has('opm'), roe:has('roe'), per:has('per'), pbr:has('pbr') } };
+           found:{ sales:has('sales'), opm:has('opm'), roe:has('roe'),
+                   per:has('per'), pbr:has('pbr'), debt:has('debt') } };
 }
 
 /* ── 항목 이름으로 표를 읽는다 ────────────────────────────────
@@ -9551,15 +9552,15 @@ function fcstMergeRows(base, add){
 }
 
 /* 대조 상자에 넣을 글로 바꾼다 — 칸을 / 로 나누고 머리글을 붙여 눈으로 맞추기 쉽게 */
-const FCST_HEAD=['연도','매출증','이익률','ROE','PER','PBR'];
-const FCST_W=[6,7,7,7,7,6];
+const FCST_HEAD=['연도','매출증','이익률','ROE','PER','PBR','부채'];
+const FCST_W=[6,7,7,7,7,6,7];
 /* 한글은 두 칸을 차지하므로 글자 수가 아니라 너비로 셈한다 */
 function fcstWide(t){ return [...String(t)].reduce((a,c)=>a+(c.charCodeAt(0)>0x1100?2:1),0); }
 function fcstPad(t,w){ return ' '.repeat(Math.max(0,w-fcstWide(t)))+t; }
 function fcstRowsToText(rows){
   const line=a=>a.map((v,i)=>fcstPad(v==null||v===''?'-':String(v), FCST_W[i])).join(' /');
   return [line(FCST_HEAD)].concat(
-    rows.map(r=>line([r.year, r.sales, r.opm, r.roe, r.per, r.pbr]))
+    rows.map(r=>line([r.year, r.sales, r.opm, r.roe, r.per, r.pbr, r.debt]))
   ).join('\n');
 }
 
@@ -9735,11 +9736,11 @@ function fnoteSave(code, txt){
    ═══════════════════════════════════════════════════════════════ */
 const FCST_SEED = {
   // 삼성전자 — 미래에셋증권 (2026-08-18)
-  '005930': { ts:'2026-08-28T06:40:00Z', src:'미래에셋증권 2026-08-18',
+  '005930': { ts:'2026-08-28T12:00:00Z', src:'미래에셋증권 2026-08-18',
     rows:[
-      '2026F / 121.1 / 53.2 / 53.3 /  5.5 / 2.3',
-      '2027F /  32.7 / 57.1 / 48.5 /  3.8 / 1.5',
-      '2028F /   0.7 / 49.7 / 32.8 /  4.1 / 1.2',
+      '2026F / 121.1 / 53.2 / 53.3 /  5.5 / 2.3 / -',
+      '2027F /  32.7 / 57.1 / 48.5 /  3.8 / 1.5 / -',
+      '2028F /   0.7 / 49.7 / 32.8 /  4.1 / 1.2 / -',
     ].join('\n'),
     note:[
       '미래에셋증권 (2026-08-18) · K-IFRS 연결, 순이익은 지배주주 귀속',
@@ -9754,11 +9755,11 @@ const FCST_SEED = {
     ].join('\n') },
 
   // 삼성전기 — 하나증권 '[NDR 후기] 수급 불안을 먹고' (2026-08-11)
-  '009150': { ts:'2026-08-28T11:00:00Z', src:'하나증권 2026-08-11',
+  '009150': { ts:'2026-08-28T12:00:00Z', src:'하나증권 2026-08-11',
     rows:[
-      '2026F / 28.8 / 20.6 / 15.55 / 61.39 / 8.73',
-      '2027F / 22.0 / 29.8 / 26.47 / 29.23 / 6.81',
-      '2028F / 32.4 / 36.0 / 33.86 / 16.97 / 4.90',
+      '2026F / 28.8 / 20.6 / 15.55 / 61.39 / 8.73 / 54.79',
+      '2027F / 22.0 / 29.8 / 26.47 / 29.23 / 6.81 / 47.67',
+      '2028F / 32.4 / 36.0 / 33.86 / 16.97 / 4.90 / 41.00',
     ].join('\n'),
     note:[
       "하나증권 '[NDR 후기] 수급 불안을 먹고' (2026-08-11) · 매수(유지) · 목표주가 300만원 · 당시 주가 127.4만원",
@@ -9776,11 +9777,11 @@ const FCST_SEED = {
     ].join('\n') },
 
   // SK하이닉스
-  '000660': { ts:'2026-08-28T05:30:00Z', src:'미래에셋증권 2026-08-18',
+  '000660': { ts:'2026-08-28T12:00:00Z', src:'미래에셋증권 2026-08-18',
     rows:[
-      '2026F / 257.0 / 77.3 / 103.9 / 4.6 / 3.2',
-      '2027F /  49.1 / 79.1 /  58.4 / 3.8 / 1.7',
-      '2028F /   0.2 / 76.8 /  37.1 / 3.8 / 1.2',
+      '2026F / 257.0 / 77.3 / 103.9 / 4.6 / 3.2 / -',
+      '2027F /  49.1 / 79.1 /  58.4 / 3.8 / 1.7 / -',
+      '2028F /   0.2 / 76.8 /  37.1 / 3.8 / 1.2 / -',
     ].join('\n'),
     note:[
       '2026년 한 해에 모든 것이 몰려 있습니다. 매출 97조 → 347조로 +257%, 영업이익은 다섯 배가 됩니다.',
@@ -9792,11 +9793,11 @@ const FCST_SEED = {
     ].join('\n') },
 
   // 리노공업 — 신한투자증권 'AI시대 소켓은 필수' (2026-05-22)
-  '058470': { ts:'2026-08-28T06:10:00Z', src:'신한투자증권 2026-05-22',
+  '058470': { ts:'2026-08-28T12:00:00Z', src:'신한투자증권 2026-05-22',
     rows:[
-      '2026F / 20.1 / 49.6 / 23.7 / 42.4 / 9.4',
-      '2027F / 20.0 / 49.5 / 24.3 / 35.8 / 8.1',
-      '2028F / 17.0 / 50.1 / 24.5 / 30.5 / 7.0',
+      '2026F / 20.1 / 49.6 / 23.7 / 42.4 / 9.4 / 8.6',
+      '2027F / 20.0 / 49.5 / 24.3 / 35.8 / 8.1 / 8.9',
+      '2028F / 17.0 / 50.1 / 24.5 / 30.5 / 7.0 / 9.0',
     ].join('\n'),
     note:[
       "신한투자증권 'AI시대 소켓은 필수' (2026-05-22)",
@@ -9814,11 +9815,11 @@ const FCST_SEED = {
     ].join('\n') },
 
   // 로보티즈 — 미래에셋증권 (2026-08-21). 한화투자증권(8/24) 자료를 대신한다
-  '108490': { ts:'2026-08-28T10:00:00Z', src:'미래에셋증권 2026-08-21',
+  '108490': { ts:'2026-08-28T12:00:00Z', src:'미래에셋증권 2026-08-21',
     rows:[
-      '2026F / 61.5 /  -7.9 / 0.3 / 3696.4 / 10.6',
-      '2027F / 95.2 /  17.9 / 6.4 /  161.7 / 10.0',
-      '2028F / 63.4 /  21.9 / 9.2 /  103.6 /  9.1',
+      '2026F / 61.5 /  -7.9 / 0.3 / 3696.4 / 10.6 / -',
+      '2027F / 95.2 /  17.9 / 6.4 /  161.7 / 10.0 / -',
+      '2028F / 63.4 /  21.9 / 9.2 /  103.6 /  9.1 / -',
     ].join('\n'),
     note:[
       '미래에셋증권 (2026-08-21) · K-IFRS 연결, 순이익은 지배주주 귀속',
@@ -9841,7 +9842,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-08-28 삼성전기-하나';
+const KG_APP_BUILD = '2026-08-28 부채비율 추가';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
@@ -9958,7 +9959,7 @@ function fcstTableHtml(code){
     // ── 고치기 ──
     h+='<div style="font-size:12px;color:#8b949e;margin-bottom:4px">'
      + '<b style="color:#e6edf3">① 자료</b> — 한 줄에 한 연도 · '
-     + '<b>연도 / 매출증 / 이익률 / ROE / PER / PBR</b> · 없는 값은 <b>-</b> · '
+     + '<b>연도 / 매출증 / 이익률 / ROE / PER / PBR / 부채</b> · 없는 값은 <b>-</b> · '
      + '맨 윗줄(머리글)과 <b>#</b> 로 시작하는 줄은 들어가지 않습니다</div>'
      + `<textarea id="fcstEdData" rows="8" spellcheck="false" style="width:100%;box-sizing:border-box;`
      + `background:#010409;border:1px solid #30363d;color:#e6edf3;border-radius:7px;padding:9px 11px;`
@@ -9982,7 +9983,8 @@ function fcstTableHtml(code){
        + '아직 넣은 전망이 없습니다. 아래 <b>[수정]</b> 을 눌러 자료를 붙여넣으세요.</div>';
     } else {
       /* 보고서와 같은 모양 — 연도를 가로로, 지표 이름을 세로로 */
-      const MET=[['매출증가율','sales'],['영업이익률','opm'],['ROE','roe'],['PER','per'],['PBR','pbr']];
+      const MET=[['매출증가율','sales'],['영업이익률','opm'],['ROE','roe'],
+                 ['PER','per'],['PBR','pbr'],['부채비율','debt']];
       h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:14px;white-space:nowrap">'
        + '<tr><th style="text-align:left;padding:5px 16px 7px 0;color:#8b949e;font-size:12.5px;font-weight:600;'
        + 'border-bottom:1px solid #30363d">연도</th>'
@@ -10362,6 +10364,16 @@ function fcstShapeBits(rows){
     if(peMin<=7 && eMax>=20)
       bits.push(`PER 이 <b>${peMin.toFixed(1)}배</b>까지 낮아집니다 — ROE ${eMax.toFixed(1)}% 에 견주면 값이 매우 싸게 매겨져 있습니다. `
               + '<b>시장이 이 이익을 오래 갈 것으로 보지 않는다</b>는 뜻일 수 있습니다');
+  }
+
+  // ⑥-2 부채비율
+  const db=ser('debt');
+  if(has(db)){
+    const f=first(db), l=last(db);
+    if(l>=200) bits.push(`부채비율이 ${l.toFixed(0)}% 로 높습니다 — 업종 평균과 견줘 보세요`);
+    else if(f-l>=15) bits.push(`부채비율은 ${f.toFixed(0)}% → ${l.toFixed(0)}% 로 줄어 재무가 좋아집니다`);
+    else if(l-f>=15) bits.push(`부채비율이 ${f.toFixed(0)}% → ${l.toFixed(0)}% 로 늘어납니다 — 무엇에 쓰는 돈인지 보세요`);
+    else if(l<=50) bits.push(`부채비율 ${l.toFixed(0)}% 로 낮게 유지됩니다`);
   }
 
   // ⑦ 이익률과 ROE 가 어긋날 때
