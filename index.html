@@ -9572,223 +9572,175 @@ async function fcstReadImageLocal(code, file, m){
   }catch(e){ show('읽지 못했습니다 — '+escHtml(e.message)); }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   증권사 전망 — 보기 / 고치기
+   ---------------------------------------------------------------
+   2026-08-28 개정. 예전에는 [글로 넣기] [표 붙여넣기] [PDF 에서 읽기]
+   [＋행 추가] 와 캡처 붙여넣는 칸이 따로 있었는데, 인식이 자주 틀려
+   손이 더 갔다. 이제 자료와 해석을 밖에서 정리해 와서
+   [수정] 으로 한 번에 붙여넣고 [확인] 으로 저장한다.
+   저장한 내용은 다시 고칠 때까지 그대로 남는다.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 따옴표까지 막는다 (value="..." 안에 넣을 때) */
+function escQ(t){ return escHtml(t).replace(/"/g,'&quot;'); }
+
+/* 사용자가 적어 둔 표 해석 — 종목별로 저장 */
+const FNOTE_KEY='kg_fcst_note';
+function fnoteAll(){
+  try{ const r=localStorage.getItem(FNOTE_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
+  catch(e){ return {}; }
+}
+function fnoteOf(code){ return String(fnoteAll()[String(code||'')]||''); }
+function fnoteSave(code, txt){
+  const o=fnoteAll();
+  if(String(txt||'').trim()) o[String(code)]=String(txt).trim(); else delete o[String(code)];
+  try{ localStorage.setItem(FNOTE_KEY, JSON.stringify(o)); }catch(e){}
+  if(typeof myServerSave==='function') myServerSave();
+}
+
+/* 저장된 행을 [수정] 칸에 넣을 글로 */
+function fcstEditText(code){
+  const rows=fcstOf(code);
+  if(!rows.length) return '';
+  return fcstRowsToText(rows);
+}
+
+let FCST_EDIT=false;          // 지금 고치는 중인가
+
 function fcstTableHtml(code){
-  const rows=fcstOf(code), ev=fcstEval(rows);
+  const rows=fcstOf(code), ev=fcstEval(fcstDrawRows(code));
+  const note=fnoteOf(code);
+  const src=(rows[0]&&rows[0].broker)||'';
+
   let h='<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:12px">'
-   + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-   + '<b style="font-size:13px;color:#f2c800">증권사 전망</b>'
-   + '<span style="font-size:10.5px;color:#6e7681">보고서에서 옮겨 적으세요 · 실적이 이미 나온 연도는 네이버 실적을 씁니다</span>'
-   + '<input id="fcstFile" type="file" accept="image/*" style="display:none">'
-   + '<button id="fcstText" class="anl-backbtn" style="margin-left:auto">글로 넣기</button>'
-   + '<button id="fcstPaste" class="anl-backbtn">표 붙여넣기</button>'
-   + '<button id="fcstRead" class="anl-backbtn">PDF 에서 읽기</button>'
-   + '<button id="fcstAdd" class="anl-backbtn">＋ 행 추가</button></div>'
-   + '<div id="fcstMsg" style="font-size:11px;color:#8b949e;margin:-2px 0 6px;display:none"></div>'
-   + '<div id="fcstDrop" tabindex="0" style="margin:0 0 8px;padding:12px;border:2px dashed #6e7681;'
-   + 'border-radius:8px;text-align:center;color:#8b949e;font-size:12px;cursor:pointer;outline:none;background:#0d1117">'
-   + '<b style="color:#f2c800">여기를 누른 뒤 Ctrl+V</b> 로 보고서 표 캡처를 붙여넣으세요'
-   + '<div style="margin-top:4px;font-size:11px;color:#6e7681">읽은 값을 글로 보여드립니다 — 대조·수정한 뒤 [확인] 을 누르면 표에 들어갑니다'
-   + '<br>표가 길면 <b>위·아래로 나눠 두 번</b> 붙여넣으세요 — 뒤엣것이 이어서 채워집니다'
-   + '<br>잘 안 읽히면 [글로 넣기] 로 직접 적어 넣어도 됩니다'
-   + '<br>그림 파일을 끌어다 놓아도 됩니다'
-   + ' · <span id="fcstPick" style="color:#58a6ff;text-decoration:underline">파일 고르기</span></div></div>';
-  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;white-space:nowrap">'
-   + '<tr>'+FCST_COLS.map(c=>`<th style="text-align:left;padding:3px 5px;color:#8b949e;font-size:10.5px;font-weight:600">${c.n}</th>`).join('')
-   + '<th style="text-align:left;padding:3px 5px;color:#8b949e;font-size:10.5px;font-weight:600">출처</th><th></th></tr>';
-  if(!rows.length){
-    h+=`<tr><td colspan="${FCST_COLS.length+2}" style="padding:10px 5px;color:#6e7681;font-size:11.5px">`
-     + '아직 입력한 전망이 없습니다. [＋ 행 추가]로 연도별 예상치를 넣어보세요.</td></tr>';
-  }
-  rows.forEach((r,i)=>{
-    h+='<tr>'+FCST_COLS.map(c=>
-      `<td style="padding:2px 3px"><input data-fi="${i}" data-fk="${c.k}" value="${escHtml(r[c.k]==null?'':r[c.k])}"
-        placeholder="${c.ph}" style="width:${c.w};box-sizing:border-box;
-        background:${r.auto?'#3a3300':'#0d1117'};border:1px solid ${r.auto?'#8a7500':'#30363d'};
-        color:#e6edf3;border-radius:5px;padding:3px 5px;font-size:11.5px"></td>`).join('')
-     + `<td style="padding:2px 3px"><input data-fi="${i}" data-fk="broker" value="${escHtml(r.broker||'')}"
-        placeholder="증권사·날짜" style="width:120px;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;
-        color:#8b949e;border-radius:5px;padding:3px 5px;font-size:11px"></td>`
-     + `<td style="padding:2px 5px"><button data-fdel="${i}" style="background:none;border:0;color:#ef5350;cursor:pointer;font-size:13px">✕</button></td></tr>`;
-  });
-  h+='</table></div>';
-  /* ── [ 표 해석 ] ─────────────────────────────────────────────
-     점수와 표의 흐름을 한자리에 모아 아래쪽에 크고 밝게 적는다. */
-  const bits = (typeof fcstShapeBits==='function') ? fcstShapeBits(rows) : [];
-  if((ev && ev.total!=null) || bits.length){
-    const drawn=fcstCount(code), empty=rows.length-drawn;
-    h+='<div style="margin-top:14px;border-top:1px solid #30363d;border-bottom:1px solid #30363d;'
-     + 'padding:11px 2px 13px;color:#e6edf3;font-size:14.5px;line-height:1.8">'
-     + '<div style="font-weight:700;color:#f2c800;margin-bottom:6px">[ 표 해석 ]</div>';
-    if(ev && ev.total!=null){
-      h+= `<div>전망 종합 <b style="color:#f2c800;font-size:17px">${ev.total}</b>`
-       + `<span style="font-size:13px">/100</span> · ${escHtml(ev.years)} 기준 · `
-       + ev.parts.map(p=>`${p.n} ${p.p}/${p.max}`).join(' · ')
-       + (empty>0 ? ` · <span style="color:#d29922">빈 줄 ${empty}개는 그래프에 그리지 않습니다</span>`
-                    + ' <button id="fcstClean" class="anl-backbtn" style="padding:2px 9px;font-size:13px">빈 줄 지우기</button>'
-                  : '')
-       + '</div>';
+   + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'
+   + '<b style="font-size:14px;color:#f2c800">증권사 전망</b>'
+   + (src?`<span style="font-size:11.5px;color:#8b949e">${escHtml(src)}</span>`:'')
+   + '</div>'
+   + '<div id="fcstMsg" style="font-size:12px;color:#8b949e;margin:0 0 8px;display:none"></div>';
+
+  if(FCST_EDIT){
+    // ── 고치기 ──
+    h+='<div style="font-size:12px;color:#8b949e;margin-bottom:4px">'
+     + '<b style="color:#e6edf3">① 자료</b> — 한 줄에 한 연도 · '
+     + '<b>연도 / 매출증 / 이익률 / ROE / PER / PBR</b> · 없는 값은 <b>-</b> · '
+     + '맨 윗줄(머리글)과 <b>#</b> 로 시작하는 줄은 들어가지 않습니다</div>'
+     + `<textarea id="fcstEdData" rows="8" spellcheck="false" style="width:100%;box-sizing:border-box;`
+     + `background:#010409;border:1px solid #30363d;color:#e6edf3;border-radius:7px;padding:9px 11px;`
+     + `font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.75">`
+     + escHtml(fcstEditText(code)) + '</textarea>'
+     + '<div style="font-size:12px;color:#8b949e;margin:10px 0 4px">'
+     + '<b style="color:#e6edf3">② 표 해석</b> — 비워 두면 앱이 스스로 읽어 적습니다. '
+     + '한 줄에 하나씩 적으세요</div>'
+     + `<textarea id="fcstEdNote" rows="8" spellcheck="false" style="width:100%;box-sizing:border-box;`
+     + `background:#010409;border:1px solid #30363d;color:#e6edf3;border-radius:7px;padding:9px 11px;`
+     + `font-size:13.5px;line-height:1.8">` + escHtml(note) + '</textarea>'
+     + '<div style="font-size:12px;color:#8b949e;margin:10px 0 4px">'
+     + '<b style="color:#e6edf3">③ 출처</b> — 증권사·발간일</div>'
+     + `<input id="fcstEdSrc" type="text" value="${escQ(src)}" placeholder="예: 미래에셋증권 2026-08-18"`
+     + ` style="width:100%;max-width:320px;box-sizing:border-box;background:#010409;border:1px solid #30363d;`
+     + `color:#e6edf3;border-radius:7px;padding:7px 10px;font-size:13px">`;
+  } else {
+    // ── 보기 ──
+    if(!rows.length){
+      h+='<div style="color:#6e7681;font-size:13px;padding:6px 0">'
+       + '아직 넣은 전망이 없습니다. 아래 <b>[수정]</b> 을 눌러 자료를 붙여넣으세요.</div>';
+    } else {
+      h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:14px;white-space:nowrap">'
+       + '<tr>'+FCST_HEAD.map(t=>`<th style="text-align:right;padding:4px 12px 4px 0;color:#8b949e;font-size:12px;font-weight:600">${t}</th>`).join('')+'</tr>';
+      rows.forEach(r=>{
+        h+='<tr>'+['year','sales','opm','roe','per','pbr'].map(k=>{
+          const v=(r[k]==null||r[k]==='')?'-':r[k];
+          const col = k==='year' ? '#e6edf3' : (v==='-'?'#6e7681':'#e6edf3');
+          return `<td style="text-align:right;padding:3px 12px 3px 0;color:${col}">${escHtml(v)}</td>`;
+        }).join('')+'</tr>';
+      });
+      h+='</table></div>';
     }
-    bits.forEach(b=>{ h+='<div style="margin-top:3px">· '+b+'</div>'; });
-    h+='</div>';
+
+    // ── [ 표 해석 ] ──
+    const bits = note ? String(note).split(/[\r\n]+/).filter(x=>x.trim())
+                      : ((typeof fcstShapeBits==='function') ? fcstShapeBits(rows) : []);
+    if((ev && ev.total!=null) || bits.length){
+      h+='<div style="margin-top:14px;border-top:1px solid #30363d;border-bottom:1px solid #30363d;'
+       + 'padding:11px 2px 13px;color:#e6edf3;font-size:14.5px;line-height:1.8">'
+       + '<div style="font-weight:700;color:#f2c800;margin-bottom:6px">[ 표 해석 ]</div>';
+      if(ev && ev.total!=null){
+        h+= `<div>전망 종합 <b style="color:#f2c800;font-size:17px">${ev.total}</b>`
+         + `<span style="font-size:13px">/100</span> · ${escHtml(ev.years)} 기준 · `
+         + ev.parts.map(p=>`${p.n} ${p.p}/${p.max}`).join(' · ') + '</div>';
+      }
+      bits.forEach(b=>{
+        const t=String(b).replace(/^[·•\-\s]+/,'');
+        h+='<div style="margin-top:3px">· '+(note?escHtml(t):t)+'</div>';
+      });
+      if(!note && bits.length)
+        h+='<div style="margin-top:7px;font-size:11.5px;color:#6e7681">앱이 표를 보고 스스로 적은 글입니다 — [수정] 에서 직접 적어 넣으면 그 글이 대신 나옵니다</div>';
+      h+='</div>';
+    }
   }
-  h+='</div>';
+
+  // ── 단추 ──
+  h+='<div style="margin-top:12px;display:flex;gap:8px">';
+  if(FCST_EDIT){
+    h+='<button id="fcstOk" class="anl-backbtn" style="background:#238636;border-color:#238636;color:#fff;padding:6px 18px;font-size:13.5px">확인</button>'
+     + '<button id="fcstCancel" class="anl-backbtn" style="padding:6px 16px;font-size:13.5px">취소</button>';
+  } else {
+    h+='<button id="fcstEdit" class="anl-backbtn" style="padding:6px 18px;font-size:13.5px">수정</button>';
+    if(rows.length)
+      h+='<button id="fcstWipe" class="anl-backbtn" style="padding:6px 14px;font-size:13.5px;color:#f0883e">전부 지우기</button>';
+  }
+  h+='</div></div>';
   return h;
 }
+
 function fcstBind(m, code){
-  /* PDF 에서 읽기 — 보고서 목록의 첫 항목(가장 최근)에서 투자지표 표를 뽑는다.
-     읽은 값은 노란 바탕으로 표시해 '확인이 필요하다'는 것을 드러낸다. */
-  const rd=m.querySelector('#fcstRead');
-  if(rd) rd.onclick=async()=>{
-    const msg=m.querySelector('#fcstMsg');
-    const show=t=>{ if(msg){ msg.style.display='block'; msg.innerHTML=t; } };
-    const items=(RPT_CACHE[code]||{}).items||[];
-    const src=(RPT_SHOWN[0]&&(RPT_SHOWN[0].pdf||RPT_SHOWN[0].link)) || (items[0]&&(items[0].pdf||items[0].link));
-    if(!src){ show('읽을 보고서가 없습니다.'); return; }
-    rd.disabled=true; const t0=rd.textContent; rd.textContent='읽는 중…';
-    try{
-      const r=await fetch(RPT_URL+'/?rptfcst='+encodeURIComponent(src));
-      const d=await r.json();
-      if(!d || !d.ok || !d.rows || !d.rows.length){
-        let t=(d&&d.error)||'표를 찾지 못했습니다.';
-        if(d && d.textLen!=null) t+=` <span style="color:#6e7681">(뽑은 글자 ${d.textLen}자`
-          + (d.stat?` · 스트림 ${d.stat.streams}개 중 ${d.stat.inflated}개 해제`:'') + ')</span>';
-        t+=' <span style="color:#6e7681">표가 그림으로 된 보고서는 읽을 수 없습니다 — 직접 입력해 주세요.</span>';
-        show(t);
-        return;
-      }
-      const broker=(RPT_SHOWN[0]||items[0]||{});
-      fcstApply(code, d, [broker.broker, broker.date].filter(Boolean).join(' '));
-    }catch(e){ show('읽지 못했습니다 — '+escHtml(e.message)); }
-    finally{ rd.disabled=false; rd.textContent=t0; }
+  const msg=m.querySelector('#fcstMsg');
+  const show=(t,c)=>{ if(msg){ msg.style.display='block'; msg.style.color=c||'#8b949e'; msg.innerHTML=t; } };
+  const redraw=()=>rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
+
+  const eb=m.querySelector('#fcstEdit');
+  if(eb) eb.onclick=()=>{ FCST_EDIT=true; redraw(); };
+
+  const cb=m.querySelector('#fcstCancel');
+  if(cb) cb.onclick=()=>{ FCST_EDIT=false; redraw(); };
+
+  const wb=m.querySelector('#fcstWipe');
+  if(wb) wb.onclick=()=>{
+    if(!confirm('이 종목의 전망과 해석을 모두 지울까요?')) return;
+    fcstSave(code, []); fnoteSave(code, ''); FCST_EDIT=false; redraw();
   };
-  /* 사진에서 읽기 — 표를 캡처한 그림에서 글자를 뽑아 바로 표에 넣는다.
-     글자 인식은 완벽하지 않으므로 넣은 값은 노란색(확인 필요)으로 표시된다. */
-  /* 캡처 붙여넣을 자리 — 늘 보인다 */
-  const box=m.querySelector('#fcstDrop'), fi=m.querySelector('#fcstFile');
-  if(box && fi){
-    fi.onchange=()=>{ const f=fi.files&&fi.files[0]; if(f) fcstReadImage(code, f, m); fi.value=''; };
-    const go=f=>{ if(f) fcstReadImage(code, f, m); };
-    box.onclick=e=>{ if(e.target && e.target.id==='fcstPick') fi.click(); else box.focus(); };
-    box.onfocus=()=>{ box.style.borderColor='#f2c800'; };
-    box.onblur =()=>{ box.style.borderColor='#6e7681'; };
-    box.onpaste=e=>{
-      const it=[...(e.clipboardData&&e.clipboardData.items||[])].find(x=>x.type.startsWith('image/'));
-      if(!it) return;
-      e.preventDefault(); go(it.getAsFile());
-    };
-    box.ondragover=e=>{ e.preventDefault(); box.style.borderColor='#f2c800'; };
-    box.ondragleave=()=>{ box.style.borderColor='#6e7681'; };
-    box.ondrop=e=>{
-      e.preventDefault(); box.style.borderColor='#6e7681';
-      const f=[...(e.dataTransfer&&e.dataTransfer.files||[])].find(x=>x.type.startsWith('image/'));
-      go(f);
-    };
-    // 표 근처 아무 데서나 Ctrl+V 해도 받는다
-    if(!m._pasteBound){
-      m._pasteBound=true;
-      m.addEventListener('paste', e=>{
-        const it=[...(e.clipboardData&&e.clipboardData.items||[])].find(x=>x.type.startsWith('image/'));
-        if(!it) return;
-        e.preventDefault();
-        fcstReadImage(code, it.getAsFile(), m);
-      });
+
+  const ok=m.querySelector('#fcstOk');
+  if(ok) ok.onclick=()=>{
+    const dEl=m.querySelector('#fcstEdData'), nEl=m.querySelector('#fcstEdNote'), sEl=m.querySelector('#fcstEdSrc');
+    const src=(sEl&&sEl.value.trim())||'';
+    const txt=(dEl&&dEl.value)||'';
+    if(!txt.trim()){                       // 자료를 비우면 표만 지우고 해석은 남긴다
+      fcstSave(code, []);
+      fnoteSave(code, (nEl&&nEl.value)||'');
+      FCST_EDIT=false; redraw(); return;
     }
-  }
-
-  /* 표 붙여넣기 — PDF 뷰어에서 글자를 복사해 넣으면 가장 정확하다 */
-  /* 글로 넣기 — 빈 대조 상자를 연다.
-     밖에서 정리해 온 글(연도 매출증가 영업이익률 ROE PER PBR)을
-     그대로 붙여넣고 확인만 누르면 된다. */
-  const tb=m.querySelector('#fcstText');
-  if(tb) tb.onclick=()=>fcstShowCheck(code, m, '', '아래에 붙여넣거나 직접 적으신 뒤 [확인] 을 누르세요');
-
-  const pb=m.querySelector('#fcstPaste');
-  if(pb) pb.onclick=()=>{
-    const msg=m.querySelector('#fcstMsg');
-    const wrap=document.createElement('div');
-    wrap.style.cssText='margin:6px 0';
-    const items0=(RPT_CACHE[code]||{}).items||[];
-    const cur0=RPT_SHOWN[0]||items0[0]||{};
-    const pdfSrc=cur0.pdf||cur0.link||'';
-    wrap.innerHTML='<div style="font-size:11px;color:#8b949e;margin-bottom:4px">'
-      +'① <b>PDF 새 창</b>으로 연다 → ② 투자지표 표를 끌어 선택하고 <b>Ctrl+C</b> → ③ 아래에 <b>Ctrl+V</b> → ④ 읽기</div>'
-      +'<textarea id="fcstBox" rows="5" placeholder="여기에 붙여넣으세요 (Ctrl+V)"'
-      +' style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;'
-      +'border-radius:6px;padding:7px 9px;font-size:11.5px;line-height:1.5"></textarea>'
-      +'<div style="margin-top:4px">'
-      +(pdfSrc?'<button id="fcstBoxOpen" class="anl-backbtn" style="margin-right:5px">PDF 새 창</button>':'')
-      +'<button id="fcstBoxGo" class="anl-backbtn">읽기</button>'
-      +'<button id="fcstBoxNo" class="anl-backbtn" style="margin-left:5px">취소</button></div>';
-    pb.parentNode.parentNode.insertBefore(wrap, pb.parentNode.nextSibling);
-    const box=wrap.querySelector('#fcstBox'); box.focus();
-    const op=wrap.querySelector('#fcstBoxOpen');
-    if(op) op.onclick=()=>window.open(RPT_URL+'/?rptview='+encodeURIComponent(pdfSrc), '_blank', 'noopener');
-    wrap.querySelector('#fcstBoxNo').onclick=()=>wrap.remove();
-    wrap.querySelector('#fcstBoxGo').onclick=()=>{
-      const prev=fcstBoxRows(m);
-      const res=fcstParseTable(box.value, prev&&prev.map(r=>r.year)) || fcstParse(box.value);
-      if(!res || !res.rows || !res.rows.length){
-        if(msg){ msg.style.display='block';
-          msg.innerHTML='표를 읽지 못했습니다. <span style="color:#6e7681">연도 줄(2026F 2027F …)과 항목 줄이 함께 들어가도록 넓게 복사해 주세요.</span>'; }
-        return;
-      }
-      /* 바로 표에 넣지 않고, 그림 읽기와 똑같이 대조 상자를 거친다.
-         PDF 에서 복사한 글도 표 모양에 따라 자리가 밀릴 수 있기 때문이다. */
-      wrap.remove();
-      const rows2=prev ? fcstMergeRows(prev, res.rows) : res.rows;
-      fcstShowCheck(code, m, fcstRowsToText(rows2),
-        (prev?'앞서 읽은 값에 이어 채웠습니다 · ':'')
-        + 'PDF 에서 복사한 글을 읽었습니다 — 자리가 밀리지 않았는지 확인해 주세요'
-        + (res.note ? ' · '+res.note : ''));
-    };
+    const res=fcstParseSimple(txt);
+    if(!res){ show('연도로 시작하는 줄이 없습니다 — 형식을 확인해 주세요', '#ef5350'); return; }
+    /* 네이버 실적이 이미 채운 연도는 넣지 않는다 */
+    const per=(typeof FIN3!=='undefined' && FIN3[code]) ? (FIN3[code].periods||[]) : [];
+    const keep=fcstFutureRows(res.rows, per);
+    if(!keep.length){ show('모두 실적이 이미 나온 연도입니다 — 넣을 전망이 없습니다', '#d29922'); return; }
+    const dropped=res.rows.filter(r=>keep.indexOf(r)<0).map(r=>r.year).join(', ');
+    const today=new Date().toISOString().slice(0,10);
+    fcstSave(code, keep.map(r=>Object.assign({}, r, { broker:src, at:today })));
+    fnoteSave(code, (nEl&&nEl.value)||'');
+    FCST_EDIT=false;
+    redraw();
+    const m2=$('#rptMain'), msg2=m2&&m2.querySelector('#fcstMsg');
+    if(msg2){ msg2.style.display='block'; msg2.style.color='#3fb950';
+      msg2.innerHTML='<b>'+keep.length+'개 연도를 저장했습니다.</b>'
+        + (dropped?' <span style="color:#d29922">'+escHtml(dropped)+' 은 네이버 실적이 이미 있어 넣지 않았습니다.</span>':''); }
   };
-
-  // 값이 비어 있는 줄을 한 번에 지운다
-  const cl=m.querySelector('#fcstClean');
-  if(cl) cl.onclick=()=>{
-    const keep=fcstOf(code).filter(r=>String(r.year||'').trim() &&
-      ['sales','opm','roe','per','pbr'].some(k=>{
-        const v=String(r[k]==null?'':r[k]).trim();
-        return v!=='' && isFinite(parseFloat(v.replace(/[^0-9.\-]/g,'')));
-      }));
-    fcstSave(code, keep);
-    rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
-  };
-
-  const add=m.querySelector('#fcstAdd');
-  if(add) add.onclick=()=>{
-    const rows=fcstOf(code);
-    const cur=RPT_SHOWN[0];
-    rows.push({ year:'', sales:'', opm:'', roe:'', per:'', pbr:'',
-                broker: cur ? [cur.broker, cur.date].filter(Boolean).join(' ') : '',
-                at:new Date().toISOString().slice(0,10) });
-    fcstSave(code, rows);
-    rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
-  };
-  m.querySelectorAll('input[data-fi]').forEach(inp=>{
-    inp.onchange=()=>{
-      const rows=fcstOf(code), i=+inp.dataset.fi;
-      if(!rows[i]) return;
-      rows[i][inp.dataset.fk]=inp.value.trim();
-      delete rows[i].auto;                    // 손으로 확인·수정하면 노란 표시를 지운다
-      fcstSave(code, rows);
-      rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
-    };
-  });
-  m.querySelectorAll('button[data-fdel]').forEach(b=>{
-    b.onclick=()=>{
-      const rows=fcstOf(code); rows.splice(+b.dataset.fdel,1);
-      fcstSave(code, rows);
-      rptRender('ok', (RPT_CACHE[code]||{}).items||[]);
-    };
-  });
 }
 
-/* 붙여넣은 글에서 투자지표 표를 읽는다 (worker 의 것과 같은 규칙).
-   PDF 뷰어에서 복사한 글은 폰트가 이미 해석돼 있어 가장 정확하다. */
-/* 연도가 '행'으로 된 표도 읽는다.
-   예) 2026.12E  119.7  52.3  59.5  3.4  1.8
-   (연도 · 매출증가% · 영업이익률% · ROE% · PER · PBR 순서) */
 function fcstParseRows(txt){
   const rows=[];
   String(txt||'').split(/[\r\n]+/).forEach(line=>{
