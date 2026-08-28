@@ -9321,9 +9321,10 @@ function fcstParseTable(txt, keepYears){
     { k:'sales', re:/매출.*(증가|성장)|매출액\s*증가|(sales|revenue).*(growth|gr\b)/i },
     { k:'sales', re:/^\s*(매출액|sales|revenue)/i, sect:'growth' },
     { k:'opm',   re:/영업이익률|영업\s*마진|OPM|operating\s*margin/i },
-    { k:'roe',   re:/\bROE\b/i },
-    { k:'per',   re:/\bPER\b/i },
-    { k:'pbr',   re:/\bPBR\b/i },
+    { k:'roe',   re:/\bROE\b|자기자본이익률/i },
+    /* P/E · P/B 처럼 빗금을 넣어 적는 보고서가 많다 */
+    { k:'per',   re:/\bPER\b|\bP\s*\/\s*E\b|주가수익/i },
+    { k:'pbr',   re:/\bPBR\b|\bP\s*\/\s*B\b|주가순자산/i },
     { k:'_ebitda', re:/EBITDA\s*마진/i },
   ];
   /* 구역 이름(성장성·수익성 …)이 하나도 없는 글이면
@@ -9344,6 +9345,30 @@ function fcstParseTable(txt, keepYears){
       if(wnt.re.test(ln)){ got[wnt.k]=tail; break; }
     }
   }
+  /* PDF 에서 복사하면 표 전체가 한 줄로 붙어 오는 일이 흔하다.
+     줄 단위로 못 찾았으면, 글 전체에서 항목 이름을 찾고
+     그 뒤에 오는 숫자를 연도 수만큼 가져온다. */
+  if(Object.keys(got).length<2){
+    const flat=String(txt||'').replace(/[\u2212\u2013\u2014]/g,'-').replace(/\s+/g,' ');
+    const FLAT=[
+      { k:'sales',   re:/매출액?\s*\(?\s*(증가율|성장률)/i },
+      { k:'sales',   re:/(sales|revenue)\s*(growth|증가)/i },
+      { k:'sales',   re:/매출액/ },
+      { k:'opm',     re:/영업이익률|영업\s*마진|OPM|operating\s*margin/i },
+      { k:'roe',     re:/\bROE\b|자기자본이익률/i },
+      { k:'per',     re:/\bPER\b|\bP\s*\/\s*E\b|주가수익/i },
+      { k:'pbr',     re:/\bPBR\b|\bP\s*\/\s*B\b|주가순자산/i },
+      { k:'_ebitda', re:/EBITDA\s*마진/i },
+    ];
+    FLAT.forEach(f=>{
+      if(got[f.k]) return;
+      const mm=f.re.exec(flat);
+      if(!mm) return;
+      const v=nums(flat.slice(mm.index+mm[0].length));
+      if(v.length>=N) got[f.k]=v.slice(0,N);
+    });
+  }
+
   const notes=[];
   if(!got.opm && got._ebitda){ got.opm=got._ebitda; notes.push('영업이익률이 없어 EBITDA마진을 넣었습니다'); }
   delete got._ebitda;
