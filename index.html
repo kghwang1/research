@@ -9124,6 +9124,20 @@ function rptSelect(items){
   if(yr.length>3) return {list:yr.slice(0,5), mode:'올해 보고서'};
   return {list:items.slice(0,3), mode:'최신 보고서'};
 }
+/* 보고서가 언제 나온 것인지 — 제목 색을 정하는 데 쓴다
+   'cur'  이번 달 발간   'prev' 지난달 발간   ''  그 이전 */
+function rptMonthTag(ds){
+  const m = String(ds||'').match(/(\d{4})\D(\d{1,2})/);   // 2026.08.27 / 2026-08-27 둘 다
+  if(!m) return '';
+  const y=+m[1], mo=+m[2];
+  const now=new Date(), cy=now.getFullYear(), cm=now.getMonth()+1;
+  if(y===cy && mo===cm) return 'cur';
+  let py=cy, pm=cm-1; if(pm===0){ pm=12; py=cy-1; }
+  if(y===py && mo===pm) return 'prev';
+  return '';
+}
+const RPT_TAG_COL = { cur:'#ff7eb6', prev:'#3fb950' };   // 이번 달 분홍 · 지난달 녹색
+
 function rptRender(state, items, msg){
   const m=$('#rptMain'); if(!m) return;
   const head='';   // 종목명은 위 하부메뉴 줄에 표시한다
@@ -9139,9 +9153,11 @@ function rptRender(state, items, msg){
   h+='<div style="display:flex;flex-direction:column;gap:6px">';
   list.forEach((x,i)=>{
     const sec=(typeof classifySector==='function')?classifySector(x.title, rptCode):'';
+    const tag=rptMonthTag(x.date);
+    const tcol=RPT_TAG_COL[tag] ? `color:${RPT_TAG_COL[tag]};` : '';
     h+=`<div class="rpt-card" data-i="${i}"
         style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 11px;cursor:pointer">
-        <div style="font-size:13px;font-weight:600;line-height:1.5">${escHtml(x.title)}</div>
+        <div style="font-size:13px;font-weight:600;line-height:1.5;${tcol}">${escHtml(x.title)}</div>
         <div style="margin-top:4px;font-size:11px;color:#8b949e">${escHtml(x.date||'')}${x.broker?' · '+escHtml(x.broker):''}${sec?' · '+escHtml(sec):''}</div>
       </div>`;
   });
