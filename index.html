@@ -1216,6 +1216,7 @@
     </div>
     <div class="anl-row">
       <button id="longSideToggle" class="anl-backbtn on">종목</button>
+      <button id="longSaveBtn" class="anl-backbtn" title="서버에 저장합니다">💾 저장</button>
       <select id="longPortSel">
         <option value="kr">한국(체)</option>
         <option value="invest">코스피200</option>
@@ -5689,12 +5690,24 @@ function myPushSoon(){
   }, 3000);
 }
 function myMarkSaveBtn(){
-  const b=document.getElementById('selSaveBtn');
-  if(!b) return;
-  b.textContent = _myDirty ? '💾 저장*' : '💾 저장';
-  b.style.color = _myDirty ? '#f2c800' : '';
-  b.title = _myDirty ? '저장하지 않은 변경이 있습니다' : '서버에 저장되어 있습니다';
+  /* 선정주 화면과 장기투자 화면 두 곳의 저장 단추를 함께 갱신한다 */
+  ['selSaveBtn','longSaveBtn'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(!b) return;
+    b.textContent = _myDirty ? '💾 저장*' : '💾 저장';
+    b.style.color = _myDirty ? '#f2c800' : '';
+    b.style.borderColor = _myDirty ? '#f2c800' : '';
+    b.title = _myDirty ? '저장하지 않은 변경이 있습니다 (잠시 뒤 저절로 저장됩니다)'
+                       : '서버에 저장되어 있습니다';
+  });
 }
+/* 장기투자 화면의 저장 단추 */
+document.addEventListener('click', e=>{
+  const b = e.target && e.target.closest ? e.target.closest('#longSaveBtn') : null;
+  if(!b) return;
+  e.preventDefault();
+  if(typeof myServerPut==='function') myServerPut(true);
+});
 // 저장하지 않고 떠나려 하면 알려 준다
 window.addEventListener('beforeunload', e=>{
   if(!_myDirty) return;
