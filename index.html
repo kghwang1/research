@@ -9869,14 +9869,21 @@ function fcstTableHtml(code){
       h+='<div style="color:#6e7681;font-size:13px;padding:6px 0">'
        + '아직 넣은 전망이 없습니다. 아래 <b>[수정]</b> 을 눌러 자료를 붙여넣으세요.</div>';
     } else {
+      /* 보고서와 같은 모양 — 연도를 가로로, 지표 이름을 세로로 */
+      const MET=[['매출증가율','sales'],['영업이익률','opm'],['ROE','roe'],['PER','per'],['PBR','pbr']];
       h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:14px;white-space:nowrap">'
-       + '<tr>'+FCST_HEAD.map(t=>`<th style="text-align:right;padding:4px 12px 4px 0;color:#8b949e;font-size:12px;font-weight:600">${t}</th>`).join('')+'</tr>';
-      rows.forEach(r=>{
-        h+='<tr>'+['year','sales','opm','roe','per','pbr'].map(k=>{
-          const v=(r[k]==null||r[k]==='')?'-':r[k];
-          const col = k==='year' ? '#e6edf3' : (v==='-'?'#6e7681':'#e6edf3');
-          return `<td style="text-align:right;padding:3px 12px 3px 0;color:${col}">${escHtml(v)}</td>`;
-        }).join('')+'</tr>';
+       + '<tr><th style="text-align:left;padding:5px 16px 7px 0;color:#8b949e;font-size:12.5px;font-weight:600;'
+       + 'border-bottom:1px solid #30363d">연도</th>'
+       + rows.map(r=>`<th style="text-align:right;padding:5px 0 7px 18px;color:#e6edf3;font-size:13.5px;`
+            + `font-weight:700;border-bottom:1px solid #30363d">${escHtml(r.year)}</th>`).join('')
+       + '</tr>';
+      MET.forEach(([nm,k])=>{
+        h+='<tr><td style="text-align:left;padding:4px 16px 4px 0;color:#8b949e;font-size:13px">'+nm+'</td>'
+         + rows.map(r=>{
+             const v=(r[k]==null||r[k]==='')?'-':r[k];
+             return `<td style="text-align:right;padding:4px 0 4px 18px;color:${v==='-'?'#6e7681':'#e6edf3'}">${escHtml(v)}</td>`;
+           }).join('')
+         + '</tr>';
       });
       h+='</table></div>';
     }
