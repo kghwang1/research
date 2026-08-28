@@ -2921,13 +2921,13 @@ function drawSubInner(canvas, key) {
          20~25 는 어느 쪽 신호도 강하게 믿기 어려운 경계 구간이다. */
       if (lastV >= 25) {
         ctx.fillStyle = dir === '상승' ? '#ef5350' : dir === '하락' ? '#2979ff' : '#e0b341';
-        ctx.fillText((dir ? dir + ' ' : '') + '추세장', PAD.l + 5, PAD.t + 22);
+        ctx.fillText((dir ? dir + ' ' : '') + '추세장', PAD.l + 32, PAD.t + 23);
       } else if (lastV >= 20) {
         ctx.fillStyle = '#f0a836';
-        ctx.fillText('경계 구간', PAD.l + 5, PAD.t + 22);
+        ctx.fillText('경계 구간', PAD.l + 32, PAD.t + 23);
       } else {
         ctx.fillStyle = '#8b949e';
-        ctx.fillText('횡보장', PAD.l + 5, PAD.t + 22);
+        ctx.fillText('횡보장', PAD.l + 32, PAD.t + 23);
       }
     }
     // 호버선
@@ -3817,7 +3817,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-28 교대단추 아래로';
+const KG_CHART_BUILD = '2026-08-28 글자겹침 정리';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
