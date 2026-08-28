@@ -645,12 +645,29 @@ const CALC = {
       if (!s || !x.volume) return null;
       return s.vol / x.volume * 100;
     });
-    /* 상장주식수를 못 받았으면, 비율이 함께 온 날이 하나라도 있으면 거기서 되짚어 구한다 */
+    /* 상장주식수 구하기
+       ① 공매도 자료에 직접 들어 있으면 그것을 쓴다
+       ② 없으면 외국인 자료의 (보유주식수 ÷ 보유비율) 로 되짚는다
+          — 외국인이 100주를 가졌고 그것이 2.5% 라면 전체는 4,000주다 */
     let shares = 0;
     if (sd) for (const k in sd) {
       const s = sd[k];
-      if (s.shares) { shares = s.shares; break; }
-      if (s.rto && s.bal) { shares = s.bal / (s.rto/100); break; }
+      if (s.shares > 0) { shares = s.shares; break; }
+      if (s.rto > 0 && s.bal > 0) { shares = s.bal / (s.rto/100); break; }
+    }
+    if (!shares) {
+      const fd = state.frgnData;
+      if (fd) {
+        const cand = [];
+        for (const k in fd) {
+          const f = fd[k];
+          if (f && f.hold > 0 && f.ratio > 0) cand.push(f.hold / (f.ratio/100));
+        }
+        if (cand.length) {   // 여러 날 값의 중앙값을 써서 하루치 오차를 줄인다
+          cand.sort((a,b)=>a-b);
+          shares = cand[Math.floor(cand.length/2)];
+        }
+      }
     }
     const rto = d.map(x => {
       const s = sd && sd[x.date];
@@ -1287,14 +1304,15 @@ async function fetchShortDaily(code) {
         const date = (d.TRD_DD || d.date || '').replace(/\//g, '-');
         const vol = parseInt(String(d.CVSRTSELL_TRDVOL || d.vol || 0).replace(/,/g, ''), 10) || 0;
         const bal = parseInt(String(d.STR_CONST_VAL1 || d.bal || '0').replace(/[^0-9]/g, ''), 10) || 0;
-        /* 잔고비율(잔고 ÷ 상장주식수)을 쓰려고 상장주식수와 비율도 함께 챙긴다.
-           자료 제공처마다 이름이 달라 여러 이름을 살펴본다. */
-        const shares = parseInt(String(d.LIST_SHRS || d.listShares || d.shares || d.STR_CONST_VAL2 || 0)
+        /* STR_CONST_VAL1 = 잔고 수량, STR_CONST_VAL2 = 잔고 '금액'(주식수 아님).
+           잔고는 T+2 지연 공시라 최근 이틀은 '-' 로 온다 → 0 이 되고, 0 은 없는 값으로 본다.
+           상장주식수는 이 자료에 없으므로 외국인 자료(보유주식수 ÷ 보유비율)에서 되짚어 구한다. */
+        const balAmt = parseInt(String(d.STR_CONST_VAL2 || 0).replace(/[^0-9]/g, ''), 10) || 0;
+        const shares = parseInt(String(d.LIST_SHRS || d.listShares || d.shares || 0)
                         .replace(/[^0-9]/g, ''), 10) || 0;
-        const rtoRaw = d.BAL_RTO != null ? d.BAL_RTO : (d.ratio != null ? d.ratio : d.rto);
+        const rtoRaw = d.BAL_RTO != null ? d.BAL_RTO : (d.rto != null ? d.rto : d.balRatio);
         const rto = parseFloat(String(rtoRaw == null ? '' : rtoRaw).replace(/[^0-9.\-]/g, ''));
-        // 0 은 값이 없다는 뜻으로 본다 (자료가 안 오면 0 으로 채워져 오는 경우가 있다)
-        if (date) map[date] = { vol, bal, shares, rto: (isFinite(rto) && rto > 0) ? rto : null };
+        if (date) map[date] = { vol, bal, balAmt, shares, rto: (isFinite(rto) && rto > 0) ? rto : null };
       });
       state.shortData = map;
       renderAll();
