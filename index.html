@@ -3091,7 +3091,7 @@ function togglePin(code, renderFn){
 function pinVal(code){ const m=PIN_MARKS.get(code); return m==='pink'?2:m==='green'?0:1; } // 정렬값: pink=2(위), 없음=1, green=0(아래)
 // 핑크 토글 + 정렬 이벤트 바인딩 (각 렌더 함수 끝에서 호출)
 // 포트폴리오별 독립 정렬 상태
-const _ps0=()=>({invchk:false,score:false,rate:false,roe:false,frgn:false,amt:false,drop:false,tgt:false,pin:false});
+const _ps0=()=>({swait:false,invchk:false,score:false,rate:false,roe:false,frgn:false,amt:false,drop:false,tgt:false,pin:false});
 const PSORT={kr:_ps0(),watch:_ps0(),invest:_ps0(),investkq:_ps0(),addstk:_ps0()};
 let curPort='kr'; // 현재 렌더 중인 포트폴리오 ID
 // th 생성 헬퍼: 순서/ROE/외국인에 정렬 기능 부여
@@ -3161,6 +3161,7 @@ function hdrFin(){
 function sortKindOf(x){
   // 재무 열은 정렬 대상이 아니다 (헤더에 'ROE' 글자가 들어 있어 먼저 걸러낸다)
   if(x.indexOf('재무')>=0) return null;
+  if(x==='대기') return 'swait';
   if(x==='보유') return 'invchk';
   if(x.indexOf('점수')>=0) return 'score';
   if(x.indexOf('현재가')>=0) return 'rate';
@@ -3190,7 +3191,7 @@ function bindPinEvents(tbl, renderFn, portId){
   tbl.querySelectorAll('th.sortable').forEach(th=>{
     th.onclick=()=>{
       const k=th.dataset.sort, was=ps[k];
-      ['invchk','score','rate','roe','frgn','amt','drop','tgt'].forEach(x=>{ ps[x]=false; });
+      ['swait','invchk','score','rate','roe','frgn','amt','drop','tgt'].forEach(x=>{ ps[x]=false; });
       ps[k]=!was;                       // 같은 열 다시 누르면 정렬 해제
       if(renderFn) renderFn();
     };
@@ -3553,6 +3554,13 @@ function swaitSet(code, tag, on){
   if(Object.keys(cur).length) o[k]=cur; else delete o[k];
   try{ localStorage.setItem(SWAIT_KEY, JSON.stringify(o)); }catch(e){}
   if(typeof myServerSave==='function') myServerSave();
+}
+/* 정렬 차례 — 1차 → 2차 → 미체크. 빈 줄은 맨 뒤 */
+function swaitRank(code){
+  const c=String(code||'').trim();
+  if(!c) return -1;
+  const v=swaitOf(c);
+  return v.w1 ? 2 : v.w2 ? 1 : 0;
 }
 function swaitCellHtml(code){
   if(!code) return '';
@@ -4222,6 +4230,17 @@ function renderWatchTable(){
   curPort='watch';
   const watchDisp = (()=>{
     let arr=[...displayRows]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT[watchPort]||PSORT.watch;
+    /* 대기 열 — 1차·2차를 체크한 종목을 위로 올린다.
+       숫자만 남기면 해외 티커가 빈 값이 되므로 원래 코드를 그대로 쓴다 */
+    if(ps.swait){
+      const rc=r=>String(r[0]||'').trim();
+      arr.sort((a,b)=>{
+        const d=swaitRank(rc(b))-swaitRank(rc(a));
+        return d!==0 ? d : 0;
+      });
+      if(ps.pin) arr.sort((a,b)=>pinVal(gc(b))-pinVal(gc(a)));
+      return arr;
+    }
     const sk=['invchk','score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
     if(sk) arr.sort((a,b)=>{
       const ca=gc(a), cb=gc(b);
@@ -9997,7 +10016,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-08-28 대기 1차·2차';
+const KG_APP_BUILD = '2026-08-28 대기 정렬';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
