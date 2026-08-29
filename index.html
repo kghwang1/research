@@ -3536,6 +3536,32 @@ function lclsCellHtml(code){
 /* ───── 투자 (증권사별 보유 표시) ─────
    저장: kg_invcorp = { 종목코드: {mirae:1, kiwoom:1, shinhan:1} } */
 const INV_KEY='kg_invcorp';
+/* ── 대기 표시 ────────────────────────────────────────────────
+   선정주 표 맨 앞 칸. 사고 싶지만 아직 때가 아닌 종목을 두 갈래로 표시한다.
+   { 종목코드: {w1:1, w2:1} } 로 저장하고 서버에도 함께 올린다. */
+const SWAIT_KEY='kg_sel_wait';
+const SWAIT_TAGS=[['w1','1차'],['w2','2차']];
+function swaitAll(){
+  try{ const r=localStorage.getItem(SWAIT_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
+  catch(e){ return {}; }
+}
+function swaitOf(code){ return swaitAll()[String(code||'').toUpperCase()] || {}; }
+function swaitSet(code, tag, on){
+  const o=swaitAll(), k=String(code||'').toUpperCase();
+  const cur=Object.assign({}, o[k]||{});
+  if(on) cur[tag]=1; else delete cur[tag];
+  if(Object.keys(cur).length) o[k]=cur; else delete o[k];
+  try{ localStorage.setItem(SWAIT_KEY, JSON.stringify(o)); }catch(e){}
+  if(typeof myServerSave==='function') myServerSave();
+}
+function swaitCellHtml(code){
+  if(!code) return '';
+  const v=swaitOf(code);
+  return '<div class="cls-wrap">' + SWAIT_TAGS.map(([k,lbl])=>
+    `<label class="cls-chk"><input type="checkbox" data-swait="${k}" data-swaitcode="${escHtml(code)}"${v[k]?' checked':''}><span>${lbl}</span></label>`
+  ).join('') + '</div>';
+}
+
 const INV_CORPS=[['mirae','미래'],['kiwoom','키움'],['shinhan','신한']];
 function invAll(){
   try{ const r=localStorage.getItem(INV_KEY); const o=r?JSON.parse(r):{}; return (o&&typeof o==='object')?o:{}; }
@@ -4150,9 +4176,8 @@ function renderWatchTable(){
     : isLongSub
     ? [40,96,64,92,92,76,100,100,84]                    // 장기종목: 점수 추가 · 매수액/공매도/보고서 제외
     : isSel
-    /* 선정주: 종목 · 투자 · 현재가 · ROE · 외국인 · 5일매수액 · 공매도 · 52주최고가 · 목표가 · 컨센서스 · 보고서
-       종목 열은 종전(200px)의 절반인 100px */
-    ? [100,78,92,92,76,90,90,90,100,84,200]
+    /* 선정주: 대기 · 종목 · 투자 · 현재가 · ROE · 외국인 · 5일매수액 · 공매도 · 52주최고가 · 목표가 · 컨센서스 · 보고서 */
+    ? [56,60,78,92,92,76,90,90,90,100,84,200]
     : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
@@ -4162,7 +4187,7 @@ function renderWatchTable(){
     : isLongSub
     ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"]
     : isSel
-    ? ["종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
+    ? ["대기","종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
@@ -4290,7 +4315,8 @@ function renderWatchTable(){
         ? ' style="background:#fff8d6"' : '';
       const clsTdUS = (isSel && !isLongSub) ? `<td class="cls-cell">${invCellHtml(rawCode)}</td>`
                                             : `<td class="cls-cell">${clsCellHtmlUS(ticker, nm||ticker)}</td>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap"${addedBgUS}>${stkCell}</td>${clsTdUS}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
+      const swTdUS = (isSel && !isLongSub) ? `<td class="cls-cell">${swaitCellHtml(rawCode)}</td>` : '';
+      h+=`<tr>${swTdUS}<td class="mp-l kr-stk kr-stk-wrap"${addedBgUS}>${stkCell}</td>${clsTdUS}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td class="mp-l rpt">${repCellUS}</td></tr>`;
       return;
     }
     if(isIdxRow){
@@ -4299,7 +4325,8 @@ function renderWatchTable(){
       const stkCell=`<div style="display:flex;justify-content:space-between;align-items:start;min-width:0"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="flex:1;min-width:0;overflow:hidden">${stkInner}</a><span class="wdel" data-idx="${ri}" data-wcode="${escHtml(rawCode)}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
       const clsTdEmpty = (isSel && !isLongSub) ? `<td class="cls-cell">${invCellHtml(code)}</td>`
                                                : `<td class="cls-cell">${clsCellHtml(code, nm||'')}</td>`;
-      h+=`<tr><td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${clsTdEmpty}<td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td></tr>`;
+      const swTdIdx = (isSel && !isLongSub) ? `<td class="cls-cell">${swaitCellHtml(code)}</td>` : '';
+      h+=`<tr>${swTdIdx}<td class="mp-l kr-stk kr-stk-wrap">${stkCell}</td>${clsTdEmpty}<td class="wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;color:#58a6ff">차트▶</td><td>—</td><td></td><td>—</td><td></td><td>—</td><td>—</td><td>—</td></tr>`;
       return;
     }
     const live=watchLive[code];
@@ -4337,6 +4364,8 @@ function renderWatchTable(){
       else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
     }
     h+='<tr>';
+    // 선정주는 맨 앞에 대기 칸을 둔다
+    if(isSel && !isLongSub) h+=`<td class="cls-cell">${swaitCellHtml(rawCode)}</td>`;
     // 직접 담은 종목은 종목명 칸을 옅은 노랑으로 표시한다
     const addedBg = (isSel && !isLongSub && _SEL_ADDED.has(String(rawCode).toUpperCase()))
       ? ' style="background:#fff8d6"' : '';
@@ -4412,6 +4441,11 @@ function renderWatchTable(){
   });
   // 초기화 (색칠된 종목은 보존)
   // 투자 칸 체크 — 바꾸면 저장하고 차례를 다시 맞춘다
+  // 대기 칸 체크 — 바꾸면 저장한다 (차례는 바뀌지 않는다)
+  t.querySelectorAll('input[data-swait]').forEach(cb=>{
+    cb.onclick=(e)=>e.stopPropagation();
+    cb.onchange=()=>{ swaitSet(cb.dataset.swaitcode, cb.dataset.swait, cb.checked); };
+  });
   t.querySelectorAll('input[data-inv]').forEach(cb=>{
     cb.onchange=()=>{
       invSet(cb.dataset.invcode, cb.dataset.inv, cb.checked);
@@ -5643,6 +5677,7 @@ function myLocal(){
            add:g('kg_addstk_rows')||[], en:g('kg_long_en')||{},
            cls:g('kg_long_cls')||{}, fcst:g('kg_fcst')||{}, invcorp:g('kg_invcorp')||{},
            fnote:g('kg_fcst_note')||{}, fts:g('kg_fcst_ts')||{},
+           swait:g('kg_sel_wait')||{},
            chart:chartSnap(),
            chartAt:(()=>{ try{ return localStorage.getItem('kg_chart_changed_at')||''; }catch(e){ return ''; } })(),
            // 관심·보유 목록도 함께 보관한다 (기기를 바꿔도 체크가 유지되도록)
@@ -5781,6 +5816,7 @@ async function myServerLoad(){
       /* 이 파일에 담아 온 자료가 더 나중이면 그것으로 바꾼다 */
       try{ if(typeof fcstSeedApply==='function') fcstSeedApply(); }catch(e){}
       if(!localNewer && o.invcorp && typeof o.invcorp==='object') put('kg_invcorp', o.invcorp);
+      if(!localNewer && o.swait && typeof o.swait==='object') put('kg_sel_wait', o.swait);
       if(!localNewer && Array.isArray(o.wait)) put('kg_wait_rows', o.wait);
       // 관심·보유는 이 기기에 아직 없을 때만 받는다 (여기서 지운 것을 되살리지 않도록)
       /* 관심·보유 되살리기.
@@ -9961,7 +9997,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-08-28 파마리서치-미래에셋';
+const KG_APP_BUILD = '2026-08-28 대기 1차·2차';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
