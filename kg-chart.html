@@ -505,7 +505,8 @@ function lowest(arr,len,i){return Math.min(...arr.slice(Math.max(0,i-len+1),i+1)
 // 지표 계산
 // ══════════════════════════════════════
 const CALC = {
-  MA:(d)=>{const c=d.map(x=>x.close);return{ma5:sma(c,P('MA',0,5)),ma20:sma(c,P('MA',1,20)),ma60:sma(c,P('MA',2,60)),ma120:sma(c,P('MA',3,120))};},
+  MA:(d)=>{const c=d.map(x=>x.close);const[p5,p20,p60]=maPeriods();
+    return{ma5:sma(c,p5),ma20:sma(c,p20),ma60:sma(c,p60),ma120:sma(c,P('MA',3,120))};},
   BB:(d)=>{const bp=P('BB',0,20),bs=P('BB',1,2),c=d.map(x=>x.close),mid=sma(c,bp),sd=stdev(c,bp);return{upper:mid.map((v,i)=>v&&sd[i]?v+bs*sd[i]:null),mid,lower:mid.map((v,i)=>v&&sd[i]?v-bs*sd[i]:null)};},
   ICHIMOKU:(d)=>{
     const h=d.map(x=>x.high),l=d.map(x=>x.low),c=d.map(x=>x.close);
@@ -1510,8 +1511,18 @@ function OPT(key, name, def) {
 
 function P(key, idx, def) {
   const all = loadUserParams();
-  if (all[key] && all[key][idx] != null && all[key][idx] > 0) return all[key][idx];
+  const v = all[key] ? all[key][idx] : null;
+  /* 1 은 기간으로 뜻이 없다(그날 값 그대로). 설정 화면에서 실수로 1 이 저장되면
+     5·20·60일선이 모두 1일선이 되어 한 줄로 겹쳐 보였다. 2 미만은 무시한다. */
+  if (v != null && v >= 2) return v;
   return def;
+}
+
+/* 이동평균 기간 — 세 값이 같거나 차례가 어긋나면 기본값으로 되돌린다 */
+function maPeriods() {
+  let a = P('MA',0,5), b = P('MA',1,20), c = P('MA',2,60);
+  if (!(a < b && b < c)) { a = 5; b = 20; c = 60; }
+  return [a, b, c];
 }
 
 // 기본 조합 (일목·DMI·ADXR·RSI·RVI·OBV·외국인순매수) — 순서 중요
@@ -2198,7 +2209,7 @@ function drawCandle() {
   if (overlays.MA) {
     /* 설정에서 기간을 바꿀 수 있으므로 실제로 쓰는 값을 그대로 적는다.
        세 값이 같게 잘못 저장돼 선이 겹쳐 보이는 일이 있어, 눈으로 확인할 수 있게 했다. */
-    const p5 = P('MA',0,5), p20 = P('MA',1,20), p60 = P('MA',2,60);
+    const [p5, p20, p60] = maPeriods();
     legends.push({t:'MA'+p5, c:'#ef5350'}, {t:'MA'+p20, c:'#f59e0b'}, {t:'MA'+p60+'(점선)', c:'#3fb950'});
     if (OPT('MA', 'ma120', false)) legends.push({t:'MA'+P('MA',3,120), c:'#58a6ff'});
   }
@@ -3850,7 +3861,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-29 이평선 눌림해소';
+const KG_CHART_BUILD = '2026-08-29 이평기간 보호';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 

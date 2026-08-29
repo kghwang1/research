@@ -895,7 +895,8 @@ function renderParamInputs(key) {
     html += `
       <div class="param-item">
         <label>${p.n}</label>
-        <input type="number" class="param-input" data-key="${key}" data-idx="${i}" value="${cur}" min="1" max="999">
+        <input type="number" inputmode="numeric" class="param-input" data-key="${key}" data-idx="${i}"
+               data-def="${p.d}" value="${cur}" min="2" max="999">
         <span class="param-def">기본 ${p.d}</span>
       </div>`;
   });
@@ -930,15 +931,23 @@ function bindParamInputs() {
       const key = inp.dataset.key;
       const idx = parseInt(inp.dataset.idx);
       const val = parseInt(inp.value);
-      if (val > 0) {
+      /* 1 은 기간으로 뜻이 없다. 손가락으로 화면을 밀다 값이 1 로 바뀌어
+         이동평균 세 선이 모두 1일선이 되는 일이 있었다. 2 미만은 받지 않는다. */
+      if (val >= 2) {
         setParam(key, idx, val);
         // 저장 확인 표시
         inp.style.borderColor = '#3fb950';
         setTimeout(() => { inp.style.borderColor = '#30363d'; }, 800);
+      } else {
+        inp.value = inp.dataset.def || '';
+        inp.style.borderColor = '#ef5350';
+        setTimeout(() => { inp.style.borderColor = '#30363d'; }, 1200);
       }
     });
     // 클릭 시 카드 안 닫히게
     inp.addEventListener('click', e => e.stopPropagation());
+    // 화면을 밀 때 숫자가 바뀌지 않게 막는다
+    inp.addEventListener('wheel', e => { if (document.activeElement === inp) e.preventDefault(); }, { passive:false });
   });
   document.querySelectorAll('.param-reset').forEach(btn => {
     btn.addEventListener('click', e => e.stopPropagation());
