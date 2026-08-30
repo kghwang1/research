@@ -400,6 +400,21 @@
   .val-tbl th:first-child,.val-tbl td:first-child{position:sticky;left:0;z-index:2;text-align:left;
     box-shadow:1px 0 0 rgba(0,0,0,.15)}
   .val-tbl th:first-child{z-index:4}
+  /* 선정주(관심보유·대기): 차수 + 종목 두 열을 왼쪽에 고정한다.
+     --stk2 는 차수 열의 실제 너비 — 표를 그린 뒤 JS 가 재어 넣는다.
+     고정 숫자를 쓰면 실제 너비와 어긋나 두 열 사이에 바탕색 틈(검은 줄)이 생긴다.
+     --stkw 는 종목 열 너비 — 이 한 곳만 고치면 된다 */
+  .val-tbl.mp.selstick{--stk2:56px;--stkw:100px}
+  .val-tbl.mp.selstick th:nth-child(2),.val-tbl.mp.selstick td:nth-child(2){
+    position:sticky;left:var(--stk2);z-index:2;box-shadow:1px 0 0 rgba(0,0,0,.15);
+    width:var(--stkw);max-width:var(--stkw);overflow:hidden}
+  .val-tbl.mp.selstick thead th:nth-child(2){z-index:4}
+  /* 이 표는 실제로는 자동 배치로 그려진다. 그래서 칸에 너비를 걸어도 내용이 길면 열이 다시 늘어난다.
+     칸 안쪽 상자를 고정 폭으로 눌러야 관심보유·대기 두 탭이 같은 너비로 나온다.
+     14px 은 좌우 안쪽 여백(5px 7px)의 합이다 */
+  .val-tbl.mp.selstick td:nth-child(2)>div{
+    width:calc(var(--stkw) - 14px);max-width:calc(var(--stkw) - 14px);overflow:hidden}
+  .val-tbl.mp.selstick td:nth-child(2) .winput{width:100%!important;min-width:0}
   /* 미국 표 Symbol 열: 심볼/기업명 2줄 */
   .val-tbl:not(.mp) th:first-child,.val-tbl:not(.mp) td:first-child{font-weight:700;
     min-width:70px;max-width:115px;white-space:normal;word-break:break-word}
@@ -3166,7 +3181,7 @@ function hdrFin(){
 function sortKindOf(x){
   // 재무 열은 정렬 대상이 아니다 (헤더에 'ROE' 글자가 들어 있어 먼저 걸러낸다)
   if(x.indexOf('재무')>=0) return null;
-  if(x==='대기') return 'swait';
+  if(x==='대기'||x==='차수') return 'swait';
   if(x==='보유') return 'invchk';
   if(x.indexOf('점수')>=0) return 'score';
   if(x.indexOf('현재가')>=0) return 'rate';
@@ -4187,10 +4202,13 @@ function renderWatchTable(){
   const W = isLongUs
     ? [40,110,64,92,104,104,58,64,100,104,84]           // 국외: 미국(반) 적정주가 표와 같은 항목
     : isLongSub
-    ? [40,96,64,92,92,76,100,100,84]                    // 장기종목: 점수 추가 · 매수액/공매도/보고서 제외
+    /* 장기종목: 종목 · 장기점수 · 분류 · 현재가 · ROE · 외국인 · 52주최고가 · 목표가 · 컨센서스
+       (예전에는 맨 앞에 쓰지 않는 40px 이 하나 남아 열 너비가 한 칸씩 밀려 있었다) */
+    ? [96,64,92,92,76,90,100,100,84]
     : isSel
-    /* 선정주: 대기 · 종목 · 투자 · 현재가 · ROE · 외국인 · 5일매수액 · 공매도 · 52주최고가 · 목표가 · 컨센서스 · 보고서 */
-    ? [56,60,78,92,92,76,90,90,90,100,84,200]
+    /* 선정주: 차수 · 종목 · 투자 · 현재가 · ROE · 외국인 · 5일매수액 · 공매도 · 52주최고가 · 목표가 · 컨센서스 · 보고서
+       종목 너비는 CSS 의 --stkw 와 같은 값을 둔다 (두 곳이 어긋나면 열이 흔들린다) */
+    ? [56,100,78,92,92,76,90,90,90,100,84,200]
     : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   const isInv = (watchPort==='invpf');
@@ -4200,7 +4218,7 @@ function renderWatchTable(){
     : isLongSub
     ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"]
     : isSel
-    ? ["대기","종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
+    ? ["차수","종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
@@ -4443,7 +4461,13 @@ function renderWatchTable(){
     </td></tr>`;
   }
   h+='</tbody>';
-  t.className='val-tbl mp mpfix'; t.innerHTML=h;
+  t.className='val-tbl mp mpfix'+((isSel&&!isLongSub)?' selstick':''); t.innerHTML=h;
+  // 차수 열이 실제로 몇 px 로 그려졌는지 재어 종목 열을 딱 그만큼 왼쪽에 붙인다.
+  // 이걸 안 하면 두 고정 열 사이에 바탕색 틈이 보인다.
+  if(isSel && !isLongSub) requestAnimationFrame(()=>{
+    const c1 = t.querySelector('thead th:first-child') || t.querySelector('tbody td:first-child');
+    if(c1) t.style.setProperty('--stk2', c1.getBoundingClientRect().width+'px');
+  });
   // 검색 바를 테이블 위에 별도 배치 (자동완성이 종목 행을 가리지 않도록)
   (function(){
     const sc=$('#valScroll'); if(!sc) return;
