@@ -731,6 +731,27 @@
   .anl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .anl-row select{flex:0 1 auto;min-width:0}
   .anl-ttl{font-size:16.9px;font-weight:800;color:#f2c800;flex:none}
+  /* 종목분석 상단 메뉴 — KG 홈 포트 종목분석 방송.
+     지금 보고 있는 곳(종목분석)만 노란색 · 현재 글자크기 그대로,
+     나머지는 회색에 10% 작게(16.9 → 15.2px) */
+  .topnav{display:flex;align-items:baseline;gap:3px;flex:none}
+  .topnav button{background:transparent;border:0;padding:0 4px;cursor:pointer;
+    font-size:15.2px;font-weight:800;color:#8b949e;line-height:1.2;white-space:nowrap}
+  .topnav button:hover{color:#e6edf3}
+  .topnav button.cur{color:#f2c800;font-size:16.9px}
+  .topnav button.cur:hover{color:#f2c800}
+  /* 상단 메뉴 줄 — 포트·방송 화면에서도 종목분석과 같은 메뉴를 이어서 보여준다.
+     이 모드에서는 앱 본래 머리말(제목 + 시황/추세/포트/… 탭)을 감춘다.
+     홈을 누르면 topbar-mode 를 벗고 원래 앱 화면으로 돌아간다 */
+  .pagetop{display:none;align-items:center;gap:8px;padding:6px 10px;flex:none;
+    background:var(--panel);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:40}
+  body.topbar-mode .pagetop{display:flex}
+  body.topbar-mode header{display:none}
+  /* 여백은 앱 본래 값을 그대로 쓴다 — 0 으로 눌러 두면 내용이 화면 끝에 붙어
+     종목분석 화면과 짜임새가 달라 보인다. 위쪽만 조금 좁힌다 */
+  body.topbar-mode section{padding-top:12px}
+  #valFull .pagetop{position:static}
   .anl-backbtn{padding:4px 12px;border-radius:6px;border:1px solid #6e7681;
     background:#8b949e;color:#0d1117;font-size:12px;font-weight:700;cursor:pointer;flex:none}
   .anl-backbtn:active{opacity:.6}
@@ -770,7 +791,6 @@
   .selnav .selrfr{width:auto;color:#f0883e}
   .lfil{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:#8b949e;cursor:pointer;margin-right:8px}
   .lfil input{margin:0;cursor:pointer}
-  .subnav button[data-sub="home"],.subnav button[data-sub="port"]{color:#8b949e}
   .anl-resize{flex:none;width:7px;cursor:col-resize;background:var(--panel);
     border-right:1px solid var(--line);position:relative;touch-action:none;user-select:none}
   .anl-resize::before{content:'';position:absolute;left:2px;top:50%;transform:translateY(-50%);
@@ -971,6 +991,8 @@
  </div>
 </header>
 
+<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button></span></div>
+
 <div class="wrap">
 
  <!-- ===== HUB (리포트: 네이버 종목분석 임베드) ===== -->
@@ -978,8 +1000,8 @@
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
    <div class="anl-row">
-    <span class="anl-ttl">종목분석</span>
-    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
    </div>
    <div class="anl-row">
     <button id="anlSideToggle" class="anl-backbtn">종목</button>
@@ -1159,8 +1181,8 @@
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">종목분석</span>
-      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
     <button id="chartSideToggle" class="anl-backbtn">종목</button>
@@ -1197,8 +1219,8 @@
 <div id="rptFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">종목분석</span>
-      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button></span>
     </div>
     <div class="anl-row">
       <button id="rptSideToggle" class="anl-backbtn">종목</button>
@@ -1227,8 +1249,8 @@
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">종목분석</span>
-      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button><span class="subsep"></span><button data-sub="home">홈</button><button data-sub="port">포트</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
       <button id="longSideToggle" class="anl-backbtn on">종목</button>
@@ -1257,6 +1279,7 @@
 
 <!-- ===== 주식 전체화면 ===== -->
 <div id="valFull" class="valfull">
+ <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button></span></div>
  <div class="valfull-top" id="valSub">
   <div class="subtab vback" data-m="back">‹ 이전</div>
   <div class="subtab on" data-m="invpf">선정주</div>
@@ -1458,6 +1481,11 @@ async function saveWatchData(){try{store.set('broadcast',JSON.stringify(WATCH));
 $$('.tab').forEach(t=>t.onclick=()=>{
   // 종목분석 — 기본 화면은 챠트
   if(t.id==='stkTabBtn'){ goSub('chart'); return; }
+  // 포트 · 방송 — 상단 메뉴(KG 홈 포트 종목분석 방송)를 단 화면으로 연다.
+  // 상단 메뉴에서 눌렀을 때와 같은 화면이 나오도록 한 곳으로 모았다.
+  if(t.dataset.t==='valuation'){ goSub('trend'); return; }
+  if(t.dataset.t==='port'){ goSub('port'); return; }
+  if(t.dataset.t==='watch'){ goSub('watch'); return; }
   if(typeof appChromeRestore==='function') appChromeRestore();
   // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
@@ -1468,6 +1496,7 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   t.classList.add('on'); $('#'+t.dataset.t).classList.add('on');
   if(t.dataset.t==='market'){ renderMarket(); }
   if(t.dataset.t==='valuation'){ openPnl(); }
+  document.body.classList.remove('topbar-mode');   // 앱 본래 탭을 쓰면 상단 메뉴 모드는 벗는다
   document.body.classList.toggle('anl-mode', t.dataset.t==='hub');
   if(t.dataset.t==='hub'){ anlInit(); }   // 분석 탭
   if(t.dataset.t==='info'){ renderInfoCards(); }
@@ -6797,7 +6826,7 @@ function openPort(m){
   const s=document.querySelector('#valSub .subtab[data-m="'+m+'"]');
   if(s){ s.click(); } else { openValFull(); }
 }
-function closeValFull(){ $('#valFull').classList.remove('on'); }
+function closeValFull(){ $('#valFull').classList.remove('on'); document.body.classList.remove('topbar-mode'); }
 /* ===== 손익곡선 (외국인 포지션) ===== */
 const PNL={mode:'both', spotV:null, spotK:null, futN:null, futK:null, cur:null, nfPrice:null, nfRate:null};
 const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
@@ -10752,28 +10781,86 @@ function rptBind(){
 
 /* ===== 종목분석 하부 메뉴 (챠트 · 분석 · 장기투자 · 보고서) ===== */
 function subPaint(which){
-  // 홈·포트로 빠져나갈 때는 상위 탭을 종목분석으로 되돌리지 않는다
+  // 홈·포트·방송으로 빠져나갈 때는 상위 탭을 종목분석으로 되돌리지 않는다
   $$('.subnav button[data-sub]').forEach(b=>b.classList.toggle('on', b.dataset.sub===which));
-  if(which==='home'||which==='port') return;
+  if(which==='home'||which==='port'||which==='watch') return;
   $$('.tab').forEach(x=>x.classList.remove('on'));
   const st=$('#stkTabBtn'); if(st) st.classList.add('on');
 }
+/* 상단 메뉴(KG · 홈 · 포트 · 종목분석 · 방송)에서 지금 위치를 노란색으로 칠한다 */
+function topPaint(which){
+  $$('.topnav button[data-top]').forEach(b=>b.classList.toggle('cur', b.dataset.top===which));
+}
 function goSub(which){
   // 세 화면이 같은 종목·포트를 이어받는다
-  // 상위 화면으로 빠져나가기
-  if(which==='home'||which==='port'){
+  // 홈 — 상단 메뉴를 벗고 앱 본래 화면(시황)으로 돌아간다
+  if(which==='home'){
     closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
-    if(which==='home'){ const vf=$('#valFull'); if(vf) vf.classList.remove('on'); }
+    const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+    document.body.classList.remove('topbar-mode','anl-mode');
     document.body.style.overflow='';
     $$('.tab').forEach(x=>x.classList.remove('on'));
     $$('section').forEach(x=>x.classList.remove('on'));
-    const key = which==='home' ? 'market' : 'port';
-    const tb=document.querySelector('.tab[data-t="'+key+'"]'); if(tb) tb.classList.add('on');
-    const sc=$('#'+key); if(sc) sc.classList.add('on');
+    const tb=document.querySelector('.tab[data-t="market"]'); if(tb) tb.classList.add('on');
+    const sc=$('#market'); if(sc) sc.classList.add('on');
     window.scrollTo(0,0);
-    if(key==='market' && typeof renderMarket==='function') renderMarket();
+    if(typeof renderMarket==='function') renderMarket();
     return;
   }
+  // 포트 — 상단 메뉴는 그대로 두고 그 아래에 한국(체) 포트 화면을 연다
+  if(which==='port'){
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
+    if(typeof appChromeRestore==='function') appChromeRestore();
+    document.body.classList.remove('anl-mode');
+    document.body.classList.add('topbar-mode');
+    document.body.style.overflow='';
+    // 아래쪽에 포트 첫 화면(카드 목록)을 깔아 둔다 — '‹ 이전' 으로 나오면 여기가 보인다
+    $$('.tab').forEach(x=>x.classList.remove('on'));
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const tb=document.querySelector('.tab[data-t="port"]'); if(tb) tb.classList.add('on');
+    const sc=$('#port'); if(sc) sc.classList.add('on');
+    topPaint('port');
+    if(typeof openPort==='function') openPort('kr');
+    return;
+  }
+  // 추세 — 상단 메뉴 아래에 추세 화면을 연다
+  if(which==='trend'){
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
+    if(typeof appChromeRestore==='function') appChromeRestore();
+    const vf0=$('#valFull'); if(vf0) vf0.classList.remove('on');
+    document.body.classList.remove('anl-mode');
+    document.body.classList.add('topbar-mode');
+    document.body.style.overflow='';
+    $$('.tab').forEach(x=>x.classList.remove('on'));
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const tb=document.querySelector('.tab[data-t="valuation"]'); if(tb) tb.classList.add('on');
+    const sc=$('#valuation'); if(sc) sc.classList.add('on');
+    window.scrollTo(0,0);
+    if(typeof openPnl==='function') openPnl();
+    topPaint('trend');
+    return;
+  }
+  // 방송 — 상단 메뉴 아래에 방송 목록을 연다
+  if(which==='watch'){
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
+    if(typeof appChromeRestore==='function') appChromeRestore();
+    const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+    document.body.classList.remove('anl-mode');
+    document.body.classList.add('topbar-mode');
+    document.body.style.overflow='';
+    $$('.tab').forEach(x=>x.classList.remove('on'));
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const tb=document.querySelector('.tab[data-t="watch"]'); if(tb) tb.classList.add('on');
+    const sc=$('#watch'); if(sc) sc.classList.add('on');
+    window.scrollTo(0,0);
+    if(typeof renderWatch==='function') renderWatch();
+    topPaint('watch');
+    return;
+  }
+  // 여기부터는 종목분석 안쪽 화면 (챠트 · 분석 · 장기투자 · 보고서)
+  { const vf=$('#valFull'); if(vf) vf.classList.remove('on'); }
+  document.body.classList.remove('topbar-mode');
+  topPaint('chart');
   if(which==='chart'){
     closeLongView(true); closeRptView(true); hubHide();
     openChartView(STK.port, STK.code, STK.name);
@@ -10827,6 +10914,9 @@ function appChromeRestore(){
 document.addEventListener('click', e=>{
   const b=e.target.closest('.subnav button');
   if(b && b.dataset.sub) goSub(b.dataset.sub);   // 선정주 하부메뉴(.selnav)는 여기서 처리하지 않는다
+  // 상단 메뉴 (홈 · 포트 · 종목분석 · 방송)
+  const t=e.target.closest('.topnav button');
+  if(t && t.dataset.top) goSub(t.dataset.top);
 });
 
 // 종목 칸 — 접기/펴기 + 경계 끌어서 폭 조절
