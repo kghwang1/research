@@ -5274,7 +5274,18 @@ function longScoreCell(code){
   if(!v || v.total==null) return '<span class="rsub">—</span>';
   const col = v.loss ? '#ef5350' : v.thin ? '#8b949e' : v.flags ? '#ef5350' : v.total>=80 ? '#3fb950' : v.total>=65 ? '#d29922' : '#8b949e';
   const lab = v.loss ? '적자' : v.thin ? '자료부족' : v.flags ? '보류' : v.total>=80 ? '후보' : v.total>=65 ? '관찰' : '제외';
-  return `<b style="color:${col};font-size:13px">${v.total}</b><div class="rsub" style="color:${col}">${lab}</div>`;
+  /* 괄호 안은 미래점수 — 앞날 전망표(매출성장·이익률·ROE·밸류에이션)로 낸 전망 종합 점수(0~100).
+     전망표를 아직 넣지 않은 종목은 — 로 둔다 */
+  let fut='—';
+  try{
+    if(typeof fcstEval==='function' && typeof fcstDrawRows==='function'){
+      const ev=fcstEval(fcstDrawRows(code));
+      if(ev && ev.total!=null) fut=ev.total;
+    }
+  }catch(e){}
+  return `<b style="color:${col};font-size:13px">${v.total}</b>`
+       + `<span style="color:#8b949e;font-size:11.5px">(${fut})</span>`
+       + `<div class="rsub" style="color:${col}">${lab}</div>`;
 }
 /* 장기종목 하위 구분: kr=국내 6자리 · us=해외 티커
    채점 항목이 서로 달라(해외는 ROE·부채비율이 없음) 한 표에 섞지 않는다 */
