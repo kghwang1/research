@@ -11841,12 +11841,23 @@ async function ensureShort(codes){
   const need=codes.filter(c=>c&&!(c in SHORT));
   if(!need.length||shortLoading||!SRV_URL) return;
   shortLoading=true;
-  try{
-    const r=await fetch(SRV_URL+'/?shorts='+encodeURIComponent(need.join(',')));
-    const d=await r.json();
-    ((d&&d.items)||[]).forEach(q=>{ if(q&&q.code) SHORT[q.code]=q.ok?q.data:null; });
-    saveShortCache();
-  }catch(e){}
+  /* 20개씩 나눠 조회한다 (보고서·외국인 조회와 같은 방식).
+     한 번에 다 보내면 응답에서 일부가 빠지는 일이 있다. */
+  for(let i=0;i<need.length;i+=20){
+    const part=need.slice(i,i+20);
+    try{
+      const r=await fetch(SRV_URL+'/?shorts='+encodeURIComponent(part.join(',')));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{ if(q&&q.code) SHORT[q.code]=q.ok?q.data:null; });
+    }catch(e){}
+    /* 응답에 안 들어온 종목은 '자료 없음'으로 못박아 둔다.
+       이걸 빼면 그 종목은 계속 '아직 안 받은 것'으로 남는다.
+       그러면 표를 다시 그릴 때마다 또 조회하고, 조회가 끝나면 또 다시 그리는
+       되풀이가 멈추지 않는다. 표가 쉴 새 없이 새로 그려지면 칸을 눌러도
+       누르는 사이에 칸이 바뀌어 버려 클릭이 아예 성립하지 않는다. */
+    part.forEach(c=>{ if(!(c in SHORT)) SHORT[c]=null; });
+  }
+  saveShortCache();
   shortLoading=false;
   // 현재 활성 포트 재렌더
   if(valMarket==='kr') renderKrTable();
@@ -12800,11 +12811,6 @@ let chartRowsOverride = null;   // {port, rows:[[code,name],...]}
 function openChartView(initPort, initCode, initName, rowsOverride){
   const ov=$('#chartFullScreen'); if(!ov) return;
   ov.style.display='flex';
-  /* 포트폴리오 표는 전체화면 오버레이(#valFull)라 섹션 전환만으로는 안 사라진다.
-     goSub·분석(fin3-go)에서는 이미 닫고 넘어가는데, 표에서 현재가를 눌러
-     여기로 들어오는 길에만 이 정리가 빠져 있어 표가 그대로 남아 있었다. */
-  { const vf=$('#valFull'); if(vf) vf.classList.remove('on'); }
-  document.body.classList.remove('topbar-mode');
   document.body.style.overflow='hidden';
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
