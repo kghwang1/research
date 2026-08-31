@@ -3455,12 +3455,26 @@ function renderKrTable(){
     renderKrTable();
     toast('종목이 삭제됐습니다');
   }; });
-  // 한국 현재가 셀 클릭 → 챠트
-  t.querySelectorAll('td.krlive').forEach(td=>{ td.onclick=()=>{
-    const c = td.dataset.code;
-    const nm = td.dataset.name;
-    if(c) openChart(c, nm, domVisRows(t,'td.krlive','code','name'));
-  }; });
+  /* 한국 현재가 셀 클릭 → 챠트
+     칸마다 onclick 을 다는 대신 표에 한 번만 달아 둔다(위임).
+     표를 다시 그려도(시세·외국인·공매도 자료가 늦게 오면 여러 번 다시 그린다)
+     연결이 끊기지 않는다. 표 요소 자체는 바뀌지 않으므로 한 번만 단다. */
+  if(!t._krliveBound){
+    t._krliveBound = true;
+    t.addEventListener('click', ev=>{
+      const cell = (ev.target && ev.target.closest) ? ev.target.closest('td.krlive') : null;
+      if(!cell || !t.contains(cell)) return;
+      const c = cell.dataset.code;
+      if(!c) return;
+      // 조용히 실패하면 원인을 알 수 없어, 막히면 화면에 이유를 띄운다
+      try{
+        openChart(c, cell.dataset.name, domVisRows(t,'td.krlive','code','name'));
+      }catch(e){
+        try{ toast('챠트 열기 실패: '+(e&&e.message?e.message:e)); }catch(_){}
+        console.error('현재가 → 챠트 실패', e);
+      }
+    });
+  }
   const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
   ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes);
 }
