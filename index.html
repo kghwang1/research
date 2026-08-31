@@ -7324,10 +7324,13 @@ function pnlUpdateVerdictOnly(){
 const IDX3 = [
   { k:'kospi',  n:'코스피',  code:'KOSPI',  src:'naver', c:'#ef5350', mkt:'kr' },
   { k:'kosdaq', n:'코스닥',  code:'KOSDAQ', src:'naver', c:'#f0a836', mkt:'kr' },
-  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#ef5350', mkt:'us' },
-  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#ffd54f', mkt:'us' },
-  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#58a6ff', mkt:'us' },
+  { k:'snp',    n:'S&P500',  code:'^GSPC',  src:'yahoo', c:'#ef5350', mkt:'us', z:2 },
+  { k:'nasdaq', n:'나스닥',  code:'^IXIC',  src:'yahoo', c:'#ffd54f', mkt:'us', z:3 },
+  { k:'mags',   n:'M7',      code:'MAGS',   src:'yahoo', c:'#58a6ff', mkt:'us', z:1 },
 ];
+/* z = 겹쳤을 때 위로 올라오는 순서 (클수록 위).
+   M7 은 나스닥과 거의 붙어 다녀서, 먼저 그리던 시절에는 나스닥 선을 덮어 가렸다.
+   지수(나스닥·S&P)를 M7 위에 올린다. 값이 없는 계열은 순서와 무관하게 안 그려진다. */
 const idx3Of = mkt => IDX3.filter(se=>se.mkt===mkt);
 const IDX3_DAYS = 260;   // 받아오는 총 일수 (약 52주)
 const IDX3_VIEW = 10;    // 한 화면에 보이는 일수
@@ -7363,23 +7366,42 @@ async function loadIdx3(){
     }
   }catch(e){}
   try{
-    const got = await Promise.all(IDX3.map(async se=>{
+    /* 한 계열 받아오기 — 실패하면 잠깐 쉬었다 한 번 더 시도한다.
+       다섯 계열을 한꺼번에 부르면 그 중 하나가 빈손으로 돌아오는 일이 있는데,
+       그러면 그 지수만 선이 통째로 사라진다. 빈 배열도 실패로 본다. */
+    const fetchOne = async (se, retry) => {
       try{
         const u = se.src==='yahoo'
           ? SRV_URL+'/?yahooChart='+encodeURIComponent(se.code)+'&range=1y&interval=1d'
           : SRV_URL+'/?naverChart='+se.code+'&timeframe=day&days=400';
         const r=await fetch(u);
         const d=await r.json();
-        if(!d||!d.ok) return null;
+        if(!d||!d.ok) throw new Error('ok=false');
         // 응답 배열 이름이 경로마다 다름: 네이버 data / 야후 ohlcv
-        return Array.isArray(d.data) ? d.data
-             : Array.isArray(d.ohlcv) ? d.ohlcv
-             : Array.isArray(d.rows)  ? d.rows : null;
-      }catch(e){ return null; }
-    }));
+        const rows = Array.isArray(d.data) ? d.data
+                   : Array.isArray(d.ohlcv) ? d.ohlcv
+                   : Array.isArray(d.rows)  ? d.rows : null;
+        if(!rows || !rows.length) throw new Error('empty');
+        return rows;
+      }catch(e){
+        if(retry>0){ await new Promise(f=>setTimeout(f,700)); return fetchOne(se, retry-1); }
+        return null;
+      }
+    };
+    const OLD = IDX3_DATA;                       // 직전에 그리고 있던 자료 (실패 시 되살림)
+    const got = await Promise.all(IDX3.map(se=>fetchOne(se,1)));
     // 날짜 교집합으로 맞춘다 (선물은 휴장일이 다를 수 있음)
     const maps = got.map(rows => {
       const m={}; (rows||[]).forEach(x=>{ if(x && x.date && x.close!=null) m[x.date]=x.close; }); return m;
+    });
+    /* 두 번 다 실패한 계열은 직전에 갖고 있던 값을 그대로 쓴다.
+       그래야 한 지수가 잠깐 안 오는 날에도 선이 사라지지 않는다. */
+    IDX3.forEach((se,i)=>{
+      if(Object.keys(maps[i]).length) return;
+      if(!OLD || !Array.isArray(OLD.dates) || !Array.isArray(OLD[se.k])) return;
+      const om={};
+      OLD.dates.forEach((dt,j)=>{ if(OLD[se.k][j]!=null) om[dt]=OLD[se.k][j]; });
+      maps[i]=om;
     });
     // 국내·해외 휴장일이 달라 날짜 합집합을 쓰고, 빠진 날은 직전 값으로 채운다
     const all = new Set();
@@ -7434,12 +7456,13 @@ function drawIdx3One(sel, mkt){
   const xOf=i=> PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
 
   // 100일 중 최고가를 100으로 놓고 비율(%)로 그린다 → 네 지수가 한 축을 공유
-  const pct=(v,k)=> (v==null||!IDX3_MAX[k])?null:(v/IDX3_MAX[k])*100;
+  //  계열이 통째로 비어 있어도(예전 저장분) 터지지 않도록 키와 위치로 받는다
+  const pct=(k,i)=>{ const v=(d[k]||[])[i]; return (v==null||!IDX3_MAX[k])?null:(v/IDX3_MAX[k])*100; };
   /* 세로 범위는 그려지는 자료만으로 정한다.
      전에는 100% 를 늘 포함시켜 값이 70%대면 위쪽이 통째로 비었다.
      위아래에 같은 여백을 줘 선이 세로 가운데에 오게 한다. */
   let mn=Infinity, mx=-Infinity;
-  SER.forEach(se=>{ for(let i=from;i<to;i++){ const p=pct(d[se.k][i],se.k); if(p==null) continue; if(p<mn)mn=p; if(p>mx)mx=p; } });
+  SER.forEach(se=>{ for(let i=from;i<to;i++){ const p=pct(se.k,i); if(p==null) continue; if(p<mn)mn=p; if(p>mx)mx=p; } });
   if(!isFinite(mn)||!isFinite(mx)){ mn=95; mx=100; }
   const span0=Math.max(mx-mn, 1.5);          // 너무 평평하면 최소 폭을 준다
   const padY=span0*0.22;                     // 위아래 같은 여백 → 가운데 정렬
@@ -7453,11 +7476,11 @@ function drawIdx3One(sel, mkt){
     ctx.setLineDash([]);
   }
 
-  SER.forEach(se=>{
+  [...SER].sort((a,b)=>(a.z||0)-(b.z||0)).forEach(se=>{
     ctx.strokeStyle=se.c; ctx.lineWidth=se.dash?1.4:1.9; ctx.lineJoin='round';
     ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let st=false;
-    for(let i=0;i<n;i++){ const p=pct(d[se.k][at(i)],se.k); if(p==null){ st=false; continue; }
+    for(let i=0;i<n;i++){ const p=pct(se.k,at(i)); if(p==null){ st=false; continue; }
       const x=xOf(i), y=yOf(p); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); }
     ctx.stroke(); ctx.setLineDash([]);
   });
@@ -7483,7 +7506,7 @@ function drawIdx3One(sel, mkt){
     const x=xOf(idx3Hover-from);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
-    SER.forEach(se=>{ const p=pct(d[se.k][idx3Hover],se.k); if(p==null) return;
+    SER.forEach(se=>{ const p=pct(se.k,idx3Hover); if(p==null) return;
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(p),2.8,0,Math.PI*2); ctx.fill(); });
     const dtxt=String(d.dates[idx3Hover]).slice(2);
     ctx.font='bold 9px monospace'; ctx.textAlign='center';
@@ -7510,7 +7533,13 @@ function idx3Tip1(sel, mkt){
   const SER=idx3Of(mkt);
   const MAXLINE=Math.max(...['kr','us'].map(m=>idx3Of(m).length));   // 가장 많은 줄 수에 맞춘다
   el.innerHTML = SER.map(se=>{
-    const v=d[se.k][idx3Hover];
+    const arr = d[se.k]||[];
+    const v=arr[idx3Hover];
+    // 그 날만 빈 것인지, 계열 자체가 안 온 것인지 구분해 보여준다
+    if(!arr.some(x=>x!=null)){
+      return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
+           + `<b>${se.n}:</b><span class="tv" style="color:#8b949e">자료없음</span></div>`;
+    }
     const rel = (v!=null && IDX3_MAX[se.k]) ? ' ('+Math.round((v/IDX3_MAX[se.k])*100)+'%)' : '';
     return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
          + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}</span></div>`;
@@ -12757,6 +12786,11 @@ let chartRowsOverride = null;   // {port, rows:[[code,name],...]}
 function openChartView(initPort, initCode, initName, rowsOverride){
   const ov=$('#chartFullScreen'); if(!ov) return;
   ov.style.display='flex';
+  /* 포트폴리오 표는 전체화면 오버레이(#valFull)라 섹션 전환만으로는 안 사라진다.
+     goSub·분석(fin3-go)에서는 이미 닫고 넘어가는데, 표에서 현재가를 눌러
+     여기로 들어오는 길에만 이 정리가 빠져 있어 표가 그대로 남아 있었다. */
+  { const vf=$('#valFull'); if(vf) vf.classList.remove('on'); }
+  document.body.classList.remove('topbar-mode');
   document.body.style.overflow='hidden';
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
