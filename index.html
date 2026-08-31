@@ -911,6 +911,13 @@
   .dep-read .k{color:#8b949e}
   .dep-read .row{margin-top:5px}
   .dep-read .num{font-family:monospace;font-weight:700}
+  /* 오늘·이번 주·이달 변화 표 — 글자 크기와 색은 해설 본문 값을 그대로 쓴다 */
+  .dep-read .dep-tbl-wrap{margin-top:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .dep-read .dep-tbl{border-collapse:collapse;font-size:inherit;line-height:1.6}
+  .dep-read .dep-tbl th{color:#8b949e;font-weight:600;text-align:right;white-space:nowrap;
+    padding:2px 6px 4px;border-bottom:1px solid var(--line)}
+  .dep-read .dep-tbl td{text-align:right;white-space:nowrap;padding:4px 6px 2px}
+  .dep-read .dep-tbl th.lbl,.dep-read .dep-tbl td.lbl{text-align:left;padding-left:0}
   .dep-tip{min-height:62px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
@@ -7814,10 +7821,8 @@ function depReadOut(){
     const col = p>0.05 ? '#ef5350' : p<-0.05 ? '#3fb950' : '#8b949e';
     return '<span class="num" style="color:'+col+'">'+(q>=0?'+':'')+q.toFixed(1)+'천억 ('+pct1(p)+')</span>';
   };
-  const line=(base,ttl)=> base
-    ? '<div class="row">· <b>'+ttl+'</b> — 예탁금 '+one(last,base,'deposit')
-      + ', 신용잔고 '+one(last,base,'credit')+'</div>'
-    : '';
+  /* 한 칸: 자료가 없으면 빈 표시 */
+  const cell=(base,k)=> base ? one(last,base,k) : '<span class="k">—</span>';
 
   const ratio=(last.credit!=null && last.deposit) ? last.credit/last.deposit*100 : null;
   const dM=pc(last,mBase,'deposit'), cM=pc(last,mBase,'credit');
@@ -7826,10 +7831,19 @@ function depReadOut(){
   let h='<b>[해설]</b> ';
   h+='<span class="k">고객예탁금은 아직 주식을 사지 않은 대기자금, 신용잔고는 빚내서 산 주식입니다.</span>';
 
-  // ① 오늘 ② 이번 주 ③ 이달
-  h+=line(prev,  '오늘 ('+String(last.date).slice(5).replace('-','/')+', 전일 대비)');
-  h+=line(wBase, '이번 주');
-  h+=line(mBase, '이달 ('+Number(String(last.date).slice(5,7))+'월)');
+  // ① 오늘 ② 이번 주 ③ 이달 — 한 표에 모아 세로로 견주어 볼 수 있게
+  {
+    const dLab='오늘 ('+String(last.date).slice(5).replace('-','/')+', 전일대비)';
+    const mLab='이달 ('+Number(String(last.date).slice(5,7))+'월)';
+    let tb='<div class="dep-tbl-wrap"><table class="dep-tbl"><thead><tr>'
+         + '<th class="lbl">구분</th><th>'+dLab+'</th><th>이번 주</th><th>'+mLab+'</th>'
+         + '</tr></thead><tbody>';
+    [['예탁금','deposit'],['신용잔고','credit']].forEach(([nm,k])=>{
+      tb+='<tr><td class="lbl"><b>'+nm+'</b></td>'
+        + '<td>'+cell(prev,k)+'</td><td>'+cell(wBase,k)+'</td><td>'+cell(mBase,k)+'</td></tr>';
+    });
+    h+=tb+'</tbody></table></div>';
+  }
 
   // ④ 구간 흐름 — 방향이 꺾인 자리까지 짚어준다
   const t1=depTrendText('credit','신용잔고'), t2=depTrendText('deposit','고객예탁금');
