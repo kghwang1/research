@@ -8421,12 +8421,12 @@ function anlDraw(){
     const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
     const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
 
-    // 실적 구간 — 실선
-    ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash([]);
+    // 실적 구간 — 실선. 다만 계열에 dash 가 지정돼 있으면 그 모양의 점선으로 그린다
+    ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash(se.dash||[]);
     ctx.beginPath(); let st=false;
     a.forEach((x,i)=>{ if(x==null){ st=false; return; }
       const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
-    ctx.stroke();
+    ctx.stroke(); ctx.setLineDash([]);
 
     // 전망 구간 — 같은 색 점선 (마지막 실적에서 이어 붙인다)
     if(fv.some(x=>x!=null)){
@@ -8465,8 +8465,9 @@ function anlDraw(){
   ctx.font='11px sans-serif'; ctx.textAlign='left';
   let lx=PAD.l+2;
   SER.forEach(se=>{
-    ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash([]);
+    ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash(se.dash?[3,2.5]:[]);
     ctx.beginPath(); ctx.moveTo(lx, PAD.t-5); ctx.lineTo(lx+11, PAD.t-5); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.fillStyle=se.c;
     ctx.fillText(se.n, lx+14, PAD.t-2);
     lx += 14 + ctx.measureText(se.n).width + 12;
@@ -8581,7 +8582,7 @@ window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDraw
 const FIN2_SERIES = [
   { k:'per',   n:'PER',    c:'#ffd54f' },   // ROE 는 첫 그래프에 있으므로 여기선 PER 로
   { k:'pbr',   n:'PBR',    c:'#ef5350' },
-  { k:'quick', n:'당좌비율', c:'#58a6ff' },
+  { k:'quick', n:'당좌비율', c:'#58a6ff', dash:[5,4] },   // 실적 구간도 점선으로
 ];
 let ANL_HOVER2=-1;
 
@@ -8642,12 +8643,12 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
     const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
 
-    // 실적 — 실선
-    ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash([]);
+    // 실적 — 실선. 계열에 dash 가 지정돼 있으면 그 모양의 점선으로 그린다
+    ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash(se.dash||[]);
     ctx.beginPath(); let st=false;
     a.forEach((x,i)=>{ if(x==null){ st=false; return; }
       const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
-    ctx.stroke();
+    ctx.stroke(); ctx.setLineDash([]);
 
     // 전망 — 같은 색 점선
     if(fv.some(x=>x!=null)){
@@ -8681,8 +8682,9 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
   ctx.font='11px sans-serif'; ctx.textAlign='left';
   let lx=PAD.l+2;
   series.forEach(se=>{
-    ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash([]);
+    ctx.strokeStyle=se.c; ctx.lineWidth=2.4; ctx.setLineDash(se.dash?[3,2.5]:[]);
     ctx.beginPath(); ctx.moveTo(lx, PAD.t-5); ctx.lineTo(lx+11, PAD.t-5); ctx.stroke();
+    ctx.setLineDash([]);
     ctx.fillStyle=se.c; ctx.fillText(se.n, lx+14, PAD.t-2);
     lx += 14 + ctx.measureText(se.n).width + 12;
   });
@@ -11466,7 +11468,7 @@ let fin3Busy = false;
 const FIN3_SERIES = [
   { k:'salesGrowth', n:'매출증가율', c:'#ef5350' },
   { k:'roe',         n:'ROE',       c:'#ffd54f' },
-  { k:'debt',        n:'부채비율',   c:'#58a6ff' },
+  { k:'debt',        n:'부채비율',   c:'#58a6ff', dash:[5,4] },   // 실적 구간도 점선으로
 ];
 /* 해외는 ROE·부채비율이 오지 않는다. ROA 와 영업이익률로 대신 그린다. */
 const FIN3_SERIES_US = [
