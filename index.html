@@ -5149,7 +5149,7 @@ function etfResetMarket(market, tableEl, cfg, btn){
 }
 // ══════ 선정주 포트폴리오 (관심·투자 통합, 배당 페이지와 동일 구조) ══════
 /* 선정주 거르기 — 국내·국외 둘 다 해제면 전부 보여준다 (기본값) */
-let selFilter = { kr:false, us:false };
+let selFilter = { kr:true, us:false };   // 처음 열면 국내만 보이게 한다 (둘 다 해제하면 전부)
 let selData = {};  // code → {price, rate, roe, ...}
 
 // 통합 종목 목록: kg_watch_rows(관심) + kg_invpf_rows(투자) 전부 병합
@@ -5657,8 +5657,10 @@ function renderSelect(box){
   const all = selAllRows();
   // 필터 적용 — 관심/투자는 OR(둘 다 체크하면 둘 중 하나라도 해당되면 표시)
   const filtered = all.filter(it => {
-    if(it.isUS && !f.us) return false;
-    if(!it.isUS && !f.kr) return false;
+    // 시장 필터는 선정주 표와 같은 규칙 — 둘 다 해제하면 전부 보인다
+    if(f.kr || f.us){
+      if(it.isUS ? !f.us : !f.kr) return false;
+    }
     if(f.watch || f.invest){
       if(!((f.watch && it.watch) || (f.invest && it.invest))) return false;
     }
