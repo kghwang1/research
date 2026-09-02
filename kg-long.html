@@ -115,6 +115,9 @@ table.fin{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
 table.fin th,table.fin td{padding:5px 8px;border-bottom:1px solid #21252e;text-align:right;white-space:nowrap}
 table.fin th:first-child,table.fin td:first-child{text-align:left;color:var(--tx2)}
 table.fin thead th{color:var(--tx3);font-weight:600;font-size:11px}
+/* 분기 재무 표에 덧붙인 증권사 전망 칸 — 실적과 눈으로 구분되게 색을 달리한다 */
+table.fin th.fcc,table.fin td.fcc{background:#2b2411;color:#f2c800}
+table.fin th.fc1,table.fin td.fc1{border-left:2px solid #7a6a1f}
 .scroll{overflow-x:auto}
 .msg{padding:30px 10px;color:var(--tx3);text-align:center;line-height:1.8}
 .dbg{margin-top:14px}
@@ -820,7 +823,23 @@ function renderMain(){
     </div></div>`;
   const fin=c.fin, n=(fin.period&&fin.period.length)||fin._n||0;
   const cols=[]; for(let i=0;i<n;i++) cols.push(fin.period?(fin.period[i]||('Q'+(i+1))):('Q'+(i+1)));
-  const fr=(l,k,u)=>fin[k]?`<tr><td>${l}</td>${fin[k].map(v=>`<td>${fmt(v,u)}</td>`).join('')}</tr>`:'';
+  /* 보고서에서 읽은 증권사 전망을 같은 표 오른쪽에 이어 붙인다.
+     실적이 아니라 전망이므로 칸 색을 달리하고 경계선을 하나 긋는다. */
+  const fcR=(typeof fcstOf==='function'?fcstOf(cur):[]).slice()
+    .sort((a,b)=>String(a.year||'').localeCompare(String(b.year||'')));
+  const fcHead=fcR.map((r,i)=>`<th class="fcc${i?'':' fc1'}">${esc(r.year||'')}</th>`).join('');
+  /* l=이름, k=실적 항목, u=단위, fk=전망 항목(없으면 전망 칸은 —) */
+  const fr=(l,k,u,fk)=>{
+    if(!fin[k] && !fcR.length) return '';
+    const q = fin[k] ? fin[k].map(v=>`<td>${fmt(v,u)}</td>`).join('')
+                     : cols.map(()=>'<td>—</td>').join('');
+    const f = fcR.map((r,i)=>{
+      /* 보고서에 적힌 그대로 보여 준다 — 숫자로 바꾸면 5.0 이 5 로 줄어든다 */
+      const t = fk ? String(r[fk]==null?'':r[fk]).trim() : '';
+      return `<td class="fcc${i?'':' fc1'}">${t===''?'—':esc(t)+(u||'')}</td>`;
+    }).join('');
+    return `<tr><td>${l}</td>${q}${f}</tr>`;
+  };
 
   done(`
   <div class="verdict">
@@ -858,10 +877,15 @@ function renderMain(){
         단순투자는 대부분 인덱스, 일반투자·경영참여가 실제 판단입니다.</div>
     </div>
   </div>
-  <div class="card" style="margin-top:12px"><h3>분기 재무 <em>최근 ${n}분기</em></h3>
-    <div class="scroll"><table class="fin"><thead><tr><th>항목</th>${cols.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead>
-    <tbody>${fr('ROE','roe','%')}${fr('영업이익률','opm','%')}${fr('순이익률','npm','%')}
-    ${fr('부채비율','debt','%')}${fr('당좌비율','quick','%')}${fr('PER','per','')}${fr('PBR','pbr','')}</tbody></table></div></div>
+  <div class="card" style="margin-top:12px"><h3>분기 재무 <em>최근 ${n}분기${fcR.length?` + 전망 ${fcR.length}년`:''}</em></h3>
+    <div class="scroll"><table class="fin"><thead><tr><th>항목</th>${cols.map(x=>`<th>${esc(x)}</th>`).join('')}${fcHead}</tr></thead>
+    <tbody>${fr('매출증가율','salesGrowth','%','sales')}${fr('ROE','roe','%','roe')}${fr('영업이익률','opm','%','opm')}${fr('순이익률','npm','%')}
+    ${fr('부채비율','debt','%','debt')}${fr('당좌비율','quick','%')}${fr('PER','per','','per')}${fr('PBR','pbr','','pbr')}</tbody></table></div>
+    ${fcR.length?`<div class="hint" style="padding:7px 2px 0">
+      <b style="color:#f2c800">색이 다른 오른쪽 칸</b>은 실적이 아니라 <b>증권사 전망</b>입니다
+      ${fcR[0].broker?`— ${esc(fcR[0].broker)}${fcR[0].at?' ('+esc(fcR[0].at)+')':''}`:''}.
+      순이익률·당좌비율은 보고서에 없어 <b>—</b> 로 둡니다.
+      전망은 낙관 쪽으로 기우는 경향이 있으니, 분기 실적이 나올 때마다 왼쪽 칸과 견줘 보세요.</div>`:''}</div>
   ${howHtml()}
   <details class="dbg"><summary>원자료 보기</summary><pre>${esc(JSON.stringify(c.raw,null,1)).slice(0,20000)}</pre></details>`);
 
