@@ -8789,6 +8789,14 @@ function fcstDrawRows(code){
 }
 
 // 그래프 — 계열마다 자기 축 (단위가 달라 한 축에 못 올림)
+/* 분석 그래프 X축 날짜·연도 글자
+   작고 어두워 잘 안 보인다는 지적이 있어 10.5px → 11.55px (10%) 로 키우고
+   색을 한 단계씩 밝게 올렸다. 실적 분기보다 전망 연도가 밝은 관계는 그대로 둔다.
+   두 캔버스(anlCanvas · anlCanvas2)가 같은 값을 쓴다. */
+const ANL_X_FONT = '11.55px monospace';
+const ANL_X_HIST = '#8b949e';   // 실적 분기 (이전 #6e7681)
+const ANL_X_FCST = '#c9d1d9';   // 전망 연도 (이전 #8b949e)
+
 function anlDraw(){
   const cv=$('#anlCanvas'); if(!cv) return;
   const d=ANL_CODE?FIN3[ANL_CODE]:null;
@@ -8874,14 +8882,14 @@ function anlDraw(){
     se._yOf=yOf;
   });
   // X축 분기
-  ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
+  ctx.fillStyle=ANL_X_HIST; ctx.font=ANL_X_FONT; ctx.textAlign='center';
   per.forEach((p,i)=>{
     const lab=perLabel(p);
     if(n>6 && i%2===1) return;
     ctx.fillText(lab, xOf(i), H-5);
   });
   // 전망 연도 — 조금 밝게 적어 실적과 구분한다
-  ctx.fillStyle='#8b949e';
+  ctx.fillStyle=ANL_X_FCST;
   fSorted.forEach((r,k)=>{
     const y=String(r.year||'').replace(/\.\d+/,'').replace(/^20/,'');
     if(y) ctx.fillText(y, xOf(nHist+k), H-5);
@@ -9095,10 +9103,10 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     se._yOf=yOf;
   });
   // X축 분기
-  ctx.fillStyle='#6e7681'; ctx.font='10.5px monospace'; ctx.textAlign='center';
+  ctx.fillStyle=ANL_X_HIST; ctx.font=ANL_X_FONT; ctx.textAlign='center';
   per.forEach((p,i)=>{ const lab=perLabel(p);
     if(n>6 && i%2===1) return; ctx.fillText(lab, xOf(i), H-5); });
-  ctx.fillStyle='#8b949e';
+  ctx.fillStyle=ANL_X_FCST;
   fSorted.forEach((r,k)=>{
     const y=String(r.year||'').replace(/\.\d+/,'').replace(/^20/,'');
     if(y) ctx.fillText(y, xOf(nHist+k), H-5);
@@ -12632,7 +12640,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-03 리포트 4건 · STUDY · 순매수 막대 · 장기점수 배점 크게';
+const KG_APP_BUILD = '2026-09-03 리포트 4건 · STUDY · 순매수 막대 · 배점/X축 글자 크게';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
