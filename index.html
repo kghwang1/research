@@ -3581,6 +3581,7 @@ function sortValOf(kind, code, row){
 function hdrFin(){
   let q='';
   for(const c in FIN3){
+    if(!FIN3[c]) continue;   // 조회 실패로 null 을 넣어 둔 종목은 건너뛴다
     const ps=(FIN3[c].periods||[]).filter(Boolean);
     if(ps.length){ const p=String(ps[ps.length-1]);
       if(p.length>=6) q=p.slice(2,4)+'.'+Math.ceil(parseInt(p.slice(4,6),10)/3)+'분기';
@@ -12640,7 +12641,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-03 리포트 4건 · STUDY · 순매수 막대 · 배점/X축 글자 크게';
+const KG_APP_BUILD = '2026-09-03 한국(체) 클릭 복구 · 포트 유지 · STUDY · 순매수 막대';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
@@ -13695,8 +13696,29 @@ function goSub(which){
     if(typeof renderMarket==='function') renderMarket();
     return;
   }
+/* 종목분석(챠트·분석·장기투자·보고서) 중 지금 열려 있는 화면이 보고 있는 포트를 돌려준다.
+   네 화면 모두 자기 <select> 에 현재 포트를 항상 맞춰 두므로 그 값을 그대로 읽는다.
+   포트 화면에 없는 값(지수·해석 등)이면 null 을 주어 부르는 쪽이 기본값을 쓰게 한다. */
+function anlCurrentPort(){
+  const shown = id=>{ const el=document.getElementById(id); return !!el && el.style.display!=='none'; };
+  let selId = null;
+  if(shown('chartFullScreen'))      selId='chartPortSel';
+  else if(shown('longFullScreen'))  selId='longPortSel';
+  else if(shown('rptFullScreen'))   selId='rptPortSel';
+  else { const hub=document.getElementById('hub');
+         if(hub && hub.classList.contains('on')) selId='anlPortSel'; }
+  if(!selId) return null;
+  const el=document.getElementById(selId); if(!el) return null;
+  const v=String(el.value||'').trim(); if(!v) return null;
+  // 포트 화면에 실제로 그 탭이 있을 때만 인정한다
+  return document.querySelector('#valSub .subtab[data-m="'+v+'"]') ? v : null;
+}
+
   // 포트 — 상단 메뉴는 그대로 두고 그 아래에 한국(체) 포트 화면을 연다
   if(which==='port'){
+    /* 종목분석에서 넘어온 경우 그쪽에서 보고 있던 포트를 그대로 연다.
+       아래 close* 를 부르면 화면이 닫혀 값을 못 읽으므로 반드시 먼저 읽는다. */
+    const wantPort = (typeof anlCurrentPort==='function' && anlCurrentPort()) || 'kr';
     closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
     if(typeof appChromeRestore==='function') appChromeRestore();
     document.body.classList.remove('anl-mode');
@@ -13708,7 +13730,7 @@ function goSub(which){
     const tb=document.querySelector('.tab[data-t="port"]'); if(tb) tb.classList.add('on');
     const sc=$('#port'); if(sc) sc.classList.add('on');
     topPaint('port');
-    if(typeof openPort==='function') openPort('kr');
+    if(typeof openPort==='function') openPort(wantPort);
     return;
   }
   // 추세 — 상단 메뉴 아래에 추세 화면을 연다
@@ -13964,8 +13986,12 @@ const usTickerOf = c => String(c||'').replace(/^US:/i,'').trim().toUpperCase();
 async function ensureFin3(codes, onDone){
   if(!SRV_URL || fin3Busy) return;
   const all=[...new Set((codes||[]).map(c=>String(c||'').trim()).filter(Boolean))];
-  const kr=all.filter(c=>/^\d{6}$/.test(c)).filter(c=>!FIN3[c]);
-  const us=all.filter(c=>isUsCode(c)).filter(c=>!FIN3[c]);
+  /* !FIN3[c] 로 거르면 실패해서 null 로 둔 종목을 매번 다시 묻게 되고,
+     그때마다 onDone 이 표를 다시 그려 무한 재렌더가 된다.
+     표가 계속 교체되면 mousedown 과 mouseup 사이에 요소가 사라져 클릭이 먹지 않는다.
+     (ensureShort 에서 같은 문제를 겪어 null 표시를 두는 방식으로 고쳤다) */
+  const kr=all.filter(c=>/^\d{6}$/.test(c)).filter(c=>!(c in FIN3));
+  const us=all.filter(c=>isUsCode(c)).filter(c=>!(c in FIN3));
   if(!kr.length && !us.length) return;
   fin3Busy=true;
   try{
@@ -13979,7 +14005,8 @@ async function ensureFin3(codes, onDone){
             roe:d.roe||null, debt:d.debt||null,
             pbr:d.pbr||null, per:d.per||null, profit:d.profit||null,
             opm:d.opm||null, npm:d.npm||null, quick:d.quick||null};
-        }catch(e){}
+          else FIN3[c]=null;   // 못 받았다는 표시 — 없으면 계속 다시 묻는다
+        }catch(e){ FIN3[c]=null; }
       }));
       if(i+2<kr.length) await new Promise(r=>setTimeout(r,180));
     }
@@ -13998,7 +14025,8 @@ async function ensureFin3(codes, onDone){
             opm:d.opm||null, npm:d.npm||null, quick:d.quick||null,
             op:d.op||null, ebitda:d.ebitda||null, sales:d.sales||null, us:true};
           }
-        }catch(e){}
+          else FIN3[c]=null;
+        }catch(e){ FIN3[c]=null; }
       }));
       if(i+2<us.length) await new Promise(r=>setTimeout(r,180));
     }
@@ -14223,8 +14251,13 @@ async function ensureShort(codes){
     const r=await fetch(SRV_URL+'/?shorts='+encodeURIComponent(need.join(',')));
     const d=await r.json();
     ((d&&d.items)||[]).forEach(q=>{ if(q&&q.code) SHORT[q.code]=q.ok?q.data:null; });
-    saveShortCache();
   }catch(e){}
+  /* 서버가 응답에서 빼먹었거나 요청 자체가 실패한 코드에도 null 을 남긴다.
+     안 남기면 need 가 계속 비지 않아 renderKrTable → ensureShort → renderKrTable 이 반복되고,
+     표가 계속 교체되면서 종목·현재가 클릭이 먹지 않는다.
+     (ensureReports·ensureForeign 은 이미 같은 방식으로 막아 두었다) */
+  need.forEach(c=>{ if(!(c in SHORT)) SHORT[c]=null; });
+  saveShortCache();
   shortLoading=false;
   // 현재 활성 포트 재렌더
   if(valMarket==='kr') renderKrTable();
