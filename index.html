@@ -474,6 +474,39 @@
   .pnl-dir .pd-nf-in .nf-apply{background:var(--accent2);color:#0a0a0a;font-weight:700;border-color:var(--accent2)}
   .pnl-dir .pd-nf-in input{width:64px;padding:5px 7px;border-radius:7px;border:1px solid #555;background:#0f1118;color:#eee;font-size:13px;text-align:right}
   .pnl-dir .pd-nf-in .signbtn{padding:4px 9px;font-size:12px}
+  /* ===== STUDY (공부방) ===== */
+  .stu-bar{display:flex;gap:8px;align-items:stretch;margin:2px 0 12px}
+  .stu-bar .sf{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;transition:.15s}
+  .stu-bar .sf.on{background:var(--accent);color:#0c0e14;border-color:var(--accent)}
+  .stu-doc{padding:0 2px 40px;color:var(--ink);font-size:14.5px;line-height:1.75;
+    word-break:keep-all;overflow-wrap:anywhere}
+  .stu-doc h2{font-size:17px;font-weight:800;color:var(--accent);margin:26px 0 10px;
+    padding-bottom:7px;border-bottom:1px solid var(--line)}
+  .stu-doc h2:first-child{margin-top:4px}
+  .stu-doc h3{font-size:15px;font-weight:800;color:#f2c800;margin:20px 0 7px}
+  .stu-doc h4{font-size:14px;font-weight:700;color:var(--accent2);margin:15px 0 5px}
+  .stu-doc p{margin:8px 0}
+  .stu-doc b{color:#fff;font-weight:800}
+  .stu-doc ul{margin:8px 0;padding-left:18px}
+  .stu-doc li{margin:5px 0}
+  .stu-doc hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+  .stu-doc .lead{color:var(--sub);font-size:13.5px;line-height:1.7;margin:2px 0 14px}
+  .stu-doc code{background:#0f1118;border:1px solid var(--line);border-radius:5px;
+    padding:1px 5px;font-size:13px;color:#f2c800;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .stu-doc pre{background:#0f1118;border:1px solid var(--line);border-radius:10px;
+    padding:11px 13px;margin:10px 0;overflow-x:auto}
+  .stu-doc pre code{background:none;border:0;padding:0;color:#9fe8a0;font-size:13px;
+    line-height:1.65;white-space:pre;display:block}
+  .stu-doc table{width:100%;border-collapse:collapse;margin:11px 0;font-size:13.5px}
+  .stu-doc th{background:var(--panel2);color:var(--sub);font-weight:700;text-align:left;
+    padding:7px 9px;border:1px solid var(--line);white-space:nowrap}
+  .stu-doc td{padding:7px 9px;border:1px solid var(--line);vertical-align:top}
+  .stu-doc .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:8px;padding:10px 13px;margin:12px 0}
+  .stu-doc .note p{margin:5px 0}
+  .stu-doc .foot{margin-top:26px;color:var(--dim);font-size:12px}
+  .stu-empty{padding:60px 10px;text-align:center;color:var(--dim);font-size:14px;line-height:1.8}
   .pnl-wrap{padding:2px 0 20px;display:flex;flex-direction:column;gap:12px}
   .pnl-seg{display:flex;gap:6px}
   .pnl-seg button{flex:1;padding:9px 0;border:1px solid #555;border-radius:10px;background:transparent;color:var(--ink,#ddd);font-weight:700;font-size:14px}
@@ -994,11 +1027,12 @@
    <div class="tab" data-t="port">포트</div>
    <div class="tab" id="stkTabBtn">종목분석</div>
    <div class="tab" data-t="watch">방송</div>
+   <div class="tab" data-t="study">STUDY</div>
   </div>
  </div>
 </header>
 
-<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button></span></div>
+<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
 
 <div class="wrap">
 
@@ -1007,7 +1041,7 @@
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
    <div class="anl-row">
-    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
     <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
    </div>
    <div class="anl-row">
@@ -1139,6 +1173,327 @@
   </div>
  </section>
 
+
+ <!-- ===== STUDY (공부방) ===== -->
+ <section id="study">
+  <div class="stu-bar">
+   <button class="sf on" data-s="ind">투자지표</button>
+   <button class="sf" data-s="etc">기타</button>
+  </div>
+  <div id="stuInd" class="stu-doc">
+   <h2>증권사 리포트 투자지표 읽는 법</h2>
+
+<p class="lead">리포트 뒤쪽 투자지표 표에 나오는 항목들을 그룹별로 정리했습니다. 각 항목마다 정식 명칭, 계산식, 의미, 그리고 실제로 조심해야 할 점을 적었습니다. 맨 뒤에는 리포트를 펼쳤을 때 순서대로 돌려보는 점검표를 붙였습니다.</p>
+
+<h2>0. 표를 펼치기 전에 알아 둘 세 가지</h2>
+
+<h4>하나. 밸류에이션 줄은 연도마다 기준 주가가 다릅니다.</h4>
+<p>PER·PBR·EV/EBITDA는 과거 연도에는 그 해 주가를, 예상 연도에는 최근 주가를 씁니다. 그래서 <code>PER 11.5 → 23.7 → 26.4</code> 같은 흐름을 "점점 비싸졌다"로 읽으면 안 됩니다. 주가가 올랐을 뿐입니다. 같은 기준 주가를 쓰는 예상 연도끼리(2026F → 2027F → 2028F)만 서로 비교됩니다.</p>
+
+<h4>둘. 예상 연도의 기준 주가가 표지 현재가와 다른 경우가 흔합니다.</h4>
+<p>리포트 작성일과 표 생성일이 하루 이틀 어긋나면 그렇습니다. 배수를 그대로 믿기 전에 역산해서 확인하는 게 안전합니다.</p>
+
+<h4>셋. 지배주주 기준인지 확인하세요.</h4>
+<p>표 아래 각주에 보통 "주당지표 및 밸류에이션은 지배주주순익 및 지배주주지분 기준"이라고 적혀 있습니다. 자회사가 많은 회사는 전체 순이익과 지배주주 순이익 차이가 큽니다.</p>
+
+<hr>
+
+<h2>1. 주당지표</h2>
+
+<h3>EPS — 주당순이익 (Earnings Per Share)</h3>
+<pre><code>EPS = 지배주주순이익 ÷ 가중평균 발행주식수</code></pre>
+<p>주식 한 장이 1년에 벌어들인 돈입니다. 밸류에이션의 출발점이라 여기가 틀리면 뒤가 다 틀립니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li>분모가 <b>가중평균</b>입니다. 연중에 증자나 자사주 소각이 있으면 기말 발행주식수와 다릅니다.</li>
+<li><b>순이익 증가율과 EPS 증가율이 다르면 주식수가 변한 것입니다.</b> 순이익이 46% 느는데 EPS가 52% 늘었다면 주식수가 4~5% 줄었다는 뜻입니다. 자사주 소각인지 확인하세요.</li>
+<li>순이익 ÷ EPS로 주식수를 역산해서 연도별로 비교해 보면 변동이 바로 보입니다.</li>
+<li>전환사채나 신주인수권이 있는 회사는 기본 EPS가 큰 의미가 없습니다. <b>희석 EPS(diluted)</b> 또는 전환 후 주식수 기준으로 다시 계산해야 합니다.</li>
+</ul>
+
+<h3>BPS — 주당순자산 (Book-value Per Share)</h3>
+<pre><code>BPS = 지배주주지분 ÷ 발행주식수</code></pre>
+<p>회사를 지금 청산하면 주식 한 장에 돌아올 <b>장부상</b> 몫입니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li>장부가지 시가가 아닙니다. 오래전에 산 부동산이 많은 회사는 실제 가치보다 낮게 나옵니다.</li>
+<li>반대로 인수합병으로 생긴 <b>영업권(goodwill)</b>이 크면 BPS가 부풀려져 있습니다. 손상차손이 나면 한 번에 깎입니다. 무형자산 비중을 같이 보세요.</li>
+<li>BPS는 이익이 쌓이는 만큼 늘어납니다. 배당을 적게 하는 회사일수록 빨리 늘고, 그 결과 PBR이 자동으로 낮아집니다.</li>
+</ul>
+
+<h3>DPS — 주당배당금 (Dividend Per Share)</h3>
+<pre><code>배당성향 = DPS ÷ EPS</code></pre>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>DPS가 늘었다는 것과 배당을 더 준다는 것은 다릅니다.</b> DPS가 5% 오르는데 EPS가 50% 오르면 배당성향은 오히려 떨어집니다.</li>
+<li>배당 귀속 연도와 지급 시점이 다릅니다. 2026년 배당은 보통 2027년에 나갑니다. 그래서 재무제표의 DPS 줄과 현금흐름표의 배당금 지급 줄이 한 해씩 어긋나 보입니다. 오류가 아닙니다.</li>
+<li>순현금이 계속 쌓이는데 배당성향이 떨어지고 설비투자도 안 늘면, 그 돈의 용처를 리포트가 설명하는지 확인하세요.</li>
+</ul>
+
+<hr>
+
+<h2>2. 밸류에이션</h2>
+
+<h3>PER — 주가수익비율 (Price Earnings Ratio)</h3>
+<pre><code>PER = 주가 ÷ EPS = 시가총액 ÷ 순이익</code></pre>
+<p>지금 이익 수준으로 원금을 회수하는 데 걸리는 햇수입니다. PER 20배면 20년치 이익을 미리 주고 사는 셈입니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>일회성 이익이 섞이면 완전히 무의미합니다.</b> 영업이익 ÷ 세전이익 비율을 먼저 보세요. 이 비율이 낮으면(예: 세전이익의 절반 이상이 영업 밖에서 나오면) 그 해 PER은 읽을 필요가 없습니다. 자산 매각이익, 파생상품 평가이익, 염가매수차익 같은 것들이 대표적입니다.</li>
+<li><b>경기민감주는 PER이 가장 높을 때가 바닥입니다.</b> 이익이 바닥이면 분모가 작아 PER이 치솟습니다. 반대로 PER이 3~5배로 낮으면 이익 정점을 지났다는 신호일 수 있습니다. 반도체·조선·화학이 그렇습니다.</li>
+<li>적자면 계산이 안 됩니다. 표에 <code>N/A</code>나 이상한 값이 찍힙니다.</li>
+<li>목표 PER의 근거를 보세요. "과거 평균", "글로벌 피어 평균", "특정 시점에 받던 배수" 중 어느 것인지, 그리고 그 시점이 지금과 비교 가능한지가 핵심입니다.</li>
+</ul>
+
+<h3>PBR — 주가순자산비율 (Price Book-value Ratio)</h3>
+<pre><code>PBR = 주가 ÷ BPS = 시가총액 ÷ 자기자본</code></pre>
+<p>장부상 순자산의 몇 배를 주고 사느냐입니다.</p>
+<p><b>볼 것</b></p>
+<div class="note">
+<p><b>PBR = PER × ROE 입니다.</b> 항등식입니다.</p>
+<pre><code>PER × ROE = (시총 ÷ 순이익) × (순이익 ÷ 자본) = 시총 ÷ 자본 = PBR</code></pre>
+<p>이 관계가 실무에서 제일 쓸모 있습니다. <b>ROE가 높은 회사는 PBR이 높은 게 정상</b>입니다. PBR 4배를 비싸다고 하려면 ROE가 낮다는 근거가 있어야 하고, PBR 0.5배를 싸다고 하려면 ROE가 회복된다는 근거가 있어야 합니다.</p>
+</div>
+<ul>
+<li>PBR 1배 미만은 장부가 아래에서 거래된다는 뜻입니다. 자산가치주일 수도 있고, ROE가 자본비용에 못 미치는 회사일 수도 있습니다. 기업가치 제고계획에서 "PBR 1배 이상"을 목표로 내거는 이유가 이것입니다.</li>
+<li>자산이 거의 없는 사업(소프트웨어, 플랫폼)은 PBR이 원래 높게 나옵니다. 업종이 다르면 비교가 안 됩니다.</li>
+</ul>
+
+<h3>EV/EBITDA — 기업가치 대비 상각전영업이익</h3>
+<pre><code>EV (Enterprise Value, 기업가치) = 시가총액 + 순차입금
+순차입금 = 총차입금 − 현금및현금성자산(+ 단기금융상품)
+
+EBITDA (Earnings Before Interest, Taxes,
+        Depreciation and Amortization)
+       = 영업이익 + 유형자산 감가상각비 + 무형자산 상각비</code></pre>
+<p>회사를 <b>빚까지 떠안고 통째로 인수</b>할 때 드는 돈을, 그 회사가 만들어내는 현금으로 나눈 값입니다. 몇 년이면 인수대금을 뽑느냐입니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>PER과 크게 벌어지면 이유가 둘 중 하나입니다.</b> 순현금이 많으면 EV가 시총보다 작아져 EV/EBITDA가 PER보다 훨씬 낮게 나옵니다. 빚이 많으면 반대로 더 높게 나옵니다. PER 26배인데 EV/EBITDA가 17배라면 그 회사는 현금부자입니다.</li>
+<li><b>감가상각비를 다시 더해주기 때문에 장치산업이 실제보다 좋아 보입니다.</b> 반도체·조선·정유처럼 설비투자가 계속 필요한 회사는 EBITDA가 실제 쓸 수 있는 현금이 아닙니다. <b>반드시 CAPEX와 같이 보세요.</b> EBITDA에서 CAPEX를 빼면 남는 게 별로 없는 회사가 많습니다.</li>
+<li>자본구조와 감가상각 정책의 영향을 빼주기 때문에 국가·회계기준이 다른 회사끼리 비교할 때 유리합니다. 해외 피어 비교에 자주 쓰이는 이유입니다.</li>
+</ul>
+
+<h3>그 밖에 자주 나오는 배수</h3>
+<table>
+<tr><th>지표</th><th>계산</th><th>언제 쓰나</th></tr>
+<tr><td>PSR (Price Sales Ratio)</td><td>시총 ÷ 매출</td><td>적자라 PER이 안 나올 때. 성장 초기 기업</td></tr>
+<tr><td>PCR / P/CF</td><td>시총 ÷ 영업현금흐름</td><td>이익의 질을 의심할 때</td></tr>
+<tr><td>SPS</td><td>매출 ÷ 주식수</td><td>PSR 계산용</td></tr>
+<tr><td>CFPS</td><td>영업현금흐름 ÷ 주식수</td><td>P/CF 계산용</td></tr>
+</table>
+
+<hr>
+
+<h2>3. 성장성</h2>
+
+<h3>매출증가율 / 영업이익증가율 / EPS증가율</h3>
+<pre><code>증가율 = (올해 ÷ 작년 − 1) × 100</code></pre>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>EPS 증가율 ≠ 순이익 증가율.</b> 차이가 나면 주식수가 변한 것입니다.</li>
+<li><b>기저효과를 걷어내세요.</b> 전년이 유난히 나빴으면 증가율이 커 보입니다. 2년 전 대비 연평균(CAGR)으로 다시 보거나, 절대 금액으로 보면 실체가 보입니다.</li>
+<li><b>분기 YoY는 전년 동기와 비교하는 것입니다.</b> 리포트가 전년동기 칸에 엉뚱한 분기 숫자를 넣어 놓는 실수가 종종 있습니다. 같은 리포트의 분기 실적표와 대조해 보세요.</li>
+<li>YoY는 계절성 있는 업종에, QoQ는 턴어라운드 국면을 볼 때 유용합니다. 둘 다 봐야 합니다.</li>
+<li><b>흑전 / 적전 / 적지 표기</b>는 증가율 계산이 불가능할 때(부호가 바뀔 때) 쓰는 표시인데, 자동 생성 과정에서 잘못 붙는 경우가 많습니다. 실제 숫자와 대조해 보세요.</li>
+<li>매출증가율보다 영업이익증가율이 훨씬 크면, 그 차이는 <b>원가율이나 판관비율 개선 가정</b>에서 나옵니다. 그 가정의 근거가 본문에 있는지 확인하는 게 중요합니다.</li>
+</ul>
+
+<hr>
+
+<h2>4. 수익성</h2>
+
+<h3>배당수익률 (Dividend Yield)</h3>
+<pre><code>배당수익률 = DPS ÷ 주가</code></pre>
+<p>주가가 오르면 자동으로 떨어집니다. 배당 정책이 나빠진 게 아닙니다. 참고로 <b>DPS ÷ 배당수익률로 그 연도의 기준 주가를 역산할 수 있습니다.</b> PER 역산값과 대조하는 데 유용합니다.</p>
+
+<h3>ROE — 자기자본이익률 (Return on Equity)</h3>
+<pre><code>ROE = 지배주주순이익 ÷ 평균 지배주주지분 × 100
+평균 지배주주지분 = (기초 + 기말) ÷ 2</code></pre>
+<p>주주가 넣은 돈으로 얼마를 벌었느냐입니다. 장기 투자에서 가장 중요한 지표로 꼽힙니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>듀폰 분해</b>로 뜯어보면 ROE가 높은 이유를 알 수 있습니다.
+<pre><code>ROE = 순이익률 × 총자산회전율 × 재무레버리지
+    = (순이익÷매출) × (매출÷자산) × (자산÷자본)</code></pre>
+마진이 좋아서인지, 자산을 빨리 굴려서인지, 빚을 많이 써서인지가 갈립니다. 세 번째라면 위험이 같이 커진 것입니다.</li>
+<li><b>자사주를 매입·소각하면 분모가 줄어 ROE가 자동으로 오릅니다.</b> 사업이 좋아진 게 아닙니다.</li>
+<li><b>평균 자본 기준인지 기말 기준인지 확인하세요.</b> 자본이 급증하는 해(대규모 증자, 대규모 이익)에는 두 방식의 결과가 크게 다릅니다. 대부분의 국내 리포트는 평균을 씁니다.</li>
+<li>일회성 이익이 섞인 해의 ROE는 의미가 없습니다. PER과 같은 이유입니다.</li>
+<li>ROE가 <b>자기자본비용(COE)</b>보다 높아야 가치가 창출됩니다. 기업가치 제고계획에 "COE를 초과하는 ROE"가 자주 등장하는 이유입니다.</li>
+</ul>
+
+<h3>ROA — 총자산이익률 (Return on Assets)</h3>
+<pre><code>ROA = 순이익 ÷ 평균 총자산 × 100</code></pre>
+<p>빌린 돈까지 포함한 전체 자산 기준 수익률입니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>ROE ÷ ROA = 재무레버리지 배수</b>입니다. 이 값이 2~3배면 빚을 꽤 쓰는 회사, 1.1배 근처면 거의 무차입입니다. 부채비율을 안 보고도 감을 잡을 수 있습니다.</li>
+<li>ROA가 낮다고 무조건 나쁜 게 아닙니다. 현금을 많이 쌓아 둔 회사는 그 현금이 분모에 들어가 ROA를 끌어내립니다.</li>
+</ul>
+
+<h3>ROIC — 투하자본이익률 (Return on Invested Capital)</h3>
+<pre><code>ROIC = 세후영업이익(NOPAT) ÷ 평균 투하자본 × 100
+NOPAT = 영업이익 × (1 − 법인세율)
+투하자본 = 영업용 순운전자본 + 유형자산
+           (현금·투자자산 제외)</code></pre>
+<p><b>실제로 사업에 묶여 있는 돈</b>만 놓고 본 수익률입니다. 놀고 있는 현금을 분모에서 빼기 때문에 본업의 진짜 효율이 드러납니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>ROIC가 ROA보다 훨씬 높으면 자산의 상당 부분이 놀고 있다는 뜻입니다.</b> 현금·유가증권 비중을 확인해 보세요. 본업은 훌륭한데 자본배분이 비효율적인 상태일 수 있습니다.</li>
+<li>ROIC &gt; WACC(가중평균자본비용)이면 가치를 만들고, 미만이면 파괴합니다.</li>
+<li><b>증권사마다 투하자본 정의가 다릅니다.</b> 회사 간 비교보다는 같은 리포트 안의 연도별 흐름으로 보는 게 안전합니다.</li>
+</ul>
+
+<h3>마진 세 종류</h3>
+<pre><code>매출총이익률 (GPM) = 매출총이익 ÷ 매출   ← 제품 자체의 힘
+영업이익률   (OPM) = 영업이익   ÷ 매출   ← 본업 수익성
+순이익률     (NPM) = 순이익     ÷ 매출   ← 영업외손익·세금 포함</code></pre>
+<p><b>세 개의 간격이 벌어지면 그 사이에 뭔가 있습니다.</b></p>
+<ul>
+<li>GPM은 좋은데 OPM이 나쁘다 → 판매비와관리비가 무겁다</li>
+<li>OPM은 좋은데 NPM이 나쁘다 → 금융비용이 크거나 세율이 높다</li>
+<li><b>NPM이 OPM보다 높다</b> → 영업 밖에서 이익이 났다는 뜻입니다. 이 경우 PER은 읽지 마세요</li>
+</ul>
+
+<hr>
+
+<h2>5. 안정성</h2>
+
+<h3>부채비율 (Debt-to-Equity Ratio)</h3>
+<pre><code>부채비율 = 부채총계 ÷ 자본총계 × 100</code></pre>
+<p><b>볼 것</b></p>
+<ul>
+<li>한국식은 <b>총부채</b> 기준입니다. 영미권 D/E는 차입금만 쓰는 경우가 많아 숫자가 훨씬 작게 나옵니다. 해외 자료와 비교할 때 주의하세요.</li>
+<li><b>업종에 따라 해석이 완전히 달라집니다.</b> 조선·건설은 발주처에서 미리 받은 <b>선수금</b>이 부채로 잡힙니다. 그래서 일감이 많을수록 부채비율이 올라갑니다. 나쁜 신호가 아니라 좋은 신호입니다. 기타유동부채 항목의 크기를 같이 보세요.</li>
+<li>금융업은 아예 다른 잣대를 씁니다.</li>
+</ul>
+
+<h3>순차입금비율 (Net Debt to Equity)</h3>
+<pre><code>순차입금 = 총차입금 − 현금및현금성자산
+순차입금비율 = 순차입금 ÷ 자본총계 × 100</code></pre>
+<p><b>마이너스면 순현금</b>입니다. 갚을 빚보다 가진 현금이 많다는 뜻입니다. 부채비율보다 실질적입니다. 부채비율 150%라도 순차입금비율이 마이너스면 재무적으로는 안전합니다.</p>
+
+<h3>유동비율 (Current Ratio)</h3>
+<pre><code>유동비율 = 유동자산 ÷ 유동부채 × 100</code></pre>
+<p>1년 안에 갚아야 할 돈 대비 1년 안에 현금이 될 자산입니다. 100% 아래면 단기 유동성을 살펴봐야 합니다.</p>
+
+<h3>이자보상배율 (Interest Coverage Ratio)</h3>
+<pre><code>이자보상배율 = 영업이익 ÷ 이자비용</code></pre>
+<p>번 돈으로 이자를 몇 배나 감당하는지입니다. <b>1배 미만이 3년 연속이면 이른바 좀비기업</b>입니다.</p>
+<div class="note">
+<p><b>무차입 회사에서는 이 지표 자체가 성립하지 않습니다.</b> 이자비용이 0이면 나눗셈이 안 됩니다. 그런데도 표에는 수천 배 같은 값이나 <code>0.0</code>이 찍히는 경우가 많습니다. 차입금 줄이 0인지 먼저 보고, 0이면 이 줄은 건너뛰세요.</p>
+</div>
+
+<hr>
+
+<h2>6. 활동성</h2>
+<p>모두 같은 형태입니다.</p>
+<pre><code>회전율 = 매출 ÷ 평균 잔액      (몇 번 돌았나)
+일수   = 365 ÷ 회전율          (며칠 걸리나)</code></pre>
+
+<h3>매출채권회전율 (Receivables Turnover) → DSO</h3>
+<pre><code>DSO (Days Sales Outstanding) = 365 ÷ 매출채권회전율</code></pre>
+<p>물건 팔고 돈 받기까지 걸리는 날수입니다. 회전율 6.6회면 55일, 5.7회면 64일입니다.</p>
+<p><b>볼 것</b></p>
+<ul>
+<li><b>떨어지면 돈을 늦게 받는다는 뜻입니다.</b> 원인은 셋 중 하나입니다. 신규 거래처(특히 신용도가 낮거나 해외 고객)가 늘었다 / 밀어내기 매출이 있었다 / 업황이 나빠져 고객이 결제를 미룬다.</li>
+<li><b>매출채권 증가율이 매출 증가율보다 훨씬 크면 반드시 확인하세요.</b> 매출은 35% 느는데 매출채권이 70% 늘면, 매출 인식과 현금 회수 사이가 벌어지고 있다는 신호입니다.</li>
+<li>리포트 본문이 "신규 고객 확대"를 성장 동력으로 들면서 이 줄의 악화를 설명하지 않는 경우가 흔합니다.</li>
+</ul>
+
+<h3>재고자산회전율 (Inventory Turnover) → DIO</h3>
+<pre><code>DIO (Days Inventory Outstanding) = 365 ÷ 재고자산회전율</code></pre>
+<p>재고가 창고에 머무는 날수입니다. 떨어지면 안 팔린다는 뜻입니다.</p>
+<ul>
+<li>분자를 <b>매출</b>로 쓰는 곳도 있고 <b>매출원가</b>로 쓰는 곳도 있습니다. 값이 달라지니 같은 리포트 안에서만 비교하세요.</li>
+<li>원자재 가격이 오를 때는 재고 금액이 커져 회전율이 떨어져 보입니다. 물량 기준이 아니라는 점을 감안하세요.</li>
+</ul>
+
+<h3>총자산회전율 (Total Asset Turnover)</h3>
+<pre><code>총자산회전율 = 매출 ÷ 평균 총자산</code></pre>
+<p>자산 1원으로 매출 몇 원을 만드는지입니다. 낮다고 나쁜 게 아닙니다. 현금이 많거나 장치산업이면 원래 낮습니다. 듀폰 분해의 두 번째 항이라 ROE와 연결해서 보면 유용합니다.</p>
+
+<h3>현금전환주기 (Cash Conversion Cycle)</h3>
+<pre><code>CCC = DSO + DIO − DPO
+DPO (Days Payable Outstanding) = 365 ÷ 매입채무회전율</code></pre>
+<p>원재료를 사서 물건을 팔고 돈을 받기까지, <b>회사 돈이 묶여 있는 날수</b>입니다. 짧을수록 좋고, 마이너스면 남의 돈으로 장사한다는 뜻입니다. 표에 직접 나오진 않지만 세 회전율로 직접 계산할 수 있습니다.</p>
+
+<hr>
+
+<h2>7. 리포트를 펼쳤을 때 돌려볼 점검표</h2>
+<p>순서대로 하면 대부분의 오류와 무리한 가정이 잡힙니다.</p>
+
+<h4>① 기준 주가 역산 — 3분</h4>
+<pre><code>PER × EPS = ?
+PBR × BPS = ?
+DPS ÷ 배당수익률 = ?</code></pre>
+<p>세 값이 서로 같은가? 그리고 표지의 현재가와 같은가? 다르면 어느 날 종가를 쓴 것인지 감안해서 읽어야 합니다.</p>
+
+<h4>② 손익계산서 세로 검산</h4>
+<pre><code>매출 − 매출원가   = 매출총이익
+매출총이익 − 판관비 = 영업이익
+영업이익 + 영업외손익 = 세전이익
+세전이익 − 법인세  = 순이익</code></pre>
+<p>한 줄이라도 안 맞으면 그 칸이 다른 값으로 채워졌을 가능성이 있습니다. <b>EBITDA 줄이 좋은 교차 확인 수단입니다.</b> 영업이익 + 감가상각비와 맞는지 보면 어느 쪽이 진짜인지 알 수 있습니다.</p>
+
+<h4>③ 분기 합 = 연간</h4>
+<p>분기 실적표가 있으면 4개 분기 합이 연간과 맞는지, 사업부 합이 전사와 맞는지 봅니다.</p>
+
+<h4>④ EPS 역산 주식수</h4>
+<pre><code>순이익 ÷ EPS = 주식수</code></pre>
+<p>연도별로 같은가? 다르면 증자·소각이 있었다는 뜻이고, 리포트가 설명하는지 확인합니다.</p>
+
+<h4>⑤ ROE 재계산</h4>
+<pre><code>순이익 ÷ ((기초자본 + 기말자본) ÷ 2)</code></pre>
+
+<h4>⑥ 이익의 질</h4>
+<pre><code>영업이익 ÷ 세전이익</code></pre>
+<p>이 비율이 낮으면 그 해 PER·ROE·EPS는 전부 읽을 필요가 없습니다. 영업외손익에 무엇이 들어 있는지 본문이 설명하는지 확인하세요.</p>
+
+<h4>⑦ 현금의 질</h4>
+<pre><code>영업활동현금흐름 ÷ 순이익</code></pre>
+<p>1에 가까우면 정상입니다. 0.5 아래면 운전자본(매출채권·재고)에서 무슨 일이 일어나고 있는지 봐야 합니다.</p>
+
+<h4>⑧ 마진 개선 가정의 크기 재보기</h4>
+<p>원가율이나 판관비율이 갑자기 좋아지는 해가 있으면, 전년 비율로 고정했을 때 영업이익이 얼마가 되는지 직접 계산해 보세요.</p>
+<pre><code>원가율 고정 시 영업이익
+ = 매출 × (1 − 전년 원가율 − 전년 판관비율)</code></pre>
+<p>그 차액이 전체 영업이익의 몇 %인지 알면, 그 리포트가 무엇에 베팅하고 있는지가 드러납니다.</p>
+
+<h4>⑨ 목표주가 분해</h4>
+<pre><code>리레이팅 = 목표 PER ÷ 현재 PER − 1
+이익성장 = 목표 EPS ÷ 현재 EPS − 1</code></pre>
+<p>상승여력이 둘 중 어디서 나오는지 봅니다. 리레이팅이 0이면 "배수는 그대로 두고 기준 연도만 미룬" 목표주가입니다. 반대로 이익성장이 0인데 상승여력이 크면 순전히 멀티플 확장에 거는 것입니다.</p>
+
+<h4>⑩ 본문과 표 대조</h4>
+<p>본문이 내세운 성장 근거가 표의 어느 줄에 숫자로 들어가 있는지 찾아보세요. 없으면 그건 표 밖의 이야기입니다. 반대로 표에는 있는데 본문이 말하지 않는 것(마진 개선 가정, 세율 상승, 매출채권 급증, 설비투자 부재)이 대개 더 중요합니다.</p>
+
+<h4>⑪ 목표주가 이력과 괴리율</h4>
+<p>리포트 뒤쪽에 있습니다. 목표주가를 올린 시점이 주가를 따라간 것인지 앞선 것인지, 괴리율이 계속 마이너스인지 플러스인지가 그 애널리스트의 성적표입니다.</p>
+
+<hr>
+
+<h2>부록: 자주 헷갈리는 것들</h2>
+<table>
+<tr><th>헷갈리는 쌍</th><th>차이</th></tr>
+<tr><td>영업이익 vs EBITDA</td><td>EBITDA는 감가상각비를 더한 값. 장치산업은 EBITDA가 후하게 나옴</td></tr>
+<tr><td>부채비율 vs 순차입금비율</td><td>앞은 총부채, 뒤는 차입금에서 현금을 뺀 값. 뒤가 더 실질적</td></tr>
+<tr><td>시가총액 vs EV</td><td>EV는 시총에 순차입금을 더한 값. 순현금 회사는 EV &lt; 시총</td></tr>
+<tr><td>ROE vs ROA vs ROIC</td><td>분모가 자기자본 / 총자산 / 영업용 투하자본 순으로 좁아짐</td></tr>
+<tr><td>PER vs EV/EBITDA</td><td>앞은 주주 몫만, 뒤는 채권자 몫까지 포함</td></tr>
+<tr><td>지배주주순이익 vs 당기순이익</td><td>자회사 지분 100%가 아니면 다름. 주당지표는 보통 지배주주 기준</td></tr>
+<tr><td>YoY vs QoQ</td><td>계절성 업종은 YoY, 턴어라운드 확인은 QoQ</td></tr>
+<tr><td>절대수익률 vs 상대수익률</td><td>상대는 지수 대비. 절대 − 상대 ≒ 지수 수익률로 검산 가능</td></tr>
+</table>
+
+<p class="foot">작성 기준: 국내 증권사 기업분석 리포트의 일반적인 재무제표·투자지표 표 형식</p>
+  </div>
+  <div id="stuEtc" class="stu-doc" style="display:none">
+   <div class="stu-empty">아직 비어 있습니다.<br>여기에 넣을 내용을 알려주시면 채워 넣겠습니다.</div>
+  </div>
+ </section>
+
  <!-- ===== VALUATION (적정주가) ===== -->
  <section id="valuation">
   <div class="pnl-wrap">
@@ -1189,7 +1544,7 @@
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
       <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1227,7 +1582,7 @@
 <div id="rptFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1257,7 +1612,7 @@
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1287,7 +1642,7 @@
 
 <!-- ===== 주식 전체화면 ===== -->
 <div id="valFull" class="valfull">
- <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button></span></div>
+ <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
  <div class="valfull-top" id="valSub">
   <div class="subtab vback" data-m="back">‹ 이전</div>
   <div class="subtab on" data-m="invpf">선정주</div>
@@ -1494,6 +1849,7 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   if(t.dataset.t==='valuation'){ goSub('trend'); return; }
   if(t.dataset.t==='port'){ goSub('port'); return; }
   if(t.dataset.t==='watch'){ goSub('watch'); return; }
+  if(t.dataset.t==='study'){ goSub('study'); return; }
   if(typeof appChromeRestore==='function') appChromeRestore();
   // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
@@ -1853,6 +2209,14 @@ function renderWatch(){
 let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
+/* ---------- STUDY 하부메뉴 (투자지표 / 기타) ---------- */
+$$('.stu-bar .sf').forEach(b=>b.onclick=()=>{
+  $$('.stu-bar .sf').forEach(x=>x.classList.toggle('on', x===b));
+  const ind=$('#stuInd'), etc=$('#stuEtc');
+  if(ind) ind.style.display = (b.dataset.s==='ind') ? '' : 'none';
+  if(etc) etc.style.display = (b.dataset.s==='etc') ? '' : 'none';
+  window.scrollTo(0,0);
+});
 $$('.watch-bar .wf').forEach(b=>b.onclick=()=>{
   watchRegion = (watchRegion===b.dataset.r) ? '' : b.dataset.r;
   $$('.watch-bar .wf').forEach(x=>x.classList.toggle('on', x.dataset.r===watchRegion));
@@ -12231,7 +12595,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-03 성호전자·HD현대중공업·SK스퀘어·티씨케이 4건 반영';
+const KG_APP_BUILD = '2026-09-03 리포트 4건 + STUDY 메뉴(투자지표·기타) 추가';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
@@ -13317,6 +13681,22 @@ function goSub(which){
     window.scrollTo(0,0);
     if(typeof openPnl==='function') openPnl();
     topPaint('trend');
+    return;
+  }
+  // STUDY — 상단 메뉴 아래에 공부방을 연다
+  if(which==='study'){
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
+    if(typeof appChromeRestore==='function') appChromeRestore();
+    const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+    document.body.classList.remove('anl-mode');
+    document.body.classList.add('topbar-mode');
+    document.body.style.overflow='';
+    $$('.tab').forEach(x=>x.classList.remove('on'));
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const tb=document.querySelector('.tab[data-t="study"]'); if(tb) tb.classList.add('on');
+    const sc=$('#study'); if(sc) sc.classList.add('on');
+    window.scrollTo(0,0);
+    topPaint('study');
     return;
   }
   // 방송 — 상단 메뉴 아래에 방송 목록을 연다
