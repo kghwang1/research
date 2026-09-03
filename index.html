@@ -739,7 +739,7 @@
   .ft-b[data-mode="cumul"].active{background:#8957e5;border-color:#8957e5;color:#fff}
   .ftrend-legend{display:flex;flex-wrap:wrap;gap:10px;margin:4px 0 4px;font-size:11px}
   .ftrend-legend span{display:inline-flex;align-items:center;gap:4px;color:var(--ink)}
-  .ftrend-legend i{width:14px;height:0;display:inline-block;border-top-style:solid}
+  .ftrend-legend i{width:14px;height:0;display:inline-block;border-top-style:solid;box-sizing:border-box}
 
 
 
@@ -7306,6 +7306,10 @@ const FT_LINES = [
   { k:'institution', n:'기관',   c:'#ffd54f', w:1.6, dash:[4,3] },
 ];
 const FT_IDX_COLOR = '#58a6ff';   // 지수: 푸른색 점선
+/* 순매수 막대 — 0 위(순매수) 붉은색 · 0 아래(순매도) 푸른색.
+   테두리만 그리고 속은 비워 둔다. 뒤에 깔린 지수·기관 선이 비쳐 보이게 하려는 것. */
+const FT_BAR_UP = '#ff5a5a';   // 순매수(+)
+const FT_BAR_DN = '#5a9bff';   // 순매도(−)
 let ftHover = -1;
 function ftrendBind(){
   const cv=document.getElementById('ftrendCanvas'); if(!cv||cv._bound) return; cv._bound=true;
@@ -7333,7 +7337,17 @@ function renderFtrendLegend(){
   const idxName = ftrendIdx==='kospi' ? '코스피' : '코스닥';
   const idxCol  = FT_IDX_COLOR;
   const item=(nm,col,w,dash)=>`<span><i style="border-top-width:${w}px;border-top-color:${col};${dash?'border-top-style:dashed':''}"></i>${nm}</span>`;
-  el.innerHTML = FT_LINES.map(l=>item(l.n,l.c,Math.min(3,l.w),!!l.dash)).join('')
+  /* 순매수 모드의 외국인은 선이 아니라 속 빈 막대다 — 범례도 같은 모양으로 보여 준다 */
+  const barItem=(nm)=>`<span>`
+      + `<i style="width:8px;height:9px;border:1.2px solid ${FT_BAR_UP};border-top-width:1.2px"></i>`
+      + `<i style="width:8px;height:9px;border:1.2px solid ${FT_BAR_DN};border-top-width:1.2px;margin-left:-2px"></i>`
+      + `${nm} <b style="color:${FT_BAR_UP};font-weight:700">순매수</b>`
+      + `<b style="color:#6e7681;font-weight:400">/</b>`
+      + `<b style="color:${FT_BAR_DN};font-weight:700">순매도</b></span>`;
+  el.innerHTML = FT_LINES.map(l=>
+        (ftrendMode==='net' && l.k==='foreign') ? barItem(l.n)
+                                                : item(l.n,l.c,Math.min(3,l.w),!!l.dash)
+      ).join('')
                + item(idxName+' 지수', idxCol, 1.6, true);
 }
 
@@ -7425,8 +7439,27 @@ function drawFtrend(canvasId){
       const x=xOf(i), y=yIdx(v); st?ctx.lineTo(x,y):(ctx.moveTo(x,y),st=true); });
     ctx.stroke(); ctx.setLineDash([]);
   }
-  // 투자자 선
+  /* 투자자 — 순매수 모드에서는 외국인을 막대로 그린다.
+     선으로 그리면 0선을 위아래로 지나도 방향이 눈에 안 들어와서 바꿨다.
+     축이 급등일 하나에 끌려가 값이 작은 날은 1~2px 밖에 안 되므로
+     최소 높이를 두어 색만이라도 보이게 한다. 기관·지수는 그대로 선이다. */
+  const ftBars = (ftrendMode==='net');
   FT_LINES.forEach(l=>{
+    if(ftBars && l.k==='foreign'){
+      const step = (n>1) ? cw/(n-1) : cw;
+      const bw = Math.max(2, Math.min(14, step*0.62));
+      ctx.lineWidth = 1.2; ctx.setLineDash([]); ctx.lineJoin='miter'; ctx.lineCap='butt';
+      series[l.k].forEach((v,i)=>{
+        if(!v) return;
+        const x = Math.round(xOf(i)) + 0.5;          // 0.5 를 더해 테두리를 또렷하게
+        const y = yAmt(v);
+        let top = Math.min(y, y0), h = Math.abs(y - y0);
+        if(h < 1.6){ h = 1.6; top = (v>0) ? y0-1.6 : y0; }   // 너무 얇으면 최소 높이
+        ctx.strokeStyle = (v>0) ? FT_BAR_UP : FT_BAR_DN;
+        ctx.strokeRect(x - bw/2, Math.round(top)+0.5, bw, h);
+      });
+      return;
+    }
     ctx.strokeStyle=l.c; ctx.lineWidth=l.w; ctx.lineJoin='round'; ctx.lineCap='round';
     ctx.setLineDash(l.dash||[]);
     ctx.beginPath();
@@ -7463,7 +7496,10 @@ function drawFtrend(canvasId){
     const hx=xOf(ftHover);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(hx,PAD.t); ctx.lineTo(hx,PAD.t+ch); ctx.stroke();
-    FT_LINES.forEach(l=>{ ctx.fillStyle=l.c; ctx.beginPath(); ctx.arc(hx,yAmt(series[l.k][ftHover]),2.8,0,Math.PI*2); ctx.fill(); });
+    FT_LINES.forEach(l=>{
+      const hv=series[l.k][ftHover];
+      ctx.fillStyle = (ftBars && l.k==='foreign') ? (hv>0?FT_BAR_UP:(hv<0?FT_BAR_DN:l.c)) : l.c;
+      ctx.beginPath(); ctx.arc(hx,yAmt(hv),2.8,0,Math.PI*2); ctx.fill(); });
     const dtxt=String(rows[ftHover].date||'').slice(2);   // 26-08-06
     ctx.font='bold 9.5px monospace';
     const tw=ctx.measureText(dtxt).width+8;
@@ -7478,7 +7514,8 @@ function drawFtrend(canvasId){
   let tx=PAD.l+4;
   FT_LINES.forEach(l=>{
     const v=series[l.k][n-1];
-    ctx.fillStyle=l.c;
+    // 막대로 그린 계열은 라벨도 막대와 같은 색으로 (선 색과 어긋나 보이지 않게)
+    ctx.fillStyle = (ftBars && l.k==='foreign') ? (v>0?FT_BAR_UP:(v<0?FT_BAR_DN:l.c)) : l.c;
     const t=l.n+' '+fmtAmt(v);
     ctx.fillText(t, tx, PAD.t+10); tx += ctx.measureText(t).width + 10;
   });
@@ -12595,7 +12632,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-03 리포트 4건 + STUDY 메뉴(투자지표·기타) 추가';
+const KG_APP_BUILD = '2026-09-03 리포트 4건 · STUDY 메뉴 · 매매추이 순매수 막대';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
