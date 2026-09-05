@@ -9012,6 +9012,13 @@ window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDraw
 // ══════════════════════════════════════
 // 두 번째 그래프 (ROE·PBR·당좌비율) + PEG 막대
 // ══════════════════════════════════════
+/* PER 이 의미를 잃는 지점.
+   순이익이 0 근처로 내려가면 PER 은 산술적으로만 커질 뿐 읽을 값이 못 된다.
+   값 자체는 지우지 않고 그대로 보여 주되, 축 계산과 판단에서만 뺀다.
+   기준 200 배는 이 앱이 이미 쓰고 있는 값이다(전망표 검사 문구와 동일). */
+const PER_ABSURD = 200;
+const perAbsurd = v => (v!=null && (v<=0 || v>PER_ABSURD));
+
 const FIN2_SERIES = [
   { k:'per',   n:'PER',    c:'#ffd54f' },   // ROE 는 첫 그래프에 있으므로 여기선 PER 로
   { k:'pbr',   n:'PBR',    c:'#ef5350' },
@@ -9069,7 +9076,13 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     const fk=FKEY2[se.k];
     const fv=fSorted.map(r=> fk? fNum(r[fk]) : null);
     const all=a.concat(fv);
-    const v=all.filter(x=>x!=null);
+    let v=all.filter(x=>x!=null);
+    /* PER 이 터진 분기 하나가 축을 다 먹으면 나머지가 바닥에 눌려 안 보인다.
+       그 점도 선으로는 그리되(값을 숨기지 않는다) 축 범위에서만 뺀다. */
+    if(se.k==='per'){
+      const sane=v.filter(x=>!perAbsurd(x));
+      if(sane.length>=2) v=sane;
+    }
     if(v.length<2){ se._yOf=null; return; }
     let mn=Math.min(...v), mx=Math.max(...v);
     if(mx===mn){ mn-=1; mx+=1; }
@@ -9486,11 +9499,19 @@ function anlComment(){
     const pv=(d.per||[]).filter(x=>x!=null && x>0);
     if(per!=null && per>0){
       let band='';
-      if(pv.length>=3){
-        const lo=Math.min(...pv), hi=Math.max(...pv);
+      // 터진 분기를 넣으면 밴드가 벌어져 나머지가 전부 0% 근처로 눌린다
+      const pvs=pv.filter(x=>!perAbsurd(x));
+      if(pvs.length>=3){
+        const lo=Math.min(...pvs), hi=Math.max(...pvs);
         const pos=hi>lo ? ((per-lo)/(hi-lo)*100) : 50;
         band=` 자료 구간(${lo.toFixed(1)}~${hi.toFixed(1)}배) 안에서 <b>${Math.round(pos)}% 위치</b>입니다.`;
       }
+      if(per>PER_ABSURD){
+        P2.push(`<p><b>PER</b> — <b>${per.toFixed(1)}배</b>입니다. 이익이 0 근처까지 내려가 `
+          +'<b>PER 이 의미를 잃은 구간</b>입니다. 주가가 비싸서가 아니라 나눌 이익이 거의 없어 커진 값이라, '
+          +'회수 연수로 읽으시면 안 됩니다. 이때는 <b>ROE÷PBR</b> 이나 증권사 전망 PER 로 보셔야 합니다. '
+          +'<span style="color:#8b949e">아래 종합 판정에서는 이 값을 뺐습니다.</span></p>');
+      }else{
       let s=`<p><b>PER</b> — <b>${per.toFixed(1)}배</b>로, 지금 이익이 유지된다면 투자금 회수에 약 ${per.toFixed(0)}년이 걸리는 값입니다.${band} `;
       if(per<10)       s+='이익 대비 주가가 <b>낮은 편</b>입니다.';
       else if(per<=15) s+='보통 수준입니다.';
@@ -9507,6 +9528,7 @@ function anlComment(){
       if(per<10 && r!=null && r>=20)
         s+=' <b>주의</b> — ROE가 높은데 PER이 10배 미만이면 <b>이익 정점</b>일 수 있습니다. 경기민감 업종은 가장 싸 보일 때가 고점인 경우가 많습니다.';
       P2.push(s+'</p>');
+      }
     }else if(per!=null && per<=0){
       P2.push('<p><b>PER</b> — 적자라 계산되지 않습니다. 그래프에서 PER 선이 끊긴 구간이 그 시기이며, 이때는 <b>ROE÷PBR</b>로 대신 보셔야 합니다.</p>');
     }
@@ -9556,7 +9578,12 @@ function anlComment(){
     const peg=pg ? [...pg].reverse().find(x=>x!=null) : null;
     const rp=(pbr!=null&&r!=null&&pbr>0) ? r/pbr : null;
     const cheap=[], rich=[];
-    if(per!=null&&per>0){ (per<=15?cheap:rich).push('PER '+per.toFixed(1)+'배'); }
+    // 이익이 거의 없어 터진 PER 은 싸다/비싸다 판단에 넣지 않는다
+    let perSkipped=false;
+    if(per!=null&&per>0){
+      if(perAbsurd(per)) perSkipped=true;
+      else (per<=15?cheap:rich).push('PER '+per.toFixed(1)+'배');
+    }
     if(pbr!=null){ (pbr<=1.5?cheap:rich).push('PBR '+pbr.toFixed(2)+'배'); }
     if(peg!=null){ (peg<1?cheap:rich).push('PEG '+peg.toFixed(2)); }
     if(cheap.length+rich.length>=2){
@@ -9578,6 +9605,7 @@ function anlComment(){
         if(qk<70) s+=' 당좌비율이 낮아, 싸 보여도 <b>버틸 힘</b>을 함께 봐야 합니다.';
         else if(qk>=150) s+=' 당좌비율도 넉넉해 재무적으로 여유가 있습니다.';
       }
+      if(perSkipped) s+=` <span style="color:#8b949e">(PER ${per.toFixed(0)}배는 이익이 바닥이라 판단에서 뺐습니다)</span>`;
       s+=' 저평가 판단은 <b>동종업계·과거 밴드</b>와 견줄 때 의미가 있습니다.';
       P2.push(s+'</p>');
     }
@@ -12640,7 +12668,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-03 클릭 복구 · 포트 유지 · 재무열 제거 · STUDY';
+const KG_APP_BUILD = '2026-09-03 PER 이상치 표시 · 클릭 복구 · 포트 유지 · 재무열 제거';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';

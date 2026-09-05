@@ -522,8 +522,14 @@ function score(fin,m){
            :            {p:0, why:'적자',avail:true};
   const Q2 = q2===null ? {p:0,why:'자료부족',avail:false}
            : band(q2,[[0.7,15,'감가상각 부담 적음'],[0.5,11,'보통'],[0.3,6,'설비 부담 큼']]);
-  const C1= per===null?{p:0,why:'자료없음',avail:false}
-          : per<=0 ?{p:0,why:'적자/이상치',avail:true}
+  /* PER 은 순이익이 0 근처면 산술적으로만 커진다. 그런 구간은 "비싸다"가 아니라
+     "잴 수 없다"이므로 avail:false 로 두어 만점에서 빼고 100점 환산한다.
+     적자(per<=0)도 같다. 예전에는 avail:true 여서 만점 8점이 분모에 남아
+     측정 불가를 최하점으로 세는 셈이었다. 기준 200 배는 본 앱의 다른 검사와 같은 값이다. */
+  const PER_ABSURD = 200;
+  const C1= per===null ? {p:0,why:'자료없음',avail:false}
+          : per<=0     ? {p:0,why:'적자 — PER 로는 잴 수 없음',avail:false}
+          : per>PER_ABSURD ? {p:0,why:'이익이 바닥이라 PER 이 의미 없음('+Math.round(per)+'배)',avail:false}
           : bandLow(per,[[10,8,'저평가'],[15,6,'적정'],[25,4,'다소 비쌈'],[40,2,'비쌈']]);
   const C2=bandLow(pbr,[[1,7,'저평가'],[1.5,5,'적정'],[2.5,3,'다소 비쌈'],[4,1,'비쌈']]);
 
