@@ -887,6 +887,11 @@
   .anl-intro-t thead th{color:#8b949e;font-weight:600;font-size:11px}
   .anl-intro-t tbody td{color:#f2c800}
   .anl-intro-t tbody td:first-child{color:#c9d1d9}
+  /* 분기 재무 표 — 실적 칸과 전망 칸을 눈으로 가르기 위해 색과 경계선을 달리한다 */
+  .anl-intro-t td.hist{color:#c9d1d9}
+  .anl-intro-t th.fcc,.anl-intro-t td.fcc{background:#2b2411;color:#f2c800}
+  .anl-intro-t th.fc1,.anl-intro-t td.fc1{border-left:2px solid #7a6a1f}
+  .anl-intro-t tbody td.rowlab{color:#8b949e;font-weight:600}
   /* 기업 평가 지표 설명 카드 */
   .fin-guide{margin:12px 2px 0;padding:0}
   .fin-guide .fg-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
@@ -8799,7 +8804,7 @@ const ANL_X_FCST = '#c9d1d9';   // 전망 연도 (이전 #8b949e)
 
 function anlDraw(){
   const cv=$('#anlCanvas'); if(!cv) return;
-  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  const d=anlFin6(ANL_CODE?FIN3[ANL_CODE]:null);   // 표와 같은 최근 6분기
   const dpr=window.devicePixelRatio||1;
   const W=cv.clientWidth, H=cv.clientHeight;
   cv.width=W*dpr; cv.height=H*dpr;
@@ -8861,13 +8866,12 @@ function anlDraw(){
       const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
     ctx.stroke(); ctx.setLineDash([]);
 
-    // 전망 구간 — 같은 색 점선 (마지막 실적에서 이어 붙인다)
+    /* 전망 — 실적과 같은 선 모양·굵기로 그린다.
+       실적 마지막 점과는 잇지 않는다. 출처가 다른 값이라 이어 놓으면
+       한 줄기 흐름처럼 보여 오해를 부른다. 구분은 회색 바탕이 맡는다. */
     if(fv.some(x=>x!=null)){
-      ctx.setLineDash([4,3]); ctx.lineWidth=1.8;
+      ctx.setLineDash(se.dash||[]); ctx.lineWidth=2;
       ctx.beginPath(); st=false;
-      let lastI=-1;
-      for(let i=a.length-1;i>=0;i--){ if(a[i]!=null){ lastI=i; break; } }
-      if(lastI>=0){ ctx.moveTo(xOf(lastI), yOf(a[lastI])); st=true; }
       fv.forEach((x,k)=>{ if(x==null){ st=false; return; }
         const px=xOf(nHist+k), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
       ctx.stroke(); ctx.setLineDash([]);
@@ -9019,6 +9023,20 @@ window.addEventListener('resize', ()=>{ if(!ANL_CODE) return; anlDraw(); anlDraw
 const PER_ABSURD = 200;
 const perAbsurd = v => (v!=null && (v<=0 || v>PER_ABSURD));
 
+/* 분석 화면이 보는 실적 구간 — 장기투자 채점과 같은 최근 6분기.
+   표와 두 그래프가 모두 이 함수를 거치게 해서 서로 어긋나지 않게 한다. */
+const ANL_QN = 6;
+function anlFin6(d){
+  if(!d) return null;
+  const p=(d.periods||[]);
+  const st=Math.max(0, p.length-ANL_QN);
+  const cut=a=>Array.isArray(a)? a.slice(st, st+ANL_QN) : a;
+  const o={};
+  for(const k in d) o[k] = Array.isArray(d[k]) ? cut(d[k]) : d[k];
+  o.periods = p.slice(st, st+ANL_QN);
+  return o;
+}
+
 const FIN2_SERIES = [
   { k:'per',   n:'PER',    c:'#ffd54f' },   // ROE 는 첫 그래프에 있으므로 여기선 PER 로
   { k:'pbr',   n:'PBR',    c:'#ef5350' },
@@ -9029,7 +9047,7 @@ let ANL_HOVER2=-1;
 // 계열마다 자기 축으로 그리는 공용 선그래프 (첫 그래프와 같은 방식)
 function anlDrawLines(cvId, series, hoverIdx, H0){
   const cv=$('#'+cvId); if(!cv) return;
-  const d=ANL_CODE?FIN3[ANL_CODE]:null;
+  const d=anlFin6(ANL_CODE?FIN3[ANL_CODE]:null);   // 표와 같은 최근 6분기
   const dpr=window.devicePixelRatio||1;
   const W=cv.clientWidth, H=H0||cv.clientHeight;
   cv.width=W*dpr; cv.height=H*dpr;
@@ -9089,26 +9107,37 @@ function anlDrawLines(cvId, series, hoverIdx, H0){
     const pad=(mx-mn)*0.15; mn-=pad; mx+=pad;
     const yOf=x=>PAD.t+ch-((x-mn)/(mx-mn))*ch;
 
-    // 실적 — 실선. 계열에 dash 가 지정돼 있으면 그 모양의 점선으로 그린다
+    /* 실적 — 실선. 계열에 dash 가 지정돼 있으면 그 모양의 점선으로 그린다.
+       PER 이상치는 축에서 뺐으므로 좌표가 화면 밖 수천 px 로 나온다.
+       그대로 이으면 세로줄 하나만 남고 정상 구간이 가려지니 그 자리에서 선을 끊는다.
+       값을 지우는 것이 아니라 잇지 않을 뿐이며, 표·툴팁에는 그대로 남는다. */
+    const skip = x => (se.k==='per' && perAbsurd(x));
     ctx.strokeStyle=se.c; ctx.lineWidth=2; ctx.lineJoin='round'; ctx.setLineDash(se.dash||[]);
     ctx.beginPath(); let st=false;
-    a.forEach((x,i)=>{ if(x==null){ st=false; return; }
+    a.forEach((x,i)=>{ if(x==null||skip(x)){ st=false; return; }
       const px=xOf(i), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
     ctx.stroke(); ctx.setLineDash([]);
 
-    // 전망 — 같은 색 점선
+    /* 전망 — 실적과 같은 선 모양·굵기로 그린다.
+       실적 마지막 점과는 잇지 않는다. 출처가 다른 값이라 이어 놓으면
+       한 줄기 흐름처럼 보여 오해를 부른다. 구분은 회색 바탕이 맡는다. */
     if(fv.some(x=>x!=null)){
-      ctx.setLineDash([4,3]); ctx.lineWidth=1.8;
+      ctx.setLineDash(se.dash||[]); ctx.lineWidth=2;
       ctx.beginPath(); st=false;
-      let lastI=-1;
-      for(let i=a.length-1;i>=0;i--){ if(a[i]!=null){ lastI=i; break; } }
-      if(lastI>=0){ ctx.moveTo(xOf(lastI), yOf(a[lastI])); st=true; }
       fv.forEach((x,k)=>{ if(x==null){ st=false; return; }
         const px=xOf(nHist+k), py=yOf(x); st?ctx.lineTo(px,py):(ctx.moveTo(px,py),st=true); });
       ctx.stroke(); ctx.setLineDash([]);
     }
 
     a.forEach((x,i)=>{ if(x==null) return;
+      if(skip(x)){
+        /* 축 밖으로 나간 값 — 위 가장자리에 삼각형을 찍어 "값은 있으나 화면 밖"을 알린다 */
+        const px=xOf(i), py=PAD.t+3;
+        ctx.fillStyle=se.c; ctx.beginPath();
+        ctx.moveTo(px,py-3); ctx.lineTo(px-3.2,py+2.4); ctx.lineTo(px+3.2,py+2.4);
+        ctx.closePath(); ctx.fill();
+        return;
+      }
       ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(xOf(i),yOf(x),2.4,0,Math.PI*2); ctx.fill(); });
     fv.forEach((x,k)=>{ if(x==null) return;
       ctx.fillStyle='#0d1117'; ctx.strokeStyle=se.c; ctx.lineWidth=1.6;
@@ -9243,7 +9272,7 @@ function anlPegSeries(){
   const per=d.per||[], pf=d.profit||[];
   // 분기 자료는 4기 전(전년동기)과, 연간 자료는 직전 해와 비교한다
   const lag = (d.us || (d.periods||[]).length<=4) ? 1 : 4;
-  return (d.periods||[]).map((_,i)=>{
+  const out=(d.periods||[]).map((_,i)=>{
     if(i<lag) return null;
     const p=per[i], a=pf[i], b=pf[i-lag];
     if(p==null||a==null||b==null||b===0) return null;
@@ -9251,6 +9280,11 @@ function anlPegSeries(){
     if(!(g>0)) return null;                 // 감익이면 PEG 무의미
     return p/g;
   });
+  /* 전년동기와 견줘야 하므로 계산은 전체 분기로 하고,
+     그래프·표가 보는 최근 6분기에 맞춰 뒤에서 잘라 낸다.
+     여기서 자르지 않으면 막대가 선과 한 칸씩 어긋난다. */
+  const st=Math.max(0, (d.periods||[]).length-ANL_QN);
+  return out.slice(st, st+ANL_QN);
 }
 // 3지표를 규칙에 따라 읽어 해석문을 만든다 (판단 근거를 함께 보여준다)
 /* ═══════════════════════════════════════════════════════════════
@@ -9338,18 +9372,48 @@ function anlIntro(){
     P.push(s+'</p>');
   }
 
-  if(rows.length){
-    const C=[['sales','매출증가율','%'],['opm','영업이익률','%'],['roe','ROE','%'],
-             ['per','PER',''],['pbr','PBR',''],['debt','부채비율','%']];
-    const use=C.filter(c=>rows.some(r=>String(r[c[0]]||'').trim()!==''));
+  /* 분기 재무 — 장기투자 화면과 같은 형태로 최근 6분기 실적과 전망을 한 표에 놓는다.
+     세로로 항목, 가로로 기간. 전망 칸은 색과 경계선으로 갈라 실적과 헷갈리지 않게 한다.
+     같은 자료를 위 두 그래프도 쓰므로 표와 그래프가 항상 맞는다. */
+  const q = anlFin6(FIN3[code]);
+  const qp = q ? (q.periods||[]) : [];
+  if(qp.length || rows.length){
+    // 항목: 이름 / 실적 키 / 단위 / 전망 키(없으면 전망 칸은 —)
+    const R=[['매출증가율','salesGrowth','%','sales'],
+             ['ROE','roe','%','roe'],
+             ['영업이익률','opm','%','opm'],
+             ['순이익률','npm','%',null],
+             ['부채비율','debt','%','debt'],
+             ['당좌비율','quick','%',null],
+             ['PER','per','','per'],
+             ['PBR','pbr','','pbr']];
+    const fmtQ=(v,u)=>(v==null||!isFinite(v))?'—':(Math.round(v*100)/100)+(u||'');
     const cell=v=>{ const t=String(v==null?'':v).trim(); return t===''?'—':escHtml(t); };
-    P.push('<p style="margin-bottom:5px"><b>전망</b> — 증권사 보고서에서 옮겨 적은 예상치입니다. 실적이 아닙니다.</p>');
-    P.push('<div style="overflow-x:auto"><table class="anl-intro-t"><thead><tr><th>연도</th>'
-      + use.map(c=>`<th>${c[1]}</th>`).join('') + '</tr></thead><tbody>'
-      + rows.map(r=>`<tr><td>${escHtml(String(r.year||''))}</td>`
-          + use.map(c=>`<td>${cell(r[c[0]])}${(String(r[c[0]]||'').trim()!=='' && c[2])?c[2]:''}</td>`).join('')
+    const has=r=>(q&&Array.isArray(q[r[1]])&&q[r[1]].some(v=>v!=null))
+              || (r[3] && rows.some(x=>String(x[r[3]]||'').trim()!==''));
+    const use=R.filter(has);
+
+    P.push(`<p style="margin-bottom:5px"><b>분기 재무</b> — 최근 ${qp.length}분기 실적`
+      + (rows.length?` + 전망 ${rows.length}년`:'')
+      + `. <span style="color:#f2c800">색이 다른 오른쪽 칸</span>은 실적이 아니라 증권사 보고서에서 옮겨 적은 예상치입니다.</p>`);
+
+    P.push('<div style="overflow-x:auto"><table class="anl-intro-t"><thead><tr><th>항목</th>'
+      + qp.map(p=>`<th>${escHtml(perLabel(p))}</th>`).join('')
+      + rows.map((r,i)=>`<th class="fcc${i?'':' fc1'}">${escHtml(String(r.year||''))}</th>`).join('')
+      + '</tr></thead><tbody>'
+      + use.map(r=>'<tr><td class="rowlab">'+r[0]+'</td>'
+          + qp.map((_,i)=>`<td class="hist">${fmtQ(q&&q[r[1]]?q[r[1]][i]:null, r[2])}</td>`).join('')
+          + rows.map((x,i)=>{
+              const t = r[3] ? String(x[r[3]]==null?'':x[r[3]]).trim() : '';
+              return `<td class="fcc${i?'':' fc1'}">${t===''?'—':escHtml(t)+(r[2]||'')}</td>`;
+            }).join('')
           + '</tr>').join('')
       + '</tbody></table></div>');
+
+    if(rows.length)
+      P.push('<p style="color:#8b949e;font-size:11.5px;margin:0 0 8px">'
+        + '순이익률·당좌비율은 보고서에 없어 전망 칸을 <b>—</b> 로 둡니다. '
+        + '전망은 낙관 쪽으로 기우는 경향이 있으니, 분기 실적이 나올 때마다 왼쪽 칸과 견줘 보세요.</p>');
   }
 
   if(bits.todo) P.push(`<p><b>확인할 점</b> — ${escHtml(bits.todo)}</p>`);
@@ -12668,7 +12732,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-03 PER 이상치 표시 · 클릭 복구 · 포트 유지 · 재무열 제거';
+const KG_APP_BUILD = '2026-09-03 분석 분기재무표 · 전망선 분리 · PER 이상치 · 클릭 복구';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
