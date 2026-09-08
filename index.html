@@ -1623,6 +1623,9 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div class="anl-row">
       <button id="longSideToggle" class="anl-backbtn on">종목</button>
       <button id="longSaveBtn" class="anl-backbtn" title="서버에 저장합니다">💾 저장</button>
+      <button id="longBakBtn" class="anl-backbtn"
+              title="서버에 남아 있는 직전 목록으로 되돌립니다 (잘못 덮어썼을 때)"
+              style="font-size:11px;padding:3px 8px;color:#8b949e;border-color:#30363d">↩ 직전본</button>
       <select id="longPortSel">
         <option value="kr">한국(체)</option>
         <option value="invest">코스피200</option>
@@ -6166,12 +6169,44 @@ function myLocal(){
            savedAt:new Date().toISOString() };
 }
 let _myLastErr='';
+/* 목록에 실제로 담긴 종목 수 — 덮어쓰기가 안전한지 판단하는 잣대 */
+function myCount(o){
+  if(!o) return 0;
+  return ['long','add','watch','invpf','wait'].reduce(
+    (n,k)=> n + (Array.isArray(o[k]) ? o[k].length : 0), 0);
+}
+/* 되살리기용 직전본 — 목록만 담아 가볍게 둔다(전망·해설은 뺀다) */
+function myBakOf(o){
+  if(!o) return null;
+  const b={};
+  ['long','add','watch','invpf','wait','cls','en','scores'].forEach(k=>{ if(o[k]!=null) b[k]=o[k]; });
+  b.savedAt = o.savedAt || '';
+  return b;
+}
 async function myServerPut(loud){
   if(!SRV_URL){ if(loud) toast('서버 주소가 없습니다'); return false; }
+  /* 서버를 못 읽은 채로는 자동 저장하지 않는다.
+     받아오기가 실패하면 이 기기는 '목록이 비어 있는 상태'인데,
+     그대로 올리면 서버의 멀쩡한 자료를 지워 버린다. */
+  if(_myLoadErr && !loud){ console.warn('서버를 읽지 못해 자동 저장을 건너뜁니다'); return false; }
   try{
     // 기존 selpf 내용을 읽어 관심·보유 목록을 지우지 않고 mylists 칸만 갈아끼운다
     const cur = (await selFetchKey(MY_SRV_KEY)) || {};
-    cur[MY_FIELD] = myLocal();
+    const next = myLocal();
+    /* 빈 목록으로 덮어쓰기 막기.
+       인터넷 사용기록을 지우면 이 기기의 저장 공간이 통째로 비는데,
+       그 상태가 그대로 올라가면 다른 기기의 자료까지 사라진다. */
+    const nNew = myCount(next), nOld = myCount(cur[MY_FIELD]);
+    if(nOld > 0 && nNew === 0){
+      const msg = '이 기기의 목록이 비어 있습니다 (서버에는 '+nOld+'종목).\n'
+                + '그대로 저장하면 서버 자료가 지워집니다.\n\n'
+                + '기록 삭제 뒤라면 [취소] 를 누르고 앱을 새로 고쳐 서버에서 받아오세요.';
+      if(!loud){ console.warn('빈 목록 자동 저장을 막았습니다 (서버 '+nOld+'종목)'); return false; }
+      if(!confirm(msg + '\n\n정말 빈 목록으로 저장할까요?')){ toast('저장하지 않았습니다'); return false; }
+    }
+    // 직전본을 따로 남겨 둔다 — 잘못 덮어써도 되돌릴 수 있게
+    try{ const bak=myBakOf(cur[MY_FIELD]); if(bak && myCount(bak)>0) cur[MY_FIELD+'_bak']=bak; }catch(e){}
+    cur[MY_FIELD] = next;
     cur.savedAt = new Date().toISOString();
     try{ localStorage.setItem('kg_my_saved_at', cur.savedAt); }catch(e){}
     const r = await fetch(SRV_URL+'/?data='+MY_SRV_KEY,
@@ -6253,11 +6288,20 @@ document.addEventListener('click', e=>{
   e.preventDefault();
   if(typeof myServerPut==='function') myServerPut(true);
 });
+/* [↩ 직전본] — 잘못 덮어썼을 때 서버의 직전 목록으로 되돌린다.
+   눈에 덜 띄는 작은 회색 단추로 두고, 되돌리기 안에서 다시 한 번 확인받는다. */
+document.addEventListener('click', e=>{
+  const b = e.target && e.target.closest ? e.target.closest('#longBakBtn') : null;
+  if(!b) return;
+  e.preventDefault();
+  if(typeof myRestoreBak==='function') myRestoreBak();
+});
 // 저장하지 않고 떠나려 하면 알려 준다
 window.addEventListener('beforeunload', e=>{
   if(!_myDirty) return;
   e.preventDefault(); e.returnValue='';
 });
+let _myLoadErr=false;   // 서버에서 받아오기가 실패했는가 (실패면 자동 저장을 멈춘다)
 async function myServerLoad(){
   if(!SRV_URL){ _myLoaded=true; return; }
   try{
@@ -6332,10 +6376,36 @@ async function myServerLoad(){
       if(typeof loadAddRows==='function') loadAddRows();
       try{ setTimeout(()=>{ if(typeof kgFixLongNames==='function') kgFixLongNames(); }, 900); }catch(e){}
     }
-  }catch(e){}
+  }catch(e){
+    /* 받아오기 실패 — 이 기기 목록이 비어 있을 수 있으므로 자동 저장을 막는다 */
+    _myLoadErr=true;
+    console.warn('서버에서 목록을 받지 못했습니다:', e && e.message);
+    try{ toast('서버에서 목록을 받지 못했습니다 — 저장이 잠시 멈춥니다'); }catch(_){}
+  }
   try{ myEnsureWatch(); }catch(e){}
   _myLoaded=true;
 }
+/* 서버의 직전본으로 되돌리기 — 잘못 덮어썼을 때 쓴다.
+   주소창이나 콘솔에서 myRestoreBak() 로 부른다. */
+async function myRestoreBak(){
+  if(!SRV_URL){ alert('서버 주소가 없습니다'); return false; }
+  try{
+    const cur = (await selFetchKey(MY_SRV_KEY)) || {};
+    const bak = cur[MY_FIELD+'_bak'];
+    if(!bak || myCount(bak)===0){ alert('되돌릴 직전본이 없습니다'); return false; }
+    if(!confirm('직전본('+ (bak.savedAt||'시각 없음') +' · '+myCount(bak)+'종목)으로 되돌릴까요?\n'
+              + '지금 이 기기의 목록은 사라집니다.')) return false;
+    const put=(k,v)=>{ if(v!=null){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
+    put('kg_long_rows', bak.long);   put('kg_addstk_rows', bak.add);
+    put('kg_watch_rows', bak.watch); put('kg_invpf_rows', bak.invpf);
+    put('kg_wait_rows', bak.wait);   put('kg_long_cls', bak.cls);
+    put('kg_long_en', bak.en);       put('kg_long_scores', bak.scores);
+    alert('되돌렸습니다 — 화면을 새로 고칩니다');
+    location.reload();
+    return true;
+  }catch(e){ alert('되돌리기 실패 — '+(e.message||e)); return false; }
+}
+try{ window.myRestoreBak = myRestoreBak; }catch(e){}
 const SEL_LEGACY_KEYS = ['watch_portfolio', 'watch', 'invpf_portfolio'];  // 구버전 키
 
 async function selSaveToServer(btn){
