@@ -13700,6 +13700,7 @@ function rptOpen(i){
     <div style="display:flex;align-items:center;gap:6px;margin:0 0 6px;flex:none">
       <button id="rptBack" class="anl-backbtn">‹ 목록</button>
       <button id="rptPdfNew" class="anl-backbtn" title="새 창에서 열면 글자를 선택·복사할 수 있습니다">PDF</button>
+      <button id="rptPdfSave" class="anl-backbtn" title="PDF 파일로 내려받습니다 (폰은 다운로드 폴더)">저장</button>
       <a href="${escHtml(x.link||'#')}" target="_blank" rel="noopener"
          style="margin-left:auto;font-size:11px;color:#58a6ff">새 창 ▸</a>
     </div>
@@ -13714,6 +13715,38 @@ function rptOpen(i){
      새 창이라 글자 선택·복사도 된다. */
   const pn=$('#rptPdfNew');
   if(pn) pn.onclick=()=>window.open(src, '_blank', 'noopener');
+
+  /* PDF 저장 — 중계본을 blob 으로 받아 <a download> 로 떨어뜨린다.
+     [PDF] 는 '화면에 표시'로 열리기 때문에 폰 크롬에서는 파일이 남지 않는다.
+     여기서 직접 내려받으면 PC·폰 모두 다운로드 폴더에 저장되고,
+     이름도 종목·증권사·날짜로 붙여 나중에 알아보기 쉽게 한다. */
+  const sv=$('#rptPdfSave');
+  if(sv){
+    if(!(x.pdf || x.link)){ sv.disabled=true; sv.style.opacity='.45'; sv.title='원문 주소가 없습니다'; }
+    else sv.onclick=async ()=>{
+      const safe=t=>String(t||'').replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
+      const fname=[safe(rptName||rptCode), safe(x.broker), safe(x.date)].filter(Boolean).join('_')+'.pdf';
+      const old=sv.textContent; sv.disabled=true; sv.textContent='저장 중…';
+      try{
+        const r=await fetch(src);
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        const buf=await r.arrayBuffer();
+        // 오류 페이지(HTML)가 대신 오는 경우가 있어 PDF 인지 앞 4바이트로 확인한다
+        const sig=new TextDecoder().decode(new Uint8Array(buf.slice(0,4)));
+        if(buf.byteLength<1000 || sig!=='%PDF') throw new Error('PDF 가 아닙니다');
+        const url=URL.createObjectURL(new Blob([buf], {type:'application/pdf'}));
+        const a=document.createElement('a');
+        a.href=url; a.download=fname; a.style.display='none';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(()=>URL.revokeObjectURL(url), 5000);
+        sv.textContent='저장됨';
+      }catch(e){
+        sv.textContent='저장 실패';
+        alert('PDF 를 받지 못했습니다 — '+e.message+'\n위 [PDF] 로 열어 보세요.');
+      }
+      setTimeout(()=>{ sv.textContent=old; sv.disabled=false; }, 2500);
+    };
+  }
 
   /* 본문 글 — 네이버가 준 본문을 그대로 읽는다.
      제목을 누르면 이것이 먼저 보이고, 원문 PDF 는 [PDF] 단추로 새 창에서 연다. */
