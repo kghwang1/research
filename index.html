@@ -7308,7 +7308,7 @@ function updateFtrendNote(){
 //  좌축: 매매금액(억), 우축: 지수
 const FT_LINES = [
   { k:'foreign',     n:'외국인', c:'#4dc4ff', w:3.2 },
-  { k:'institution', n:'기관',   c:'#ffd54f', w:2.4 },   // 노란 실선 (1.6 → 2.4, 1.5배)
+  { k:'institution', n:'기관',   c:'#ffd54f', w:1.8 },   // 증시자금동향 고객예탁금 선과 동일 (색 #ffd54f · 두께 1.8 실선)
 ];
 const FT_IDX_COLOR = '#58a6ff';   // 지수: 푸른색 점선
 /* 순매수 막대 — 0 위(순매수) 붉은색 · 0 아래(순매도) 푸른색.
@@ -7316,8 +7316,12 @@ const FT_IDX_COLOR = '#58a6ff';   // 지수: 푸른색 점선
    완전히 불투명하게 채우면 뒤에 깔린 지수·기관 선이 가려지므로 투명도를 준다. */
 const FT_BAR_UP = '#ff5a5a';   // 순매수(+)
 const FT_BAR_DN = '#5a9bff';   // 순매도(−)
-const FT_FILL_UP = 'rgba(255,90,90,0.28)';    // 순매수 막대 속 (옅은 붉은색)
-const FT_FILL_DN = 'rgba(90,155,255,0.28)';   // 순매도 막대 속 (옅은 푸른색)
+/* 막대 속색은 '반투명'이 아니라 '카드 배경(#12151c)에 28% 로 미리 섞어 둔 불투명색'이다.
+   반투명으로 두면 뒤에 깔린 기관 선이 막대를 통과해 그대로 비쳐서,
+   실제로는 막대가 위에 그려졌는데도 기관 선이 위에 있는 것처럼 보인다.
+   미리 섞어 두면 옅은 느낌은 그대로면서 뒤의 선은 확실히 가린다. */
+const FT_FILL_UP = '#54282d';   // 순매수 막대 속 (옅은 붉은색)
+const FT_FILL_DN = '#263b5c';   // 순매도 막대 속 (옅은 푸른색)
 let ftHover = -1;
 function ftrendBind(){
   const cv=document.getElementById('ftrendCanvas'); if(!cv||cv._bound) return; cv._bound=true;
@@ -7452,7 +7456,11 @@ function drawFtrend(canvasId){
      축이 급등일 하나에 끌려가 값이 작은 날은 1~2px 밖에 안 되므로
      최소 높이를 두어 색만이라도 보이게 한다. 기관·지수는 그대로 선이다. */
   const ftBars = (ftrendMode==='net');
-  FT_LINES.forEach(l=>{
+  /* 겹칠 때 무엇이 위로 오는가.
+     순매수 모드는 지수(이미 그림) → 기관 선 → 외국인 막대 순으로 쌓아 막대가 가장 위에 온다.
+     누적 모드는 종전 순서(외국인 → 기관)를 그대로 둔다. */
+  const ftDrawOrder = ftBars ? FT_LINES.slice().reverse() : FT_LINES;
+  ftDrawOrder.forEach(l=>{
     if(ftBars && l.k==='foreign'){
       const step = (n>1) ? cw/(n-1) : cw;
       const bw = Math.max(2, Math.min(14, step*0.62));
@@ -7507,7 +7515,7 @@ function drawFtrend(canvasId){
     const hx=xOf(ftHover);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(hx,PAD.t); ctx.lineTo(hx,PAD.t+ch); ctx.stroke();
-    FT_LINES.forEach(l=>{
+    ftDrawOrder.forEach(l=>{
       const hv=series[l.k][ftHover];
       ctx.fillStyle = (ftBars && l.k==='foreign') ? (hv>0?FT_BAR_UP:(hv<0?FT_BAR_DN:l.c)) : l.c;
       ctx.beginPath(); ctx.arc(hx,yAmt(hv),2.8,0,Math.PI*2); ctx.fill(); });
