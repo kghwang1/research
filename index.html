@@ -538,6 +538,7 @@
   .trank-mkt{font-size:12px;font-weight:700;color:#8b949e;margin:10px 0 3px 2px}
   .trank-tbl{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
   .trank-tbl th{background:#1a1f29;color:#8b949e;font-weight:700;padding:4px 2px;border-bottom:1px solid #1e2430}
+  .trank-tbl th .hd{display:block;font-weight:400;color:#6e7681;font-size:9px;line-height:1.2}
   .trank-tbl td{padding:3px 2px;border-bottom:1px solid #171c25;text-align:center;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .trank-tbl td.nm{text-align:left;padding-left:3px}
   .trank-tbl td.nm a{color:#e6edf3;text-decoration:none;border-bottom:1px dotted #4a5261}
@@ -7405,8 +7406,18 @@ function trankGroupCells(row, who, sep){
   const nm = escHtml(row.name || code);
   const amt = (row.amt!=null)
     ? `<span class="amt">${trankAmt(row.amt)}${row.amtEst?'*':''}</span>` : '';
-  const nameCell = `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`;
+  // 외국인 열은 눌러도 챠트로 넘어가지 않는다
+  const nameCell = (who==='frgn')
+    ? `<td class="nm${s}">${nm}${amt}</td>`
+    : `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`;
   return nameCell + trankRatioCell(code, who) + trankPriceCell(row);
+}
+
+function trankHead(mkt, who){
+  const g = ((TRANK_DATA||{})[mkt]||{})[who] || {};
+  if(!g.date) return '';
+  const d = String(g.date).slice(5);          // MM-DD
+  return `<span class="hd">${d}${g.estimated?' 잠정':''}</span>`;
 }
 
 function trankTable(mkt){
@@ -7420,7 +7431,7 @@ function trankTable(mkt){
   return `<table class="trank-tbl">
     <colgroup><col style="width:8%"><col style="width:19%"><col style="width:12%"><col style="width:15%"><col style="width:19%"><col style="width:12%"><col style="width:15%"></colgroup>
     <thead>
-      <tr><th rowspan="2">순위</th><th colspan="3">외국인</th><th colspan="3" class="sep">기관</th></tr>
+      <tr><th rowspan="2">순위</th><th colspan="3">외국인${trankHead(mkt,'frgn')}</th><th colspan="3" class="sep">기관${trankHead(mkt,'inst')}</th></tr>
       <tr><th>종목</th><th>지분율</th><th>주가</th><th class="sep">종목</th><th>지분율</th><th>주가</th></tr>
     </thead><tbody>${body}</tbody></table>`;
 }
@@ -7434,9 +7445,8 @@ function renderTrank(){
   if(note && TRANK_DATA){
     const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
     let t = `일간 ${sl} 상위 ${TRANK_N}종목 · 금액 기준`;
-    if(TRANK_DATA.date) t += ` · 기준일 ${TRANK_DATA.date}`;
     t += ' · 지분율은 외국인 보유비율(%)과 전일 대비 변동';
-    if(TRANK_DATA.estimated) t += ' · *표시는 장중 잠정치(수량×현재가)';
+    if(TRANK_DATA.estimated) t += ' · 잠정은 장중 추정치로, 금액을 수량×현재가로 계산해 줄을 세웠습니다(*)';
     note.textContent = t;
   }
 }
