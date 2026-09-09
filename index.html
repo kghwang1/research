@@ -7399,9 +7399,18 @@ function trankRatioCell(code, who){
   return `<td>${rr.cur.toFixed(1)}%${sub}</td>`;
 }
 
+function trankStreakCell(code){
+  const rr = TRANK_RATIO[code];
+  if(rr===undefined) return '<td><span class="dim">…</span></td>';
+  if(!rr || rr.streak==null) return '<td><span class="dim">—</span></td>';
+  return rr.streak>0 ? `<td class="trank-up">${rr.streak}</td>`
+                     : '<td><span class="dim">0</span></td>';
+}
+
 function trankGroupCells(row, who, sep){
   const s = sep ? ' sep' : '';
-  if(!row) return `<td class="nm${s}"></td><td></td><td></td>`;
+  const blank = (who==='frgn') ? '<td></td><td></td><td></td>' : '<td></td>';
+  if(!row) return `<td class="nm${s}"></td>${blank}`;
   const code = String(row.code||'');
   const nm = escHtml(row.name || code);
   const amt = (row.amt!=null)
@@ -7410,7 +7419,9 @@ function trankGroupCells(row, who, sep){
   const nameCell = (who==='frgn')
     ? `<td class="nm${s}">${nm}${amt}</td>`
     : `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`;
-  return nameCell + trankRatioCell(code, who) + trankPriceCell(row);
+  return (who==='frgn')
+    ? nameCell + trankRatioCell(code, who) + trankStreakCell(code) + trankPriceCell(row)
+    : nameCell + trankPriceCell(row);
 }
 
 function trankHead(mkt, who){
@@ -7429,10 +7440,10 @@ function trankTable(mkt){
     body += `<tr><td>${i+1}</td>${trankGroupCells(fr[i],'frgn',false)}${trankGroupCells(ins[i],'inst',true)}</tr>`;
   }
   return `<table class="trank-tbl">
-    <colgroup><col style="width:8%"><col style="width:19%"><col style="width:12%"><col style="width:15%"><col style="width:19%"><col style="width:12%"><col style="width:15%"></colgroup>
+    <colgroup><col style="width:7%"><col style="width:19%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:24%"><col style="width:15%"></colgroup>
     <thead>
-      <tr><th rowspan="2">순위</th><th colspan="3">외국인${trankHead(mkt,'frgn')}</th><th colspan="3" class="sep">기관${trankHead(mkt,'inst')}</th></tr>
-      <tr><th>종목</th><th>지분율</th><th>주가</th><th class="sep">종목</th><th>지분율</th><th>주가</th></tr>
+      <tr><th rowspan="2">순위</th><th colspan="4">외국인${trankHead(mkt,'frgn')}</th><th colspan="2" class="sep">기관${trankHead(mkt,'inst')}</th></tr>
+      <tr><th>종목</th><th>지분율</th><th>매수일</th><th>주가</th><th class="sep">종목</th><th>주가</th></tr>
     </thead><tbody>${body}</tbody></table>`;
 }
 
@@ -7445,7 +7456,7 @@ function renderTrank(){
   if(note && TRANK_DATA){
     const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
     let t = `일간 ${sl} 상위 ${TRANK_N}종목 · 금액 기준`;
-    t += ' · 지분율은 외국인 보유비율(%)과 전일 대비 변동';
+    t += ' · 외국인 지분율은 보유비율(%)과 전일 대비 변동, 매수일은 최근부터 연속 순매수한 날수';
     if(TRANK_DATA.estimated) t += ' · 잠정은 장중 추정치로, 금액을 수량×현재가로 계산해 줄을 세웠습니다(*)';
     note.textContent = t;
   }
@@ -7466,9 +7477,19 @@ async function trankEnrich(){
       const j = await r.json();
       ((j&&j.items)||[]).forEach(q=>{
         const c = String((q&&q.code)||''); if(!c) return;
-        if(q.ok && Array.isArray(q.ratio)){
-          const v = q.ratio.filter(x=>x>0);
-          TRANK_RATIO[c] = v.length ? {cur:v[v.length-1], diff:(v.length>1 ? v[v.length-1]-v[v.length-2] : null)} : null;
+        if(q.ok){
+          const v = Array.isArray(q.ratio) ? q.ratio.filter(x=>x>0) : [];
+          // seq 는 오래된 날→최근 날 순서의 매수 여부. 끝에서 거꿘로 연속된 매수 일수를 센다
+          let st = null;
+          if(Array.isArray(q.seq)){
+            st = 0;
+            for(let k=q.seq.length-1;k>=0;k--){ if(q.seq[k]) st++; else break; }
+          }
+          TRANK_RATIO[c] = {
+            cur: v.length ? v[v.length-1] : null,
+            diff: v.length>1 ? v[v.length-1]-v[v.length-2] : null,
+            streak: st
+          };
         } else TRANK_RATIO[c] = null;
       });
     }catch(e){}
