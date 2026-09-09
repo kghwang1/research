@@ -7331,8 +7331,7 @@ const TRANK_N = 10;
 let TRANK_SIDE = 'buy';      // 'buy' | 'sell'
 let trankBound = false;
 let TRANK_DATA = null;
-const TRANK_QUOTE = {};      // code -> {price, rate}
-const TRANK_RATIO = {};      // code -> {cur, diff}
+const TRANK_RATIO = {};      // code -> {cur, diff}  외국인 보유비율
 
 function trankBind(){
   if(trankBound) return; trankBound = true;
@@ -7345,14 +7344,13 @@ function trankBind(){
   });
 }
 
-function trankToday(){ return new Date().toISOString().slice(0,10); }
-
 async function loadTrank(){
   const note = document.getElementById('trankNote');
   if(TRANK_DATA){ renderTrank(); trankEnrich(); return; }
   try{
-    const o = JSON.parse(localStorage.getItem('trank_v2') || 'null');
-    if(o && o.date===trankToday() && o.data){ TRANK_DATA=o.data; renderTrank(); trankEnrich(); return; }
+    const o = JSON.parse(localStorage.getItem('trank_v3') || 'null');
+    // 장중 잠정치는 10분이면 바뀌므로 짧게만 재사용
+    if(o && o.data && (Date.now()-(o.ts||0) < 10*60*1000)){ TRANK_DATA=o.data; renderTrank(); trankEnrich(); return; }
   }catch(e){}
   if(note) note.textContent = '순위 불러오는 중…';
   renderTrank();
@@ -7361,7 +7359,7 @@ async function loadTrank(){
     const j = await r.json();
     if(!j || !j.ok) throw new Error('bad');
     TRANK_DATA = j;
-    try{ localStorage.setItem('trank_v2', JSON.stringify({date:trankToday(), data:j})); }catch(e){}
+    try{ localStorage.setItem('trank_v3', JSON.stringify({ts:Date.now(), data:j})); }catch(e){}
     renderTrank(); trankEnrich();
   }catch(e){
     if(note) note.textContent = '순위 자료를 불러오지 못했습니다.';
@@ -7374,8 +7372,6 @@ function trankList(mkt, who){
   return (g[TRANK_SIDE]||[]).slice(0, TRANK_N);
 }
 
-function trankCode(row){ return String((row&&row.code)||'').replace(/[^0-9]/g,''); }
-
 function trankAmt(v){
   const n = +v; if(!isFinite(n)) return '';
   const a = Math.abs(n);
@@ -7383,14 +7379,12 @@ function trankAmt(v){
   return (n<0?'-':'')+t;
 }
 
-function trankPriceCell(code){
-  const q = TRANK_QUOTE[code];
-  if(q===undefined) return '<td><span class="dim">…</span></td>';
-  if(!q || !q.price) return '<td><span class="dim">—</span></td>';
-  const rt = q.rate;
+function trankPriceCell(row){
+  if(!row || row.price==null) return '<td><span class="dim">—</span></td>';
+  const rt = row.rate;
   const sub = (rt==null) ? ''
     : `<span class="sub ${rt>0?'trank-up':rt<0?'trank-dn':''}">${rt>0?'+':''}${(+rt).toFixed(2)}%</span>`;
-  return `<td>${escHtml(q.price)}${sub}</td>`;
+  return `<td>${(+row.price).toLocaleString()}${sub}</td>`;
 }
 
 function trankRatioCell(code, who){
@@ -7407,13 +7401,12 @@ function trankRatioCell(code, who){
 function trankGroupCells(row, who, sep){
   const s = sep ? ' sep' : '';
   if(!row) return `<td class="nm${s}"></td><td></td><td></td>`;
-  const code = trankCode(row);
+  const code = String(row.code||'');
   const nm = escHtml(row.name || code);
-  const amt = (row.amt!=null) ? `<span class="amt">${trankAmt(row.amt)}</span>` : '';
-  const nameCell = code
-    ? `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`
-    : `<td class="nm${s}">${nm}${amt}</td>`;
-  return nameCell + trankRatioCell(code, who) + trankPriceCell(code);
+  const amt = (row.amt!=null)
+    ? `<span class="amt">${trankAmt(row.amt)}${row.amtEst?'*':''}</span>` : '';
+  const nameCell = `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`;
+  return nameCell + trankRatioCell(code, who) + trankPriceCell(row);
 }
 
 function trankTable(mkt){
@@ -7440,43 +7433,24 @@ function renderTrank(){
   const note = document.getElementById('trankNote');
   if(note && TRANK_DATA){
     const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
-    note.textContent = `일간 ${sl} 상위 ${TRANK_N}종목 · 금액 기준`
-      + (TRANK_DATA.date ? ` · 기준일 ${TRANK_DATA.date}` : '')
-      + ' · 지분율은 외국인 보유비율(%)과 전일 대비 변동';
+    let t = `일간 ${sl} 상위 ${TRANK_N}종목 · 금액 기준`;
+    if(TRANK_DATA.date) t += ` · 기준일 ${TRANK_DATA.date}`;
+    t += ' · 지분율은 외국인 보유비율(%)과 전일 대비 변동';
+    if(TRANK_DATA.estimated) t += ' · *표시는 장중 잠정치(수량×현재가)';
+    note.textContent = t;
   }
 }
 
 async function trankEnrich(){
   if(!TRANK_DATA) return;
-  const all = new Set(), frgnCodes = new Set();
-  ['kospi','kosdaq'].forEach(m=>['frgn','inst'].forEach(w=>{
-    const g = ((TRANK_DATA[m]||{})[w]) || {};
-    ['buy','sell'].forEach(sd=>(g[sd]||[]).slice(0,TRANK_N).forEach(x=>{
-      const c = trankCode(x); if(c.length!==6) return;
-      all.add(c); if(w==='frgn') frgnCodes.add(c);
-    }));
-  }));
-  // 시세·등락률
-  const needQ = [...all].filter(c=>!(c in TRANK_QUOTE));
-  for(let i=0;i<needQ.length;i+=40){
-    const part = needQ.slice(i,i+40);
-    try{
-      const r = await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
-      const j = await r.json();
-      ((j&&j.items)||[]).forEach(q=>{
-        if(q&&q.ok){
-          const c = String(q.symbol||'').replace('STK:','');
-          TRANK_QUOTE[c] = {price:(q.priceStr || (q.price!=null?String(q.price):'')), rate:(q.rate!=null?q.rate:null)};
-        }
-      });
-    }catch(e){}
-    part.forEach(c=>{ if(!(c in TRANK_QUOTE)) TRANK_QUOTE[c]=null; });
-    renderTrank();
-  }
-  // 외국인 보유비율
-  const needR = [...frgnCodes].filter(c=>!(c in TRANK_RATIO));
-  for(let i=0;i<needR.length;i+=15){
-    const part = needR.slice(i,i+15);
+  // 지금 보이는 쪽(순매수/순매도)의 외국인 종목만 보유비율을 채운다
+  const codes = new Set();
+  ['kospi','kosdaq'].forEach(m=>{
+    trankList(m,'frgn').forEach(x=>{ const c=String(x.code||''); if(c.length===6) codes.add(c); });
+  });
+  const need = [...codes].filter(c=>!(c in TRANK_RATIO));
+  for(let i=0;i<need.length;i+=15){
+    const part = need.slice(i,i+15);
     try{
       const r = await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(',')));
       const j = await r.json();
