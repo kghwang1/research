@@ -548,6 +548,10 @@
   .trank-up{color:#ef5350}
   .trank-dn{color:#4a90d9}
   .trank-note{font-size:10px;color:#6e7681;margin-top:6px;text-align:center}
+  .trank-stamp{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .trank-time{font-size:10.5px;color:#6e7681}
+  .tr-reload{padding:4px 9px;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#8b949e;font-size:12px;cursor:pointer}
+  .tr-reload:disabled{opacity:.5;cursor:default}
   .val-tbl td.al{text-align:left}
   /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
   .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
@@ -1558,6 +1562,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
         <button class="tr-b active" data-side="buy">순매수</button>
         <button class="tr-b" data-side="sell">순매도</button>
       </div>
+      <div class="trank-stamp"><span class="trank-time" id="trankTime"></span><button class="tr-reload" id="trankReload" title="새로 받기">↻</button></div>
     </div>
     <div class="trank-mkt">코스피</div>
     <div id="trankKospi"></div>
@@ -7343,20 +7348,26 @@ function trankBind(){
       renderTrank(); trankEnrich();
     };
   });
+  const rb = document.getElementById('trankReload');
+  if(rb) rb.onclick = ()=>{ loadTrank(true); };
 }
 
-async function loadTrank(){
+async function loadTrank(force){
   const note = document.getElementById('trankNote');
-  if(TRANK_DATA){ renderTrank(); trankEnrich(); return; }
-  try{
-    const o = JSON.parse(localStorage.getItem('trank_v3') || 'null');
-    // 장중 잠정치는 10분이면 바뀌므로 짧게만 재사용
-    if(o && o.data && (Date.now()-(o.ts||0) < 10*60*1000)){ TRANK_DATA=o.data; renderTrank(); trankEnrich(); return; }
-  }catch(e){}
+  const rb = document.getElementById('trankReload');
+  if(!force && TRANK_DATA){ renderTrank(); trankEnrich(); return; }
+  if(!force){
+    try{
+      const o = JSON.parse(localStorage.getItem('trank_v3') || 'null');
+      // 장중 잠정치는 10분이면 바뀌므로 짧게만 재사용
+      if(o && o.data && (Date.now()-(o.ts||0) < 10*60*1000)){ TRANK_DATA=o.data; renderTrank(); trankEnrich(); return; }
+    }catch(e){}
+  }
   if(note) note.textContent = '순위 불러오는 중…';
+  if(rb) rb.disabled = true;
   renderTrank();
   try{
-    const r = await fetch(SRV_URL+'/?trank=1&n='+TRANK_N, {cache:'no-store'});
+    const r = await fetch(SRV_URL+'/?trank=1&n='+TRANK_N+(force?'&fresh=1':''), {cache:'no-store'});
     const j = await r.json();
     if(!j || !j.ok) throw new Error('bad');
     TRANK_DATA = j;
@@ -7365,6 +7376,7 @@ async function loadTrank(){
   }catch(e){
     if(note) note.textContent = '순위 자료를 불러오지 못했습니다.';
   }
+  if(rb) rb.disabled = false;
 }
 
 function trankList(mkt, who){
@@ -7452,6 +7464,19 @@ function renderTrank(){
   if(!a || !b) return;
   a.innerHTML = trankTable('kospi');
   b.innerHTML = trankTable('kosdaq');
+  const tm = document.getElementById('trankTime');
+  if(tm){
+    if(!TRANK_DATA) tm.textContent = '';
+    else {
+      // 한국 장 자료라 기기 시간대와 무관하게 한국시각으로 적는다
+      const hm = t=>{ try{
+        return new Date(t).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false});
+      }catch(e){ return ''; } };
+      const a = TRANK_DATA.rankedAt ? hm(TRANK_DATA.rankedAt) : '';
+      const b = TRANK_DATA.fetchedAt ? hm(TRANK_DATA.fetchedAt) : '';
+      tm.textContent = a ? ('네이버 '+a+' 기준' + (b?' · 받은 시각 '+b:'')) : (b?('받은 시각 '+b):'');
+    }
+  }
   const note = document.getElementById('trankNote');
   if(note && TRANK_DATA){
     const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
