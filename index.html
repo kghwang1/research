@@ -528,13 +528,26 @@
   .pnl-row input{flex:1;min-width:90px;padding:8px 10px;border-radius:8px;border:1px solid #555;background:#0f1118;color:#eee;font-size:14px}
   .pnl-auto{padding:8px 12px;border-radius:8px;border:1px solid #39d98a;background:transparent;color:#39d98a;font-weight:700;font-size:12px}
   .pnl-note{font-size:14.3px;line-height:1.6;color:var(--dim)}
-  .pnl-flow{margin-top:6px}
-  .pnl-flow-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
-  .pnl-flow-h span:first-child{font-size:14px;font-weight:700;color:var(--ink,#eee)}
-  .pnl-flow-open{font-size:12.5px;color:#5a9bff;cursor:pointer}
-  .pnl-flow-crop{position:relative;width:100%;height:448px;overflow:hidden;border-radius:12px;background:#fff}
-  #pnlFlowFrame{position:absolute;left:0;top:-150px;width:100%;height:1050px;border:0}
-  .pnl-flow-note{margin-top:6px;font-size:12.5px;color:var(--dim);text-align:center}
+  /* 외국인·기관 순매수/순매도 종목 순위 */
+  .trank-box{background:#12151c;border:1px solid #1e2430;border-radius:12px;padding:10px 10px 8px;margin:10px 0}
+  .trank-title{font-size:14.7px;font-weight:700;color:#d4af00;margin-bottom:8px}
+  .trank-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .trank-toggle{display:flex;gap:4px}
+  .tr-b{padding:4px 10px;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#8b949e;font-size:12px;font-weight:700;cursor:pointer}
+  .tr-b.active{border-color:#d4af00;color:#d4af00}
+  #trankPeriod{margin-left:auto;background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
+  .trank-mkt{font-size:12px;font-weight:700;color:#8b949e;margin:10px 0 3px 2px}
+  .trank-tbl{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
+  .trank-tbl th{background:#1a1f29;color:#8b949e;font-weight:700;padding:4px 2px;border-bottom:1px solid #1e2430}
+  .trank-tbl td{padding:3px 2px;border-bottom:1px solid #171c25;text-align:center;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trank-tbl td.nm{text-align:left;padding-left:3px}
+  .trank-tbl td.nm a{color:#e6edf3;text-decoration:none;border-bottom:1px dotted #4a5261}
+  .trank-tbl th.sep,.trank-tbl td.sep{border-left:1px solid #2a3140}
+  .trank-tbl .amt{display:block;font-size:9px;color:#6e7681;line-height:1.15}
+  .trank-tbl .sub{display:block;font-size:9px;line-height:1.15}
+  .trank-up{color:#ef5350}
+  .trank-dn{color:#4a90d9}
+  .trank-note{font-size:10px;color:#6e7681;margin-top:6px;text-align:center}
   .val-tbl td.al{text-align:left}
   /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
   .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
@@ -1537,10 +1550,25 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div class="dep-read" id="depRead"></div>
   </div>
 
-  <div class="pnl-flow">
-   <div class="pnl-flow-h"><span>외국인 선물 투자자별 매매동향 (실시간)</span><span class="pnl-flow-open" onclick="pnlFlowOpen()">네이버에서 열기 ↗</span></div>
-   <div class="pnl-flow-crop"><iframe id="pnlFlowFrame" referrerpolicy="no-referrer"></iframe></div>
-   <div class="pnl-flow-note">선물 탭 · 외국인/개인 순매수(계약). 차트가 안 보이면 「네이버에서 열기」를 누르세요.</div>
+  <!-- 외국인·기관 순매수 순매도 종목 -->
+  <div class="trank-box">
+    <div class="trank-title">외국인 기관 순매수 순매도 종목</div>
+    <div class="trank-head">
+      <div class="trank-toggle">
+        <button class="tr-b active" data-side="buy">순매수</button>
+        <button class="tr-b" data-side="sell">순매도</button>
+      </div>
+      <select id="trankPeriod">
+        <option value="day" selected>일간</option>
+        <option value="week">주간</option>
+        <option value="month">월간</option>
+      </select>
+    </div>
+    <div class="trank-mkt">코스피</div>
+    <div id="trankKospi"></div>
+    <div class="trank-mkt">코스닥</div>
+    <div id="trankKosdaq"></div>
+    <div class="trank-note" id="trankNote">불러오는 중…</div>
   </div>
  </div>
  </section>
@@ -7299,9 +7327,181 @@ function openPnl(){
   }catch(e){}
   loadPnlDir(); // 투자심리 신호(야간선물 입력란 포함해 렌더)
   pnlAutoFetch(true); // 현재 K200·외국인 선물/코스피 순매수 자동
-  const ff=$('#pnlFlowFrame'); if(ff && (!ff.src || ff.src==='about:blank')) ff.src=FLOW_URL;
   loadFtrend(); // 외국인 매매 추이 막대그래프
+  trankBind(); loadTrank(); // 외국인·기관 순매수/순매도 종목 순위
   loadDeposit_init(); // 증시자금동향
+}
+
+/* ===== 외국인·기관 순매수/순매도 종목 순위 ===== */
+const TRANK_N = 10;
+let TRANK_SIDE = 'buy';      // 'buy' | 'sell'
+let TRANK_PERIOD = 'day';    // 'day' | 'week' | 'month'
+let trankBound = false;
+const TRANK_DATA = {};       // period -> 응답
+const TRANK_QUOTE = {};      // code -> {price, rate}
+const TRANK_RATIO = {};      // code -> {cur, diff}
+
+function trankBind(){
+  if(trankBound) return; trankBound = true;
+  document.querySelectorAll('.trank-toggle .tr-b').forEach(b=>{
+    b.onclick = ()=>{
+      TRANK_SIDE = b.dataset.side;
+      document.querySelectorAll('.trank-toggle .tr-b').forEach(x=>x.classList.toggle('active', x===b));
+      renderTrank(); trankEnrich();
+    };
+  });
+  const sel = document.getElementById('trankPeriod');
+  if(sel) sel.onchange = ()=>{ TRANK_PERIOD = sel.value; loadTrank(); };
+}
+
+function trankToday(){ return new Date().toISOString().slice(0,10); }
+
+async function loadTrank(){
+  const note = document.getElementById('trankNote');
+  const key = TRANK_PERIOD;
+  if(TRANK_DATA[key]){ renderTrank(); trankEnrich(); return; }
+  try{
+    const o = JSON.parse(localStorage.getItem('trank_v1_'+key) || 'null');
+    if(o && o.date===trankToday() && o.data){ TRANK_DATA[key]=o.data; renderTrank(); trankEnrich(); return; }
+  }catch(e){}
+  if(note) note.textContent = '순위 불러오는 중…';
+  renderTrank();
+  try{
+    const r = await fetch(SRV_URL+'/?trank=1&period='+encodeURIComponent(key)+'&n='+TRANK_N, {cache:'no-store'});
+    const j = await r.json();
+    if(!j || !j.ok) throw new Error('bad');
+    TRANK_DATA[key] = j;
+    try{ localStorage.setItem('trank_v1_'+key, JSON.stringify({date:trankToday(), data:j})); }catch(e){}
+    renderTrank(); trankEnrich();
+  }catch(e){
+    if(note) note.textContent = '순위 자료를 불러오지 못했습니다.';
+  }
+}
+
+function trankList(mkt, who){
+  const d = TRANK_DATA[TRANK_PERIOD]; if(!d) return [];
+  const g = ((d[mkt]||{})[who]) || {};
+  return (g[TRANK_SIDE]||[]).slice(0, TRANK_N);
+}
+
+function trankCode(row){ return String((row&&row.code)||'').replace(/[^0-9]/g,''); }
+
+function trankAmt(v){
+  const n = +v; if(!isFinite(n)) return '';
+  const a = Math.abs(n);
+  const t = a>=10000 ? (a/10000).toFixed(2)+'조' : Math.round(a).toLocaleString()+'억';
+  return (n<0?'-':'')+t;
+}
+
+function trankPriceCell(code){
+  const q = TRANK_QUOTE[code];
+  if(q===undefined) return '<td><span class="dim">…</span></td>';
+  if(!q || !q.price) return '<td><span class="dim">—</span></td>';
+  const rt = q.rate;
+  const sub = (rt==null) ? ''
+    : `<span class="sub ${rt>0?'trank-up':rt<0?'trank-dn':''}">${rt>0?'+':''}${(+rt).toFixed(2)}%</span>`;
+  return `<td>${escHtml(q.price)}${sub}</td>`;
+}
+
+function trankRatioCell(code, who){
+  if(who!=='frgn') return '<td><span class="dim">—</span></td>';
+  const rr = TRANK_RATIO[code];
+  if(rr===undefined) return '<td><span class="dim">…</span></td>';
+  if(!rr || rr.cur==null) return '<td><span class="dim">—</span></td>';
+  const dv = rr.diff;
+  const sub = (dv==null || Math.abs(dv)<0.005) ? ''
+    : `<span class="sub ${dv>0?'trank-up':'trank-dn'}">${dv>0?'+':''}${dv.toFixed(2)}</span>`;
+  return `<td>${rr.cur.toFixed(1)}%${sub}</td>`;
+}
+
+function trankGroupCells(row, who, sep){
+  const s = sep ? ' sep' : '';
+  if(!row) return `<td class="nm${s}"></td><td></td><td></td>`;
+  const code = trankCode(row);
+  const nm = escHtml(row.name || code);
+  const amt = (row.amt!=null) ? `<span class="amt">${trankAmt(row.amt)}</span>` : '';
+  const nameCell = code
+    ? `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`
+    : `<td class="nm${s}">${nm}${amt}</td>`;
+  return nameCell + trankRatioCell(code, who) + trankPriceCell(code);
+}
+
+function trankTable(mkt){
+  const fr = trankList(mkt,'frgn'), ins = trankList(mkt,'inst');
+  const n = Math.max(fr.length, ins.length);
+  if(!n) return '<div class="trank-note">자료 없음</div>';
+  let body = '';
+  for(let i=0;i<n;i++){
+    body += `<tr><td>${i+1}</td>${trankGroupCells(fr[i],'frgn',false)}${trankGroupCells(ins[i],'inst',true)}</tr>`;
+  }
+  return `<table class="trank-tbl">
+    <colgroup><col style="width:8%"><col style="width:19%"><col style="width:12%"><col style="width:15%"><col style="width:19%"><col style="width:12%"><col style="width:15%"></colgroup>
+    <thead>
+      <tr><th rowspan="2">순위</th><th colspan="3">외국인</th><th colspan="3" class="sep">기관</th></tr>
+      <tr><th>종목</th><th>지분율</th><th>주가</th><th class="sep">종목</th><th>지분율</th><th>주가</th></tr>
+    </thead><tbody>${body}</tbody></table>`;
+}
+
+function renderTrank(){
+  const a = document.getElementById('trankKospi'), b = document.getElementById('trankKosdaq');
+  if(!a || !b) return;
+  a.innerHTML = trankTable('kospi');
+  b.innerHTML = trankTable('kosdaq');
+  const note = document.getElementById('trankNote');
+  const d = TRANK_DATA[TRANK_PERIOD];
+  if(note && d){
+    const pl = TRANK_PERIOD==='week' ? '주간' : TRANK_PERIOD==='month' ? '월간' : '일간';
+    const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
+    note.textContent = `${pl} ${sl} 상위 ${TRANK_N}종목 · 금액 기준` + (d.date ? ` · 기준일 ${d.date}` : '')
+      + ' · 지분율은 외국인 보유비율(%)과 전일 대비 변동';
+  }
+}
+
+async function trankEnrich(){
+  const d = TRANK_DATA[TRANK_PERIOD]; if(!d) return;
+  const all = new Set(), frgnCodes = new Set();
+  ['kospi','kosdaq'].forEach(m=>['frgn','inst'].forEach(w=>{
+    const g = ((d[m]||{})[w]) || {};
+    ['buy','sell'].forEach(sd=>(g[sd]||[]).slice(0,TRANK_N).forEach(x=>{
+      const c = trankCode(x); if(c.length!==6) return;
+      all.add(c); if(w==='frgn') frgnCodes.add(c);
+    }));
+  }));
+  // 시세·등락률
+  const needQ = [...all].filter(c=>!(c in TRANK_QUOTE));
+  for(let i=0;i<needQ.length;i+=40){
+    const part = needQ.slice(i,i+40);
+    try{
+      const r = await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
+      const j = await r.json();
+      ((j&&j.items)||[]).forEach(q=>{
+        if(q&&q.ok){
+          const c = String(q.symbol||'').replace('STK:','');
+          TRANK_QUOTE[c] = {price:(q.priceStr || (q.price!=null?String(q.price):'')), rate:(q.rate!=null?q.rate:null)};
+        }
+      });
+    }catch(e){}
+    part.forEach(c=>{ if(!(c in TRANK_QUOTE)) TRANK_QUOTE[c]=null; });
+    renderTrank();
+  }
+  // 외국인 보유비율
+  const needR = [...frgnCodes].filter(c=>!(c in TRANK_RATIO));
+  for(let i=0;i<needR.length;i+=15){
+    const part = needR.slice(i,i+15);
+    try{
+      const r = await fetch(SRV_URL+'/?frgns='+encodeURIComponent(part.join(',')));
+      const j = await r.json();
+      ((j&&j.items)||[]).forEach(q=>{
+        const c = String((q&&q.code)||''); if(!c) return;
+        if(q.ok && Array.isArray(q.ratio)){
+          const v = q.ratio.filter(x=>x>0);
+          TRANK_RATIO[c] = v.length ? {cur:v[v.length-1], diff:(v.length>1 ? v[v.length-1]-v[v.length-2] : null)} : null;
+        } else TRANK_RATIO[c] = null;
+      });
+    }catch(e){}
+    part.forEach(c=>{ if(!(c in TRANK_RATIO)) TRANK_RATIO[c]=null; });
+    renderTrank();
+  }
 }
 
 // ── 투자자별 매매 추이 막대그래프 ──
@@ -7808,7 +8008,6 @@ async function renderFtop(){
   tbl.innerHTML = h;
   if(note) note.innerHTML = `누적 ${dc}일치 · 투자일수=순매수 등장일 · <span style="color:#58a6ff">종목명=네이버</span> · <span style="color:#3fb950">현재가=차트</span>`;
 }
-function pnlFlowOpen(){ window.open(FLOW_URL,'_blank','noopener'); }
 function pnlApplyApprox(){ if(PNL.cur!=null){ if(PNL.spotV!=null) PNL.spotK=PNL.cur; if(PNL.futN!=null) PNL.futK=PNL.cur; } }
 function onNightFut(){
   const pr=parseFloat(($('#pnlNfPrice').value||'').replace(/,/g,''));
@@ -8505,7 +8704,6 @@ function pnlRenderDir(){
   h+=`<div class="pd-note">${pnlInterpret(V,{futN, spotV, ewy:D.ewyRate, basis:D.basis, krw:D.krwRate, nonArb:D.nonArb, nf:PNL.nfRate})}</div>`;
   box.innerHTML=h;
 }
-function closePnl(){ const ff=$('#pnlFlowFrame'); if(ff) ff.src='about:blank'; }
 function pnlSign(id){ const el=$('#'+id); if(!el) return; let v=(el.value||'').trim(); if(v===''||v==='-'){ el.value='-'; } else if(v[0]==='-'){ el.value=v.slice(1); } else { el.value='-'+v; } el.focus(); if(id==='pnlNfRate') onNightFut(); }
 function pnlSeriesVal(K, kind){
   if(kind==='spot'){ if(PNL.spotV!=null && PNL.spotK) return PNL.spotV*(K-PNL.spotK)/PNL.spotK; return null; }
