@@ -8489,11 +8489,6 @@ function depReadOut(){
   let h='<b>[해설]</b> ';
   h+='<span class="k">고객예탁금은 아직 주식을 사지 않은 대기자금, 신용잔고는 빚내서 산 주식입니다.</span>';
 
-  // ① 오늘 ② 이번 주 ③ 이달
-  h+=line(prev,  '오늘 ('+String(last.date).slice(5).replace('-','/')+', 전일 대비)');
-  h+=line(wBase, '이번 주');
-  h+=line(mBase, '이달 ('+Number(String(last.date).slice(5,7))+'월)');
-
   // ④ 구간 흐름 — 방향이 꺾인 자리까지 짚어준다
   const t1=depTrendText('credit','신용잔고'), t2=depTrendText('deposit','고객예탁금');
   const span='<span class="k">(최근 3개월: '+String(first.date).slice(2).replace(/-/g,'/')
