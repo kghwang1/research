@@ -535,7 +535,6 @@
   .trank-toggle{display:flex;gap:4px}
   .tr-b{padding:4px 10px;border-radius:6px;border:1px solid #30363d;background:#161b22;color:#8b949e;font-size:12px;font-weight:700;cursor:pointer}
   .tr-b.active{border-color:#d4af00;color:#d4af00}
-  #trankPeriod{margin-left:auto;background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}
   .trank-mkt{font-size:12px;font-weight:700;color:#8b949e;margin:10px 0 3px 2px}
   .trank-tbl{width:100%;border-collapse:collapse;font-size:11px;table-layout:fixed}
   .trank-tbl th{background:#1a1f29;color:#8b949e;font-weight:700;padding:4px 2px;border-bottom:1px solid #1e2430}
@@ -1558,11 +1557,6 @@ DPS ÷ 배당수익률 = ?</code></pre>
         <button class="tr-b active" data-side="buy">순매수</button>
         <button class="tr-b" data-side="sell">순매도</button>
       </div>
-      <select id="trankPeriod">
-        <option value="day" selected>일간</option>
-        <option value="week">주간</option>
-        <option value="month">월간</option>
-      </select>
     </div>
     <div class="trank-mkt">코스피</div>
     <div id="trankKospi"></div>
@@ -7332,12 +7326,11 @@ function openPnl(){
   loadDeposit_init(); // 증시자금동향
 }
 
-/* ===== 외국인·기관 순매수/순매도 종목 순위 ===== */
+/* ===== 외국인·기관 순매수/순매도 종목 (일간) ===== */
 const TRANK_N = 10;
 let TRANK_SIDE = 'buy';      // 'buy' | 'sell'
-let TRANK_PERIOD = 'day';    // 'day' | 'week' | 'month'
 let trankBound = false;
-const TRANK_DATA = {};       // period -> 응답
+let TRANK_DATA = null;
 const TRANK_QUOTE = {};      // code -> {price, rate}
 const TRANK_RATIO = {};      // code -> {cur, diff}
 
@@ -7350,28 +7343,25 @@ function trankBind(){
       renderTrank(); trankEnrich();
     };
   });
-  const sel = document.getElementById('trankPeriod');
-  if(sel) sel.onchange = ()=>{ TRANK_PERIOD = sel.value; loadTrank(); };
 }
 
 function trankToday(){ return new Date().toISOString().slice(0,10); }
 
 async function loadTrank(){
   const note = document.getElementById('trankNote');
-  const key = TRANK_PERIOD;
-  if(TRANK_DATA[key]){ renderTrank(); trankEnrich(); return; }
+  if(TRANK_DATA){ renderTrank(); trankEnrich(); return; }
   try{
-    const o = JSON.parse(localStorage.getItem('trank_v1_'+key) || 'null');
-    if(o && o.date===trankToday() && o.data){ TRANK_DATA[key]=o.data; renderTrank(); trankEnrich(); return; }
+    const o = JSON.parse(localStorage.getItem('trank_v2') || 'null');
+    if(o && o.date===trankToday() && o.data){ TRANK_DATA=o.data; renderTrank(); trankEnrich(); return; }
   }catch(e){}
   if(note) note.textContent = '순위 불러오는 중…';
   renderTrank();
   try{
-    const r = await fetch(SRV_URL+'/?trank=1&period='+encodeURIComponent(key)+'&n='+TRANK_N, {cache:'no-store'});
+    const r = await fetch(SRV_URL+'/?trank=1&n='+TRANK_N, {cache:'no-store'});
     const j = await r.json();
     if(!j || !j.ok) throw new Error('bad');
-    TRANK_DATA[key] = j;
-    try{ localStorage.setItem('trank_v1_'+key, JSON.stringify({date:trankToday(), data:j})); }catch(e){}
+    TRANK_DATA = j;
+    try{ localStorage.setItem('trank_v2', JSON.stringify({date:trankToday(), data:j})); }catch(e){}
     renderTrank(); trankEnrich();
   }catch(e){
     if(note) note.textContent = '순위 자료를 불러오지 못했습니다.';
@@ -7379,8 +7369,8 @@ async function loadTrank(){
 }
 
 function trankList(mkt, who){
-  const d = TRANK_DATA[TRANK_PERIOD]; if(!d) return [];
-  const g = ((d[mkt]||{})[who]) || {};
+  if(!TRANK_DATA) return [];
+  const g = ((TRANK_DATA[mkt]||{})[who]) || {};
   return (g[TRANK_SIDE]||[]).slice(0, TRANK_N);
 }
 
@@ -7448,20 +7438,19 @@ function renderTrank(){
   a.innerHTML = trankTable('kospi');
   b.innerHTML = trankTable('kosdaq');
   const note = document.getElementById('trankNote');
-  const d = TRANK_DATA[TRANK_PERIOD];
-  if(note && d){
-    const pl = TRANK_PERIOD==='week' ? '주간' : TRANK_PERIOD==='month' ? '월간' : '일간';
+  if(note && TRANK_DATA){
     const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
-    note.textContent = `${pl} ${sl} 상위 ${TRANK_N}종목 · 금액 기준` + (d.date ? ` · 기준일 ${d.date}` : '')
+    note.textContent = `일간 ${sl} 상위 ${TRANK_N}종목 · 금액 기준`
+      + (TRANK_DATA.date ? ` · 기준일 ${TRANK_DATA.date}` : '')
       + ' · 지분율은 외국인 보유비율(%)과 전일 대비 변동';
   }
 }
 
 async function trankEnrich(){
-  const d = TRANK_DATA[TRANK_PERIOD]; if(!d) return;
+  if(!TRANK_DATA) return;
   const all = new Set(), frgnCodes = new Set();
   ['kospi','kosdaq'].forEach(m=>['frgn','inst'].forEach(w=>{
-    const g = ((d[m]||{})[w]) || {};
+    const g = ((TRANK_DATA[m]||{})[w]) || {};
     ['buy','sell'].forEach(sd=>(g[sd]||[]).slice(0,TRANK_N).forEach(x=>{
       const c = trankCode(x); if(c.length!==6) return;
       all.add(c); if(w==='frgn') frgnCodes.add(c);
