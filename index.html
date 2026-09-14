@@ -7438,9 +7438,11 @@ function trankRatioCell(code, who){
 function trankStreakCell(code){
   const rr = TRANK_RATIO[code];
   if(rr===undefined) return '<td><span class="dim">…</span></td>';
-  if(!rr || rr.streak==null) return '<td><span class="dim">—</span></td>';
-  return rr.streak>0 ? `<td class="trank-up">${rr.streak}</td>`
-                     : '<td><span class="dim">0</span></td>';
+  const sell = TRANK_SIDE==='sell';
+  const n = rr ? (sell ? rr.sellStreak : rr.buyStreak) : null;
+  if(n==null) return '<td><span class="dim">—</span></td>';
+  return n>0 ? `<td class="${sell?'trank-dn':'trank-up'}">${n}</td>`
+             : '<td><span class="dim">0</span></td>';
 }
 
 function trankGroupCells(row, who, sep){
@@ -7479,7 +7481,7 @@ function trankTable(mkt){
     <colgroup><col style="width:7%"><col style="width:19%"><col style="width:12%"><col style="width:9%"><col style="width:14%"><col style="width:24%"><col style="width:15%"></colgroup>
     <thead>
       <tr><th rowspan="2">순위</th><th colspan="4">외국인${trankHead(mkt,'frgn')}</th><th colspan="2" class="sep">기관${trankHead(mkt,'inst')}</th></tr>
-      <tr><th>종목</th><th>지분율</th><th>매수일</th><th>주가</th><th class="sep">종목</th><th>주가</th></tr>
+      <tr><th>종목</th><th>지분율</th><th>${TRANK_SIDE==='sell'?'매도일':'매수일'}</th><th>주가</th><th class="sep">종목</th><th>주가</th></tr>
     </thead><tbody>${body}</tbody></table>`;
 }
 
@@ -7505,7 +7507,9 @@ function renderTrank(){
   if(note && TRANK_DATA){
     const sl = TRANK_SIDE==='buy' ? '순매수' : '순매도';
     let t = `일간 ${sl} 상위 ${TRANK_N}종목 · 금액 기준`;
-    t += ' · 외국인 지분율은 보유비율(%)과 전일 대비 변동, 매수일은 최근부터 연속 순매수한 날수';
+    t += TRANK_SIDE==='sell'
+      ? ' · 외국인 지분율은 보유비율(%)과 전일 대비 변동, 매도일은 최근부터 연속 순매도한 날수'
+      : ' · 외국인 지분율은 보유비율(%)과 전일 대비 변동, 매수일은 최근부터 연속 순매수한 날수';
     if(TRANK_DATA.estimated) t += ' · 잠정은 장중 추정치로, 금액을 수량×현재가로 계산해 줄을 세웠습니다(*)';
     note.textContent = t;
   }
@@ -7528,16 +7532,27 @@ async function trankEnrich(){
         const c = String((q&&q.code)||''); if(!c) return;
         if(q.ok){
           const v = Array.isArray(q.ratio) ? q.ratio.filter(x=>x>0) : [];
-          // seq 는 오래된 날→최근 날 순서의 매수 여부. 끝에서 거꿘로 연속된 매수 일수를 센다
-          let st = null;
+          // seq(매수 여부)·net(순매매 수량) 모두 오래된 날→최근 날 순서.
+          // 끝에서 거꾸로 세어 '최근부터 연속' 일수를 구한다.
+          // 순매수일과 순매도일을 함께 담아 두고, 표에서 보고 있는 쪽을 골라 쓴다.
+          let bs = null, ss = null;
           if(Array.isArray(q.seq)){
-            st = 0;
-            for(let k=q.seq.length-1;k>=0;k--){ if(q.seq[k]) st++; else break; }
+            bs = 0;
+            for(let k=q.seq.length-1;k>=0;k--){ if(q.seq[k]) bs++; else break; }
+          }
+          const nt = Array.isArray(q.net) ? q.net : null;
+          if(nt){
+            // 수량이 음수인 날만 순매도로 센다 (0인 날은 어느 쪽도 아니다)
+            ss = 0;
+            for(let k=nt.length-1;k>=0;k--){ if(nt[k]<0) ss++; else break; }
+          } else if(Array.isArray(q.seq)){
+            ss = 0;
+            for(let k=q.seq.length-1;k>=0;k--){ if(!q.seq[k]) ss++; else break; }
           }
           TRANK_RATIO[c] = {
             cur: v.length ? v[v.length-1] : null,
             diff: v.length>1 ? v[v.length-1]-v[v.length-2] : null,
-            streak: st
+            buyStreak: bs, sellStreak: ss
           };
         } else TRANK_RATIO[c] = null;
       });
