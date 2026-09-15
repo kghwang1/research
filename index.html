@@ -2848,43 +2848,48 @@ const KRETF_DATA=[
   ["","현금","0.6","31.1","-30.5"],
 ];
 /* 미국(체) 포트폴리오 — MP 분석(6월 3주차). 행: [심볼, 명칭, 비중, 변동(확대▲/축소▼/''), 기록] */
-const USC_LABEL='8월 4일 MP 분석';
+const USC_LABEL='9월 3주 MP 분석';
+/* 미국(체) 직전 기준일 비중 — 비중 칸에 변화폭을 함께 보이기 위한 대조값 */
+const USC_W_PREV={"SPY":"19.8", "DRAM":"9.5", "MU":"9.7", "SNDK":"6.7", "LITE":"5.9", "MRVL":"5.5", "SOXX":"5.2", "COHR":"4.8", "GOOGL":"3.9", "현금":"3.6", "TSLA":"3.3", "EWY":"3.6", "SPCE":"3", "MRNA":"1.8", "SMH":"1.7", "CCML":"0", "ASML":"1.4", "AMAT":"1.3", "HXSCL":"1.1", "RSP":"1.9", "LRCX":"1", "QQQ":"0.8", "NVDA":"0.8", "XLV":"0.7", "AVGO":"0.7", "PLTR":"0.5", "META":"0.4", "INTC":"0.3", "BLK":"0.2", "MRK":"0.2", "NBIS":"0.2", "ABNB":"0.2", "AAPL":"0.1", "BE":"0.1", "HOOD":"0.1", "IGV":"0.1", "CAT":"0.1", "APP":"0.2"};
 const USC_DATA=[
- ["SPY","SS SPDR S&P500 ETF","21.3","확대▲",""],
- ["DRAM","ROUNDHILL MEMORY ETF","13.3","확대▲",""],
- ["MU","MICRON TECHNOLOGY","11.5","축소▼",""],
- ["SNDK","SANDISK","6.7","축소▼",""],
- ["SOXX","ISHARES SEMICONDUCTOR ETF","6","확대▲",""],
- ["TSLA","TESLA","4.9","확대▲",""],
- ["GOOGL","ALPHABET CL A","4.7","",""],
- ["EWY","ISHARES MSCI SOUTH KOREA ETF","4","확대▲",""],
- ["MRVL","MARVELL TECHNOLOGY","3.3","",""],
- ["INTC","INTEL","2.8","축소▼",""],
- ["RSP","INVESCO S&P500 EQUAL WEIGHT","2.6","",""],
- ["LITE","LUMENTUM HOLDINGS","2.3","",""],
- ["SPCE","SPACE EXPLORATION TECHN-CL A","2.3","",""],
- ["SMH","VANECK SEMICONDUCTOR ETF","1.8","",""],
- ["AMAT","APPLIED MATERIALS","1.6","",""],
- ["","현금","1.6","",""],
- ["HXSCL","SK HYNIX ADR","1.6","신규",""],
- ["LRCX","LAM RESEARCH","1.6","축소▼",""],
- ["ASML","ASML HOLDING","1.4","축소▼",""],
+ ["SPY","SS SPDR S&P500 ETF","19.7","",""],
+ ["DRAM","ROUNDHILL MEMORY ETF","9.4","",""],
+ ["MU","MICRON TECHNOLOGY","8.8","축소▼",""],
+ ["SNDK","SANDISK","6.3","",""],
+ ["LITE","LUMENTUM HOLDINGS","6.2","",""],
+ ["MRVL","MARVELL TECHNOLOGY","5.8","",""],
+ ["SOXX","ISHARES SEMICONDUCTOR ETF","5.2","",""],
+ ["COHR","COHERENT","5.2","",""],
+ ["GOOGL","ALPHABET CL A","3.9","",""],
+ ["","현금","3.6","",""],
+ ["TSLA","TESLA","3.4","",""],
+ ["EWY","ISHARES MSCI SOUTH KOREA ETF","3.3","축소▼",""],
+ ["SPCE","SPACE EXPLORATION TECHN-CL A","3","",""],
+ ["MRNA","MODERNA","1.8","",""],
+ ["SMH","VANECK SEMICONDUCTOR ETF","1.7","",""],
+ ["CCML","ROUNDHILL MLCC & ELEC COMP ETF","1.6","신규",""],
+ ["ASML","ASML HOLDING","1.4","",""],
+ ["AMAT","APPLIED MATERIALS","1.3","",""],
+ ["HXSCL","SK HYNIX ADR","1.2","",""],
+ ["RSP","INVESCO S&P500 EQUAL WEIGHT","1.1","축소▼",""],
+ ["LRCX","LAM RESEARCH","1","",""],
  ["QQQ","INVESCO QQQ TRUST SERIES 1","0.8","",""],
- ["AVGO","BROADCOM","0.8","",""],
- ["XLV","SS HEALTH CARE SELECT SECTOR","0.8","확대▲",""],
- ["META","META PLATFORMS CL A","0.5","축소▼",""],
- ["PLTR","PALANTIR TECHNOLOGIES","0.4","",""],
- ["APP","APPLOVIN","0.2","",""],
- ["MRNA","MODERNA","0.2","",""],
+ ["NVDA","NVIDIA","0.8","",""],
+ ["XLV","SS HEALTH CARE SELECT SECTOR","0.7","",""],
+ ["AVGO","BROADCOM","0.7","",""],
+ ["PLTR","PALANTIR TECHNOLOGIES","0.5","",""],
+ ["META","META PLATFORMS CL A","0.4","",""],
+ ["INTC","INTEL","0.3","",""],
  ["BLK","BLACKROCK","0.2","",""],
  ["MRK","MERCK","0.2","",""],
+ ["NBIS","NEBIUS GROUP","0.2","",""],
  ["ABNB","AIRBNB CL A","0.2","",""],
- ["NVDA","NVIDIA","0.1","",""],
  ["AAPL","APPLE","0.1","",""],
- ["IGV","ISHARES EXPANDED TECH-SOFTWARE","0.1","신규",""],
+ ["BE","BLOOM ENERGY","0.1","",""],
+ ["HOOD","ROBINHOOD MARKETS","0.1","",""],
+ ["IGV","ISHARES EXPANDED TECH-SOFTWARE","0.1","",""],
  ["CAT","CATERPILLAR","0.1","",""],
- ["URA","GLOBAL X URANIUM ETF","0","제외",""],
- ["TSM","TAIWAN SEMICONDUCTOR ADR","0","제외",""],
+ ["APP","APPLOVIN","0","제외",""],
 ];
 
 /* 분류별 기본 데이터 */
@@ -5525,7 +5530,15 @@ function renderUscTable(){
     h+='<tr>';
     h+=`<td class="al">${stkCell}</td>`;
     h+=`<td class="cls-cell">${clsCellHtmlUS(sym, r[1]||sym)}</td>`;
-    h+=`<td class="wt">${r[2]==null?'':r[2]}</td>`;
+    const wtv = r[2]==null?'':String(r[2]);
+    let wtCell = wtv;
+    const upw = (typeof USC_W_PREV!=='undefined') ? USC_W_PREV[String(r[0]||r[1]||'').trim()] : null;
+    const uwa = valNum(wtv), uwb = (upw==null?null:valNum(upw));
+    if(uwa!=null && uwb!=null && Math.abs(uwa-uwb)>=0.005){
+      const ud=uwa-uwb;
+      wtCell += `<span class="diffp${ud<0?' neg':''}">(${ud>0?'+':''}${ud.toFixed(1)})</span>`;
+    }
+    h+=`<td class="wt">${wtCell}</td>`;
     const uscLiveStyle = sym && liveQ ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="uslive" data-sym="${sym}" data-name="${r[1]||sym}"${uscLiveStyle}>${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`;
     h+=`<td>${hiStr}${hdHtml}</td>`;
