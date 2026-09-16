@@ -48,6 +48,9 @@
   .cs-item .cs-name,.cs-item .cs-nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cs-item .cs-code,.cs-item .cs-cd{font-size:10px;color:var(--dim);display:block}
   .cs-item.on .cs-code,.cs-item.on .cs-cd{color:#0c0e14aa}
+  /* 외국인 추세 목록의 묶음 제목 */
+  .cs-hdr{padding:7px 8px 3px;font-size:10.5px;font-weight:700;color:#d4af00;background:var(--bg);
+    border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
   /* 분석 목록도 같은 모양으로 */
   .anl-list .ai{font-size:12px}
   section{display:none;padding-top:18px}
@@ -544,6 +547,7 @@
   .trank-tbl td{padding:3px 2px;border-bottom:1px solid #171c25;text-align:center;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .trank-tbl td.nm{text-align:left;padding-left:3px}
   .trank-tbl td.nm a{color:#e6edf3;text-decoration:none;border-bottom:1px dotted #4a5261}
+  .trank-tbl a.pxl{color:#e6edf3;text-decoration:none;border-bottom:1px dotted #4a5261}
   .trank-tbl th.sep,.trank-tbl td.sep{border-left:1px solid #2a3140}
   .trank-tbl .amt{display:block;font-size:9px;color:#6e7681;line-height:1.15}
   .trank-tbl .sub{display:block;font-size:9px;line-height:1.15}
@@ -1083,6 +1087,7 @@
      <option value="us">미국(반)</option>
      <option value="etf">한·미 ETF</option>
      <option value="dividend">배당</option>
+     <option value="ftrend">외국인 추세</option>
     </select>
       <span class="stk-now"></span>
    </div>
@@ -1602,6 +1607,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <button id="chartSideToggle" class="anl-backbtn">종목</button>
     <select id="chartPortSel">
       <option value="idx">지수</option>
+      <option value="ftrend">외국인 추세</option>
       <option value="kr">한국(체)</option>
       <option value="invest">코스피200</option>
       <option value="investkq">코스닥100</option>
@@ -1644,6 +1650,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
       <option value="investkq">코스닥100</option>
         <option value="invpf">관심보유</option>
         <option value="long">장기보유</option>
+        <option value="ftrend">외국인 추세</option>
       </select>
       <span class="stk-now"></span>
       <span style="font-size:11px;color:#8b93a1">국내 종목만 지원됩니다</span>
@@ -1682,6 +1689,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
         <option value="us">미국(반)</option>
         <option value="etf">한·미 ETF</option>
         <option value="dividend">배당</option>
+        <option value="ftrend">외국인 추세</option>
       </select>
       <span class="stk-now"></span>
     </div>
@@ -7459,12 +7467,18 @@ function trankAmt(v){
   return (n<0?'-':'')+t;
 }
 
-function trankPriceCell(row){
+function trankPriceCell(row, link){
   if(!row || row.price==null) return '<td><span class="dim">—</span></td>';
   const rt = row.rate;
   const sub = (rt==null) ? ''
     : `<span class="sub ${rt>0?'trank-up':rt<0?'trank-dn':''}">${rt>0?'+':''}${(+rt).toFixed(2)}%</span>`;
-  return `<td>${(+row.price).toLocaleString()}${sub}</td>`;
+  const px = (+row.price).toLocaleString();
+  // link — 주가를 누르면 종목분석(챠트)을 '외국인 추세' 목록으로 연다
+  const code = String(row.code||'');
+  const body = (link && /^\d{6}$/.test(code))
+    ? `<a href="#" class="pxl" onclick="openFrgnChart('${code}','${escHtml(String(row.name||'').replace(/['\\]/g,''))}');return false">${px}</a>`
+    : px;
+  return `<td>${body}${sub}</td>`;
 }
 
 function trankRatioCell(code, who){
@@ -7501,7 +7515,7 @@ function trankGroupCells(row, who, sep){
     ? `<td class="nm${s}">${nm}${amt}</td>`
     : `<td class="nm${s}"><a href="#" onclick="openChart('${code}','${String(row.name||'').replace(/'/g,'')}');return false">${nm}</a>${amt}</td>`;
   return (who==='frgn')
-    ? nameCell + trankRatioCell(code, who) + trankStreakCell(code) + trankPriceCell(row)
+    ? nameCell + trankRatioCell(code, who) + trankStreakCell(code) + trankPriceCell(row, true)
     : nameCell + trankPriceCell(row);
 }
 
@@ -7703,7 +7717,7 @@ function frankTable(mkt){
     const nm = escHtml(row.name || code);
     const link = '<a href="#" onclick="openChart(\''+code+'\',\''+String(row.name||'').replace(/'/g,'')+'\');return false">'+nm+'</a>';
     body += '<tr><td>'+(i+1)+'</td><td class="nm">'+link+'</td>'
-          + frankRatioCell(row) + trankPriceCell(row) + frankDaysCell(code) + '</tr>';
+          + frankRatioCell(row) + trankPriceCell(row, true) + frankDaysCell(code) + '</tr>';
   });
   const d = (FRANK_DATA && FRANK_DATA.date)
     ? '<span class="hd">'+String(FRANK_DATA.date).slice(5)+'</span>' : '';
@@ -10347,7 +10361,7 @@ function anlEnsureDefaultList(){
 let ANL_PORT=null;      // 분석 좌측 목록이 어느 포트에서 왔는지
 // 분석이 다룰 수 있는 포트 (국내 6자리 종목만 재무 조회가 된다)
 /* 지수는 챠트 전용 — 분석·장기투자에서는 한국(체)로 받는다 */
-const ANL_PORTS=['kr','invest','investkq','invpf','long','usc','us','etf','dividend'];
+const ANL_PORTS=['kr','invest','investkq','invpf','long','usc','us','etf','dividend','ftrend'];
 function anlLoadPort(mk, wantCode){
   // 지수·배당처럼 종목 분석이 안 되는 포트만 한국(체)로 받는다
   if(!ANL_PORTS.includes(mk)) mk='kr';
@@ -10489,7 +10503,7 @@ function openRptView(port, code, name){
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
-  rptPort = ['kr','invest','investkq','invpf','long'].includes(port||'') ? port : 'kr';
+  rptPort = ['kr','invest','investkq','invpf','long','ftrend'].includes(port||'') ? port : 'kr';
   const ps=$('#rptPortSel'); if(ps) ps.value=rptPort;
   rptBuildList();
   const want = code && /^\d{6}$/.test(String(code)) ? String(code) : '';
@@ -13242,7 +13256,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-08 미국(반) 갱신 · 분석 분기재무표 · PER 이상치';
+const KG_APP_BUILD = '2026-09-16 종목분석 외국인 추세';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
@@ -15883,7 +15897,7 @@ function closeChartView(keepTab){
 }
 
 /* ===== 장기투자 전체화면 (kg-long.html) ===== */
-const LONG_URL='kg-long.html?v=33';
+const LONG_URL='kg-long.html?v=34';
 function openLongView(port, code){
   const ov=$('#longFullScreen'); if(!ov) return;
   ov.style.display='flex';
@@ -15929,6 +15943,91 @@ function closeLongView(keepTab){
   const ps=$('#port'); if(ps) ps.classList.add('on');
 }
 let chartPort = 'idx';   // 차트뷰 좌측 포트 (기본: 지수)
+
+/* ===== 종목분석 '외국인 추세' 목록 =====
+   지수처럼 포트 화면이 따로 없고, 추세 화면의
+   외국인 순매수·순매도 상위(코스피·코스닥)와 외국인 지분율 상위 종목을 그대로 쓴다.
+   추세 화면을 아직 안 열었으면 저장된 자료를 읽고, 그것도 없으면 받아 온다. */
+function ftrendSrc(){
+  let td = (typeof TRANK_DATA!=='undefined') ? TRANK_DATA : null;
+  let fd = (typeof FRANK_DATA!=='undefined') ? FRANK_DATA : null;
+  if(!td){ try{ const o=JSON.parse(localStorage.getItem('trank_v3')||'null'); if(o&&o.data) td=o.data; }catch(e){} }
+  if(!fd){ try{ const o=JSON.parse(localStorage.getItem('frank_v1')||'null'); if(o&&o.data) fd=o.data; }catch(e){} }
+  return {td, fd};
+}
+function ftrendGroups(){
+  const {td, fd} = ftrendSrc();
+  const MK = {kospi:'코스피', kosdaq:'코스닥'};
+  const pick = (arr, n)=>(Array.isArray(arr)?arr:[]).slice(0, n)
+    .map(x=>[String((x&&x.code)||''), (x&&x.name)||''])
+    .filter(r=>/^\d{6}$/.test(r[0]));
+  const out = [];
+  [['buy','순매수'],['sell','순매도']].forEach(([side, lb])=>{
+    ['kospi','kosdaq'].forEach(m=>{
+      const g = (((td||{})[m]||{}).frgn) || {};
+      const rows = pick(g[side], TRANK_N);
+      if(rows.length) out.push({label:'외국인 '+lb+' · '+MK[m], rows});
+    });
+  });
+  ['kospi','kosdaq'].forEach(m=>{
+    const rows = pick((fd||{})[m], FRANK_N);
+    if(rows.length) out.push({label:'지분율 상위 · '+MK[m], rows});
+  });
+  return out;
+}
+function ftrendRows(){
+  const seen = new Set(), out = [];
+  ftrendGroups().forEach(g=>g.rows.forEach(r=>{ if(seen.has(r[0])) return; seen.add(r[0]); out.push(r); }));
+  return out;
+}
+let ftrendLoading = null;
+function ftrendEnsure(){
+  const memOk = (typeof TRANK_DATA!=='undefined' && TRANK_DATA) && (typeof FRANK_DATA!=='undefined' && FRANK_DATA);
+  if(memOk || ftrendLoading) return;
+  const had = ftrendRows().length;
+  ftrendLoading = Promise.all([
+    (typeof loadTrank==='function' && !TRANK_DATA) ? loadTrank().catch(()=>{}) : null,
+    (typeof loadFrank==='function' && !FRANK_DATA) ? loadFrank().catch(()=>{}) : null
+  ]).then(()=>{
+    // 자료가 새로 생겼거나 바뀌었으면 지금 열려 있는 종목분석 화면의 목록을 다시 그린다
+    if(ftrendRows().length || had) ftrendRefreshViews(!had);
+  });
+}
+function ftrendRefreshViews(pickFirst){
+  const shown = id=>{ const el=document.getElementById(id); return !!el && el.style.display!=='none'; };
+  try{
+    if(shown('chartFullScreen') && chartPort==='ftrend' && !chartRowsOverride){
+      const si=$('#chartStockSearch');
+      buildChartStockList(si ? si.value : '');
+      const box=$('#chartStockItems');
+      if(box && !box.querySelector('.cs-item.on')){
+        const want=String(STK.code||'');
+        const t=[...box.querySelectorAll('.cs-item')].find(el=>el.dataset.code===want) || box.querySelector('.cs-item');
+        if(t && (pickFirst || t.dataset.code===want)) t.click();
+      }
+    }
+    if(shown('rptFullScreen') && rptPort==='ftrend'){
+      rptBuildList();
+      if(!rptCode){ const r=ftrendRows()[0]; if(r) rptPick(r[0], r[1]); }
+    }
+    if(shown('longFullScreen')){
+      const ps=$('#longPortSel');
+      if(ps && ps.value==='ftrend'){ const ifr=$('#longIframe'); if(ifr) ifr._q=''; openLongView('ftrend', STK.code); }
+    }
+    const hub=document.getElementById('hub');
+    if(hub && hub.classList.contains('on') && ANL_PORT==='ftrend') anlLoadPort('ftrend', STK.code);
+  }catch(e){}
+}
+/* 추세 화면에서 외국인 종목의 주가를 누르면 — 종목분석 챠트를 '외국인 추세' 목록으로 연다 */
+function openFrgnChart(code, name){
+  if(typeof stkSetPort==='function') stkSetPort('ftrend');
+  if(typeof stkSet==='function' && code) stkSet(code, name);
+  closeLongView(true); closeRptView(true); hubHide();
+  const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+  document.body.classList.remove('topbar-mode');
+  if(typeof topPaint==='function') topPaint('chart');
+  openChartView('ftrend', code, name);
+}
 // 차트 좌측 (지수) 목록
 const CHART_IDX_ROWS = [
   ['KOSPI','코스피'], ['KOSDAQ','코스닥'], ['^KS200','코스피200'], ['EWY','MSCI 코리아'],
@@ -16016,6 +16115,11 @@ function chartPortRows(port){
     return [];
   }
   if(port==='idx'){ return CHART_IDX_ROWS.map(r=>[r[0], r[1]]); }
+  if(port==='ftrend'){
+    const rows=ftrendRows();
+    ftrendEnsure();            // 자료가 없거나 메모리에 아직 안 올라왔으면 받아 둔다
+    return rows;
+  }
   if(port==='invpf'){
     // 선정주 = 관심 + 투자 통합 (선정주 표와 동일)
     if(typeof selAllRows==='function'){
@@ -16233,8 +16337,13 @@ function buildChartStockList(filter){
   const rows=chartPortRows(chartPort);
   const usPort=(chartPort==='usc' || chartPort==='us');  // 미국(체)·미국(반)은 티커 기반
   const idxPort=(chartPort==='idx');                      // 지수·원자재는 코드 그대로
+  // 외국인 추세 — 검색어가 없을 때는 순매수·순매도·지분율 묶음별로 제목을 달아 보여 준다
+  const list = (chartPort==='ftrend' && !f && !chartRowsOverride)
+    ? ftrendGroups().flatMap(g=>[{hdr:g.label}].concat(g.rows))
+    : rows;
   let h='';
-  rows.forEach(r=>{
+  list.forEach(r=>{
+    if(r && r.hdr){ h+=`<div class="cs-hdr">${escHtml(r.hdr)}</div>`; return; }
     let rawCode=String(r[0]||'').trim();
     const name=r[1]||'';
     if(!rawCode) return;  // 현금 등 코드 없는 항목 제외
@@ -16255,7 +16364,8 @@ function buildChartStockList(filter){
   });
   if(!h){
     const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요'
-            : (chartPort==='invpf' ? '선정주에 담긴 종목이 없습니다' : '종목이 없습니다');
+            : (chartPort==='invpf' ? '선정주에 담긴 종목이 없습니다'
+            : (chartPort==='ftrend' ? '외국인 추세 자료를 불러오는 중…' : '종목이 없습니다'));
     h='<div style="padding:12px;color:var(--dim);font-size:11px">'+msg+'</div>';
   }
   box.innerHTML=h;
