@@ -10396,7 +10396,11 @@ function anlLoadPort(mk, wantCode){
   anlSetList(uniq, mk);
   ANL_PORT=mk;
   const want = wantCode && uniq.find(r=>r.code===String(wantCode));
+  const wc = String(wantCode||'').replace(/^US:/i,'').trim();
+  const wcIdx = (typeof CHART_IDX_ROWS!=='undefined') && CHART_IDX_ROWS.some(r=>String(r[0]).toUpperCase()===wc.toUpperCase());
   if(want) anlPick(want.code, want.name);
+  else if(wc && !wcIdx && (/^\d{6}$/.test(wc) || /^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(wc)))
+    anlPick(wc, (typeof STK!=='undefined' && STK.code===String(wantCode) && STK.name) ? STK.name : wc);   // 목록 밖 종목
   else if(uniq.length && !ANL_CODE) anlPick(uniq[0].code, uniq[0].name);
   ensureFin3(uniq.slice(0,40).map(r=>r.code));
 }
@@ -10521,6 +10525,26 @@ function closeRptView(keepTab){
   const pt=document.querySelector('[data-t="port"]'); if(pt) pt.classList.add('on');
   const ps=$('#port'); if(ps) ps.classList.add('on');
 }
+/* 보고서 검색 — 포트 목록에 없는 국내 종목은 서버 검색(?find=)으로 찾아 목록 아래에 붙인다 */
+let RPT_FOUND={q:'', items:[]};
+let rptFindTimer=null;
+function rptFind(q){
+  q=String(q||'').trim();
+  clearTimeout(rptFindTimer);
+  if(!q || !SRV_URL){ RPT_FOUND={q:'', items:[]}; return; }
+  rptFindTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q));
+      const d=await r.json();
+      const items=((d&&d.items)||[]).filter(it=>/^\d{6}$/.test(String((it&&it.code)||'')))
+        .slice(0,10).map(it=>[String(it.code), it.name||String(it.code)]);
+      const sc=$('#rptSearch');
+      if(!sc || sc.value.trim()!==q) return;         // 그 사이 검색어가 바뀌었으면 버린다
+      RPT_FOUND={q, items};
+      rptBuildList(sc.value);
+    }catch(e){}
+  }, 250);
+}
 function rptBuildList(filter){
   const box=$('#rptList'); if(!box) return;
   const f=String(filter||'').toLowerCase();
@@ -10535,6 +10559,17 @@ function rptBuildList(filter){
      + `<span class="cs-txt"><span class="cs-name">${escHtml(name)}</span>`
      + `<span class="cs-code">${code}</span></span></div>`;
   });
+  const extra=(code, name, tag)=>`<div class="cs-item${code===rptCode?' on':''}" data-code="${code}" data-name="${escHtml(name)}">`
+     + `<span class="cs-txt"><span class="cs-name">${escHtml(name)}</span>`
+     + `<span class="cs-code">${code} · ${tag}</span></span></div>`;
+  // 검색 결과 (포트 목록에 없는 종목만)
+  let found='';
+  if(f.trim() && RPT_FOUND.q.toLowerCase()===f.trim()){
+    RPT_FOUND.items.forEach(([c,n])=>{ if(seen.has(c)) return; seen.add(c); found+=extra(c, n, '검색'); });
+  }
+  if(found) h += '<div class="cs-hdr">검색 결과</div>' + found;
+  // 지금 보고 있는 종목이 목록에 없으면(검색해서 고른 종목) 맨 위에 남겨 둔다
+  if(!f.trim() && rptCode && !seen.has(rptCode)) h = extra(rptCode, rptName||rptCode, '목록 밖') + h;
   box.innerHTML = h || '<div style="padding:14px;color:#8b949e;font-size:12px">국내 종목이 없습니다.</div>';
   box.querySelectorAll('.cs-item').forEach(el=>{
     el.onclick=()=>rptPick(el.dataset.code, el.dataset.name);
@@ -13256,7 +13291,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-16 종목분석 외국인 추세';
+const KG_APP_BUILD = '2026-09-16 외국인 추세 · 목록 밖 종목 검색';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
@@ -14302,7 +14337,13 @@ function rptBind(){
       const nm=(chartPortRows(rptPort)||[]).find(r=>String(r[0])===first); rptPick(first||'', nm?nm[1]:''); };
   }
   const sc=$('#rptSearch');
-  if(sc && !sc._b){ sc._b=true; sc.oninput=()=>rptBuildList(sc.value); }
+  if(sc && !sc._b){ sc._b=true;
+    sc.oninput=()=>{ rptBuildList(sc.value); rptFind(sc.value); };
+    // 6자리 코드를 치고 Enter 면 목록에 없어도 바로 연다
+    sc.onkeydown=e=>{ if(e.key!=='Enter') return;
+      const c=String(sc.value||'').replace(/[^0-9]/g,'');
+      if(c.length===6){ e.preventDefault(); rptPick(c, (typeof kgNameOf==='function' && kgNameOf(c)) || c); } };
+  }
   const tg=$('#rptSideToggle'), sd=$('#rptSide');
   if(tg && sd && !tg._b){ tg._b=true;
     const rz2=$('#rptResizer');
@@ -14462,7 +14503,9 @@ function anlCurrentPort(){
       anlInit();
       const want = ANL_PORTS.includes(STK.port) ? STK.port : 'kr';
       if(ANL_PORT!==want) anlLoadPort(want, STK.code);          // 포트 먼저 맞추고
-      else if(STK.code && ANL_CODE!==STK.code) anlPick(STK.code, STK.name);
+      else if(STK.code && ANL_CODE!==STK.code
+              && !CHART_IDX_ROWS.some(r=>String(r[0]).toUpperCase()===String(STK.code).toUpperCase()))
+        anlPick(STK.code, STK.name);            // 지수 코드는 분석하지 않는다
       else anlEnsureDefaultList();
     }catch(e){ console.warn('분석 화면 준비 중 오류:', e); }
     return;
@@ -15685,21 +15728,19 @@ function chartAutoSearch(q){
       const box=$('#chartStockItems'); if(!box) return;
       // 기존 목록 뒤에 검색 결과 추가 (중복 제거)
       const existing=new Set([...box.querySelectorAll('.cs-item')].map(el=>el.dataset.code));
+      const si=$('#chartStockSearch');
+      if(si && si.value.trim()!==q) return;            // 그 사이 검색어가 바뀌었으면 버린다
       let h='';
       d.items.forEach(it=>{
-        if(existing.has(it.code)) return;
-        h+=`<div class="cs-item cs-search" data-code="${it.code}" data-name="${escHtml(it.name)}"><span class="cs-name">${escHtml(it.name)}</span><span class="cs-code">${it.code}</span></div>`;
+        const c=String(it.code||''); if(!c || existing.has(c)) return;
+        existing.add(c);
+        h+=chartExtraItemHtml(c, it.name||c, '검색');
       });
       if(h){
-        box.insertAdjacentHTML('beforeend', h);
-        box.querySelectorAll('.cs-item.cs-search').forEach(el=>{
-          el.onclick=()=>{
-            box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
-            el.classList.add('on');
-            const ifr=$('#chartIframe');
-            if(ifr) ifr.src='kg-chart.html?code='+el.dataset.code+'&name='+encodeURIComponent(el.dataset.name);
-          };
-        });
+        // 목록이 비어 '종목이 없습니다'만 있으면 그 안내는 걷어낸다
+        if(!box.querySelector('.cs-item')) box.innerHTML='';
+        box.insertAdjacentHTML('beforeend', '<div class="cs-hdr">검색 결과</div>'+h);
+        box.querySelectorAll('.cs-item.cs-search').forEach(chartBindItem);
       }
     }catch(e){}
   }, 250);
@@ -15879,6 +15920,13 @@ function openChartView(initPort, initCode, initName, rowsOverride){
       // 지정 종목 찾기 (국내 6자리 또는 해외 티커)
       const want=String(initCode).replace(/^US:/i,'').toUpperCase();
       target=[...box.querySelectorAll('.cs-item')].find(el=>String(el.dataset.code||'').toUpperCase()===want);
+      // 포트 목록에 없는 종목(검색해서 고른 종목 등)도 그대로 이어서 연다. 지수 코드는 지수 목록에서만.
+      const isIdxCode=CHART_IDX_ROWS.some(r=>String(r[0]).toUpperCase()===want);
+      if(!target && !isIdxCode && (/^\d{6}$/.test(want) || /^[A-Z][A-Z0-9.\-]{0,9}$/.test(want))){
+        if(!box.querySelector('.cs-item')) box.innerHTML='';
+        box.insertAdjacentHTML('afterbegin', chartExtraItemHtml(want, initName||STK.name||want, '목록 밖'));
+        target=box.firstElementChild; chartBindItem(target);
+      }
     }
     (target || box.querySelector('.cs-item'))?.click();
     if(target) target.scrollIntoView({block:'nearest'});
@@ -16331,6 +16379,23 @@ function showChartGuide(on){
   }
 }
 
+/* 챠트 좌측 목록 한 줄을 누르면 — 챠트를 열고, 분석·장기투자·보고서가 같은 종목을 이어받게 한다 */
+function chartBindItem(el){
+  el.onclick=(ev)=>{
+    // 체크박스 클릭이면 종목 선택(차트 열기) 무시
+    if(ev && ev.target && ev.target.closest && ev.target.closest('.cs-chks')) return;
+    const box=$('#chartStockItems');
+    if(box) box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
+    el.classList.add('on');
+    stkSet(el.dataset.code, el.dataset.name);
+    const ifr=$('#chartIframe');
+    if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name);
+  };
+}
+/* 포트 목록에 없는 종목 한 줄 (검색 결과 · 다른 화면에서 고른 종목) */
+function chartExtraItemHtml(code, name, tag){
+  return `<div class="cs-item cs-search" data-code="${escHtml(code)}" data-name="${escHtml(name||code)}"><div class="cs-txt"><span class="cs-name">${escHtml(name||code)}</span><span class="cs-code">${escHtml(code)}${tag?' · '+tag:''}</span></div></div>`;
+}
 function buildChartStockList(filter){
   const box=$('#chartStockItems'); if(!box) return;
   const f=(filter||'').toLowerCase();
@@ -16365,21 +16430,11 @@ function buildChartStockList(filter){
   if(!h){
     const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요'
             : (chartPort==='invpf' ? '선정주에 담긴 종목이 없습니다'
-            : (chartPort==='ftrend' ? '외국인 추세 자료를 불러오는 중…' : '종목이 없습니다'));
+            : (chartPort==='ftrend' && !f ? '외국인 추세 자료를 불러오는 중…' : '종목이 없습니다'));
     h='<div style="padding:12px;color:var(--dim);font-size:11px">'+msg+'</div>';
   }
   box.innerHTML=h;
-  box.querySelectorAll('.cs-item').forEach(el=>{
-    el.onclick=(ev)=>{
-      // 체크박스 클릭이면 종목 선택(차트 열기) 무시
-      if(ev.target && ev.target.closest && ev.target.closest('.cs-chks')) return;
-      box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
-      el.classList.add('on');
-      stkSet(el.dataset.code, el.dataset.name);
-      const ifr=$('#chartIframe');
-      if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name);
-    };
-  });
+  box.querySelectorAll('.cs-item').forEach(chartBindItem);
   // 관심·투자 체크박스 → 포트 복사
   box.querySelectorAll('.cs-chk input[data-cls]').forEach(cb=>{
     cb.onchange=(e)=>{ e.stopPropagation(); togglePortMember(cb.dataset.cls, cb.dataset.clscode, cb.dataset.clsname); };
