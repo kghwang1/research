@@ -170,13 +170,22 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 }
 /* 주가차트 — 세로축 왼편 위 */
 #main-swap { top: 3px; right: 66px; }
+/* 주가차트에 겹쳐 볼 지표 고르기 [이평][일목][볼린저] — 세로축 왼편 위 */
+#main-ovsel { position: absolute; z-index: 20; top: 3px; right: 66px; display: flex; gap: 3px; }
+#main-ovsel button {
+  padding: 4px 8px; border-radius: 4px;
+  background: #0d1117cc; border: 1px solid #30363d;
+  color: #8b949e; font-size: 11.5px; font-weight: 700; line-height: 1; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+#main-ovsel button.on { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
 /* 보조차트 — ✕ 바로 아래에 세로로 붙인다 (지표 이름과 겹치지 않게) */
 .chart-swap { top: 26px; left: 2px; width: 22px; padding: 3px 0; text-align: center; }
 #main-swap:active, .chart-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
 
 /* 메인 캔들 - 고정 높이 */
 #candle-wrap {
-  flex: 0 0 320px; height: 320px;
+  flex: 0 0 416px; height: 416px;   /* 거래량 막대 자리를 두려고 30% 키움 (320 → 416) */
   border: 1px solid #21262d; border-radius: 4px;
   overflow: hidden; position: sticky; top: 0; z-index: 10;
 }
@@ -376,7 +385,11 @@ body.stock-closed #step-pad { display: flex; }
   <div id="chart-area">
     <div id="candle-wrap">
       <canvas id="candle-canvas"></canvas>
-      <div id="main-swap" title="일목균형표 ⇄ 매물대+이동평균">⇄</div>
+      <div id="main-ovsel">
+        <button type="button" data-ov="MA" title="이동평균선 5·20·60">이평</button>
+        <button type="button" data-ov="ICHIMOKU" title="일목균형표">일목</button>
+        <button type="button" data-ov="BB" title="볼린저밴드(20,2)">볼린저</button>
+      </div>
     </div>
   </div>
   <!-- 우측 패널: 월봉 · 투자자별 매매동향 -->
@@ -1548,10 +1561,10 @@ const SUB_SWAP = {
   MACD:'SLOWSTOCH',      SLOWSTOCH:'MACD',
 };
 
-/* 메인 주가차트에 겹쳐 그리는 두 묶음 — ⇄ 로 번갈아 본다.
-   가: 일목균형표 / 나: 매물대 + 이동평균(5·20·60) */
-const MAIN_OV_A = ['ICHIMOKU'];
-const MAIN_OV_B = ['VPROFILE', 'MA'];
+/* 주가차트 우상단 단추로 고르는 세 지표 — 하나만 겹쳐 본다 */
+const MAIN_OV_SEL = ['MA', 'ICHIMOKU', 'BB'];
+/* 어느 것을 골라도 늘 함께 보이는 것 — 왼쪽 매물대 · 아래 거래량 */
+const MAIN_OV_ALWAYS = ['VPROFILE', 'VOL_OV'];
 
 /* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
 function frgnRatioColor(v){
@@ -1635,22 +1648,23 @@ function setOverlay(key, on) {
   else { label.classList.remove('active'); if (span) span.style.color = ''; }
 }
 
-/* 지금 주가차트에 겹쳐 있는 쪽이 '가'(일목)인지 '나'(매물대+이동평균)인지 */
-function mainOvIsB() {
-  return !state.overlays.ICHIMOKU && (state.overlays.VPROFILE || state.overlays.MA);
-}
-/* ⇄ — 일목균형표와 매물대+이동평균을 맞바꾼다 */
-function mainOvToggle() {
-  const toB = !mainOvIsB();
-  MAIN_OV_A.forEach(k => setOverlay(k, !toB));
-  MAIN_OV_B.forEach(k => setOverlay(k, toB));
+/* [이평][일목][볼린저] 하나를 고른다.
+   이미 켜져 있는 단추를 다시 누르면 꺼져 캔들만 보인다.
+   무엇을 고르든 매물대와 거래량은 함께 켜 둔다 */
+function mainOvPick(key) {
+  if (!MAIN_OV_SEL.includes(key)) return;
+  const off = !!state.overlays[key];          // 켜져 있던 것을 다시 누름 → 끄기
+  MAIN_OV_SEL.forEach(k => setOverlay(k, off ? false : k === key));
+  MAIN_OV_ALWAYS.forEach(k => setOverlay(k, true));
   if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
+  syncMainOvBtns();
   renderAll();
 }
-function syncMainSwapBtn() {
-  const b = document.getElementById('main-swap');
-  if (!b) return;
-  b.title = mainOvIsB() ? '⇄ 일목균형표 보기' : '⇄ 매물대 + 이동평균(5·20·60) 보기';
+/* 단추 불빛을 지금 켜진 지표에 맞춘다 (사이드바에서 켜고 꺼도 따라온다) */
+function syncMainOvBtns() {
+  document.querySelectorAll('#main-ovsel button').forEach(b => {
+    b.classList.toggle('on', !!state.overlays[b.dataset.ov]);
+  });
 }
 
 /* 짝 지표(⇄)로 바꿔 둔 것을 되돌린다 — 조합 단추를 누르면 적힌 지표가 그대로 나오게 */
@@ -1663,8 +1677,8 @@ function swapResetFor(list) {
 
 /* 조합 단추 공통 처리 — 전부 끄고 적힌 차례대로 켠다 */
 function applyCombo(list) {
-  /* 거래량 겹쳐보기는 보조지표 조합과 별개 — 조합 단추를 눌러도 켜 둔 채로 남긴다 */
-  if (state.overlays.VOL_OV && !list.includes('VOL_OV')) list = list.concat('VOL_OV');
+  /* 매물대·거래량 겹쳐보기는 보조지표 조합과 별개 — 조합 단추를 눌러도 켜 둔 채로 남긴다 */
+  MAIN_OV_ALWAYS.forEach(k => { if (!list.includes(k)) list = list.concat(k); });
   Object.keys(state.selected).forEach(k => state.selected[k] = false);
   state.selectedOrder = [];
   Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
@@ -1800,20 +1814,21 @@ function setupSidebar() {
   const simpleBtn = document.getElementById('simpleComboBtn');
   if (simpleBtn) simpleBtn.addEventListener('click', () => applyCombo(SIMPLE_COMBO));
 
-  // 메인 주가차트 ⇄ (일목균형표 ⇄ 매물대+이동평균)
-  const msw = document.getElementById('main-swap');
-  if (msw) {
+  /* 주가차트 우상단 [이평][일목][볼린저] */
+  document.querySelectorAll('#main-ovsel button').forEach(btn => {
     const tap = (e) => {
       if (e) { e.stopPropagation(); e.preventDefault(); }
-      if (msw._busy) return;
-      msw._busy = true;
-      setTimeout(() => { msw._busy = false; }, 250);
-      mainOvToggle();
+      if (btn._busy) return;                  // 누름·클릭이 겹쳐 두 번 처리되지 않게
+      btn._busy = true;
+      setTimeout(() => { btn._busy = false; }, 250);
+      mainOvPick(btn.dataset.ov);
     };
-    msw.addEventListener('pointerdown', tap);
-    msw.addEventListener('click', tap);
-  }
-  syncMainSwapBtn();
+    btn.addEventListener('pointerdown', tap);
+    btn.addEventListener('click', tap);
+  });
+  /* 매물대·거래량은 늘 보이게 하고 시작한다 */
+  MAIN_OV_ALWAYS.forEach(k => setOverlay(k, true));
+  syncMainOvBtns();
 }
 
 // ══════════════════════════════════════
@@ -3951,7 +3966,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-18b 거래량 겹침 저장수정';
+const KG_CHART_BUILD = '2026-09-18c 이평·일목·볼린저 단추';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4328,8 +4343,9 @@ function bindStepBtn(){
 //  · 메인 캔들과 보조칸을 화면 높이에 맞춰 나눠 갖는다
 //  · 칸이 너무 얇아지면(최소 높이) 그때부터는 스크롤로 넘긴다
 // ══════════════════════════════════════
-const FIT_MAIN_MIN = 130;   // 메인 캔들 최소 높이
-const FIT_MAIN_MAX = 300;   // 메인 캔들 최대 높이
+/* 거래량을 주가차트에 겹쳐 그리게 되어 메인 캔들 높이를 30% 키웠다 (130→169, 300→390) */
+const FIT_MAIN_MIN = 169;   // 메인 캔들 최소 높이
+const FIT_MAIN_MAX = 390;   // 메인 캔들 최대 높이
 const FIT_SUB_MIN  = 76;    // 보조칸 최소 높이 (선 변화가 보이도록 확대)
 const FIT_SUB_MAX  = 130;   // 보조칸 최대 높이
 
@@ -4350,7 +4366,7 @@ function fitPanels() {
     subH = FIT_SUB_MAX;
   } else {
     // 메인은 화면의 약 42%를 갖되 최소·최대 범위 안에서
-    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.36)));
+    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.47)));  // 0.36 → 30% 증가
     subH = Math.floor((avail - mainH) / k);
     if (subH > FIT_SUB_MAX) {
       subH = FIT_SUB_MAX;                                  // 남으면 메인을 키운다
@@ -4786,7 +4802,7 @@ function setupMouseEvent() {
     window.addEventListener('blur', () => { pts.clear(); mode = null; release(); });
   }
 
-  if (typeof syncMainSwapBtn === 'function') syncMainSwapBtn();
+  if (typeof syncMainOvBtns === 'function') syncMainOvBtns();
 
   bindPan(canvas);
   document.querySelectorAll('.sub-canvas').forEach(bindPan);
