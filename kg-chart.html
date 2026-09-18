@@ -327,6 +327,7 @@ body.stock-closed #step-pad { display: flex; }
     <label class="ind-label" data-mark5 data-key="VAMA" style="--col:#ffd54f"><input type="checkbox" class="cb-show"> <span class="nm">VAMA 거래량조정이동평균</span></label>
     <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">VIDYA 가변동적이동평균</span></label>
     <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-show"> <span class="nm">VP 매물대(거래량프로파일)</span></label>
+    <label class="ind-label" data-key="VOL_OV" style="--col:#8b949e"><input type="checkbox" class="cb-show"> <span class="nm">거래량 겹쳐보기</span></label>
 
     <div class="group-title">▶ 추세지표</div>
     <label class="ind-label" data-mark5 data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-show"> <span class="nm">MACD 이동평균수렴발산</span></label>
@@ -1493,7 +1494,7 @@ function setupSearch() {
   });
 }
 
-const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VAMA','VIDYA','VPROFILE'];
+const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VAMA','VIDYA','VPROFILE','VOL_OV'];
 
 // 기본 표시 지표 불러오기 (localStorage)
 // 사용자 지정 지표 파라미터 (설명 페이지에서 편집)
@@ -1582,14 +1583,25 @@ function swapToggle(key){
   return next;
 }
 function loadDefaults() {
+  /* '거래량 겹쳐보기'를 새로 넣었다. 저장해 둔 조합에는 없으므로 처음 한 번만 켜 준다.
+     한 번 보여 준 뒤에는 끄면 끈 채로 남는다 */
+  const intro = d => {
+    try {
+      if (!localStorage.getItem('kg_volov_intro')) {
+        d.VOL_OV = true;
+        localStorage.setItem('kg_volov_intro', '1');
+      }
+    } catch(e) {}
+    return d;
+  };
   try {
     const saved = localStorage.getItem('kgchart_defaults');
-    if (saved) { const d = JSON.parse(saved); if (d && Object.keys(d).length) return d; }
+    if (saved) { const d = JSON.parse(saved); if (d && Object.keys(d).length) return intro(d); }
   } catch(e) {}
   // 저장값 없으면 기본 조합
   const d = {};
   DEFAULT_COMBO.forEach(k => d[k] = true);
-  return d;
+  return intro(d);
 }
 function saveDefaults(defs) {
   try { localStorage.setItem('kgchart_defaults', JSON.stringify(defs)); } catch(e) {}
@@ -1648,6 +1660,8 @@ function swapResetFor(list) {
 
 /* 조합 단추 공통 처리 — 전부 끄고 적힌 차례대로 켠다 */
 function applyCombo(list) {
+  /* 거래량 겹쳐보기는 보조지표 조합과 별개 — 조합 단추를 눌러도 켜 둔 채로 남긴다 */
+  if (state.overlays.VOL_OV && !list.includes('VOL_OV')) list = list.concat('VOL_OV');
   Object.keys(state.selected).forEach(k => state.selected[k] = false);
   state.selectedOrder = [];
   Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
@@ -2063,6 +2077,67 @@ function drawCandle() {
     }
   }
 
+  /* ── 거래량 겹쳐보기 ──────────────────────────────────────────
+     주가차트 아래쪽 22%(최소 30px)에 반투명 막대로 겹쳐 그린다.
+     세로 눈금은 주가와 따로(화면에 보이는 구간의 최대 거래량 = 칸 높이)이고,
+     캔들보다 먼저 그려 캔들·매물대가 가려지지 않게 한다.
+     노란 점선은 20일 평균 거래량 — 막대가 이 선을 크게 넘으면 거래가 터진 날이다 */
+  if (overlays.VOL_OV) {
+    const volH = Math.min(ch * 0.4, Math.max(30, ch * 0.22));
+    const base = PAD.t + ch;
+    const vols = slice.map(d => d.volume || 0);
+    const maxV = Math.max(...vols);
+    if (maxV > 0) {
+      const vy = v => base - Math.min(1, v / maxV) * volH;
+      // 막대 — 오른 날 빨강 / 내린 날 파랑, 캔들과 같은 폭
+      vols.forEach((v, i) => {
+        if (!v) return;
+        const d = slice[i];
+        const y = vy(v);
+        ctx.fillStyle = (d.close >= d.open ? C.up : C.down) + '5e';
+        ctx.fillRect(xOf(i) - bw/2, y, bw, base - y);
+      });
+      /* 20일 평균 거래량 — 화면 왼쪽 끝에서 끊기지 않게 화면 밖 자료까지 써서 계산한다 */
+      const AVG_N = 20;
+      const allV = data.map(d => d.volume || 0);
+      const avgAt = i => {
+        if (i < AVG_N - 1) return null;
+        let sum = 0;
+        for (let j = i - AVG_N + 1; j <= i; j++) sum += allV[j];
+        return sum / AVG_N;
+      };
+      ctx.save();
+      ctx.beginPath(); ctx.rect(PAD.l, base - volH, cw, volH); ctx.clip();
+      ctx.strokeStyle = '#ffd54faa'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < slice.length; i++) {
+        const a = avgAt(range[0] + i);
+        if (a == null) { started = false; continue; }
+        const x = xOf(i), y = vy(a);
+        started ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), started = true);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      // 칸 바닥선
+      ctx.strokeStyle = C.border; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(PAD.l, base); ctx.lineTo(W - PAD.r, base); ctx.stroke();
+      /* 라벨 — 손가락을 올린 날(없으면 마지막 날)의 거래량과 20일 평균 대비 배수.
+         만/억 단위로 줄여 적는다 */
+      const li = (state.hoverIdx >= 0 && state.hoverIdx < slice.length) ? state.hoverIdx : slice.length - 1;
+      const lv = vols[li], la = avgAt(range[0] + li);
+      const volTxt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억주'
+                        : n >= 1e4 ? Math.round(n / 1e4).toLocaleString() + '만주'
+                        : Math.round(n).toLocaleString() + '주';
+      let txt = '거래량 ' + volTxt(lv);
+      if (la > 0) txt += '  20일평균비 ' + (lv / la).toFixed(1) + '배';
+      ctx.font = '9px monospace'; ctx.textAlign = 'right';
+      ctx.fillStyle = (la > 0 && lv / la >= 2) ? '#ffd54f' : C.muted;
+      ctx.fillText(txt, W - PAD.r - 3, base - volH - 3);
+    }
+  }
+
   // 캔들
   slice.forEach((d, i) => {
     const x = xOf(i), isUp = d.close >= d.open, col = isUp ? C.up : C.down;
@@ -2226,6 +2301,8 @@ function drawCandle() {
     sub:[{t:'DEMA', c:'#ffd54f'}, {t:'시그널', c:'#ef5350'}]});
   if (overlays.VIDYA)    legends.push({t:'VIDYA 가변동적이동평균(14)', c:'#4ecdc4'});
   if (overlays.VPROFILE) legends.push({t:'VP 매물대(POC)', c:'#d2a8ff'});
+  if (overlays.VOL_OV)   legends.push({t:'거래량 겹쳐보기', c:'#8b949e',
+    sub:[{t:'20일평균(점선)', c:'#ffd54f'}]});
 
   if (legends.length) {
     ctx.textAlign = 'left';
@@ -3862,7 +3939,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-08-29 이평기간 보호';
+const KG_CHART_BUILD = '2026-09-18 거래량 겹쳐보기';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
