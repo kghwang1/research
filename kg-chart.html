@@ -1587,9 +1587,12 @@ function loadDefaults() {
      한 번 보여 준 뒤에는 끄면 끈 채로 남는다 */
   const intro = d => {
     try {
-      if (!localStorage.getItem('kg_volov_intro')) {
+      /* 켠 것을 곧바로 저장해 둔다.
+         저장하지 않으면 처음 열 때만 켜지고, 다음에 열면 저장값에 없어 꺼진 채로 나왔다 */
+      if (!localStorage.getItem('kg_volov_intro2')) {
         d.VOL_OV = true;
-        localStorage.setItem('kg_volov_intro', '1');
+        localStorage.setItem('kg_volov_intro2', '1');
+        saveDefaults(d);
       }
     } catch(e) {}
     return d;
@@ -3853,13 +3856,18 @@ function drawSubInner(canvas, key) {
 
   vals.forEach((arr, vi) => {
     if (key === 'VOLUME') {
+      /* 막대는 속을 비우고 테두리만 (선 두께 1.5) — 주가차트에 겹쳐 그리는 것과 같은 모양 */
       const maxV2 = Math.max(...arr.filter(Boolean));
+      const base = PAD.t + ch;
+      ctx.lineWidth = 1.5;
       arr.forEach((v, i) => {
         if (!v) return;
-        const barH = (v / maxV2) * ch, bw = Math.max(1, cw / n * 0.55);
+        const barH = (v / maxV2) * ch;
+        const w = Math.max(1.5, cw / n * 0.55 - 1.5);
+        const top = Math.min(base - barH + 0.75, base - 1.5);
         const d = state.data[state.range[0] + i];
-        ctx.fillStyle = d && d.close >= d.open ? C.up + '88' : C.down + '88';
-        ctx.fillRect(xOf(i) - bw/2, PAD.t + ch - barH, bw, barH);
+        ctx.strokeStyle = (d && d.close >= d.open ? C.up : C.down) + 'cc';
+        ctx.strokeRect(xOf(i) - w/2, top, w, base - 0.75 - top);
       });
       return;
     }
@@ -3943,7 +3951,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-18 거래량 빈막대·이평색';
+const KG_CHART_BUILD = '2026-09-18b 거래량 겹침 저장수정';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
