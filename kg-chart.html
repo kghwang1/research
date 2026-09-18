@@ -1954,8 +1954,8 @@ function drawCandle() {
        w  = 선 두께 (20·60일선은 눈에 띄게 1.5배)
        dash = 점선 (60일선) */
     const maStyle = {
-      ma5:  { c:'#ef5350cc', w:1 },
-      ma20: { c:'#f59e0bcc', w:1.5 },
+      ma5:  { c:'#ffd54fdd', w:1.5 },
+      ma20: { c:'#ef5350cc', w:1.5 },
       ma60: { c:'#3fb950cc', w:1.5, dash:[6,4] },
     };
     if (OPT('MA', 'ma120', false)) maStyle.ma120 = { c:'#58a6ffcc', w:1 };
@@ -2089,13 +2089,17 @@ function drawCandle() {
     const maxV = Math.max(...vols);
     if (maxV > 0) {
       const vy = v => base - Math.min(1, v / maxV) * volH;
-      // 막대 — 오른 날 빨강 / 내린 날 파랑, 캔들과 같은 폭
+      /* 막대 — 테두리만 있는 빈 사각형(선 두께 1.5). 오른 날 빨강 / 내린 날 파랑.
+         속을 채우지 않아 뒤의 캔들·매물대가 그대로 보인다.
+         선 두께의 절반(0.75)만큼 안으로 넣어 그려 바닥선 밖으로 삐져나오지 않게 한다 */
+      ctx.lineWidth = 1.5;
       vols.forEach((v, i) => {
         if (!v) return;
         const d = slice[i];
-        const y = vy(v);
-        ctx.fillStyle = (d.close >= d.open ? C.up : C.down) + '5e';
-        ctx.fillRect(xOf(i) - bw/2, y, bw, base - y);
+        const w = Math.max(1.5, bw - 1.5);
+        const top = Math.min(vy(v) + 0.75, base - 1.5);
+        ctx.strokeStyle = (d.close >= d.open ? C.up : C.down) + 'cc';
+        ctx.strokeRect(xOf(i) - w/2, top, w, base - 0.75 - top);
       });
       /* 20일 평균 거래량 — 화면 왼쪽 끝에서 끊기지 않게 화면 밖 자료까지 써서 계산한다 */
       const AVG_N = 20;
@@ -2286,7 +2290,7 @@ function drawCandle() {
     /* 설정에서 기간을 바꿀 수 있으므로 실제로 쓰는 값을 그대로 적는다.
        세 값이 같게 잘못 저장돼 선이 겹쳐 보이는 일이 있어, 눈으로 확인할 수 있게 했다. */
     const [p5, p20, p60] = maPeriods();
-    legends.push({t:'MA'+p5, c:'#ef5350'}, {t:'MA'+p20, c:'#f59e0b'}, {t:'MA'+p60+'(점선)', c:'#3fb950'});
+    legends.push({t:'MA'+p5, c:'#ffd54f'}, {t:'MA'+p20, c:'#ef5350'}, {t:'MA'+p60+'(점선)', c:'#3fb950'});
     if (OPT('MA', 'ma120', false)) legends.push({t:'MA'+P('MA',3,120), c:'#58a6ff'});
   }
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
@@ -3939,7 +3943,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-18 거래량 겹쳐보기';
+const KG_CHART_BUILD = '2026-09-18 거래량 빈막대·이평색';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
