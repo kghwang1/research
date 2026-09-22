@@ -179,6 +179,8 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
   touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
 }
 #main-ovsel button.on { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
+#main-ovsel button.vp-btn { margin-right: 4px; }
+#main-ovsel button.vp-btn.on { background: #aed58122; border-color: #aed581; color: #aed581; }
 /* 보조차트 — ✕ 바로 아래에 세로로 붙인다 (지표 이름과 겹치지 않게) */
 .chart-swap { top: 26px; left: 2px; width: 22px; padding: 3px 0; text-align: center; }
 #main-swap:active, .chart-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
@@ -386,6 +388,7 @@ body.stock-closed #step-pad { display: flex; }
     <div id="candle-wrap">
       <canvas id="candle-canvas"></canvas>
       <div id="main-ovsel">
+        <button type="button" data-ov="VPROFILE" class="vp-btn" title="매물대 켜기/끄기">매물대</button>
         <button type="button" data-ov="MA" title="이동평균선 5·20·60">이평</button>
         <button type="button" data-ov="ICHIMOKU" title="일목균형표">일목</button>
         <button type="button" data-ov="BB" title="볼린저밴드(20,2)">볼린저</button>
@@ -1564,7 +1567,11 @@ const SUB_SWAP = {
 /* 주가차트 우상단 단추로 고르는 세 지표 — 하나만 겹쳐 본다 */
 const MAIN_OV_SEL = ['MA', 'ICHIMOKU', 'BB'];
 /* 어느 것을 골라도 늘 함께 보이는 것 — 왼쪽 매물대 · 아래 거래량 */
-const MAIN_OV_ALWAYS = ['VPROFILE', 'VOL_OV'];
+const MAIN_OV_ALWAYS = ['VOL_OV'];
+/* 매물대 — [매물대] 단추로 따로 켜고 끈다. 끈 상태를 기억해 종목을 바꿔도 그대로 (처음엔 켜짐) */
+const VP_KEY = 'kg_vp_on';
+function vpOn(){ try { return localStorage.getItem(VP_KEY) !== '0'; } catch(e) { return true; } }
+function vpSave(on){ try { localStorage.setItem(VP_KEY, on ? '1' : '0'); } catch(e) {} }
 
 /* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
 function frgnRatioColor(v){
@@ -1652,10 +1659,18 @@ function setOverlay(key, on) {
    이미 켜져 있는 단추를 다시 누르면 꺼져 캔들만 보인다.
    무엇을 고르든 매물대와 거래량은 함께 켜 둔다 */
 function mainOvPick(key) {
+  if (key === 'VPROFILE') {                   // 매물대는 이평·일목·볼린저와 따로 켜고 끈다
+    const on = !state.overlays.VPROFILE;
+    setOverlay('VPROFILE', on); vpSave(on);
+    if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
+    syncMainOvBtns(); renderAll();
+    return;
+  }
   if (!MAIN_OV_SEL.includes(key)) return;
   const off = !!state.overlays[key];          // 켜져 있던 것을 다시 누름 → 끄기
   MAIN_OV_SEL.forEach(k => setOverlay(k, off ? false : k === key));
   MAIN_OV_ALWAYS.forEach(k => setOverlay(k, true));
+  setOverlay('VPROFILE', vpOn());
   if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
   syncMainOvBtns();
   renderAll();
@@ -1679,6 +1694,9 @@ function swapResetFor(list) {
 function applyCombo(list) {
   /* 매물대·거래량 겹쳐보기는 보조지표 조합과 별개 — 조합 단추를 눌러도 켜 둔 채로 남긴다 */
   MAIN_OV_ALWAYS.forEach(k => { if (!list.includes(k)) list = list.concat(k); });
+  /* 매물대는 [매물대] 단추로 정해 둔 상태를 따른다 */
+  list = list.filter(k => k !== 'VPROFILE');
+  if (vpOn()) list = list.concat('VPROFILE');
   Object.keys(state.selected).forEach(k => state.selected[k] = false);
   state.selectedOrder = [];
   Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
@@ -1749,6 +1767,8 @@ function setupSidebar() {
       e.stopPropagation();
       if (OVERLAY_KEYS.includes(key)) {
         state.overlays[key] = cbShow.checked;
+        if (key === 'VPROFILE') vpSave(cbShow.checked);
+        if (typeof syncMainOvBtns === 'function') syncMainOvBtns();
       } else {
         state.selected[key] = cbShow.checked;
         if (cbShow.checked) {
@@ -1826,8 +1846,9 @@ function setupSidebar() {
     btn.addEventListener('pointerdown', tap);
     btn.addEventListener('click', tap);
   });
-  /* 매물대·거래량은 늘 보이게 하고 시작한다 */
+  /* 거래량은 늘 보이게, 매물대는 마지막으로 정해 둔 대로 시작한다 */
   MAIN_OV_ALWAYS.forEach(k => setOverlay(k, true));
+  setOverlay('VPROFILE', vpOn());
   syncMainOvBtns();
 }
 
@@ -1975,14 +1996,14 @@ function drawCandle() {
         const yTop = PAD.t + ch - (b + 1) * binH + 1;
         const h = Math.max(2, binH - 2);
         const isCur = b === curBin, isPoc = b === pocBin;
-        let fill, edge;
-        if (isCur)      { fill = 'rgba(244,143,177,0.38)'; edge = 'rgba(244,143,177,0.95)'; }
-        else if (isPoc) { fill = 'rgba(100,181,246,0.36)'; edge = 'rgba(100,181,246,0.95)'; }
-        else            { fill = 'rgba(174,213,79,0.30)';  edge = 'rgba(174,213,79,0.75)'; }
-        ctx.fillStyle = fill;
+        /* 띠 끝(오른쪽)은 진하게, 왼쪽으로 갈수록 흐려지는 그라데이션. 테두리는 없음 */
+        const rgb = isCur ? '244,143,177' : isPoc ? '100,181,246' : '174,213,79';
+        const a1  = isCur ? 0.38 : isPoc ? 0.36 : 0.30;
+        const grd = ctx.createLinearGradient(PAD.l, 0, PAD.l + barW, 0);
+        grd.addColorStop(0, 'rgba(' + rgb + ',0.02)');
+        grd.addColorStop(1, 'rgba(' + rgb + ',' + a1 + ')');
+        ctx.fillStyle = grd;
         ctx.fillRect(PAD.l, yTop, barW, h);
-        ctx.strokeStyle = edge; ctx.lineWidth = isPoc ? 1.6 : 1;
-        ctx.strokeRect(PAD.l + 0.5, yTop + 0.5, barW - 1, h - 1);
         // 띠 끝 글자: 비중% (거래량)
         if (h >= 9) {
           const pct = total ? binVol[b] / total * 100 : 0;
@@ -4000,7 +4021,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-22a 매물대 HTS식';
+const KG_CHART_BUILD = '2026-09-22c 매물대 그라데이션';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
