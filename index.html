@@ -7788,10 +7788,14 @@ async function loadFtrend(){
       updateFtrendNote();
       updateValuationTabColor();
     } else {
-      if(note) note.textContent = '⚠️ 데이터를 불러오지 못했습니다';
+      FTREND_DATA = null;
+      drawFtrendAll();
+      if(note) note.textContent = '⚠️ 자료 없음 — 그래프를 누르면 다시 불러옵니다';
     }
   }catch(e){
-    if(note) note.textContent = '⚠️ 로드 실패: ' + e.message;
+    FTREND_DATA = null;
+    drawFtrendAll();
+    if(note) note.textContent = '⚠️ 불러오기 실패(' + e.message + ') — 그래프를 누르면 다시 시도합니다';
   }
 }
 
@@ -7814,6 +7818,10 @@ function updateValuationTabColor(){
 function updateFtrendNote(){
   const note = document.getElementById('ftrendNote');
   if(!note) return;
+  if(!FTREND_DATA || !FTREND_DATA.length){   // 자료가 없으면 설명 대신 상태를 남긴다
+    note.textContent = '⚠️ 자료 없음 — 그래프를 누르면 다시 불러옵니다';
+    return;
+  }
   const idxL = ftrendIdx === 'kospi' ? '코스피' : '코스닥';
   const modeL = ftrendMode === 'cumul' ? '누적 순매수' : '순매수';
   note.textContent = idxL + ' ' + modeL + ' (억원) · 좌축 금액 / 우축 지수';
@@ -7850,6 +7858,16 @@ function ftrendBind(){
     return Math.max(0, Math.min(n-1, Math.round(((cx-PADl)/cw)*(n-1))));
   };
   const on=ev=>{ if(!FTREND_DATA) return; ftHover=idxFrom(ev); drawFtrend('ftrendCanvas'); };
+  /* 자료가 없을 때 그래프를 누르면 다시 받아온다 */
+  cv.addEventListener('click', ()=>{
+    if(FTREND_DATA && FTREND_DATA.length) return;
+    try{ localStorage.removeItem('ftrend_cache_v3'); }catch(e){}
+    const note=document.getElementById('ftrendNote');
+    if(note) note.textContent='📡 다시 불러오는 중…';
+    loadFtrend();
+  });
+  /* 화면 폭이 바뀌면(가로세로 돌리기 등) 다시 그린다 */
+  window.addEventListener('resize', ()=>{ clearTimeout(cv._rsz); cv._rsz=setTimeout(()=>drawFtrend('ftrendCanvas'), 200); });
   cv.addEventListener('mousemove', on);
   cv.addEventListener('mouseleave', ()=>{ ftHover=-1; drawFtrend('ftrendCanvas'); });
   cv.addEventListener('touchstart', on, {passive:true});
@@ -7882,10 +7900,29 @@ function renderFtrendLegend(){
 
 function drawFtrend(canvasId){
   const canvas = document.getElementById(canvasId || 'ftrendCanvas');
-  if(!canvas || !FTREND_DATA) return;
-  const rows = FTREND_DATA.slice(-ftrendPeriod);
+  if(!canvas) return;
+  /* 탭이 숨겨져 있거나 화면 배치 전이면 clientWidth 가 0 이라 그려도 아무것도 안 보인다.
+     폭이 잡힐 때까지 다음 화면 갱신 때 다시 시도한다 (최대 40번 ≈ 0.7초). */
+  if(canvas.clientWidth < 50){
+    canvas._wTry = (canvas._wTry || 0) + 1;
+    if(canvas._wTry < 40) requestAnimationFrame(()=>drawFtrend(canvasId));
+    return;
+  }
+  canvas._wTry = 0;
+  const rows = FTREND_DATA ? FTREND_DATA.slice(-ftrendPeriod) : [];
   const dpr = window.devicePixelRatio || 1;
   const W = canvas.clientWidth, H = 200;
+  if(!rows.length){                       // 자료를 못 받았을 때 — 빈 칸 대신 안내를 그린다
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    const c0 = canvas.getContext('2d');
+    c0.setTransform(dpr,0,0,dpr,0,0); c0.clearRect(0,0,W,H);
+    c0.fillStyle='#8b949e'; c0.font='12px sans-serif'; c0.textAlign='center';
+    c0.fillText('자료를 불러오지 못했습니다', W/2, H/2-8);
+    c0.fillStyle='#58a6ff';
+    c0.fillText('여기를 누르면 다시 불러옵니다', W/2, H/2+12);
+    c0.textAlign='left';
+    return;
+  }
   canvas.width = W*dpr; canvas.height = H*dpr;
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -13502,7 +13539,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-22 이수페타시스 신한 리포트';
+const KG_APP_BUILD = '2026-09-23 매매추이 그래프 복구';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
