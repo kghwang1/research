@@ -327,11 +327,10 @@ body.stock-closed #step-pad { display: flex; }
   <div id="sidebar">
     <div class="sidebar-help">
       <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
-      아래 <b>기본 조합</b>·<b>간단 조합</b> 버튼으로 한 번에 표시<br>
+      아래 <b>기본챠트</b> 버튼으로 한 번에 표시<br>
       <span style="color:#6e7681;font-size:10px">버전 <b id="buildTag">-</b></span>
     </div>
-    <button id="defaultComboBtn" style="width:calc(100% - 12px);margin:6px 6px 0;padding:7px;border-radius:6px;border:1px solid #30363d;background:#1f6feb;color:#fff;font-weight:700;font-size:12px;cursor:pointer">📊 기본 조합 표시</button>
-    <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:5px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 간단 조합 표시</button>
+    <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:6px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 기본챠트</button>
     <div class="group-title">▶ 오버레이</div>
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
@@ -4031,7 +4030,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-26b 매물대 비중만 띠 안쪽';
+const KG_CHART_BUILD = '2026-09-26c 기본챠트 단추';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
