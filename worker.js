@@ -88,6 +88,23 @@ export default {
     // 외국인 매매 추이(1년 일별 매수/매도/순매수) - 막대그래프용
     const ftrend = url.searchParams.get("ftrend");
     if (ftrend) return json(await foreignTrend(parseInt(url.searchParams.get("days")) || 250, url.searchParams.get("raw")), 200);
+    // 매매추이 자료 출처 탐색 (네이버 구페이지 폐지 후 대체처 찾기)
+    if (url.searchParams.get("ver")) return json({ ok: true, build: WORKER_BUILD }, 200);
+    if (url.searchParams.get("ftprobe") === "7") return json(await npayApiTry(url.searchParams.get("u")), 200);
+    if (url.searchParams.get("ftprobe") === "6") return json(await npayWordHunt(url.searchParams.get("u"), url.searchParams.get("w")), 200);
+    if (url.searchParams.get("ftprobe") === "5") return json(await npayRawProbe(url.searchParams.get("u")), 200);
+    // 외국인 지분율 상위 종목
+    if (url.searchParams.get("frank")) return json(await foreignHoldRank(parseInt(url.searchParams.get("n")) || 10, url.searchParams.get("raw")), 200);
+    if (url.searchParams.get("ftprobe") === "13") return json(await rankProbe2(), 200);
+    if (url.searchParams.get("ftprobe") === "12") return json(await rankProbe(), 200);
+    if (url.searchParams.get("ftprobe") === "11") return json(await foreignHoldProbe(), 200);
+    if (url.searchParams.get("ftprobe") === "10") return json(await itemFrgnProbe(url.searchParams.get("code")), 200);
+    if (url.searchParams.get("ftprobe") === "9") return json(await progProbe2(), 200);
+    if (url.searchParams.get("ftprobe") === "8") return json(await progProbe(), 200);
+    if (url.searchParams.get("ftprobe") === "4") return json(await npayApiHunt(url.searchParams.get("u")), 200);
+    if (url.searchParams.get("ftprobe") === "3") return json(await npayTableProbe(url.searchParams.get("u")), 200);
+    if (url.searchParams.get("ftprobe") === "2") return json(await npayProbe(url.searchParams.get("u")), 200);
+    if (url.searchParams.get("ftprobe")) return json(await ftrendProbe(), 200);
     // 외국인 순매수 상위 종목 (최근 5일 연속 순매수)
     const ftop = url.searchParams.get("ftop");
     if (ftop) return json(await foreignTopStocks(url.searchParams.get("raw"), url.searchParams.get("nocache")), 200);
@@ -147,11 +164,12 @@ export default {
     if (frgnDaily) {
       const raw = url.searchParams.get("raw");
       if (!raw) {
-        const cached = await kvGet(env, "frgnD:" + frgnDaily);
+        const cached = await kvGet(env, "frgnD3:" + frgnDaily);   // 3: bizdate 로 긴 기간을 받게 바꾼 뒤 (2026-09-26)
         if (cached) return json(cached, 200);
       }
       const result = await naverForeignDaily(frgnDaily, parseInt(url.searchParams.get("days")) || 120, raw);
-      if (!raw && result && result.ok) await kvSet(env, "frgnD:" + frgnDaily, result);
+      // 중간에 막혀 덜 받은 자료는 캐시하지 않는다 (짧은 자료가 6시간 굳는 것을 막는다)
+      if (!raw && result && result.ok && !result.blocked) await kvSet(env, "frgnD3:" + frgnDaily, result);
       return json(result, 200);
     }
     // 공매도/대차잔고 (KRX 데이터)
@@ -1327,24 +1345,42 @@ async function nightFutProbe(raw) {
 }
 
 async function naverInvestorDay(raw, sosok) {
+  /* 당일 투자자별 순매수 (장중) — 옛 investorDealTrendDay 폐지 후 Npay API 사용.
+     금액은 원 단위로 오므로 억원으로 바꿔 돌려준다. */
   const ymd = kstYmd(0);
-  const mk = (sosok === "02" || sosok === "kosdaq") ? "02" : "01";
-  const url = "https://finance.naver.com/sise/investorDealTrendDay.naver?bizdate=" + ymd + "&sosok=" + mk;
-  let html = null, status = 0;
+  const mk = (sosok === "02" || sosok === "kosdaq") ? "KOSDAQ" : "KOSPI";
+  const url = "https://stock.naver.com/api/domestic/market/trend/daily?tradeType=KRX&marketType=" + mk +
+              "&bizdate=" + ymd + "&startIdx=0&pageSize=5";
+  let j = null, status = 0;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/sise/investorDealTrend.naver" } });
+    const r = await fetch(url, {
+      headers: { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+                 "Referer": "https://stock.naver.com/market/stock/kr/trend/trader" },
+      cf: { cacheTtl: 0 }
+    });
     status = r.status;
-    if (r.ok) { const buf = await r.arrayBuffer(); try { html = new TextDecoder("euc-kr").decode(buf); } catch (e) { html = new TextDecoder("utf-8").decode(buf); } }
+    if (r.ok) j = await r.json();
   } catch (e) { status = -1; }
-  if (raw) { let s = html ? html.search(/<table/) : -1; return { ok: !!html, url, raw: html ? html.slice(s < 0 ? 0 : s, (s < 0 ? 0 : s) + 6500) : null }; }
-  if (!html) return { ok: false, status, error: "no data" };
-  const rowRe = /<td class="date2?">(\d{2}\.\d{2}\.\d{2})<\/td>([\s\S]*?)(?=<td class="date2?">|<\/table>)/g;
-  const parseNums = (chunk) => [...chunk.matchAll(/<td[^>]*>\s*([-−]?[\d,]+)\s*<\/td>/g)].map(m => parseInt(m[1].replace(/,/g, "").replace("−", "-"), 10)).filter(n => isFinite(n));
-  let m, first = null;
-  while ((m = rowRe.exec(html)) !== null) { const nums = parseNums(m[2]); if (nums.length >= 3) { first = { date: m[1], nums }; break; } }
-  if (!first) return { ok: false, status, error: "parse fail" };
-  const n = first.nums;
-  return { ok: true, date: first.date, gaein: n[0], foreign: n[1], inst: n[2] };
+  if (raw) return { ok: !!j, url, status, raw: j ? JSON.stringify(j).slice(0, 2000) : null };
+  const list = (j && (j.content || j.result || j.items)) || [];
+  if (!list.length) return { ok: false, status, error: "no data" };
+  const it = list[0];
+  const by = {};
+  (it.netAmounts || []).forEach(x => { by[String(x.investorGubun)] = x.diffValue; });
+  const toNum = v => { const n = parseFloat(String(v == null ? "" : v).replace(/,/g, "")); return isFinite(n) ? n : null; };
+  const sum = codes => {
+    let t = 0, got = false;
+    codes.forEach(c => { const v = toNum(by[c]); if (v != null) { t += v; got = true; } });
+    return got ? Math.round(t / 1e8 * 10) / 10 : null;     // 원 → 억원
+  };
+  const b = String(it.bizdate || "");
+  return {
+    ok: true,
+    date: b.length === 8 ? b.slice(2, 4) + "." + b.slice(4, 6) + "." + b.slice(6, 8) : b,
+    gaein: sum(["8000"]),
+    foreign: sum(["9000", "9001"]),
+    inst: sum(["1000", "2000", "3000", "3100", "4000", "5000", "6000"]),
+  };
 }
 
 async function naverForeignProgram(raw) {
@@ -1375,65 +1411,77 @@ async function naverForeignProgram(raw) {
 }
 
 async function naverProgram(raw) {
+  /* 프로그램매매 — 옛 programDealTrendDay 폐지 후 Npay API 사용.
+     https://stock.naver.com/api/domestic/market/trendProgram
+       ?tradeType=KRX&krxMarketType=KOSPI&bizdate=YYYYMMDD&periodType=DAILY&startIdx=0&pageSize=N
+       diffPureBuyAmt      = 차익 순매수
+       biDiffPureBuyAmt    = 비차익 순매수
+       totalDiffPureBuyAmt = 합계        (모두 원 단위 → 억원으로 바꿔 내보낸다) */
   const ymd = kstYmd(0);
-  const url = "https://finance.naver.com/sise/programDealTrendDay.naver?bizdate=" + ymd + "&sosok=";
-  let html = null, status = 0;
+  const url = "https://stock.naver.com/api/domestic/market/trendProgram?tradeType=KRX&krxMarketType=KOSPI" +
+              "&bizdate=" + ymd + "&periodType=DAILY&startIdx=0&pageSize=5";
+  let j = null, status = 0;
   try {
-    const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/sise/sise_program.naver" } });
+    const r = await fetch(url, {
+      headers: { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+                 "Referer": "https://stock.naver.com/market/stock/kr/trend/program" },
+      cf: { cacheTtl: 0 }
+    });
     status = r.status;
-    if (r.ok) { const buf = await r.arrayBuffer(); try { html = new TextDecoder("euc-kr").decode(buf); } catch (e) { html = new TextDecoder("utf-8").decode(buf); } }
+    if (r.ok) j = await r.json();
   } catch (e) { status = -1; }
-  if (raw) { let s = html ? html.search(/<table/) : -1; return { ok: !!html, url, raw: html ? html.slice(s < 0 ? 0 : s, (s < 0 ? 0 : s) + 6500) : null }; }
-  if (!html) return { ok: false, status, error: "no data" };
-  const rowRe = /<td class="date">(\d{2}\.\d{2}\.\d{2})<\/td>([\s\S]*?)(?=<td class="date">|<\/table>)/g;
-  const parseNums = (chunk) => [...chunk.matchAll(/<td[^>]*>\s*([-−]?[\d,]+)\s*<\/td>/g)].map(m => parseInt(m[1].replace(/,/g, "").replace("−", "-"), 10)).filter(n => isFinite(n));
-  let m, first = null;
-  while ((m = rowRe.exec(html)) !== null) { const nums = parseNums(m[2]); if (nums.length >= 9) { first = { date: m[1], nums }; break; } }
-  if (!first) return { ok: false, status, error: "parse fail" };
-  const n = first.nums;
-  return { ok: true, date: first.date, arbNet: n[2], nonArbNet: n[5], totalNet: n[8] };
+  if (raw) return { ok: !!j, url, status, raw: j ? JSON.stringify(j).slice(0, 1500) : null };
+  const list = (j && (j.content || j.result || j.items)) || [];
+  if (!list.length) return { ok: false, status, error: "no data" };
+  const it = list[0];
+  const eok = v => { const n = parseFloat(String(v == null ? "" : v).replace(/,/g, "")); return isFinite(n) ? Math.round(n / 1e8) : null; };
+  const b = String(it.bizdate || "");
+  return {
+    ok: true,
+    date: b.length === 8 ? b.slice(2, 4) + "." + b.slice(4, 6) + "." + b.slice(6, 8) : b,
+    arbNet: eok(it.diffPureBuyAmt),
+    nonArbNet: eok(it.biDiffPureBuyAmt),
+    totalNet: eok(it.totalDiffPureBuyAmt),
+  };
 }
 
 async function naverForeign(code, raw) {
+  /* 2026.09 item/frgn.naver 폐지 → 모바일 API 사용.
+     https://m.stock.naver.com/api/stock/<코드>/trend
+       foreignerPureBuyQuant "+659,851" · foreignerHoldRatio "46.55%"
+       organPureBuyQuant · individualPureBuyQuant · closePrice · bizdate(최근 날짜부터) */
   code = String(code || "").replace(/[^0-9]/g, "");
   if (code.length !== 6) return { ok: false, error: "bad code" };
-  const u = "https://finance.naver.com/item/frgn.naver?code=" + code;
-  let html = null;
+  const u = "https://m.stock.naver.com/api/stock/" + code + "/trend";
+  let j2 = null;
   try {
-    const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/item/frgn.naver?code=" + code } });
-    if (r.ok) { const buf = await r.arrayBuffer(); try { html = new TextDecoder("euc-kr").decode(buf); } catch (e) { html = new TextDecoder("utf-8").decode(buf); } }
+    const r = await fetch(u, {
+      headers: { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+                 "Referer": "https://m.stock.naver.com/domestic/stock/" + code + "/total" },
+      cf: { cacheTtl: 300 }
+    });
+    if (r.ok) j2 = await r.json();
   } catch (e) {}
-  if (!html) return { ok: false, code, error: "no data" };
-  if (raw) return { ok: true, code, raw: html.slice(0, 5500) };
+  if (raw) return { ok: !!j2, code, url: u, raw: j2 ? JSON.stringify(j2).slice(0, 1500) : null };
+  const list = Array.isArray(j2) ? j2 : ((j2 && (j2.trends || j2.content || j2.result)) || []);
+  if (!list.length) return { ok: false, code, error: "no data" };
+  const num = v => { const n = parseFloat(String(v == null ? "" : v).replace(/,/g, "").replace("+", "")); return isFinite(n) ? n : 0; };
   const rows = [];
-  const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-  let rm;
-  while ((rm = rowRe.exec(html)) !== null) {
-    const rh = rm[1];
-    const dm = rh.match(/(\d{4})\.(\d{2})\.(\d{2})/);
-    if (!dm) continue;
-    const tds = [...rh.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(x => x[1]);
-    if (tds.length < 7) continue;
-    const closeTxt = (tds[1] || "").replace(/<[^>]*>/g, "").replace(/&nbsp;|\s/g, "");
-    const closePrice = parseInt(closeTxt.replace(/[^0-9]/g, ""), 10) || 0;
-    const cell = tds[6];
-    const cls = ((cell.match(/class="([^"]*)"/) || [])[1] || "");
-    const txt = cell.replace(/<[^>]*>/g, "").replace(/&nbsp;|\s/g, "");
-    const n = parseInt(txt.replace(/[^0-9]/g, ""), 10) || 0;
-    let buy;
-    if (/-|–|−/.test(txt)) buy = false;
-    else if (/red/.test(cls)) buy = true;
-    else if (/nv|blue/.test(cls)) buy = false;
-    else buy = n > 0;
-    const isBuy = !!(buy && n > 0);
-    const qty = isBuy ? n : -n;
-    // 보유비율 (tds[8])
-    const ratioTxt = (tds[8] || "").replace(/<[^>]*>/g, "").replace(/&nbsp;|\s|,/g, "");
-    const ratio = parseFloat(ratioTxt.replace(/[^0-9.]/g, "")) || 0;
-    rows.push({ date: dm[0], buy: isBuy, qty, close: closePrice, amt: qty * closePrice, ratio });
+  for (const it of list) {
+    const b = String(it.bizdate || "");
+    if (!/^\d{8}$/.test(b)) continue;
+    const qty = num(it.foreignerPureBuyQuant);
+    const close = num(it.closePrice);
+    rows.push({
+      date: b.slice(0, 4) + "." + b.slice(4, 6) + "." + b.slice(6, 8),
+      buy: qty > 0, qty, close, amt: qty * close,
+      ratio: num(it.foreignerHoldRatio),
+      inst: num(it.organPureBuyQuant),
+    });
     if (rows.length >= 10) break;
   }
-  const last10 = rows.slice(0, 10).reverse();
+  if (!rows.length) return { ok: false, code, error: "parse fail" };
+  const last10 = rows.reverse();                 // 최근→과거 로 오므로 뒤집어 과거→최근
   const seq = last10.map(d => d.buy);
   const net = last10.map(d => d.qty);
   const amt = last10.map(d => d.amt);
@@ -1537,65 +1585,71 @@ async function naverChartData(code, timeframe, days, raw) {
 }
 
 async function naverForeignDaily(code, days, raw) {
+  /* 종목별 일별 외국인·기관·개인 순매수 (차트 보조지표·매매동향 표용)
+     https://m.stock.naver.com/api/stock/<코드>/trend?pageSize=N&bizdate=YYYYMMDD
+     그냥 부르면 최근 10거래일만 온다. 받은 자료 중 가장 오래된 날짜를 bizdate 로 넣어
+     다시 부르면 그 이전 자료가 이어서 오므로, 이렇게 과거로 한 쪽씩 거슬러 올라간다. (2026-09-26)
+     · pageSize 를 받지 않으면(400) 빼고 다시 부른다 — 그때는 한 쪽에 10일씩 온다
+     · 개인 순매수(individualPureBuyQuant)도 실제 값으로 온다 → indiv
+     · 중간에 막히면(409 등) 받은 데까지 돌려주되 blocked 를 붙여 캐시하지 않게 한다 */
   code = String(code || "").replace(/[^0-9]/g, "");
   if (code.length !== 6) return { ok: false, error: "bad code" };
-  days = Math.max(20, Math.min(days || 120, 500));
-  const perPage = 10; // 네이버 frgn 페이지 1페이지당 약 10행
-  const pages = Math.ceil(days / perPage) + 1;
-  const out = new Map(); // date -> {net, amt}
-  for (let p = 1; p <= pages; p++) {
-    const u = "https://finance.naver.com/item/frgn.naver?code=" + code + "&page=" + p;
-    let html = null;
+  days = Math.max(5, Math.min(days || 120, 500));
+  const base = "https://m.stock.naver.com/api/stock/" + code + "/trend";
+  const H = { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+              "Referer": "https://m.stock.naver.com/domestic/stock/" + code + "/total" };
+  const toN = v => {
+    if (v == null || v === "") return null;
+    const n = parseFloat(String(v).replace(/,/g, "").replace("+", "").replace("%", ""));
+    return isFinite(n) ? n : null;
+  };
+  let pageSize = 60;
+  let bizdate = null, blocked = false;
+  const seen = new Map();
+  const tried = [];
+  for (let guard = 0; guard < 30 && seen.size < days; guard++) {
+    const qs = [];
+    if (pageSize) qs.push("pageSize=" + pageSize);
+    if (bizdate) qs.push("bizdate=" + bizdate);
+    const u = base + (qs.length ? "?" + qs.join("&") : "");
+    let list = null, st = 0;
     try {
-      const r = await fetch(u, { headers: { "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/item/frgn.naver?code=" + code } });
-      if (r.ok) { const buf = await r.arrayBuffer(); try { html = new TextDecoder("euc-kr").decode(buf); } catch (e) { html = new TextDecoder("utf-8").decode(buf); } }
-    } catch (e) {}
-    if (!html) break;
-    const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/g;
-    let rm, gotAny = false;
-    while ((rm = rowRe.exec(html)) !== null) {
-      const rh = rm[1];
-      const dm = rh.match(/(\d{4})\.(\d{2})\.(\d{2})/);
-      if (!dm) continue;
-      const tds = [...rh.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(x => x[1]);
-      if (tds.length < 7) continue;
-      // raw 프로브
-      if (raw) {
-        if (out.size < 3) {
-          const cleaned = tds.map((t,i) => i+':'+t.replace(/<[^>]*>/g,'').replace(/&nbsp;|\s/g,'').trim());
-          out.set(dm[0].replace(/\./g,'-'), { raw: cleaned, tdCount: tds.length, html5: (tds[5]||'').slice(0,200), html7: (tds[7]||'').slice(0,200), html8: (tds[8]||'').slice(0,200) });
-        }
-        continue;
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 300 } });
+      st = r.status;
+      if (r.ok) {
+        const j = await r.json();
+        list = Array.isArray(j) ? j : ((j && (j.trends || j.content || j.result)) || []);
       }
-      const closeTxt = (tds[1] || "").replace(/<[^>]*>/g, "").replace(/&nbsp;|\s/g, "");
-      const closePrice = parseInt(closeTxt.replace(/[^0-9]/g, ""), 10) || 0;
-      const cell = tds[6]; // 외국인 순매매량 컬럼
-      const cls = ((cell.match(/class="([^"]*)"/) || [])[1] || "");
-      const txt = cell.replace(/<[^>]*>/g, "").replace(/&nbsp;|\s/g, "");
-      let n = parseInt(txt.replace(/[^0-9]/g, ""), 10) || 0;
-      const isNeg = /-|–|−/.test(txt) || /nv|blue/.test(cls);
-      if (isNeg) n = -n;
-      // 기관 순매매 (tds[5])
-      const instCell = tds[5] || "";
-      const instCls = ((instCell.match(/class="([^"]*)"/) || [])[1] || "");
-      const instTxt = instCell.replace(/<[^>]*>/g, "").replace(/&nbsp;|\s|,/g, "");
-      let instN = parseInt(instTxt.replace(/[^0-9]/g, ""), 10) || 0;
-      if (/-|–|−/.test(instTxt) || /nv|blue|red/.test(instCls)) instN = -instN;
-      // 외국인 보유주수 (tds[7]) + 보유율 (tds[8])
-      const holdTxt = (tds[7] || "").replace(/<[^>]*>/g, "").replace(/&nbsp;|\s|,/g, "");
-      const hold = parseInt(holdTxt.replace(/[^0-9]/g, ""), 10) || 0;
-      const ratioTxt = (tds[8] || "").replace(/<[^>]*>/g, "").replace(/&nbsp;|\s|,/g, "");
-      const ratio = parseFloat(ratioTxt.replace(/[^0-9.]/g, "")) || 0;
-      const dateStr = dm[0].replace(/\./g, "-");
-      if (!out.has(dateStr)) { out.set(dateStr, { net: n, amt: n * closePrice, inst: instN, hold, ratio }); gotAny = true; }
+    } catch (e) { st = -1; }
+    tried.push((bizdate || "최근") + ":" + st + ":" + (list ? list.length : "-"));
+    if (st === 400 && pageSize) { pageSize = null; guard--; continue; }   // pageSize 를 못 받는 경우
+    if (!list) { blocked = true; break; }
+    if (!list.length) break;
+    let oldest = null, added = 0;
+    for (const it of list) {
+      const b = String(it.bizdate || "");
+      if (!/^\d{8}$/.test(b)) continue;
+      if (!oldest || b < oldest) oldest = b;
+      const date = b.slice(0, 4) + "-" + b.slice(4, 6) + "-" + b.slice(6, 8);
+      if (seen.has(date)) continue;
+      const net = toN(it.foreignerPureBuyQuant) || 0, close = toN(it.closePrice) || 0;
+      seen.set(date, {
+        date, net, amt: net * close,
+        inst: toN(it.organPureBuyQuant) || 0,
+        indiv: toN(it.individualPureBuyQuant),
+        hold: 0,
+        ratio: toN(it.foreignerHoldRatio) || 0,
+      });
+      added++;
     }
-    if (!gotAny) break; // 더 이상 데이터 없으면 중단
-    if (out.size >= days) break;
+    if (!added || !oldest || oldest === bizdate) break;   // 더 과거가 없다
+    bizdate = oldest;
+    await usSleep(100);
   }
-  // 날짜 오름차순 정렬
-  const arr = [...out.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).slice(-days);
-  if (raw) return { ok: true, code, source: "frgn_probe", data: arr.map(([date, v]) => ({ date, ...v })) };
-  return { ok: true, code, data: arr.map(([date, v]) => ({ date, net: v.net, amt: v.amt, inst: v.inst || 0, hold: v.hold || 0, ratio: v.ratio || 0 })) };
+  if (!seen.size) return { ok: false, code, error: "no data", tried };
+  const arr = [...seen.values()].sort((a, b) => a.date < b.date ? -1 : 1).slice(-days);
+  if (raw) return { ok: true, code, source: "m.stock trend (bizdate)", count: arr.length, blocked, tried, first: arr[0], last: arr[arr.length - 1] };
+  return { ok: true, code, count: arr.length, blocked: blocked || undefined, data: arr };
 }
 
 function decodeEnt(s) {
@@ -2123,49 +2177,54 @@ async function usInfo_OLD(ticker, raw) {
 //  단위: 억원. 페이지당 약 30영업일이라 9페이지면 1년 남짓
 // ══════════════════════════════════════
 async function naverDeposit(pages, raw) {
-  const out = [];
-  const seen = new Set();
+  /* 2026.09 네이버가 옛 페이지를 폐지하고 Npay 증권 API 로 옮겼다.
+     https://stock.naver.com/api/domestic/market/trendDeposit?startIdx=0&pageSize=20
+     pageSize 는 20 까지만 받으므로 startIdx 를 옮겨가며 이어 받는다. 단위: 억원 */
+  const P = Math.max(1, Math.min(20, pages || 9));
+  const SIZE = 20;                         // 크게 부르면 400 을 낸다 — 화면이 쓰는 값 그대로
   const tried = [];
-  const P = Math.max(1, Math.min(14, pages || 9));
-  for (let pg = 1; pg <= P; pg++) {
-    const u = "https://finance.naver.com/sise/sise_deposit.naver?page=" + pg;
-    let html = "";
+  const list = [];
+  for (let i = 0; i < P; i++) {
+    const u = "https://stock.naver.com/api/domestic/market/trendDeposit?startIdx=" + (i * SIZE) + "&pageSize=" + SIZE;
     try {
       const r = await fetch(u, {
-        headers: { "User-Agent": UA, "Referer": "https://finance.naver.com/sise/", "Accept": "text/html" },
+        headers: { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+                   "Referer": "https://stock.naver.com/market/stock/kr/deposit" },
         cf: { cacheTtl: 300 }
       });
-      tried.push(pg + ":" + r.status);
-      if (!r.ok) continue;
-      const buf = await r.arrayBuffer();
-      html = new TextDecoder("euc-kr").decode(buf);   // 네이버 금융은 EUC-KR
-    } catch (e) { tried.push(pg + ":ERR"); continue; }
-
-    const rows = html.match(/<tr[\s\S]*?<\/tr>/g) || [];
-    for (const tr of rows) {
-      const cells = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
-        .map(m => m[1].replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim());
-      if (cells.length < 11) continue;
-      const dt = cells[0];
-      if (!/^\d{2}\.\d{2}\.\d{2}$/.test(dt)) continue;
-      const num = v => { const n = parseFloat(String(v).replace(/[^0-9.\-]/g, "")); return isFinite(n) ? n : null; };
-      const rec = {
-        date: "20" + dt.replace(/\./g, "-"),         // 26.08.06 → 2026-08-06
-        deposit: num(cells[1]),                      // 고객예탁금
-        credit: num(cells[3]),                       // 신용잔고
-        stock: num(cells[5]),                        // 펀드 주식형
-        mixed: num(cells[7]),                        // 펀드 혼합형
-        bond: num(cells[9]),                         // 펀드 채권형
-      };
-      if (rec.deposit == null || seen.has(rec.date)) continue;
-      seen.add(rec.date);
-      out.push(rec);
-    }
-    await usSleep(120);   // 네이버 차단 방지
+      tried.push(i + ":" + r.status);
+      if (!r.ok) break;
+      const j = await r.json();
+      const part = (j && (j.content || j.result || j.items)) || [];
+      if (!part.length) break;
+      list.push(...part);
+      if (part.length < SIZE) break;
+    } catch (e) { tried.push(i + ":ERR"); break; }
+    await usSleep(80);
   }
-  out.sort((a, b) => a.date < b.date ? -1 : 1);      // 오래된 것 → 최신
-  if (raw) return { ok: true, tried, count: out.length, sample: out.slice(-3) };
-  return { ok: true, count: out.length, rows: out };
+
+  const num = v => { const n = parseFloat(String(v == null ? "" : v).replace(/[^0-9.\-]/g, "")); return isFinite(n) ? n : null; };
+  const seen = new Set(), out = [];
+  for (const it of list) {
+    const b = String(it.bizdate || it.date || "");
+    if (!/^\d{8}$/.test(b)) continue;
+    const date = b.slice(0, 4) + "-" + b.slice(4, 6) + "-" + b.slice(6, 8);
+    if (seen.has(date)) continue;
+    const rec = {
+      date,
+      deposit: num(it.customerDeposit),                  // 고객예탁금
+      credit: num(it.creditLoan),                        // 신용잔고
+      stock: num(it.beneficiaryCertificateStock),        // 펀드 주식형
+      mixed: num(it.beneficiaryCertificateMixing),       // 펀드 혼합형
+      bond: num(it.beneficiaryCertificateBond),          // 펀드 채권형
+    };
+    if (rec.deposit == null) continue;
+    seen.add(date);
+    out.push(rec);
+  }
+  out.sort((a, b) => a.date < b.date ? -1 : 1);          // 오래된 것 → 최신
+  if (raw) return { ok: out.length > 0, tried, count: out.length, sample: out.slice(-3) };
+  return { ok: out.length > 0, count: out.length, rows: out };
 }
 
 // ══════════════════════════════════════
@@ -2674,42 +2733,503 @@ async function handleData(request, env, key) {
 // ══════════════════════════════════════
 // 외국인 매매 추이 (1년 일별) - 막대그래프용
 // ══════════════════════════════════════
-async function foreignTrend(days, raw) {
-  // 네이버 investorDealTrendDay: page=N 으로 페이지네이션 (한 페이지 약 10거래일)
-  // sosok=01(코스피) / sosok=02(코스닥) 각각 조회
-  const headers = { "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/sise/investorDealTrend.naver" };
-  const bizdate = kstYmd(0);
-  const parseNums = (chunk) => [...chunk.matchAll(/<td class="rate_(?:up|down)3">\s*([-−]?[\d,]+)\s*<\/td>/g)].map(m => parseInt(m[1].replace(/,/g, "").replace("−", "-"), 10)).filter(n => isFinite(n));
+/* ══════════════════════════════════════
+   매매추이 대체 출처 탐색 (?ftprobe=1)
+   네이버 investorDealTrendDay 페이지가 폐지되어(2026.09) 새 출처를 찾기 위한 진단.
+   후보를 하나씩 불러 상태·본문 앞부분만 돌려준다. 결과를 보고 파서를 붙인다.
+   ══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   Npay 증권(새 네이버 금융) 화면을 받아 그 안에 박힌 API 주소를 찾아낸다. (?ftprobe=2)
+   ?u= 로 다른 화면을 지정할 수 있다. 결과의 apis 목록에서 쓸 주소를 골라 파서를 붙인다.
+   ══════════════════════════════════════ */
+const WORKER_BUILD = "2026-09-26a 종목 매매동향 기간 확대";
 
-  async function fetchMarket(sosok) {
-    let allRows = [];
-    const maxPages = 7; // 약 10일 × 7 = 70거래일(약 3개월)
-    for (let p = 1; p <= maxPages; p++) {
-      const url = "https://finance.naver.com/sise/investorDealTrendDay.naver?bizdate=" + bizdate + "&sosok=" + sosok + "&page=" + p;
-      let html = null;
-      try {
-        const r = await fetch(url, { headers, cf: { cacheTtl: 21600 } });
-        if (r.ok) { const buf = await r.arrayBuffer(); try { html = new TextDecoder("euc-kr").decode(buf); } catch (e) { html = new TextDecoder("utf-8").decode(buf); } }
-      } catch (e) {}
-      if (!html) break;
-      const rowRe = /<td class="date2?">(\d{2}\.\d{2}\.\d{2})<\/td>([\s\S]*?)<\/tr>/g;
-      let m, pageRows = [];
-      while ((m = rowRe.exec(html)) !== null) {
-        const nums = parseNums(m[2]);
-        if (nums.length >= 3) {
-          pageRows.push({ date: '20' + m[1].replace(/\./g, '-'), person: nums[0], foreign: nums[1], inst: nums[2] });
+/* 새 Npay API 확인 및 형제 주소 타진 (?ftprobe=7[&u=주소]) */
+async function npayApiTry(u) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA, "Accept": "application/json, text/plain, */*", "Referer": "https://stock.naver.com/market/stock/kr/deposit" };
+  const base = "https://stock.naver.com/api/domestic/market/";
+  const urls = u ? [u] : [
+    base + "trendDeposit?startIdx=0&pageSize=5",
+    base + "trendTrader?startIdx=0&pageSize=5",
+    base + "trendTrader?startIdx=0&pageSize=5&market=KOSPI",
+    base + "trendInvestor?startIdx=0&pageSize=5",
+    base + "investorTrend?startIdx=0&pageSize=5",
+    base + "trendTrading?startIdx=0&pageSize=5",
+    base + "trader?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/trendTrader/KOSPI?startIdx=0&pageSize=5",
+  ];
+  const out = [];
+  for (const url2 of urls) {
+    try {
+      const r = await fetch(url2, { headers: H, cf: { cacheTtl: 0 } });
+      const t = await r.text();
+      out.push({ url: url2, status: r.status, len: t.length, head: t.replace(/\s+/g, " ").slice(0, 700) });
+    } catch (e) { out.push({ url: url2, error: String(e).slice(0, 120) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, tries: out };
+}
+
+/* 화면이 싣는 스크립트에서 낱말 주변을 떠온다 (?ftprobe=6&u=화면주소&w=낱말) — 자료 주소 조립부 찾기 */
+async function npayWordHunt(u, w) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const target = u || "https://stock.naver.com/market/stock/kr/deposit";
+  const words = (w || "deposit,trader,investor").split(",").map(x => x.trim()).filter(Boolean);
+  const r = await fetch(target, { headers: { "User-Agent": UA, "Accept": "text/html,*/*" } });
+  const html = new TextDecoder("utf-8").decode(await r.arrayBuffer());
+  const srcs = [...new Set([...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m => m[1]))]
+    .map(x => x.startsWith("http") ? x : "https://stock.naver.com" + x).slice(0, 14);
+  const out = [];
+  for (const src of srcs) {
+    try {
+      const js = await (await fetch(src, { headers: { "User-Agent": UA, "Referer": target } })).text();
+      const snips = [];
+      for (const word of words) {
+        let i = -1, n = 0;
+        while ((i = js.indexOf(word, i + 1)) >= 0 && n < 4) {
+          snips.push(js.slice(Math.max(0, i - 130), i + 130).replace(/\s+/g, " "));
+          n++;
         }
       }
-      if (!pageRows.length) break;
-      allRows.push(...pageRows);
-      if (allRows.length >= days) break;
+      if (snips.length) out.push({ src: src.split("/").slice(-1)[0], snips: snips.slice(0, 8) });
+    } catch (e) {}
+  }
+  // 호스트 후보도 모아둔다
+  const hosts = new Set();
+  out.forEach(o => o.snips.forEach(s2 => [...s2.matchAll(/[a-z0-9.\-]+\.naver\.com/gi)].forEach(m => hosts.add(m[0]))));
+  return { ok: true, build: WORKER_BUILD, url: target, words, hosts: [...hosts], files: out.slice(0, 8) };
+}
+
+/* Npay 화면 원문을 조각내어 그대로 본다 (?ftprobe=5&u=화면주소) — 표가 어떤 모양으로 들어 있는지 확인용 */
+async function npayRawProbe(u) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const target = u || "https://stock.naver.com/market/stock/kr/deposit";
+  const r = await fetch(target, { headers: { "User-Agent": UA, "Accept": "text/html,*/*" }, cf: { cacheTtl: 0 } });
+  const html = new TextDecoder("utf-8").decode(await r.arrayBuffer());
+  const cnt = t => (html.split(t).length - 1);
+  const at = (needle, len) => { const i = html.indexOf(needle); return i < 0 ? null : html.slice(i, i + (len || 900)); };
+  // 날짜처럼 보이는 곳 (2026.09.22 / 2026-09-22 / 09.22)
+  const m = html.match(/20\d\d[.\-]\d\d[.\-]\d\d/);
+  return {
+    ok: true, build: WORKER_BUILD, url: target, status: r.status, len: html.length,
+    counts: { td: cnt("<td"), escTd: cnt("u003ctd"), tbody: cnt("<tbody"), nextF: cnt("self.__next_f"), won: cnt("억원") },
+    firstDate: m ? m[0] : null,
+    aroundDate: m ? html.slice(Math.max(0, html.indexOf(m[0]) - 400), html.indexOf(m[0]) + 800) : null,
+    aroundTbody: at("<tbody", 900),
+    aroundEscTbody: at("u003ctbody", 900)
+  };
+}
+
+/* ══════════════════════════════════════
+   외국인 지분율 상위 종목 (?frank=1&n=10)
+   https://stock.naver.com/api/domestic/market/stock/default
+     ?tradeType=KRX&marketType=KOSPI|KOSDAQ&orderType=frgnRate&startIdx=0&pageSize=N
+   화면은 종목코드·이름·지분율·주가·등락률만 쓴다.
+   ══════════════════════════════════════ */
+async function foreignHoldRank(n, raw) {
+  const N = Math.max(1, Math.min(50, n || 10));
+  const H = { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+              "Referer": "https://stock.naver.com/market/stock/kr/foreignHold" };
+  const num = v => {
+    if (v == null) return null;
+    const x = parseFloat(String(v).replace(/,/g, "").replace("%", "").replace("+", ""));
+    return isFinite(x) ? x : null;
+  };
+  const pick = (o, names) => { for (const k of names) { if (o[k] != null && o[k] !== "") return o[k]; } return null; };
+
+  async function one(marketType) {
+    const u = "https://stock.naver.com/api/domestic/market/stock/default?tradeType=KRX&marketType=" + marketType +
+              "&orderType=frgnRate&startIdx=0&pageSize=" + Math.max(20, N * 2);
+    let j = null, status = 0;
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 600 } });
+      status = r.status;
+      if (r.ok) j = await r.json();
+    } catch (e) { status = -1; }
+    const list = (j && (j.content || j.stocks || j.result || j.items || (Array.isArray(j) ? j : []))) || [];
+    const rows = [];
+    for (const it of list) {
+      /* 실제 항목 이름 (2026-09 확인): itemcode · itemname · frgnHoldRate · nowPrice · prevChangeRate
+         upDownGb 가 하락이면 등락률에 음수 부호를 붙인다 */
+      const code = String(pick(it, ["itemcode", "itemCode", "code"]) || "").replace(/[^0-9A-Za-z]/g, "");
+      if (code.length !== 6) continue;
+      let rate = num(pick(it, ["prevChangeRate", "fluctuationsRatio", "changeRate"]));
+      const dn = /(하락|DOWN|FALL)/i.test(String(it.upDownGb || "")) || String(it.upDownGb) === "5" || String(it.upDownGb) === "4"
+                 || num(it.prevChangePrice) < 0;
+      if (rate != null && dn) rate = -Math.abs(rate);
+      rows.push({
+        code,
+        name: String(pick(it, ["itemname", "itemName", "stockName", "name"]) || code),
+        ratio: num(pick(it, ["frgnHoldRate", "frgnRate", "foreignerHoldRatio"])),
+        price: num(pick(it, ["nowPrice", "closePrice", "currentPrice"])),
+        rate,
+      });
+      if (rows.length >= N) break;
     }
-    return allRows;
+    return { rows, status, url: u, sample: list[0] ? Object.keys(list[0]) : null };
   }
 
-  const [kospiRows, kosdaqRows] = await Promise.all([fetchMarket("01"), fetchMarket("02")]);
+  const [k, q] = await Promise.all([one("KOSPI"), one("KOSDAQ")]);
+  if (raw) return { ok: true, kospiStatus: k.status, kosdaqStatus: q.status, fields: k.sample, kospiSample: k.rows.slice(0, 3), kosdaqSample: q.rows.slice(0, 3), url: k.url };
+  if (!k.rows.length && !q.rows.length) return { ok: false, error: "no data", status: k.status };
+  return { ok: true, date: kstYmd(0).replace(/(\d{4})(\d{2})(\d{2})/, "$1-$2-$3"), source: "npay", kospi: k.rows, kosdaq: q.rows };
+}
 
-  if (raw) return { ok: kospiRows.length > 0, kospiCount: kospiRows.length, kosdaqCount: kosdaqRows.length, kospiSample: kospiRows.slice(0,5), kosdaqSample: kosdaqRows.slice(0,5) };
+/* 순위 목록 — 정렬 이름 후보와 항목 내용 확인 (?ftprobe=13) */
+async function rankProbe2() {
+  const UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA2, "Accept": "application/json, text/plain, */*", "Referer": "https://m.stock.naver.com/domestic/capitalization/KOSPI" };
+  const sorts = ["foreignerRatio", "foreignHoldRatio", "foreignerHoldRatio", "frgnRate", "foreign", "foreignHold", "frgn"];
+  const out = [];
+  for (const st of sorts) {
+    const u = "https://m.stock.naver.com/api/stocks/" + st + "/KOSPI?page=1&pageSize=3";
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 0 } });
+      if (r.status === 404) { out.push({ sort: st, status: 404 }); continue; }
+      const t = await r.text();
+      out.push({ sort: st, status: r.status, head: t.replace(/\s+/g, " ").slice(0, 200) });
+    } catch (e) { out.push({ sort: st, error: String(e).slice(0, 80) }); }
+  }
+  // 시가총액 목록의 항목 하나를 통째로 — 여기에 지분율이 있으면 그걸 쓰면 된다
+  let firstItem = null, keys = null;
+  try {
+    const r = await fetch("https://m.stock.naver.com/api/stocks/marketValue/KOSPI?page=1&pageSize=3", { headers: H, cf: { cacheTtl: 0 } });
+    const j2 = await r.json();
+    const st0 = (j2 && j2.stocks && j2.stocks[0]) || null;
+    if (st0) { firstItem = JSON.stringify(st0).slice(0, 1200); keys = Object.keys(st0); }
+  } catch (e) {}
+  return { ok: true, build: WORKER_BUILD, sorts: out, keys, firstItem };
+}
+
+/* 순위 목록 API 찾기 (?ftprobe=12) — 종목별 trend 가 살아 있는 m.stock 쪽을 훑는다 */
+async function rankProbe() {
+  const UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA2, "Accept": "application/json, text/plain, */*", "Referer": "https://m.stock.naver.com/domestic/capitalization/KOSPI" };
+  const urls = [
+    "https://m.stock.naver.com/api/stocks/marketValue/KOSPI?page=1&pageSize=5",
+    "https://m.stock.naver.com/api/stocks/foreignRatio/KOSPI?page=1&pageSize=5",
+    "https://m.stock.naver.com/api/stocks/foreigner/KOSPI?page=1&pageSize=5",
+    "https://m.stock.naver.com/api/stocks/up/KOSPI?page=1&pageSize=5",
+    "https://m.stock.naver.com/api/index/KOSPI/stocks?page=1&pageSize=5",
+    "https://stock.naver.com/api/domestic/ranking/foreignHold?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/foreignHold/KOSPI?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/stock/foreignHold?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/stocklist?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/foreignHold?tradeType=KRX&krxMarketType=KOSPI&startIdx=0&pageSize=5",
+  ];
+  const out = [];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 0 } });
+      const t = await r.text();
+      out.push({ url: u, status: r.status, len: t.length, head: t.replace(/\s+/g, " ").slice(0, 300) });
+    } catch (e) { out.push({ url: u, error: String(e).slice(0, 90) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, tries: out };
+}
+
+/* '외국인 보유' 상위 종목 API 찾기 (?ftprobe=11)
+   이름만 맞으면 필요한 항목을 400 오류가 알려주므로, 일부러 항목 없이 부른다. */
+async function foreignHoldProbe() {
+  const UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA2, "Accept": "application/json, text/plain, */*",
+              "Referer": "https://stock.naver.com/market/stock/kr/foreignHold" };
+  const names = ["foreignHold", "foreignHolding", "foreignerHold", "trendForeignHold", "foreignHoldRank", "foreigner", "stockForeignHold"];
+  const urls = [];
+  names.forEach(n => {
+    urls.push("https://stock.naver.com/api/domestic/market/" + n);
+    urls.push("https://stock.naver.com/api/domestic/market/" + n + "?startIdx=0&pageSize=5");
+  });
+  urls.push("https://stock.naver.com/market/stock/kr/foreignHold");
+  const out = [];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 0 } });
+      const t = await r.text();
+      if (r.status === 404 && u.indexOf("pageSize") < 0) continue;      // 이름이 틀린 것은 건너뛴다
+      out.push({ url: u, status: r.status, len: t.length, head: t.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 320) });
+    } catch (e) { out.push({ url: u, error: String(e).slice(0, 90) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, tries: out };
+}
+
+/* 종목별 외국인 보유율·순매매 자료 출처 찾기 (?ftprobe=10&code=005930)
+   지분율 상위 종목과 순매수 표의 '매수일' 이 이 자료를 쓴다. */
+async function itemFrgnProbe(code) {
+  const c = String(code || "005930").replace(/[^0-9]/g, "") || "005930";
+  const UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA2, "Accept": "application/json, text/plain, */*", "Referer": "https://stock.naver.com/domestic/stock/" + c + "/total" };
+  const cands = [
+    "https://finance.naver.com/item/frgn.naver?code=" + c,
+    "https://api.stock.naver.com/stock/" + c + "/trend",
+    "https://m.stock.naver.com/api/stock/" + c + "/trend",
+    "https://stock.naver.com/api/domestic/stock/" + c + "/trend",
+    "https://stock.naver.com/api/domestic/stock/" + c + "/trend/daily?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/stock/" + c + "/trendInvestor?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/stock/" + c + "/foreigner?startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/stock/" + c + "/integration",
+  ];
+  const out = [];
+  for (const u of cands) {
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 0 } });
+      const buf = await r.arrayBuffer();
+      let t = new TextDecoder("utf-8").decode(buf);
+      if (u.indexOf("finance.naver.com") >= 0) { try { t = new TextDecoder("euc-kr").decode(buf); } catch (e) {} }
+      out.push({ url: u, status: r.status, len: t.length, retired: t.indexOf("더 이상 제공") >= 0,
+                 head: t.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 300) });
+    } catch (e) { out.push({ url: u, error: String(e).slice(0, 100) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, code: c, tries: out };
+}
+
+/* trendProgram 의 필수 항목 값 맞추기 (?ftprobe=9) */
+async function progProbe2() {
+  const UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA2, "Accept": "application/json, text/plain, */*",
+              "Referer": "https://stock.naver.com/market/stock/kr/trend/program" };
+  const d = kstYmd(0);
+  const base = "https://stock.naver.com/api/domestic/market/trendProgram?tradeType=KRX&krxMarketType=KOSPI&bizdate=" + d;
+  const periods = ["DAILY", "DAY", "daily", "DATE", "D", "1D", "DAY_1", "TODAY"];
+  const out = [];
+  for (const pt of periods) {
+    const u = base + "&periodType=" + pt + "&startIdx=0&pageSize=5";
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 0 } });
+      const t = await r.text();
+      out.push({ periodType: pt, status: r.status, len: t.length, head: t.replace(/\s+/g, " ").slice(0, 400) });
+      if (r.status === 200) break;      // 맞는 값을 찾으면 멈춘다
+    } catch (e) { out.push({ periodType: pt, error: String(e).slice(0, 90) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, url: base + "&periodType=…", tries: out };
+}
+
+/* 프로그램매매(차익·비차익) 새 주소 타진 (?ftprobe=8) */
+async function progProbe() {
+  const UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const H = { "User-Agent": UA2, "Accept": "application/json, text/plain, */*",
+              "Referer": "https://stock.naver.com/market/stock/kr/trend/program" };
+  const d = kstYmd(0);
+  const cands = [
+    "https://stock.naver.com/market/stock/kr/trend/program",
+    "https://stock.naver.com/api/domestic/market/trend/program?tradeType=KRX&marketType=KOSPI&bizdate=" + d + "&startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/trend/program/daily?tradeType=KRX&marketType=KOSPI&bizdate=" + d + "&startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/program/daily?tradeType=KRX&marketType=KOSPI&bizdate=" + d + "&startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/trend/daily?tradeType=PROGRAM&marketType=KOSPI&bizdate=" + d + "&startIdx=0&pageSize=5",
+    "https://stock.naver.com/api/domestic/market/trendProgram?startIdx=0&pageSize=5",
+  ];
+  const out = [];
+  for (const u of cands) {
+    try {
+      const r = await fetch(u, { headers: H, cf: { cacheTtl: 0 } });
+      const t = await r.text();
+      out.push({ url: u, status: r.status, len: t.length, head: t.replace(/\s+/g, " ").slice(0, 300) });
+    } catch (e) { out.push({ url: u, error: String(e).slice(0, 100) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, tries: out };
+}
+
+/* Npay 화면이 실어오는 스크립트를 뒤져 실제 자료 주소를 찾는다 (?ftprobe=4&u=화면주소) */
+async function npayApiHunt(u) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const target = u || "https://stock.naver.com/market/stock/kr/deposit";
+  const r = await fetch(target, { headers: { "User-Agent": UA, "Accept": "text/html,*/*" }, cf: { cacheTtl: 0 } });
+  const html = new TextDecoder("utf-8").decode(await r.arrayBuffer());
+
+  // 화면 안에 이미 박혀 있는 주소·자료 흔적
+  const inPage = [...new Set([...html.matchAll(/(https?:\/\/[a-z0-9.\-]+\/[^"'\\\s)]{0,120}|\/[a-z0-9\-_/]*api[a-z0-9\-_/]*)/gi)]
+    .map(m => m[0]).filter(x => /api/i.test(x)))].slice(0, 40);
+
+  // 스크립트 파일 목록
+  const srcs = [...new Set([...html.matchAll(/<script[^>]+src="([^"]+)"/g)].map(m => m[1]))]
+    .map(x => x.startsWith("http") ? x : "https://stock.naver.com" + x).slice(0, 14);
+
+  const hits = [];
+  for (const src of srcs) {
+    try {
+      const rr = await fetch(src, { headers: { "User-Agent": UA, "Referer": target } });
+      const js = await rr.text();
+      const found = [...new Set([...js.matchAll(/["'`]([^"'`]{0,80}(?:api\/[a-z0-9\-_/{}$.]*|api\.stock\.naver\.com[^"'`]{0,80}))["'`]/gi)].map(m => m[1]))]
+        .filter(x => /deposit|trader|investor|trend|market|stock/i.test(x)).slice(0, 25);
+      if (found.length) hits.push({ src: src.split("/").slice(-1)[0], found });
+    } catch (e) {}
+  }
+  return { ok: true, build: WORKER_BUILD, url: target, status: r.status, inPage, scriptCount: srcs.length, hits };
+}
+
+/* Npay 화면의 왼쪽 메뉴 주소와 표 구조를 뽑는다 (?ftprobe=3&u=화면주소) */
+async function npayTableProbe(u) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const target = u || "https://stock.naver.com/market/stock/kr/deposit";
+  const r = await fetch(target, { headers: { "User-Agent": UA, "Accept": "text/html,*/*" }, cf: { cacheTtl: 0 } });
+  const html = new TextDecoder("utf-8").decode(await r.arrayBuffer());
+  const strip = t => t.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  // 왼쪽 메뉴: 주소 + 이름
+  const menu = [...html.matchAll(/href="(\/market\/[^"]+)"[^>]*>\s*<span[^>]*>([^<]{1,20})<\/span>/g)]
+    .map(m => ({ href: m[1], label: m[2] }));
+  const seen = new Set(), menuU = menu.filter(x => (seen.has(x.href) ? false : seen.add(x.href)));
+  // 표: 머리글과 앞 3줄
+  const heads = [...html.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)].map(m => strip(m[1])).filter(Boolean).slice(0, 24);
+  const rows = [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
+    .map(m => [...m[1].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map(c => strip(c[1])))
+    .filter(cells => cells.length > 2).slice(0, 4);
+  return { ok: true, build: WORKER_BUILD, url: target, status: r.status, len: html.length, menu: menuU.slice(0, 30), thead: heads, rows };
+}
+
+async function npayProbe(u) {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const targets = u ? [u] : [
+    "https://stock.naver.com/market/stock/kr/deposit",     // 증시자금동향 (새 주소)
+    "https://stock.naver.com/market/stock/kr/investor",    // 투자자별 매매동향 (추정)
+    "https://stock.naver.com/market/stock/kr/trend",
+  ];
+  const out = [];
+  for (const t of targets) {
+    try {
+      const r = await fetch(t, { headers: { "User-Agent": UA, "Accept": "text/html,*/*", "Referer": "https://finance.naver.com/" }, cf: { cacheTtl: 0 } });
+      const txt = new TextDecoder("utf-8").decode(await r.arrayBuffer());
+      // 본문에 박힌 API 주소 모으기
+      const abs = [...txt.matchAll(/https?:\/\/[a-z0-9.\-]*naver\.com\/[^"'\\\s)]{2,140}/gi)].map(m => m[0]);
+      const rel = [...txt.matchAll(/["'](\/(?:front-)?api\/[^"'\\\s]{2,140})["']/g)].map(m => m[1]);
+      const pick = [...new Set([...abs, ...rel])].filter(x => /api|json|chart|deposit|investor|trend/i.test(x)).slice(0, 40);
+      // 자료가 화면 안에 직접 박혀 있는지
+      const kw = ["예탁금", "투자자예탁금", "신용융자", "외국인", "순매수"];
+      const hits = {};
+      kw.forEach(k => { const i = txt.indexOf(k); if (i >= 0) hits[k] = txt.slice(Math.max(0, i - 90), i + 130).replace(/\s+/g, " "); });
+      out.push({ url: t, status: r.status, len: txt.length, apis: pick, keywordContext: hits });
+    } catch (e) { out.push({ url: t, error: String(e).slice(0, 140) }); }
+  }
+  return { ok: true, build: WORKER_BUILD, today: kstYmd(0), pages: out };
+}
+
+async function ftrendProbe() {
+  const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+  const daumH = { "User-Agent": UA, "Accept": "application/json, text/plain, */*", "Referer": "https://finance.daum.net/domestic/investors", "Origin": "https://finance.daum.net" };
+  const naverH = { "User-Agent": UA, "Accept": "application/json, text/plain, */*", "Referer": "https://m.stock.naver.com/domestic/index/KOSPI/total" };
+  const snH = { "User-Agent": UA, "Accept": "application/json, text/plain, */*", "Referer": "https://stock.naver.com/market/stock/kr/deposit" };
+  const cands = [
+    { id: "daum-days",      url: "https://finance.daum.net/api/investor/days?page=1&perPage=5&market=KOSPI&pagination=true", h: daumH },
+    { id: "daum-days2",     url: "https://finance.daum.net/api/investor/days?page=1&perPage=5&market=KOSPI&terms=days&pagination=true", h: daumH },
+    { id: "daum-trades",    url: "https://finance.daum.net/api/investors/days?page=1&perPage=5&market=KOSPI&pagination=true", h: daumH },
+    { id: "sn-front-deposit",  url: "https://stock.naver.com/front-api/market/stock/kr/deposit?pageSize=5&page=1", h: snH },
+    { id: "sn-api-deposit",    url: "https://stock.naver.com/api/market/deposit?pageSize=5&page=1", h: snH },
+    { id: "sn-front-investor", url: "https://stock.naver.com/front-api/market/stock/kr/investor?pageSize=5&page=1", h: snH },
+    { id: "sn-api-investor",   url: "https://stock.naver.com/api/market/investor?market=KOSPI&pageSize=5&page=1", h: snH },
+    { id: "nv-oldsummary",  url: "https://finance.naver.com/sise/investorDealTrend.naver", h: { "User-Agent": UA, "Referer": "https://finance.naver.com/sise/" } },
+  ];
+  const out = [];
+  for (const c of cands) {
+    try {
+      const r = await fetch(c.url, { headers: c.h, cf: { cacheTtl: 0 } });
+      let txt = "";
+      try { const buf = await r.arrayBuffer(); txt = new TextDecoder("utf-8").decode(buf); } catch (e) {}
+      out.push({ id: c.id, status: r.status, len: txt.length, head: txt.replace(/\s+/g, " ").slice(0, 260) });
+    } catch (e) { out.push({ id: c.id, error: String(e).slice(0, 120) }); }
+  }
+  // KRX 정보데이터시스템 (POST)
+  try {
+    const end = kstYmd(0), strt = kstYmd(20);
+    const body = "bld=dbms/MDC/STAT/standard/MDCSTAT02203&locale=ko_KR&inqTpCd=2&trdVolVal=2&askBid=3&mktId=STK&strtDd=" + strt + "&endDd=" + end + "&detailView=1&money=3&csvxls_isNo=false";
+    const r = await fetch("https://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd", {
+      method: "POST",
+      headers: { "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                 "Referer": "https://data.krx.co.kr/contents/MDC/MDI/mainStatistics/index.cmd", "Accept": "application/json, text/javascript, */*; q=0.01" },
+      body
+    });
+    const txt = await r.text();
+    out.push({ id: "krx-MDCSTAT02203", status: r.status, len: txt.length, head: txt.replace(/\s+/g, " ").slice(0, 260) });
+  } catch (e) { out.push({ id: "krx-MDCSTAT02203", error: String(e).slice(0, 120) }); }
+  /* ── 증시자금동향 후보 ── */
+  const dep = [];
+  try {   // 지금 쓰는 네이버 페이지가 살아 있는지
+    const r = await fetch("https://finance.naver.com/sise/sise_deposit.naver?page=1", { headers: { "User-Agent": UA, "Referer": "https://finance.naver.com/sise/" }, cf: { cacheTtl: 0 } });
+    const buf = await r.arrayBuffer();
+    let txt = ""; try { txt = new TextDecoder("euc-kr").decode(buf); } catch (e) { txt = new TextDecoder("utf-8").decode(buf); }
+    const gone = txt.indexOf("더 이상 제공") >= 0;
+    dep.push({ id: "nv-deposit-page", status: r.status, len: txt.length, retired: gone, head: txt.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").slice(0, 220) });
+  } catch (e) { dep.push({ id: "nv-deposit-page", error: String(e).slice(0, 120) }); }
+  // 금융투자협회 FreeSIS (투자자예탁금·신용공여)
+  try {
+    const body = JSON.stringify({ dmSearch: { tmpV40: "", tmpV41: "", tmpV1: "D", tmpV12: kstYmd(40), tmpV13: kstYmd(0), tmpV45: "1000000" } });
+    const r = await fetch("https://freesis.kofia.or.kr/meta/getMetaDataList.do", {
+      method: "POST",
+      headers: { "User-Agent": UA, "Content-Type": "application/json; charset=UTF-8", "Accept": "application/json, text/plain, */*", "Referer": "https://freesis.kofia.or.kr/" },
+      body
+    });
+    const txt = await r.text();
+    dep.push({ id: "kofia-freesis", status: r.status, len: txt.length, head: txt.replace(/\s+/g, " ").slice(0, 220) });
+  } catch (e) { dep.push({ id: "kofia-freesis", error: String(e).slice(0, 120) }); }
+
+  return { ok: true, build: WORKER_BUILD, today: kstYmd(0), probes: out, deposit: dep };
+}
+
+async function foreignTrend(days, raw) {
+  /* 2026.09 네이버가 investorDealTrendDay 페이지를 폐지하고 Npay 증권 API 로 옮겼다.
+     https://stock.naver.com/api/domestic/market/trend/daily
+       ?tradeType=KRX&marketType=KOSPI|KOSDAQ&bizdate=YYYYMMDD&startIdx=0&pageSize=30
+     항목 이름이 바뀔 수 있으므로 키를 훑어 외국인·기관·개인을 찾아 쓴다. */
+  const headers = { "User-Agent": UA, "Accept": "application/json, text/plain, */*",
+                    "Referer": "https://stock.naver.com/market/stock/kr/trend/trader" };
+  const bizdate = kstYmd(0);
+  const SIZE = 30;
+  let firstKeys = null, firstItem = null;
+
+  /* netAmounts 안에 투자자 코드별로 들어 있다 (diffValue = 순매수 금액, 원 단위)
+       9000 외국인 · 9001 기타외국인 · 8000 개인
+       1000 금융투자 · 2000 보험 · 3000 투신 · 3100 사모 · 4000 은행 · 5000 기타금융 · 6000 연기금등 → 합이 기관
+       7000 · 7100 은 기타법인·국가 쪽 (기관에서 제외)
+     금액은 억원으로 바꿔 내보낸다 */
+  const INST = ["1000", "2000", "3000", "3100", "4000", "5000", "6000"];
+  const toNum = v => {
+    if (v == null) return null;
+    const n = parseFloat(String(v).replace(/,/g, "").replace("−", "-"));
+    return isFinite(n) ? n : null;
+  };
+  const eok = v => { const n = toNum(v); return n == null ? null : Math.round(n / 1e8 * 10) / 10; };   // 원 → 억원
+
+  async function fetchMarket(marketType) {
+    const rows = [];
+    for (let i = 0; i < 12 && rows.length < days; i++) {
+      const url = "https://stock.naver.com/api/domestic/market/trend/daily?tradeType=KRX&marketType=" + marketType +
+                  "&bizdate=" + bizdate + "&startIdx=" + (i * SIZE) + "&pageSize=" + SIZE;
+      let j = null;
+      try {
+        const r = await fetch(url, { headers, cf: { cacheTtl: 1800 } });
+        if (!r.ok) break;
+        j = await r.json();
+      } catch (e) { break; }
+      const part = (j && (j.content || j.result || j.items || j.list)) || [];
+      if (!part.length) break;
+      if (!firstKeys) { firstKeys = Object.keys(part[0]); firstItem = part[0]; }
+      for (const it of part) {
+        const b = String(it.bizdate || it.date || "");
+        const d = /^\d{8}$/.test(b) ? b.slice(0, 4) + "-" + b.slice(4, 6) + "-" + b.slice(6, 8)
+                : /^\d{4}-\d{2}-\d{2}/.test(b) ? b.slice(0, 10) : null;
+        if (!d) continue;
+        const by = {};
+        (it.netAmounts || []).forEach(x => { by[String(x.investorGubun)] = x.diffValue; });
+        const sum = codes => {
+          let t = 0, got = false;
+          codes.forEach(c => { const v = toNum(by[c]); if (v != null) { t += v; got = true; } });
+          return got ? Math.round(t / 1e8 * 10) / 10 : null;
+        };
+        rows.push({
+          date: d,
+          foreign: sum(["9000", "9001"]),   // 외국인 + 기타외국인
+          person: eok(by["8000"]),          // 개인
+          inst: sum(INST),                  // 기관 (구성 합)
+          etc: sum(["7000", "7100"]),       // 기타법인·국가 (참고)
+        });
+      }
+      if (part.length < SIZE) break;
+      await usSleep(80);
+    }
+    return rows;
+  }
+
+  const [kospiRows, kosdaqRows] = await Promise.all([fetchMarket("KOSPI"), fetchMarket("KOSDAQ")]);
+
+  if (raw) return { ok: kospiRows.length > 0, fields: firstKeys, firstItem, kospiCount: kospiRows.length, kosdaqCount: kosdaqRows.length, kospiSample: kospiRows.slice(0,5), kosdaqSample: kosdaqRows.slice(0,5) };
 
   if (kospiRows.length || kosdaqRows.length) {
     const uniqBy = (arr) => { const seen = new Set(); return arr.filter(r => { if(seen.has(r.date)) return false; seen.add(r.date); return true; }); };
@@ -2753,6 +3273,7 @@ async function foreignTrend(days, raw) {
   }
   return { ok: false, error: "no data" };
 }
+
 
 // ══════════════════════════════════════
 // 외국인 순매수 상위 종목 (최근 5일 연속 순매수 일수)

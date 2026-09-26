@@ -1968,7 +1968,7 @@ function drawCandle() {
      · 가격 구간 수는 칸 높이에 맞춰 8~14개 (띠 하나가 글자보다 두껍게)
      · 캔들 하나의 거래량을 고가~저가가 걸친 구간들에 겹친 길이만큼 나눠 담는다
      · 연두 = 보통 / 분홍 = 현재가가 있는 구간 / 하늘 = 거래가 가장 많은 구간(POC)
-     · 띠 끝에 '전체 대비 비중% (거래량)' 을 적는다
+     · 띠 안쪽 끝에 '전체 대비 비중%' 만 소수 1자리로 적는다 (2026-09-26 — 거래량 숫자는 뺐다)
      모든 선·캔들보다 먼저 그려 뒤에 깔리게 한다 */
   if (overlays.VPROFILE && slice.length) {
     const BINS = Math.max(8, Math.min(14, Math.floor(ch / 26)));
@@ -1998,10 +1998,6 @@ function drawCandle() {
       let curBin = -1;
       if (lastClose != null && lastClose >= minP && lastClose <= maxP)
         curBin = Math.max(0, Math.min(BINS - 1, Math.floor((lastClose - minP) / span * BINS)));
-      const narrow = cw < 420;                   // 폰 — 거래량을 '만' 단위로 줄여 적는다
-      const fmtVol = v => narrow
-        ? (v >= 1e8 ? (v / 1e8).toFixed(1) + '억' : Math.round(v / 1e4).toLocaleString() + '만')
-        : Math.round(v).toLocaleString();
       ctx.save();
       ctx.beginPath(); ctx.rect(PAD.l, PAD.t, cw, ch); ctx.clip();
       for (let b = 0; b < BINS; b++) {
@@ -2018,16 +2014,16 @@ function drawCandle() {
         grd.addColorStop(1, 'rgba(' + rgb + ',' + a1 + ')');
         ctx.fillStyle = grd;
         ctx.fillRect(PAD.l, yTop, barW, h);
-        // 띠 끝 글자: 비중% (거래량)
+        // 띠 안쪽 끝 글자: 비중% (소수 1자리)
         if (h >= 9) {
           const pct = total ? binVol[b] / total * 100 : 0;
-          const txt = pct.toFixed(2) + '% (' + fmtVol(binVol[b]) + ')';
+          const txt = pct.toFixed(1) + '%';
           const fs = Math.max(9, Math.min(11, Math.floor(h * 0.6)));
           ctx.font = (isPoc || isCur ? 'bold ' : '') + fs + 'px sans-serif';
           ctx.textBaseline = 'middle';
           const tw = ctx.measureText(txt).width;
-          let tx = PAD.l + barW + 4;
-          if (tx + tw > PAD.l + cw - 2) tx = PAD.l + barW - tw - 4;   // 오른쪽에 자리가 없으면 띠 안쪽에
+          /* 띠 안쪽 오른쪽 끝에 맞춘다. 띠가 글자보다 짧으면 띠 시작점에서부터 적는다 */
+          const tx = PAD.l + Math.max(3, barW - tw - 4);
           const ty = yTop + h / 2;
           ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,17,23,0.85)';  // 글자 테두리 — 캔들 위에서도 읽히게
           ctx.strokeText(txt, tx, ty);
@@ -4035,7 +4031,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-26a 범례 단추·매매동향 기간';
+const KG_CHART_BUILD = '2026-09-26b 매물대 비중만 띠 안쪽';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
