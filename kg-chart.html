@@ -22,7 +22,8 @@ body.iframe-mode #iframe-sidebar-btn { display: inline-block; }
 #iframe-sidebar-btn { display: none; }
 #iframe-stock-name { display: none; }
 body.iframe-mode #iframe-sidebar-btn { display: inline-block !important; }
-body.iframe-mode #iframe-stock-name { display: inline !important; }
+/* 지표 단추 옆 종목이름은 쓰지 않는다 (종목명은 앱 상단에 이미 있다) — 2026-09-26 */
+body.iframe-mode #iframe-stock-name { display: none !important; }
 body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 12px; }
 
 /* 헤더 - 3줄 구조 */
@@ -181,6 +182,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 #main-ovsel button.on { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
 #main-ovsel button.vp-btn { margin-right: 4px; }
 #main-ovsel button.vp-btn.on { background: #aed58122; border-color: #aed581; color: #aed581; }
+#main-ovsel button.lg-btn.on { background: #8b949e22; border-color: #c9d1d9; color: #c9d1d9; }
 /* 보조차트 — ✕ 바로 아래에 세로로 붙인다 (지표 이름과 겹치지 않게) */
 .chart-swap { top: 26px; left: 2px; width: 22px; padding: 3px 0; text-align: center; }
 #main-swap:active, .chart-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
@@ -388,6 +390,7 @@ body.stock-closed #step-pad { display: flex; }
     <div id="candle-wrap">
       <canvas id="candle-canvas"></canvas>
       <div id="main-ovsel">
+        <button type="button" data-ov="LEGEND" class="lg-btn" title="좌상단 범례 보기/감추기">범례</button>
         <button type="button" data-ov="VPROFILE" class="vp-btn" title="매물대 켜기/끄기">매물대</button>
         <button type="button" data-ov="MA" title="이동평균선 5·20·60">이평</button>
         <button type="button" data-ov="ICHIMOKU" title="일목균형표">일목</button>
@@ -1303,7 +1306,8 @@ async function fetchForeignDaily(code) {
     if (!state.stock || state.stock.code !== myStock) return;
     if (json.ok && json.data && json.data.length) {
       const map = {};
-      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null, inst: d.inst || 0, hold: d.hold || 0, ratio: d.ratio || 0 }; });
+      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null, inst: d.inst || 0, hold: d.hold || 0, ratio: d.ratio || 0,
+        indiv: (d.indiv != null && isFinite(d.indiv)) ? d.indiv : null }; });
       state.frgnData = map;
       renderAll();
       if(typeof spApply==='function') spApply();     // 우측 패널도 새 자료로 다시 그린다
@@ -1572,6 +1576,10 @@ const MAIN_OV_ALWAYS = ['VOL_OV'];
 const VP_KEY = 'kg_vp_on';
 function vpOn(){ try { return localStorage.getItem(VP_KEY) !== '0'; } catch(e) { return true; } }
 function vpSave(on){ try { localStorage.setItem(VP_KEY, on ? '1' : '0'); } catch(e) {} }
+/* 범례 — [범례] 단추로 좌상단 범례를 보이거나 감춘다. 상태를 기억한다 (처음엔 보임) */
+const LG_KEY = 'kg_legend_on';
+function lgOn(){ try { return localStorage.getItem(LG_KEY) !== '0'; } catch(e) { return true; } }
+function lgSave(on){ try { localStorage.setItem(LG_KEY, on ? '1' : '0'); } catch(e) {} }
 
 /* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
 function frgnRatioColor(v){
@@ -1659,6 +1667,11 @@ function setOverlay(key, on) {
    이미 켜져 있는 단추를 다시 누르면 꺼져 캔들만 보인다.
    무엇을 고르든 매물대와 거래량은 함께 켜 둔다 */
 function mainOvPick(key) {
+  if (key === 'LEGEND') {                     // 범례는 지표와 무관 — 그리기만 켜고 끈다
+    lgSave(!lgOn());
+    syncMainOvBtns(); renderAll();
+    return;
+  }
   if (key === 'VPROFILE') {                   // 매물대는 이평·일목·볼린저와 따로 켜고 끈다
     const on = !state.overlays.VPROFILE;
     setOverlay('VPROFILE', on); vpSave(on);
@@ -1678,7 +1691,8 @@ function mainOvPick(key) {
 /* 단추 불빛을 지금 켜진 지표에 맞춘다 (사이드바에서 켜고 꺼도 따라온다) */
 function syncMainOvBtns() {
   document.querySelectorAll('#main-ovsel button').forEach(b => {
-    b.classList.toggle('on', !!state.overlays[b.dataset.ov]);
+    const k = b.dataset.ov;
+    b.classList.toggle('on', k === 'LEGEND' ? lgOn() : !!state.overlays[k]);
   });
 }
 
@@ -2381,7 +2395,7 @@ function drawCandle() {
   if (overlays.VOL_OV)   legends.push({t:'거래량 겹쳐보기', c:'#8b949e',
     sub:[{t:'20일평균(점선)', c:'#ffd54f'}]});
 
-  if (legends.length) {
+  if (legends.length && lgOn()) {
     ctx.textAlign = 'left';
     ctx.font = 'bold 9px monospace';
     // MA는 한 줄에 몰아서, 나머지는 세로
@@ -4021,7 +4035,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-22c 매물대 그라데이션';
+const KG_CHART_BUILD = '2026-09-26a 범례 단추·매매동향 기간';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4336,7 +4350,12 @@ function renderFlowTable(){
   const d=(state.dailyData && state.dailyData.length) ? state.dailyData : (state.data||[]);
   const fd=state.frgnData;
   if(!fd || !d.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">한국 종목·일봉에서만 나옵니다.</div>'; return; }
-  const rows=d.slice(-20).reverse();
+  /* 외국인 자료가 있는 날만, 최근 120거래일까지 (칸 안에서 위아래로 넘겨 본다) */
+  const rows=d.filter(x=>fd[x.date]).slice(-120).reverse();
+  if(!rows.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">매매동향 자료가 없습니다.</div>'; return; }
+  const est=rows.some(x=>fd[x.date].indiv==null);
+  const kEl=document.querySelector('#flow-box .sp-k');
+  if(kEl) kEl.textContent='(주) · '+rows.length+'일'+(est?' · 개인은 어림값':'');
   const num=v=>{ if(v==null) return '—';
     const a=Math.abs(v);
     return (v<0?'-':'') + (a>=1e4 ? (a/1e4).toFixed(1)+'만' : Math.round(a).toLocaleString()); };
@@ -4346,7 +4365,8 @@ function renderFlowTable(){
     const cls=v=> v==null?'':(v>0?'up':(v<0?'dn':''));
     /* 개인은 자료가 없어 외국인·기관의 반대편으로 셈한다.
        기타법인이 빠져 있어 어림값이다. */
-    const per = (f.net!=null && f.inst!=null) ? -(f.net + f.inst) : null;
+    const per = (f.indiv!=null) ? f.indiv
+              : (f.net!=null && f.inst!=null) ? -(f.net + f.inst) : null;
     /* 보유비율 — 전날보다 늘면 붉은색, 줄면 푸른색.
        rows 는 최신이 먼저이므로 다음 칸(i+1)이 전날이다. */
     let rt='';
