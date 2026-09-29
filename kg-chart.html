@@ -22,7 +22,8 @@ body.iframe-mode #iframe-sidebar-btn { display: inline-block; }
 #iframe-sidebar-btn { display: none; }
 #iframe-stock-name { display: none; }
 body.iframe-mode #iframe-sidebar-btn { display: inline-block !important; }
-body.iframe-mode #iframe-stock-name { display: inline !important; }
+/* 지표 단추 옆 종목이름은 쓰지 않는다 (종목명은 앱 상단에 이미 있다) — 2026-09-26 */
+body.iframe-mode #iframe-stock-name { display: none !important; }
 body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospace; height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 12px; }
 
 /* 헤더 - 3줄 구조 */
@@ -170,13 +171,25 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 }
 /* 주가차트 — 세로축 왼편 위 */
 #main-swap { top: 3px; right: 66px; }
+/* 주가차트에 겹쳐 볼 지표 고르기 [이평][일목][볼린저] — 세로축 왼편 위 */
+#main-ovsel { position: absolute; z-index: 20; top: 3px; right: 66px; display: flex; gap: 3px; }
+#main-ovsel button {
+  padding: 4px 8px; border-radius: 4px;
+  background: #0d1117cc; border: 1px solid #30363d;
+  color: #8b949e; font-size: 11.5px; font-weight: 700; line-height: 1; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
+}
+#main-ovsel button.on { background: #1f6feb22; border-color: #58a6ff; color: #58a6ff; }
+#main-ovsel button.vp-btn { margin-right: 4px; }
+#main-ovsel button.vp-btn.on { background: #aed58122; border-color: #aed581; color: #aed581; }
+#main-ovsel button.lg-btn.on { background: #8b949e22; border-color: #c9d1d9; color: #c9d1d9; }
 /* 보조차트 — ✕ 바로 아래에 세로로 붙인다 (지표 이름과 겹치지 않게) */
 .chart-swap { top: 26px; left: 2px; width: 22px; padding: 3px 0; text-align: center; }
 #main-swap:active, .chart-swap:active { background: #1f6feb; color: #fff; border-color: #1f6feb; }
 
 /* 메인 캔들 - 고정 높이 */
 #candle-wrap {
-  flex: 0 0 320px; height: 320px;
+  flex: 0 0 416px; height: 416px;   /* 거래량 막대 자리를 두려고 30% 키움 (320 → 416) */
   border: 1px solid #21262d; border-radius: 4px;
   overflow: hidden; position: sticky; top: 0; z-index: 10;
 }
@@ -314,11 +327,10 @@ body.stock-closed #step-pad { display: flex; }
   <div id="sidebar">
     <div class="sidebar-help">
       <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
-      아래 <b>기본 조합</b>·<b>간단 조합</b> 버튼으로 한 번에 표시<br>
+      아래 <b>기본챠트</b> 버튼으로 한 번에 표시<br>
       <span style="color:#6e7681;font-size:10px">버전 <b id="buildTag">-</b></span>
     </div>
-    <button id="defaultComboBtn" style="width:calc(100% - 12px);margin:6px 6px 0;padding:7px;border-radius:6px;border:1px solid #30363d;background:#1f6feb;color:#fff;font-weight:700;font-size:12px;cursor:pointer">📊 기본 조합 표시</button>
-    <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:5px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 간단 조합 표시</button>
+    <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:6px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 기본챠트</button>
     <div class="group-title">▶ 오버레이</div>
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
@@ -327,6 +339,7 @@ body.stock-closed #step-pad { display: flex; }
     <label class="ind-label" data-mark5 data-key="VAMA" style="--col:#ffd54f"><input type="checkbox" class="cb-show"> <span class="nm">VAMA 거래량조정이동평균</span></label>
     <label class="ind-label" data-key="VIDYA" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">VIDYA 가변동적이동평균</span></label>
     <label class="ind-label" data-key="VPROFILE" style="--col:#d2a8ff"><input type="checkbox" class="cb-show"> <span class="nm">VP 매물대(거래량프로파일)</span></label>
+    <label class="ind-label" data-key="VOL_OV" style="--col:#8b949e"><input type="checkbox" class="cb-show"> <span class="nm">거래량 겹쳐보기</span></label>
 
     <div class="group-title">▶ 추세지표</div>
     <label class="ind-label" data-mark5 data-key="MACD" style="--col:#58a6ff"><input type="checkbox" class="cb-show"> <span class="nm">MACD 이동평균수렴발산</span></label>
@@ -375,7 +388,13 @@ body.stock-closed #step-pad { display: flex; }
   <div id="chart-area">
     <div id="candle-wrap">
       <canvas id="candle-canvas"></canvas>
-      <div id="main-swap" title="일목균형표 ⇄ 매물대+이동평균">⇄</div>
+      <div id="main-ovsel">
+        <button type="button" data-ov="LEGEND" class="lg-btn" title="좌상단 범례 보기/감추기">범례</button>
+        <button type="button" data-ov="VPROFILE" class="vp-btn" title="매물대 켜기/끄기">매물대</button>
+        <button type="button" data-ov="MA" title="이동평균선 5·20·60">이평</button>
+        <button type="button" data-ov="ICHIMOKU" title="일목균형표">일목</button>
+        <button type="button" data-ov="BB" title="볼린저밴드(20,2)">볼린저</button>
+      </div>
     </div>
   </div>
   <!-- 우측 패널: 월봉 · 투자자별 매매동향 -->
@@ -1286,7 +1305,8 @@ async function fetchForeignDaily(code) {
     if (!state.stock || state.stock.code !== myStock) return;
     if (json.ok && json.data && json.data.length) {
       const map = {};
-      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null, inst: d.inst || 0, hold: d.hold || 0, ratio: d.ratio || 0 }; });
+      json.data.forEach(d => { map[d.date] = { net: d.net, amt: d.amt != null ? d.amt : null, inst: d.inst || 0, hold: d.hold || 0, ratio: d.ratio || 0,
+        indiv: (d.indiv != null && isFinite(d.indiv)) ? d.indiv : null }; });
       state.frgnData = map;
       renderAll();
       if(typeof spApply==='function') spApply();     // 우측 패널도 새 자료로 다시 그린다
@@ -1493,7 +1513,7 @@ function setupSearch() {
   });
 }
 
-const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VAMA','VIDYA','VPROFILE'];
+const OVERLAY_KEYS = ['MA','BB','ICHIMOKU','DEMA','VAMA','VIDYA','VPROFILE','VOL_OV'];
 
 // 기본 표시 지표 불러오기 (localStorage)
 // 사용자 지정 지표 파라미터 (설명 페이지에서 편집)
@@ -1547,10 +1567,18 @@ const SUB_SWAP = {
   MACD:'SLOWSTOCH',      SLOWSTOCH:'MACD',
 };
 
-/* 메인 주가차트에 겹쳐 그리는 두 묶음 — ⇄ 로 번갈아 본다.
-   가: 일목균형표 / 나: 매물대 + 이동평균(5·20·60) */
-const MAIN_OV_A = ['ICHIMOKU'];
-const MAIN_OV_B = ['VPROFILE', 'MA'];
+/* 주가차트 우상단 단추로 고르는 세 지표 — 하나만 겹쳐 본다 */
+const MAIN_OV_SEL = ['MA', 'ICHIMOKU', 'BB'];
+/* 어느 것을 골라도 늘 함께 보이는 것 — 왼쪽 매물대 · 아래 거래량 */
+const MAIN_OV_ALWAYS = ['VOL_OV'];
+/* 매물대 — [매물대] 단추로 따로 켜고 끈다. 끈 상태를 기억해 종목을 바꿔도 그대로 (처음엔 켜짐) */
+const VP_KEY = 'kg_vp_on';
+function vpOn(){ try { return localStorage.getItem(VP_KEY) !== '0'; } catch(e) { return true; } }
+function vpSave(on){ try { localStorage.setItem(VP_KEY, on ? '1' : '0'); } catch(e) {} }
+/* 범례 — [범례] 단추로 좌상단 범례를 보이거나 감춘다. 상태를 기억한다 (처음엔 보임) */
+const LG_KEY = 'kg_legend_on';
+function lgOn(){ try { return localStorage.getItem(LG_KEY) !== '0'; } catch(e) { return true; } }
+function lgSave(on){ try { localStorage.setItem(LG_KEY, on ? '1' : '0'); } catch(e) {} }
 
 /* 외국인 보유비중 색 — 0~20% 파랑 · 21~40% 초록 · 41%~ 빨강 */
 function frgnRatioColor(v){
@@ -1582,14 +1610,28 @@ function swapToggle(key){
   return next;
 }
 function loadDefaults() {
+  /* '거래량 겹쳐보기'를 새로 넣었다. 저장해 둔 조합에는 없으므로 처음 한 번만 켜 준다.
+     한 번 보여 준 뒤에는 끄면 끈 채로 남는다 */
+  const intro = d => {
+    try {
+      /* 켠 것을 곧바로 저장해 둔다.
+         저장하지 않으면 처음 열 때만 켜지고, 다음에 열면 저장값에 없어 꺼진 채로 나왔다 */
+      if (!localStorage.getItem('kg_volov_intro2')) {
+        d.VOL_OV = true;
+        localStorage.setItem('kg_volov_intro2', '1');
+        saveDefaults(d);
+      }
+    } catch(e) {}
+    return d;
+  };
   try {
     const saved = localStorage.getItem('kgchart_defaults');
-    if (saved) { const d = JSON.parse(saved); if (d && Object.keys(d).length) return d; }
+    if (saved) { const d = JSON.parse(saved); if (d && Object.keys(d).length) return intro(d); }
   } catch(e) {}
   // 저장값 없으면 기본 조합
   const d = {};
   DEFAULT_COMBO.forEach(k => d[k] = true);
-  return d;
+  return intro(d);
 }
 function saveDefaults(defs) {
   try { localStorage.setItem('kgchart_defaults', JSON.stringify(defs)); } catch(e) {}
@@ -1620,22 +1662,37 @@ function setOverlay(key, on) {
   else { label.classList.remove('active'); if (span) span.style.color = ''; }
 }
 
-/* 지금 주가차트에 겹쳐 있는 쪽이 '가'(일목)인지 '나'(매물대+이동평균)인지 */
-function mainOvIsB() {
-  return !state.overlays.ICHIMOKU && (state.overlays.VPROFILE || state.overlays.MA);
-}
-/* ⇄ — 일목균형표와 매물대+이동평균을 맞바꾼다 */
-function mainOvToggle() {
-  const toB = !mainOvIsB();
-  MAIN_OV_A.forEach(k => setOverlay(k, !toB));
-  MAIN_OV_B.forEach(k => setOverlay(k, toB));
+/* [이평][일목][볼린저] 하나를 고른다.
+   이미 켜져 있는 단추를 다시 누르면 꺼져 캔들만 보인다.
+   무엇을 고르든 매물대와 거래량은 함께 켜 둔다 */
+function mainOvPick(key) {
+  if (key === 'LEGEND') {                     // 범례는 지표와 무관 — 그리기만 켜고 끈다
+    lgSave(!lgOn());
+    syncMainOvBtns(); renderAll();
+    return;
+  }
+  if (key === 'VPROFILE') {                   // 매물대는 이평·일목·볼린저와 따로 켜고 끈다
+    const on = !state.overlays.VPROFILE;
+    setOverlay('VPROFILE', on); vpSave(on);
+    if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
+    syncMainOvBtns(); renderAll();
+    return;
+  }
+  if (!MAIN_OV_SEL.includes(key)) return;
+  const off = !!state.overlays[key];          // 켜져 있던 것을 다시 누름 → 끄기
+  MAIN_OV_SEL.forEach(k => setOverlay(k, off ? false : k === key));
+  MAIN_OV_ALWAYS.forEach(k => setOverlay(k, true));
+  setOverlay('VPROFILE', vpOn());
   if (typeof saveCurrentCombo === 'function') saveCurrentCombo();
+  syncMainOvBtns();
   renderAll();
 }
-function syncMainSwapBtn() {
-  const b = document.getElementById('main-swap');
-  if (!b) return;
-  b.title = mainOvIsB() ? '⇄ 일목균형표 보기' : '⇄ 매물대 + 이동평균(5·20·60) 보기';
+/* 단추 불빛을 지금 켜진 지표에 맞춘다 (사이드바에서 켜고 꺼도 따라온다) */
+function syncMainOvBtns() {
+  document.querySelectorAll('#main-ovsel button').forEach(b => {
+    const k = b.dataset.ov;
+    b.classList.toggle('on', k === 'LEGEND' ? lgOn() : !!state.overlays[k]);
+  });
 }
 
 /* 짝 지표(⇄)로 바꿔 둔 것을 되돌린다 — 조합 단추를 누르면 적힌 지표가 그대로 나오게 */
@@ -1648,6 +1705,11 @@ function swapResetFor(list) {
 
 /* 조합 단추 공통 처리 — 전부 끄고 적힌 차례대로 켠다 */
 function applyCombo(list) {
+  /* 매물대·거래량 겹쳐보기는 보조지표 조합과 별개 — 조합 단추를 눌러도 켜 둔 채로 남긴다 */
+  MAIN_OV_ALWAYS.forEach(k => { if (!list.includes(k)) list = list.concat(k); });
+  /* 매물대는 [매물대] 단추로 정해 둔 상태를 따른다 */
+  list = list.filter(k => k !== 'VPROFILE');
+  if (vpOn()) list = list.concat('VPROFILE');
   Object.keys(state.selected).forEach(k => state.selected[k] = false);
   state.selectedOrder = [];
   Object.keys(state.overlays).forEach(k => state.overlays[k] = false);
@@ -1718,6 +1780,8 @@ function setupSidebar() {
       e.stopPropagation();
       if (OVERLAY_KEYS.includes(key)) {
         state.overlays[key] = cbShow.checked;
+        if (key === 'VPROFILE') vpSave(cbShow.checked);
+        if (typeof syncMainOvBtns === 'function') syncMainOvBtns();
       } else {
         state.selected[key] = cbShow.checked;
         if (cbShow.checked) {
@@ -1783,20 +1847,22 @@ function setupSidebar() {
   const simpleBtn = document.getElementById('simpleComboBtn');
   if (simpleBtn) simpleBtn.addEventListener('click', () => applyCombo(SIMPLE_COMBO));
 
-  // 메인 주가차트 ⇄ (일목균형표 ⇄ 매물대+이동평균)
-  const msw = document.getElementById('main-swap');
-  if (msw) {
+  /* 주가차트 우상단 [이평][일목][볼린저] */
+  document.querySelectorAll('#main-ovsel button').forEach(btn => {
     const tap = (e) => {
       if (e) { e.stopPropagation(); e.preventDefault(); }
-      if (msw._busy) return;
-      msw._busy = true;
-      setTimeout(() => { msw._busy = false; }, 250);
-      mainOvToggle();
+      if (btn._busy) return;                  // 누름·클릭이 겹쳐 두 번 처리되지 않게
+      btn._busy = true;
+      setTimeout(() => { btn._busy = false; }, 250);
+      mainOvPick(btn.dataset.ov);
     };
-    msw.addEventListener('pointerdown', tap);
-    msw.addEventListener('click', tap);
-  }
-  syncMainSwapBtn();
+    btn.addEventListener('pointerdown', tap);
+    btn.addEventListener('click', tap);
+  });
+  /* 거래량은 늘 보이게, 매물대는 마지막으로 정해 둔 대로 시작한다 */
+  MAIN_OV_ALWAYS.forEach(k => setOverlay(k, true));
+  setOverlay('VPROFILE', vpOn());
+  syncMainOvBtns();
 }
 
 // ══════════════════════════════════════
@@ -1896,6 +1962,79 @@ function drawCandle() {
     }
   }
 
+  /* ── 매물대 (Volume Profile) ──────────────────────────────────
+     HTS 처럼 왼쪽에서 오른쪽으로 뻗는 굵은 가로 띠로 그린다.
+     · 가격 구간 수는 칸 높이에 맞춰 8~14개 (띠 하나가 글자보다 두껍게)
+     · 캔들 하나의 거래량을 고가~저가가 걸친 구간들에 겹친 길이만큼 나눠 담는다
+     · 연두 = 보통 / 분홍 = 현재가가 있는 구간 / 하늘 = 거래가 가장 많은 구간(POC)
+     · 띠 안쪽 끝에 '전체 대비 비중%' 만 소수 1자리로 적는다 (2026-09-26 — 거래량 숫자는 뺐다)
+     모든 선·캔들보다 먼저 그려 뒤에 깔리게 한다 */
+  if (overlays.VPROFILE && slice.length) {
+    const BINS = Math.max(8, Math.min(14, Math.floor(ch / 26)));
+    const span = (maxP - minP) || 1;
+    const binVol = new Array(BINS).fill(0);
+    slice.forEach(d => {
+      const v = d.volume || 0;
+      if (!v) return;
+      const lo = Math.min(d.low, d.high), hi = Math.max(d.low, d.high);
+      const b0 = Math.max(0, Math.min(BINS - 1, Math.floor((lo - minP) / span * BINS)));
+      const b1 = Math.max(0, Math.min(BINS - 1, Math.floor((hi - minP) / span * BINS)));
+      if (hi <= lo || b0 === b1) { binVol[b0] += v; return; }
+      const rng = hi - lo;
+      for (let b = b0; b <= b1; b++) {
+        const bLo = minP + span * b / BINS, bHi = minP + span * (b + 1) / BINS;
+        const ov = Math.min(hi, bHi) - Math.max(lo, bLo);
+        if (ov > 0) binVol[b] += v * ov / rng;
+      }
+    });
+    const total = binVol.reduce((x, y) => x + y, 0);
+    const maxBinVol = Math.max(...binVol);
+    if (maxBinVol > 0) {
+      const binH = ch / BINS;
+      const maxBarW = cw * 0.55;                 // 가장 긴 띠 = 차트 폭의 55%
+      const pocBin = binVol.indexOf(maxBinVol);
+      const lastClose = data[dataEnd - 1] ? data[dataEnd - 1].close : null;
+      let curBin = -1;
+      if (lastClose != null && lastClose >= minP && lastClose <= maxP)
+        curBin = Math.max(0, Math.min(BINS - 1, Math.floor((lastClose - minP) / span * BINS)));
+      ctx.save();
+      ctx.beginPath(); ctx.rect(PAD.l, PAD.t, cw, ch); ctx.clip();
+      for (let b = 0; b < BINS; b++) {
+        if (binVol[b] <= 0) continue;
+        const barW = Math.max(2, (binVol[b] / maxBinVol) * maxBarW);
+        const yTop = PAD.t + ch - (b + 1) * binH + 1;
+        const h = Math.max(2, binH - 2);
+        const isCur = b === curBin, isPoc = b === pocBin;
+        /* 띠 끝(오른쪽)은 진하게, 왼쪽으로 갈수록 흐려지는 그라데이션. 테두리는 없음 */
+        const rgb = isCur ? '244,143,177' : isPoc ? '100,181,246' : '174,213,79';
+        const a1  = isCur ? 0.38 : isPoc ? 0.36 : 0.30;
+        const grd = ctx.createLinearGradient(PAD.l, 0, PAD.l + barW, 0);
+        grd.addColorStop(0, 'rgba(' + rgb + ',0.02)');
+        grd.addColorStop(1, 'rgba(' + rgb + ',' + a1 + ')');
+        ctx.fillStyle = grd;
+        ctx.fillRect(PAD.l, yTop, barW, h);
+        // 띠 안쪽 끝 글자: 비중% (소수 1자리)
+        if (h >= 9) {
+          const pct = total ? binVol[b] / total * 100 : 0;
+          const txt = pct.toFixed(1) + '%';
+          const fs = Math.max(9, Math.min(11, Math.floor(h * 0.6)));
+          ctx.font = (isPoc || isCur ? 'bold ' : '') + fs + 'px sans-serif';
+          ctx.textBaseline = 'middle';
+          const tw = ctx.measureText(txt).width;
+          /* 띠 안쪽 오른쪽 끝에 맞춘다. 띠가 글자보다 짧으면 띠 시작점에서부터 적는다 */
+          const tx = PAD.l + Math.max(3, barW - tw - 4);
+          const ty = yTop + h / 2;
+          ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,17,23,0.85)';  // 글자 테두리 — 캔들 위에서도 읽히게
+          ctx.strokeText(txt, tx, ty);
+          ctx.fillStyle = isCur ? '#f8bbd0' : isPoc ? '#bbdefb' : '#dce775';
+          ctx.fillText(txt, tx, ty);
+          ctx.textBaseline = 'alphabetic';
+        }
+      }
+      ctx.restore();
+    }
+  }
+
   // 일목균형표 구름
   if (overlays.ICHIMOKU) {
     const ich = CALC.ICHIMOKU(data);
@@ -1940,8 +2079,8 @@ function drawCandle() {
        w  = 선 두께 (20·60일선은 눈에 띄게 1.5배)
        dash = 점선 (60일선) */
     const maStyle = {
-      ma5:  { c:'#ef5350cc', w:1 },
-      ma20: { c:'#f59e0bcc', w:1.5 },
+      ma5:  { c:'#ffd54fdd', w:1.5 },
+      ma20: { c:'#ef5350cc', w:1.5 },
       ma60: { c:'#3fb950cc', w:1.5, dash:[6,4] },
     };
     if (OPT('MA', 'ma120', false)) maStyle.ma120 = { c:'#58a6ffcc', w:1 };
@@ -2051,46 +2190,68 @@ function drawCandle() {
     ctx.setLineDash([]);
   }
 
-  // ── 매물대 (Volume Profile) ──
-  if (overlays.VPROFILE) {
-    const BINS = 24; // 가격 구간 수
-    const binVol = new Array(BINS).fill(0);
-    const binBuyVol = new Array(BINS).fill(0); // 상승 거래량
-    // 각 캔들의 거래량을 가격구간에 배분
-    slice.forEach(d => {
-      const midP = (d.high + d.low + d.close) / 3;
-      let bin = Math.floor(((midP - minP) / (maxP - minP)) * BINS);
-      bin = Math.max(0, Math.min(BINS - 1, bin));
-      binVol[bin] += d.volume;
-      if (d.close >= d.open) binBuyVol[bin] += d.volume;
-    });
-    const maxBinVol = Math.max(...binVol);
-    if (maxBinVol > 0) {
-      const binH = ch / BINS;
-      const maxBarW = cw * 0.32; // 최대 막대 폭 (차트폭의 32%)
-      // POC(최대 매물대) 찾기
-      let pocBin = binVol.indexOf(maxBinVol);
-      for (let b = 0; b < BINS; b++) {
-        if (binVol[b] <= 0) continue;
-        const barW = (binVol[b] / maxBinVol) * maxBarW;
-        const y = PAD.t + ch - (b + 1) * binH;
-        // 매수/매도 비율에 따라 색
-        const buyRatio = binBuyVol[b] / binVol[b];
-        const isPoc = (b === pocBin);
-        ctx.fillStyle = isPoc ? '#d2a8ff55'
-          : buyRatio >= 0.5 ? '#ef535033' : '#1976d233';
-        ctx.fillRect(PAD.l, y + 1, barW, binH - 1);
-        // POC 강조 테두리
-        if (isPoc) {
-          ctx.strokeStyle = '#d2a8ffaa'; ctx.lineWidth = 1;
-          ctx.strokeRect(PAD.l, y + 1, barW, binH - 1);
-        }
+  /* ── 거래량 겹쳐보기 ──────────────────────────────────────────
+     주가차트 아래쪽 22%(최소 30px)에 반투명 막대로 겹쳐 그린다.
+     세로 눈금은 주가와 따로(화면에 보이는 구간의 최대 거래량 = 칸 높이)이고,
+     캔들보다 먼저 그려 캔들·매물대가 가려지지 않게 한다.
+     노란 점선은 20일 평균 거래량 — 막대가 이 선을 크게 넘으면 거래가 터진 날이다 */
+  if (overlays.VOL_OV) {
+    const volH = Math.min(ch * 0.4, Math.max(30, ch * 0.22));
+    const base = PAD.t + ch;
+    const vols = slice.map(d => d.volume || 0);
+    const maxV = Math.max(...vols);
+    if (maxV > 0) {
+      const vy = v => base - Math.min(1, v / maxV) * volH;
+      /* 막대 — 테두리만 있는 빈 사각형(선 두께 1.5). 오른 날 빨강 / 내린 날 파랑.
+         속을 채우지 않아 뒤의 캔들·매물대가 그대로 보인다.
+         선 두께의 절반(0.75)만큼 안으로 넣어 그려 바닥선 밖으로 삐져나오지 않게 한다 */
+      ctx.lineWidth = 1.5;
+      vols.forEach((v, i) => {
+        if (!v) return;
+        const d = slice[i];
+        const w = Math.max(1.5, bw - 1.5);
+        const top = Math.min(vy(v) + 0.75, base - 1.5);
+        ctx.strokeStyle = (d.close >= d.open ? C.up : C.down) + 'cc';
+        ctx.strokeRect(xOf(i) - w/2, top, w, base - 0.75 - top);
+      });
+      /* 20일 평균 거래량 — 화면 왼쪽 끝에서 끊기지 않게 화면 밖 자료까지 써서 계산한다 */
+      const AVG_N = 20;
+      const allV = data.map(d => d.volume || 0);
+      const avgAt = i => {
+        if (i < AVG_N - 1) return null;
+        let sum = 0;
+        for (let j = i - AVG_N + 1; j <= i; j++) sum += allV[j];
+        return sum / AVG_N;
+      };
+      ctx.save();
+      ctx.beginPath(); ctx.rect(PAD.l, base - volH, cw, volH); ctx.clip();
+      ctx.strokeStyle = '#ffd54faa'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < slice.length; i++) {
+        const a = avgAt(range[0] + i);
+        if (a == null) { started = false; continue; }
+        const x = xOf(i), y = vy(a);
+        started ? ctx.lineTo(x, y) : (ctx.moveTo(x, y), started = true);
       }
-      // POC 라벨
-      const pocY = PAD.t + ch - (pocBin + 0.5) * binH;
-      const pocPrice = minP + ((pocBin + 0.5) / BINS) * (maxP - minP);
-      ctx.fillStyle = '#d2a8ff'; ctx.font = '8px monospace'; ctx.textAlign = 'left';
-      ctx.fillText('POC ' + Math.round(pocPrice).toLocaleString(), PAD.l + 2, pocY - 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+      // 칸 바닥선
+      ctx.strokeStyle = C.border; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(PAD.l, base); ctx.lineTo(W - PAD.r, base); ctx.stroke();
+      /* 라벨 — 손가락을 올린 날(없으면 마지막 날)의 거래량과 20일 평균 대비 배수.
+         만/억 단위로 줄여 적는다 */
+      const li = (state.hoverIdx >= 0 && state.hoverIdx < slice.length) ? state.hoverIdx : slice.length - 1;
+      const lv = vols[li], la = avgAt(range[0] + li);
+      const volTxt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억주'
+                        : n >= 1e4 ? Math.round(n / 1e4).toLocaleString() + '만주'
+                        : Math.round(n).toLocaleString() + '주';
+      let txt = '거래량 ' + volTxt(lv);
+      if (la > 0) txt += '  20일평균비 ' + (lv / la).toFixed(1) + '배';
+      ctx.font = '9px monospace'; ctx.textAlign = 'right';
+      ctx.fillStyle = (la > 0 && lv / la >= 2) ? '#ffd54f' : C.muted;
+      ctx.fillText(txt, W - PAD.r - 3, base - volH - 3);
     }
   }
 
@@ -2242,7 +2403,7 @@ function drawCandle() {
     /* 설정에서 기간을 바꿀 수 있으므로 실제로 쓰는 값을 그대로 적는다.
        세 값이 같게 잘못 저장돼 선이 겹쳐 보이는 일이 있어, 눈으로 확인할 수 있게 했다. */
     const [p5, p20, p60] = maPeriods();
-    legends.push({t:'MA'+p5, c:'#ef5350'}, {t:'MA'+p20, c:'#f59e0b'}, {t:'MA'+p60+'(점선)', c:'#3fb950'});
+    legends.push({t:'MA'+p5, c:'#ffd54f'}, {t:'MA'+p20, c:'#ef5350'}, {t:'MA'+p60+'(점선)', c:'#3fb950'});
     if (OPT('MA', 'ma120', false)) legends.push({t:'MA'+P('MA',3,120), c:'#58a6ff'});
   }
   if (overlays.BB)       legends.push({t:'BB 볼린저밴드(20,2)', c:'#8d939f'});
@@ -2258,9 +2419,11 @@ function drawCandle() {
   if (overlays.VIDYA)    legends.push({t:'VIDYA 가변동적이동평균(14)', c:'#4ecdc4'});
   if (state.selected && state.selected.MASS && OPT('MASS', 'ema9', true))
     legends.push({t:'EMA9 (Mass 판단선)', c:'#4ecdc4'});
-  if (overlays.VPROFILE) legends.push({t:'VP 매물대(POC)', c:'#d2a8ff'});
+  if (overlays.VPROFILE) legends.push({t:'매물대', c:'#aed581', sub:[{t:'현재가대', c:'#f48fb1'}, {t:'최대', c:'#64b5f6'}]});
+  if (overlays.VOL_OV)   legends.push({t:'거래량 겹쳐보기', c:'#8b949e',
+    sub:[{t:'20일평균(점선)', c:'#ffd54f'}]});
 
-  if (legends.length) {
+  if (legends.length && lgOn()) {
     ctx.textAlign = 'left';
     ctx.font = 'bold 9px monospace';
     // MA는 한 줄에 몰아서, 나머지는 세로
@@ -3849,13 +4012,18 @@ function drawSubInner(canvas, key) {
 
   vals.forEach((arr, vi) => {
     if (key === 'VOLUME') {
+      /* 막대는 속을 비우고 테두리만 (선 두께 1.5) — 주가차트에 겹쳐 그리는 것과 같은 모양 */
       const maxV2 = Math.max(...arr.filter(Boolean));
+      const base = PAD.t + ch;
+      ctx.lineWidth = 1.5;
       arr.forEach((v, i) => {
         if (!v) return;
-        const barH = (v / maxV2) * ch, bw = Math.max(1, cw / n * 0.55);
+        const barH = (v / maxV2) * ch;
+        const w = Math.max(1.5, cw / n * 0.55 - 1.5);
+        const top = Math.min(base - barH + 0.75, base - 1.5);
         const d = state.data[state.range[0] + i];
-        ctx.fillStyle = d && d.close >= d.open ? C.up + '88' : C.down + '88';
-        ctx.fillRect(xOf(i) - bw/2, PAD.t + ch - barH, bw, barH);
+        ctx.strokeStyle = (d && d.close >= d.open ? C.up : C.down) + 'cc';
+        ctx.strokeRect(xOf(i) - w/2, top, w, base - 0.75 - top);
       });
       return;
     }
@@ -4254,7 +4422,12 @@ function renderFlowTable(){
   const d=(state.dailyData && state.dailyData.length) ? state.dailyData : (state.data||[]);
   const fd=state.frgnData;
   if(!fd || !d.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">한국 종목·일봉에서만 나옵니다.</div>'; return; }
-  const rows=d.slice(-20).reverse();
+  /* 외국인 자료가 있는 날만, 최근 120거래일까지 (칸 안에서 위아래로 넘겨 본다) */
+  const rows=d.filter(x=>fd[x.date]).slice(-120).reverse();
+  if(!rows.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">매매동향 자료가 없습니다.</div>'; return; }
+  const est=rows.some(x=>fd[x.date].indiv==null);
+  const kEl=document.querySelector('#flow-box .sp-k');
+  if(kEl) kEl.textContent='(주) · '+rows.length+'일'+(est?' · 개인은 어림값':'');
   const num=v=>{ if(v==null) return '—';
     const a=Math.abs(v);
     return (v<0?'-':'') + (a>=1e4 ? (a/1e4).toFixed(1)+'만' : Math.round(a).toLocaleString()); };
@@ -4264,7 +4437,8 @@ function renderFlowTable(){
     const cls=v=> v==null?'':(v>0?'up':(v<0?'dn':''));
     /* 개인은 자료가 없어 외국인·기관의 반대편으로 셈한다.
        기타법인이 빠져 있어 어림값이다. */
-    const per = (f.net!=null && f.inst!=null) ? -(f.net + f.inst) : null;
+    const per = (f.indiv!=null) ? f.indiv
+              : (f.net!=null && f.inst!=null) ? -(f.net + f.inst) : null;
     /* 보유비율 — 전날보다 늘면 붉은색, 줄면 푸른색.
        rows 는 최신이 먼저이므로 다음 칸(i+1)이 전날이다. */
     let rt='';
@@ -4316,8 +4490,9 @@ function bindStepBtn(){
 //  · 메인 캔들과 보조칸을 화면 높이에 맞춰 나눠 갖는다
 //  · 칸이 너무 얇아지면(최소 높이) 그때부터는 스크롤로 넘긴다
 // ══════════════════════════════════════
-const FIT_MAIN_MIN = 130;   // 메인 캔들 최소 높이
-const FIT_MAIN_MAX = 300;   // 메인 캔들 최대 높이
+/* 거래량을 주가차트에 겹쳐 그리게 되어 메인 캔들 높이를 30% 키웠다 (130→169, 300→390) */
+const FIT_MAIN_MIN = 169;   // 메인 캔들 최소 높이
+const FIT_MAIN_MAX = 390;   // 메인 캔들 최대 높이
 const FIT_SUB_MIN  = 76;    // 보조칸 최소 높이 (선 변화가 보이도록 확대)
 const FIT_SUB_MAX  = 130;   // 보조칸 최대 높이
 
@@ -4338,7 +4513,7 @@ function fitPanels() {
     subH = FIT_SUB_MAX;
   } else {
     // 메인은 화면의 약 42%를 갖되 최소·최대 범위 안에서
-    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.36)));
+    mainH = Math.min(FIT_MAIN_MAX, Math.max(FIT_MAIN_MIN, Math.round(avail * 0.47)));  // 0.36 → 30% 증가
     subH = Math.floor((avail - mainH) / k);
     if (subH > FIT_SUB_MAX) {
       subH = FIT_SUB_MAX;                                  // 남으면 메인을 키운다
@@ -4774,7 +4949,7 @@ function setupMouseEvent() {
     window.addEventListener('blur', () => { pts.clear(); mode = null; release(); });
   }
 
-  if (typeof syncMainSwapBtn === 'function') syncMainSwapBtn();
+  if (typeof syncMainOvBtns === 'function') syncMainOvBtns();
 
   bindPan(canvas);
   document.querySelectorAll('.sub-canvas').forEach(bindPan);
