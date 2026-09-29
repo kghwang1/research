@@ -284,6 +284,10 @@ function mergedInd(ind) {
 // 지표별 표시 옵션 (체크박스). 차트의 OPT() 가 같은 값을 읽는다
 const IND_TOGGLES = {
   ICHIMOKU: [{ k:'chikou', n:'후행스팬 표시', d:true, tip:'종가를 26칸 뒤로 옮겨 그린 청록색 선' }],
+  MASS:     [{ k:'ema9',   n:'주가 차트에 9일 EMA 함께 표시', d:true,
+               tip:'Mass 지수가 되돌림을 알리면 방향은 주가와 9일 지수이평의 위치로 가린다' },
+             { k:'signal', n:'되돌림 완성 시점에 매수·매도 표시', d:true,
+               tip:'27 위로 올랐다가 26.5 아래로 내려온 날에 세로 점선과 매수·매도 글자를 찍는다' }],
 };
 function loadUserOpts() {
   try { return JSON.parse(localStorage.getItem('kgchart_opts') || '{}'); }
