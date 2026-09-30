@@ -4230,6 +4230,8 @@ function watchCodesKr(){
 }
 async function ensureWatchData(force){
   if(!SRV_URL) return;
+  // 주간Top20 은 선정주 스냅샷(관심·보유 기준)과 따로 받는다 — 스냅샷을 섞어 쓰거나 덮지 않는다
+  if(watchPort==='invpf' && typeof selSub!=='undefined' && selSub==='top20'){ selTop20Load(force); return; }
   if(watchDataState==='loading') return;
   if(!force && watchDataState==='ready') return;
   watchDataState='loading';
@@ -4294,6 +4296,13 @@ async function refreshWatchAll(btn){
   const old=btn?btn.textContent:'';
   if(btn){ btn.textContent='갱신 중…'; btn.disabled=true; }
   // 선정주: 다른 표의 관심·보유 목록을 다시 읽고 현재가만 새로 받는다
+  if(watchPort==='invpf' && selSub==='top20'){
+    // 주간Top20: 목록 정리 없이 시세만 새로 받는다
+    await selTop20Load(true);
+    if(btn){ btn.textContent=old||'↻ 새로'; btn.disabled=false; }
+    toast('주간Top20 '+SEL_TOP20.length+'종목 시세를 새로 받았습니다');
+    return;
+  }
   if(watchPort==='invpf'){
     // 메모리에 남은 옛 목록을 모두 버리고, 지금 포트에 체크된 종목만 남긴다
     _WATCH_ROWS_watch = null; _WATCH_ROWS_invpf = null; WATCH_ROWS = null;
@@ -4524,6 +4533,7 @@ function watchCommit(idx, code, name){
 // 코드로 삭제 (정렬된 표에서 인덱스가 어긋나는 문제 방지)
 function watchDeleteByCode(code, idxFallback){
   const c=String(code||'').trim();
+  if(watchPort==='invpf' && selSub==='top20'){ toast('주간Top20 은 고정 목록이라 뺄 수 없습니다'); return; }
   // 대기 탭: 대기 목록에서만 뺀다
   if(watchPort==='invpf' && selSub==='wait'){
     if(!c) return;
@@ -4711,6 +4721,8 @@ function renderWatchTable(){
   const isLongUs  = (isLongSub && selSub==='long2');
   const isSel     = (watchPort==='invpf');
   const isWait    = (isSel && selSub==='wait');    // 대기 탭
+  const isTop20   = (isSel && selSub==='top20');   // 주간Top20 탭 (고정 목록)
+  const top20Of   = c => SEL_TOP20.find(r=>r[0]===String(c||'').trim());
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
   const W = isLongUs
     ? [40,110,64,92,104,104,58,64,100,104,84]           // 국외: 미국(반) 적정주가 표와 같은 항목
@@ -4731,7 +4743,7 @@ function renderWatchTable(){
     : isLongSub
     ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"]
     : isSel
-    ? ["차수","종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
+    ? [isTop20?"등장":"차수","종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"]
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
@@ -4752,6 +4764,7 @@ function renderWatchTable(){
       + `<button type="button" data-selsub="wait"${selSub==='wait'?' class="on"':''}>대기 <b>${selReadRows(WAIT_KEY).filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length}</b></button>`
       + `<button type="button" data-selsub="long1"${selSub==='long1'?' class="on"':''}>장기보유1 <b>${lc.kr}</b></button>`
       + `<button type="button" data-selsub="long2"${selSub==='long2'?' class="on"':''}>장기보유2 <b>${lc.us}</b></button>`
+      + `<button type="button" data-selsub="top20"${selSub==='top20'?' class="on"':''} title="한국 주간수익률 Top20 중 다빈도 등장 종목 (${SEL_TOP20_ASOF})">주간Top20 <b>${SEL_TOP20.length}</b></button>`
 
       + '<button type="button" id="watchDataBtn" class="rfr selrfr">↻ 새로</button>'
       + '<button type="button" id="selSaveBtn" class="rfr selrfr" title="서버에 저장합니다">💾 저장</button>'
@@ -4907,7 +4920,7 @@ function renderWatchTable(){
     let stkCell;
     if(code){
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc">${code}</span>`;
-      stkCell=`<div style="display:flex;justify-content:space-between;align-items:start;min-width:0"><a href="#" class="wlink" data-code="${code}" style="flex:1;min-width:0;overflow:hidden">${stkInner}</a><span class="wdel" data-idx="${ri}" data-wcode="${escHtml(rawCode)}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span></div>`;
+      stkCell=`<div style="display:flex;justify-content:space-between;align-items:start;min-width:0"><a href="#" class="wlink" data-code="${code}" style="flex:1;min-width:0;overflow:hidden">${stkInner}</a>${isTop20?'':`<span class="wdel" data-idx="${ri}" data-wcode="${escHtml(rawCode)}" title="삭제" style="cursor:pointer;color:#ef5350;font-size:10px;flex-shrink:0;margin-left:2px">✕</span>`}</div>`;
     } else {
       stkCell=`<div class="wsearch" style="position:relative"><input type="text" class="winput" data-idx="${ri}" placeholder="종목명 또는 코드" autocomplete="off" style="width:150px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px 6px;border-radius:5px;font-size:12px"><div class="wac" data-idx="${ri}" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:180px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.5)"></div></div>`;
     }
@@ -4920,7 +4933,12 @@ function renderWatchTable(){
     }
     h+='<tr>';
     // 선정주는 맨 앞에 대기 칸을 둔다
-    if(isSel && !isLongSub) h+=`<td class="cls-cell">${swaitCellHtml(rawCode)}</td>`;
+    if(isTop20){
+      const tr=top20Of(rawCode), n=tr?tr[2]:'';
+      const bc = n>=6?'#ef5350': n>=5?'#f0883e': n>=4?'#d29922': n>=3?'#3fb950':'#8b949e';
+      h+=`<td class="cls-cell" style="text-align:center"><span title="${tr&&tr[3]?'사진에서 * 표시된 종목':''}" style="display:inline-block;min-width:34px;padding:2px 5px;border-radius:5px;border:1px solid ${bc};color:${bc};font-weight:700;font-size:11.5px">${n}회${tr&&tr[3]?'*':''}</span></td>`;
+    }
+    else if(isSel && !isLongSub) h+=`<td class="cls-cell">${swaitCellHtml(rawCode)}</td>`;
     // 직접 담은 종목은 종목명 칸을 옅은 노랑으로 표시한다
     const addedBg = (isSel && !isLongSub && _SEL_ADDED.has(String(rawCode).toUpperCase()))
       ? ' style="background:#fff8d6"' : '';
@@ -4960,7 +4978,11 @@ function renderWatchTable(){
   });
   if(!isSel) h+=`<tr class="add-row"><td colspan="10"><button class="add-row-btn" onclick="addWatchRow()">＋ 종목 추가</button></td></tr>`;
   // 관심보유 표 아래 — 종목을 직접 담는 칸 (국내 코드·종목명·미국 티커)
-  if(isSel && !isLongSub){
+  if(isTop20){
+    h+=`<tr class="add-row"><td colspan="12" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left">
+      한국 주간수익률 Top20 중 다빈도 등장 종목 ${SEL_TOP20.length}개 (${SEL_TOP20_ASOF} 자료) · 현재가를 누르면 종목분석으로 갑니다 · * 는 원자료에서 따로 표시된 종목</td></tr>`;
+  }
+  else if(isSel && !isLongSub){
     h+=`<tr class="add-row"><td colspan="12" style="padding:8px 6px">
       <div style="position:relative;max-width:360px">
         <input id="selAddInput" type="text" autocomplete="off"
@@ -5732,9 +5754,45 @@ function inAnyPort(code){
 
 /* 대기 — 관심보유와 같은 형식의 별도 목록.
    아직 담을지 정하지 않은 종목을 따로 모아 둔다. */
+/* 선정주 › 주간Top20 — '한국 주간수익률 Top20 중 다빈도 등장 종목 현황' 표(2026-09-30 사진)를 옮긴 고정 목록.
+   [코드, 종목명, 등장 횟수, 표시(사진에서 빨간 테두리·* 가 붙은 종목이면 1)]
+   관심·보유 저장소와 섞지 않는다 — 이 화면은 읽기 전용이고, ✕·종목추가를 쓰지 않는다. */
+const SEL_TOP20 = [
+  ['222800','심텍',6], ['011070','LG이노텍',5], ['095610','테스',5], ['240810','원익IPS',5],
+  ['034730','SK',5], ['204270','제이앤티씨',5], ['226950','올릭스',5], ['036930','주성엔지니어링',4],
+  ['036540','SFA반도체',4,1], ['080220','제주반도체',4], ['000660','SK하이닉스',4], ['060370','LS마린솔루션',4],
+  ['032830','삼성생명',4], ['131970','두산테스나',4], ['131290','티에스이',4], ['039030','이오테크닉스',4],
+  ['007390','네이처셀',4], ['084370','유진테크',4], ['087010','펩트론',4,1], ['183300','코미코',4,1],
+  ['031980','피에스케이홀딩스',4], ['030530','원익홀딩스',4,1], ['483650','달바글로벌',4], ['241710','코스메카코리아',4],
+  ['101730','위메이드맥스',4,1], ['010950','S-Oil',4], ['437730','삼현',4,1], ['010060','OCI홀딩스',3],
+  ['098460','고영',3], ['014620','성광벤드',3], ['348370','엔켐',3], ['028260','삼성물산',3],
+  ['402340','SK스퀘어',3], ['012330','현대모비스',3], ['004170','신세계',3], ['009150','삼성전기',3],
+  ['009420','한올바이오파마',3], ['290650','엘앤씨바이오',3], ['069960','현대백화점',3], ['319660','피에스케이',3],
+  ['000810','삼성화재',3], ['089970','브이엠',3,1], ['042700','한미반도체',3], ['073240','금호타이어',3],
+  ['161890','한국콜마',3], ['251970','펌텍코리아',3,1], ['194480','데브시스터즈',3], ['128940','한미약품',3],
+  ['096770','SK이노베이션',3], ['047040','대우건설',3], ['125490','한라캐스트',3,1], ['082740','한화엔진',2],
+  ['443060','HD현대마린솔루션',2], ['323280','태성',2], ['007660','이수페타시스',2], ['071970','HD현대마린엔진',2],
+  ['006400','삼성SDI',2], ['417200','LS머트리얼즈',2,1], ['010120','LS ELECTRIC',2], ['006260','LS',2],
+  ['307950','현대오토에버',2], ['033100','제룡전기',2], ['062040','산일전기',2], ['383220','F&F',2],
+  ['005930','삼성전자',2], ['066570','LG전자',2], ['454910','두산로보틱스',2], ['023530','롯데쇼핑',2],
+  ['064400','LG씨엔에스',2], ['052400','코나아이',2], ['001800','오리온홀딩스',2], ['003550','LG',2],
+  ['105330','케이엔더블유',2,1], ['050890','쏠리드',2,1], ['347850','디앤디파마텍',2], ['000150','두산',2],
+  ['105560','KB금융',2], ['093370','후성',2], ['403870','HPSP',2], ['032820','우리기술',2],
+  ['042660','한화오션',2], ['420770','기가비스',2,1], ['214450','파마리서치',2], ['141080','리가켐바이오',2],
+  ['090430','아모레퍼시픽',2], ['008930','한미사이언스',2], ['257720','실리콘투',2], ['399720','가온칩스',2],
+  ['078930','GS',2], ['293490','카카오게임즈',2], ['007340','DN오토모티브',2], ['267250','HD현대',2],
+  ['000210','DL',2], ['180640','한진칼',2], ['295310','에이치브이엠',2,1], ['108490','로보티즈',2],
+  ['064760','티씨케이',2], ['025980','아난티',2], ['052690','한전기술',2], ['000720','현대건설',2],
+  ['034020','두산에너빌리티',2], ['000990','DB하이텍',2,1], ['043260','성호전자',2,1]
+];
+const SEL_TOP20_ASOF = '2026-09-30';
 const WAIT_KEY='kg_wait_rows';
 
 function selAllRows(){
+  // 주간Top20 탭은 고정 목록만 보여준다 (등장 횟수 많은 순 → 사진 순서)
+  if(selSub==='top20'){
+    return SEL_TOP20.map(r=>({code:r[0], name:r[1], isUS:false, watch:false, invest:false, cnt:r[2], mark:!!r[3]}));
+  }
   // 대기 탭은 대기 목록만 보여준다
   if(selSub==='wait'){
     const out=[];
@@ -6021,13 +6079,36 @@ function selLongEmptyMsg(){
     : '장기보유1(국내)에 담긴 종목이 없습니다. 장기투자 화면에서 ＋후보 담기로 담으세요.';
 }
 function setSelSub(v){
-  selSub = (v==='long1'||v==='long2'||v==='wait') ? v : 'own';
+  selSub = (v==='long1'||v==='long2'||v==='wait'||v==='top20') ? v : 'own';
   selLongMkt = (selSub==='long2') ? 'us' : 'kr';
   _WATCH_ROWS_invpf=null; WATCH_ROWS=null;
-  selSyncRows(); renderWatchTable(); fetchWatchLive();
+  selSyncRows(); renderWatchTable();
+  if(selSub==='top20') selTop20Load(); else fetchWatchLive();
+}
+/* 주간Top20 — 시세·목표가·ROE 를 받은 뒤 외국인·공매도·보고서 칸도 채운다.
+   받은 종목명이 목록과 다르면(코드 오기) 알려 준다. */
+let _top20Busy=false;
+async function selTop20Load(fresh){
+  if(_top20Busy) return; _top20Busy=true;
+  try{
+    if(!Array.isArray(WATCH_ROWS) || !WATCH_ROWS.length) selSyncRows();
+    await fetchWatchLive(!!fresh);
+    const codes=SEL_TOP20.map(r=>r[0]);
+    try{ await ensureReports(codes); }catch(e){}
+    try{ await ensureForeign(codes); }catch(e){}
+    try{ await ensureShort(codes); }catch(e){}
+    if(valMarket==='invpf' && selSub==='top20') renderWatchTable();
+  }finally{ _top20Busy=false; }
 }
 
 function selSyncRows(){
+  if(selSub==='top20'){
+    const rows = selAllRows().map(it=>[it.code, it.name]);
+    _SEL_ADDED = new Set();
+    _SEL_VISIBLE = new Set(rows.map(r=>String(r[0]).toUpperCase()));
+    WATCH_ROWS = rows; _WATCH_ROWS_invpf = rows;
+    return rows;
+  }
   if(isLongTab()){                           // 장기보유 — 장기투자에서 담은 후보
     let rows=selLongRows();
     if(!(selLongFilter.watch && selLongFilter.inv)){
@@ -14112,7 +14193,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-29 한국(체) 9월 5주 · 미국(체) 9월 4주 · 해외 컨센서스';
+const KG_APP_BUILD = '2026-09-30 선정주 주간Top20 · 한국(체) 9월 5주 · 미국(체) 9월 4주';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
