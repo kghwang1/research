@@ -3732,7 +3732,7 @@ function bindPinEvents(tbl, renderFn, portId){
   });
 }
 async function fetchKrLive(rows){
-  krLive={}; krRate={};
+  /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(!SRV_URL||!rows||!rows.length) return;
   const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
   const syms=codes.map(c=>'STK:'+c), CH=40;
@@ -3748,7 +3748,7 @@ async function fetchKrLive(rows){
 /* 한국 목표주가(네이버 컨센서스)·52주 최고가 조회 */
 let krTarget={}, krHigh52={}; // code -> str
 async function fetchKrTargets(rows){
-  krTarget={}; krHigh52={};
+  /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(!SRV_URL||!rows||!rows.length) return;
   const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
   const CH=40;
@@ -3769,7 +3769,7 @@ async function fetchKrTargets(rows){
 }
 // 한국(체) ROE 조회
 async function fetchKrRoe(rows){
-  krRoe={};
+  /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(!SRV_URL||!rows||!rows.length) return;
   const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
   for(let i=0;i<codes.length;i+=25){
@@ -4239,8 +4239,10 @@ async function ensureWatchData(force){
     if(!force){
       const s=await snapLoad(SNAP_SEL);
       if(s){
-        watchLive=s.live||{}; watchRate=s.rate||{}; watchTarget=s.target||{}; watchHigh52=s.high52||{};
-        watchRoe=s.roe||{}; watchUsCons=s.usCons||{}; watchUsNews=s.usNews||{};
+        // 스냅샷은 빈 곳만 채운다 — 먼저 받아 둔 최신 값을 덮어 지우지 않도록
+        const mg=(a,b)=>Object.assign({}, b||{}, a||{});
+        watchLive=mg(watchLive,s.live); watchRate=mg(watchRate,s.rate); watchTarget=mg(watchTarget,s.target); watchHigh52=mg(watchHigh52,s.high52);
+        watchRoe=mg(watchRoe,s.roe); watchUsCons=mg(watchUsCons,s.usCons); watchUsNews=mg(watchUsNews,s.usNews);
         Object.keys(watchUsCons).forEach(k=>consPut(k, watchUsCons[k]));    // 표가 보는 공용 저장소에 반영
         loadFrgnCache(); loadShortCache(); loadReportCache();
         if(s.frgn) Object.assign(FRGN, s.frgn);
@@ -4424,7 +4426,7 @@ function usReuseFromUsc(tickers){
 }
 
 async function fetchWatchLive(fresh){
-  watchLive={}; watchRate={}; watchTarget={}; watchHigh52={}; watchRoe={}; watchUsCons={};
+  /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
   if(!SRV_URL) return;
   const hasUs=(WATCH_ROWS||[]).some(r=>{ const rc=String(r[0]||'').trim(); return /^US:/i.test(rc)||isUsCode(rc); });
@@ -5265,7 +5267,7 @@ async function loadCaution(){
   if(!matched.length){ if(msg) msg.textContent='⚠️ 최근 2일 이상 연속 순매도 종목이 없습니다'; cautionLoaded=true; CAUTION_ROWS=[]; renderCautionTable(); return; }
 
   // 4) 시세/목표가/ROE 조회
-  cautionLive={}; cautionRate={}; cautionTarget={}; cautionHigh52={}; cautionRoe={};
+  /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(msg) msg.textContent='시세 조회 중…';
   for(let i=0;i<matched.length;i+=40){
     const part=matched.slice(i,i+40);
@@ -5383,7 +5385,7 @@ function renderCautionTable(){
 /* ===== 미국(체) : MP 분석 포트폴리오 ===== */
 let uscLive={}, uscTarget={}, uscCons={}, uscTgtDone={}; // 심볼 -> {price,priceStr} / 목표가str / 컨센서스 / 조회완료
 async function fetchUscLive(rows){
-  uscLive={};
+  /* 비우지 않는다 — 조회 도중 다시 그리면 빈칸 깜빡임이 생긴다 */
   if(!SRV_URL||!rows||!rows.length) return;
   const syms=[...new Set(rows.map(r=>String(r[0]||'').trim().toUpperCase()).filter(Boolean))];
   const CH=40;
@@ -14193,7 +14195,7 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-30 선정주 주간Top20 · 한국(체) 9월 5주 · 미국(체) 9월 4주';
+const KG_APP_BUILD = '2026-09-30b 시세·ROE 깜빡임 수정 · 선정주 주간Top20 · 한국(체) 9월 5주 · 미국(체) 9월 4주';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 
 const FTS_KEY='kg_fcst_ts';
