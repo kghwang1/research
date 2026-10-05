@@ -216,7 +216,7 @@ body.sp-flow #flow-box{ display:block }
 .sp-h .sp-k{ color:#6e7681;font-weight:400 }
 #mon-canvas{ width:100%;height:172px;display:block;background:#161b22;
   border:1px solid #30363d;border-radius:6px }
-#flow-tbl table{ width:100%;border-collapse:collapse;font-size:10.5px;font-family:monospace }
+#flow-tbl table{ width:100%;border-collapse:collapse;font-size:11.55px;font-family:monospace }
 #flow-tbl th{ color:#8b949e;font-weight:600;text-align:right;padding:2px 3px;border-bottom:1px solid #30363d }
 #flow-tbl th:first-child{ text-align:left }
 #flow-tbl td{ text-align:right;padding:2px 3px;border-bottom:1px solid #21262d;color:#e6edf3 }
@@ -404,7 +404,7 @@ body.stock-closed #step-pad { display: flex; }
       <canvas id="mon-canvas"></canvas>
     </div>
     <div id="flow-box">
-      <div class="sp-h">투자자별 매매동향 <span class="sp-k">(주) · 개인은 어림값</span></div>
+      <div class="sp-h">투자자별 매매동향 <span class="sp-k">(주)</span></div>
       <div id="flow-tbl"></div>
     </div>
   </div>
@@ -2374,13 +2374,13 @@ function drawCandle() {
       } else {
         lbl = md(hd.date);
       }
-      ctx.font = '11px monospace'; ctx.textAlign = 'center';
+      ctx.font = '12.1px monospace'; ctx.textAlign = 'center';   // 10% 확대 (11→12.1)
       const tw = ctx.measureText(lbl).width;
       // 배경 박스
       ctx.fillStyle = '#1f6feb';
-      ctx.fillRect(hx - tw/2 - 5, H - 19, tw + 10, 16);
+      ctx.fillRect(hx - tw/2 - 5.5, H - 20.6, tw + 11, 17.6);
       ctx.fillStyle = '#fff';
-      ctx.fillText(lbl, hx, H - 7);
+      ctx.fillText(lbl, hx, H - 7.5);
     }
   }
 
@@ -2992,10 +2992,10 @@ function drawSubInner(canvas, key) {
       const hv = inrRaw[state.hoverIdx];
       if (hv != null) {
         const hy = yOf(Math.max(30, Math.min(80, hv)));
-        ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
-        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7, PAD.r - 2, 14);
-        ctx.fillStyle = '#ffd54f'; ctx.font = '9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3);
+        ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 7.7, PAD.r - 2, 15.4);
+        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7.7, PAD.r - 2, 15.4);
+        ctx.fillStyle = '#ffd54f'; ctx.font = '9.9px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3.4);
       }
     }
 
@@ -4107,7 +4107,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-09-29 Mass 9일 EMA · 매매 시점 표시';
+const KG_CHART_BUILD = '2026-10-05 축값 상자·매매동향 글자 10% 확대 · 개인 열 제거';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4128,10 +4128,11 @@ const AXVAL = {
 };
 function drawAxisVal(ctx, W, PAD, y, text, state){
   const c = AXVAL[state] || AXVAL.base;
-  ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-7, PAD.r-2, 14);
-  ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-7, PAD.r-2, 14);
-  ctx.fillStyle = c.text; ctx.font = 'bold 9px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(text, W-PAD.r+3, y+3);
+  /* 2026-10-05 글자·상자 10% 확대 (9px→9.9px, 높이 14→15.4) */
+  ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-7.7, PAD.r-2, 15.4);
+  ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-7.7, PAD.r-2, 15.4);
+  ctx.fillStyle = c.text; ctx.font = 'bold 9.9px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(text, W-PAD.r+3, y+3.4);
 }
 
 let chartStep = null;
@@ -4425,20 +4426,15 @@ function renderFlowTable(){
   /* 외국인 자료가 있는 날만, 최근 120거래일까지 (칸 안에서 위아래로 넘겨 본다) */
   const rows=d.filter(x=>fd[x.date]).slice(-120).reverse();
   if(!rows.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">매매동향 자료가 없습니다.</div>'; return; }
-  const est=rows.some(x=>fd[x.date].indiv==null);
   const kEl=document.querySelector('#flow-box .sp-k');
-  if(kEl) kEl.textContent='(주) · '+rows.length+'일'+(est?' · 개인은 어림값':'');
+  if(kEl) kEl.textContent='(주) · '+rows.length+'일';
   const num=v=>{ if(v==null) return '—';
     const a=Math.abs(v);
     return (v<0?'-':'') + (a>=1e4 ? (a/1e4).toFixed(1)+'만' : Math.round(a).toLocaleString()); };
-  let h='<table><tr><th>날짜</th><th>외국인</th><th>기관</th><th>개인</th></tr>';
+  let h='<table><tr><th>날짜</th><th>외국인</th><th>기관</th></tr>';
   rows.forEach((x,i)=>{
     const f=fd[x.date]||{};
     const cls=v=> v==null?'':(v>0?'up':(v<0?'dn':''));
-    /* 개인은 자료가 없어 외국인·기관의 반대편으로 셈한다.
-       기타법인이 빠져 있어 어림값이다. */
-    const per = (f.indiv!=null) ? f.indiv
-              : (f.net!=null && f.inst!=null) ? -(f.net + f.inst) : null;
     /* 보유비율 — 전날보다 늘면 붉은색, 줄면 푸른색.
        rows 는 최신이 먼저이므로 다음 칸(i+1)이 전날이다. */
     let rt='';
@@ -4446,12 +4442,11 @@ function renderFlowTable(){
       const pv=rows[i+1] ? (fd[rows[i+1].date]||{}).ratio : null;
       const col = (pv==null || Math.abs(f.ratio-pv)<0.005) ? '#8b949e'
                 : (f.ratio>pv ? '#ef5350' : '#58a6ff');
-      rt = ` <span style="color:${col};font-size:9.5px">${f.ratio.toFixed(1)}%</span>`;
+      rt = ` <span style="color:${col};font-size:10.45px">${f.ratio.toFixed(1)}%</span>`;
     }
     h+='<tr><td>'+String(x.date).slice(5).replace('-','/')+'</td>'
      + '<td class="'+cls(f.net)+'">'+num(f.net)+rt+'</td>'
-     + '<td class="'+cls(f.inst)+'">'+num(f.inst)+'</td>'
-     + '<td class="'+cls(per)+'">'+num(per)+'</td></tr>';
+     + '<td class="'+cls(f.inst)+'">'+num(f.inst)+'</td></tr>';
   });
   h+='</table>';
   box.innerHTML=h;
