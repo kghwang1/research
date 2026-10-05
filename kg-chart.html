@@ -327,10 +327,11 @@ body.stock-closed #step-pad { display: flex; }
   <div id="sidebar">
     <div class="sidebar-help">
       <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
-      아래 <b>기본챠트</b> 버튼으로 한 번에 표시<br>
+      아래 <b>기본챠트</b>·<b>고점저점 탐색</b> 버튼으로 한 번에 표시<br>
       <span style="color:#6e7681;font-size:10px">버전 <b id="buildTag">-</b></span>
     </div>
     <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:6px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 기본챠트</button>
+    <button id="peakComboBtn" title="MACD · RSI⇄SlowStoch · Elder Ray · MFI⇄PVT — 주가와 엇갈리는 다이버전스를 선과 ▲▼로 표시" style="width:calc(100% - 12px);margin:0 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#8957e5;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🎯 고점저점 탐색</button>
     <div class="group-title">▶ 오버레이</div>
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
@@ -1557,15 +1558,28 @@ const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
    4조 MACD ⇄ SlowStoch 5조 외국인순매수 ⇄ OBV */
 const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'MACD', 'FRGN_NET'];
 
+/* 고점저점 탐색 (2026-10-05) — 다이버전스로 고점·저점을 찾는 조합.
+   MACD(중기 힘) → RSI⇄SlowStoch(단기 모멘텀) → Elder Ray(추세+매수·매도세) → MFI⇄PVT(돈의 흐름)
+   주가 창은 이동평균 — 다이버전스 뒤 이평 이탈로 확인한다 */
+const PEAK_COMBO = ['MA', 'MACD', 'RSI', 'ELDER', 'MFI'];
+
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
-const SUB_SWAP = {
+/* 교대 짝은 조합마다 다르다 — 기본챠트는 RSI⇄RVI·MACD⇄SlowStoch,
+   고점저점 탐색은 RSI⇄SlowStoch·MFI⇄PVT (MACD·Elder Ray 는 짝 없음).
+   지금 어느 조합인지는 교대 상태(kg_sub_swap)의 _mode 칸에 적어 둔다 — 서버 동기화도 함께 된다 */
+const SUB_SWAP_PEAK = {
+  RSI:'SLOWSTOCH', SLOWSTOCH:'RSI',
+  MFI:'PVT',       PVT:'MFI',
+};
+const SUB_SWAP_BASE = {
   FRGN_NET:'SHORT_SELL', SHORT_SELL:'FRGN_NET',   // 외국인 순매수 ⇄ 공매도
   INST_NET:'OBV',        OBV:'INST_NET',          // 기관 순매수 ⇄ OBV
   ADXR:'ADX',            ADX:'ADXR',          // ADXR ⇄ DMI
   RSI:'RVI',             RVI:'RSI',
   MACD:'SLOWSTOCH',      SLOWSTOCH:'MACD',
 };
+let SUB_SWAP = SUB_SWAP_BASE;
 
 /* 주가차트 우상단 단추로 고르는 세 지표 — 하나만 겹쳐 본다 */
 const MAIN_OV_SEL = ['MA', 'ICHIMOKU', 'BB'];
@@ -1608,6 +1622,133 @@ function swapToggle(key){
   if(next===key) delete m[key]; else m[key]=next;
   try{ localStorage.setItem(SWAP_KEY, JSON.stringify(m)); }catch(e){}
   return next;
+}
+function comboMode(){ return swapMapGet()._mode === 'peak' ? 'peak' : 'base'; }
+function setComboMode(mode){
+  const m = swapMapGet();
+  if (mode === 'peak') m._mode = 'peak'; else delete m._mode;
+  try{ localStorage.setItem(SWAP_KEY, JSON.stringify(m)); }catch(e){}
+  SUB_SWAP = (mode === 'peak') ? SUB_SWAP_PEAK : SUB_SWAP_BASE;
+}
+SUB_SWAP = (comboMode() === 'peak') ? SUB_SWAP_PEAK : SUB_SWAP_BASE;
+
+/* ───── 다이버전스 (고점저점 탐색 조합에서만 그린다) ─────
+   ① 주가의 고점·저점 = 좌우 DIV_L 봉보다 높은(낮은) 봉
+   ② 이웃한 두 고점(저점) 사이가 DIV_MIN~DIV_MAX 봉일 때만 비교
+   ③ 지표 값은 그 봉 앞뒤 2봉 안의 최고(최저)
+   ④ 주가 고점↑·지표 고점↓ = 하락 다이버전스(푸른 선 ▼)
+      주가 저점↓·지표 저점↑ = 상승 다이버전스(붉은 선 ▲)
+   ⑤ 첫 번째 꼭지가 과열·침체 쪽에 있을 때만 (RSI 60/40, SlowStoch 70/30, MFI 60/40,
+      MACD 히스토그램·Elder Ray 는 0 위/아래)
+   고점은 오른쪽 DIV_L 봉이 지나야 확정되므로, 신호는 그만큼 늦게 나온다 */
+const DIV_L = 5, DIV_MIN = 5, DIV_MAX = 60;
+const DIV_UP = '#ff5252', DIV_DN = '#4da3ff';
+const DIV_TAG = { RSI:'R', SLOWSTOCH:'S', MACD:'M', ELDER:'E', MFI:'F' };
+function divOn(){ return comboMode() === 'peak'; }
+function divFind(key){
+  const d = state.data;
+  if (!d || d.length < 30 || !CALC[key] || !DIV_TAG[key]) return [];
+  const r = CALC[key](d);
+  let hiA, loA, hiOk, loOk;
+  if (key === 'RSI')            { hiA = loA = r.rsi;  hiOk = v => v >= 60; loOk = v => v <= 40; }
+  else if (key === 'SLOWSTOCH') { hiA = loA = r.k;    hiOk = v => v >= 70; loOk = v => v <= 30; }
+  else if (key === 'MFI')       { hiA = loA = r.mfi;  hiOk = v => v >= 60; loOk = v => v <= 40; }
+  else if (key === 'MACD')      { hiA = loA = r.hist; hiOk = v => v > 0;   loOk = v => v < 0; }
+  else if (key === 'ELDER')     { hiA = r.bull; loA = r.bear; hiOk = v => v > 0; loOk = v => v < 0; }
+  if (!hiA || !loA) return [];
+  const N = d.length, pivH = [], pivL = [];
+  for (let i = DIV_L; i < N - DIV_L; i++) {
+    let isH = true, isL = true;
+    for (let k = i - DIV_L; k <= i + DIV_L && (isH || isL); k++) {
+      if (k === i) continue;
+      /* 같은 값이 이어지면(호가 단위가 커서 흔하다) 앞쪽 봉을 꼭지로 본다 */
+      if (k < i ? d[k].high >= d[i].high : d[k].high > d[i].high) isH = false;
+      if (k < i ? d[k].low  <= d[i].low  : d[k].low  < d[i].low)  isL = false;
+    }
+    if (isH) pivH.push(i);
+    if (isL) pivL.push(i);
+  }
+  const ext = (arr, i, hi) => {
+    let b = -1;
+    for (let k = Math.max(0, i - 2); k <= Math.min(N - 1, i + 2); k++) {
+      const v = arr[k]; if (v == null) continue;
+      if (b < 0 || (hi ? v > arr[b] : v < arr[b])) b = k;
+    }
+    return b;
+  };
+  const out = [];
+  const scan = (piv, arr, hi, ok) => {
+    for (let j = 1; j < piv.length; j++) {
+      const a = piv[j - 1], b = piv[j], g = b - a;
+      if (g < DIV_MIN || g > DIV_MAX) continue;
+      const oa = ext(arr, a, hi), ob = ext(arr, b, hi);
+      if (oa < 0 || ob < 0) continue;
+      const va = arr[oa], vb = arr[ob];
+      if (!ok(va)) continue;
+      /* 차이가 너무 작으면 잡음으로 본다 — 0~100 지표는 2 이상, 나머지는 첫 값의 5% 이상 */
+      const gapMin = (key === 'MACD' || key === 'ELDER') ? Math.abs(va) * 0.05 : 2;
+      if (Math.abs(va - vb) < gapMin) continue;
+      if (hi  && d[b].high > d[a].high && vb < va) out.push({ type:'bear', a, b, oa, ob, va, vb });
+      if (!hi && d[b].low  < d[a].low  && vb > va) out.push({ type:'bull', a, b, oa, ob, va, vb });
+    }
+  };
+  scan(pivH, hiA, true, hiOk);
+  scan(pivL, loA, false, loOk);
+  return out;
+}
+/* 보조차트 칸 — 지표의 두 꼭지를 잇는 선 + 두 번째 꼭지에 ▲▼ */
+function divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W){
+  if (!divOn() || !DIV_TAG[key]) return;
+  const list = divFind(key); if (!list.length) return;
+  const off = state.range[0];
+  ctx.save();
+  ctx.beginPath(); ctx.rect(PAD.l, PAD.t, W - PAD.l - PAD.r, ch); ctx.clip();
+  list.forEach(v => {
+    const j1 = v.oa - off, j2 = v.ob - off;
+    if (j2 < 0 || j1 >= n) return;
+    const col = v.type === 'bull' ? DIV_UP : DIV_DN;
+    const x1 = xOf(j1), y1 = yOf(v.va), x2 = xOf(j2), y2 = yOf(v.vb);
+    ctx.strokeStyle = col; ctx.lineWidth = 1.8; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x1, y1, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x2, y2, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    if (v.type === 'bull') { ctx.moveTo(x2, y2 + 5); ctx.lineTo(x2 - 5, y2 + 14); ctx.lineTo(x2 + 5, y2 + 14); }
+    else                   { ctx.moveTo(x2, y2 - 5); ctx.lineTo(x2 - 5, y2 - 14); ctx.lineTo(x2 + 5, y2 - 14); }
+    ctx.closePath(); ctx.fill();
+  });
+  ctx.restore();
+}
+/* 주가 창 — 보이는 다이버전스 지표들의 짝을 주가 고점(저점)끼리 잇고, 어느 지표인지 글자로 붙인다 */
+function divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W){
+  if (!divOn()) return;
+  const keys = getActiveKeys().map(k => swapShown(k)).filter(k => DIV_TAG[k]);
+  if (!keys.length) return;
+  const d = state.data, off = state.range[0];
+  const grp = new Map();
+  keys.forEach(k => divFind(k).forEach(v => {
+    const id = v.type + '|' + v.a + '|' + v.b;
+    if (!grp.has(id)) grp.set(id, { v, tags: [] });
+    grp.get(id).tags.push(DIV_TAG[k]);
+  }));
+  if (!grp.size) return;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(PAD.l, PAD.t, W - PAD.l - PAD.r, ch); ctx.clip();
+  grp.forEach(({ v, tags }) => {
+    const j1 = v.a - off, j2 = v.b - off;
+    if (j2 < 0 || j1 >= slotCount) return;
+    const bull = v.type === 'bull', col = bull ? DIV_UP : DIV_DN;
+    const p1 = bull ? d[v.a].low : d[v.a].high, p2 = bull ? d[v.b].low : d[v.b].high;
+    const dy = bull ? 6 : -6;
+    const x1 = xOf(j1), y1 = yOf(p1) + dy, x2 = xOf(j2), y2 = yOf(p2) + dy;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([5, 3]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = col; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText((bull ? '▲' : '▼') + tags.join(''), x2, bull ? y2 + 13 : y2 - 5);
+  });
+  ctx.restore();
 }
 function loadDefaults() {
   /* '거래량 겹쳐보기'를 새로 넣었다. 저장해 둔 조합에는 없으므로 처음 한 번만 켜 준다.
@@ -1704,7 +1845,7 @@ function swapResetFor(list) {
 }
 
 /* 조합 단추 공통 처리 — 전부 끄고 적힌 차례대로 켠다 */
-function applyCombo(list) {
+function applyCombo(list, mode) {
   /* 매물대·거래량 겹쳐보기는 보조지표 조합과 별개 — 조합 단추를 눌러도 켜 둔 채로 남긴다 */
   MAIN_OV_ALWAYS.forEach(k => { if (!list.includes(k)) list = list.concat(k); });
   /* 매물대는 [매물대] 단추로 정해 둔 상태를 따른다 */
@@ -1729,6 +1870,7 @@ function applyCombo(list) {
     else { label.classList.remove('active'); if (span) span.style.color = ''; }
   });
   swapResetFor(list);
+  setComboMode(mode === 'peak' ? 'peak' : 'base');
   const defs = {};
   list.forEach(k => defs[k] = true);
   saveDefaults(defs);
@@ -1846,6 +1988,8 @@ function setupSidebar() {
   if (comboBtn) comboBtn.addEventListener('click', () => applyCombo(DEFAULT_COMBO));
   const simpleBtn = document.getElementById('simpleComboBtn');
   if (simpleBtn) simpleBtn.addEventListener('click', () => applyCombo(SIMPLE_COMBO));
+  const peakBtn = document.getElementById('peakComboBtn');
+  if (peakBtn) peakBtn.addEventListener('click', () => applyCombo(PEAK_COMBO.slice(), 'peak'));
 
   /* 주가차트 우상단 [이평][일목][볼린저] */
   document.querySelectorAll('#main-ovsel button').forEach(btn => {
@@ -2354,6 +2498,8 @@ function drawCandle() {
     ctx.fillText(cpTxt, cpbx + 3, cpY + 3);
   }
 
+  divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W);   // 고점저점 탐색 — 주가 쪽 다이버전스 선
+
   // 호버 수직선 + 날짜 라벨 (26-06-03 형식)
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
     const hx = xOf(state.hoverIdx);
@@ -2796,6 +2942,7 @@ function drawSubInner(canvas, key) {
       }
     }
 
+    divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W);   // 고점(Bull)·저점(Bear) 다이버전스
     const lb = bull.filter(v => v != null).slice(-1)[0];
     const lr = bear.filter(v => v != null).slice(-1)[0];
     ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
@@ -3389,6 +3536,7 @@ function drawSubInner(canvas, key) {
       ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
+    divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W);   // MFI 다이버전스
     // 레이블
     const lastVM = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = C.lime; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
@@ -3504,6 +3652,7 @@ function drawSubInner(canvas, key) {
       ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
     }
+    divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W);
     // 레이블
     const lastV = arr.filter(v => v != null).slice(-1)[0];
     ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
@@ -4044,6 +4193,7 @@ function drawSubInner(canvas, key) {
 
   // ── 매매 시점 화살표 (오버레이 제외 보조지표) ──
   drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch);
+  divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W);   // MACD·SlowStoch 다이버전스
 
   // 호버 수직선
   if (state.hoverIdx >= 0 && state.hoverIdx < n) {
@@ -4107,7 +4257,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-05b 글자 크기 통일(매물대·매매동향·축값 상자 11px)';
+const KG_CHART_BUILD = '2026-10-05c 고점저점 탐색 조합 · 다이버전스 표시';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
