@@ -216,7 +216,7 @@ body.sp-flow #flow-box{ display:block }
 .sp-h .sp-k{ color:#6e7681;font-weight:400 }
 #mon-canvas{ width:100%;height:172px;display:block;background:#161b22;
   border:1px solid #30363d;border-radius:6px }
-#flow-tbl table{ width:100%;border-collapse:collapse;font-size:11.55px;font-family:monospace }
+#flow-tbl table{ width:100%;border-collapse:collapse;font-size:11px;font-family:monospace }
 #flow-tbl th{ color:#8b949e;font-weight:600;text-align:right;padding:2px 3px;border-bottom:1px solid #30363d }
 #flow-tbl th:first-child{ text-align:left }
 #flow-tbl td{ text-align:right;padding:2px 3px;border-bottom:1px solid #21262d;color:#e6edf3 }
@@ -2017,7 +2017,7 @@ function drawCandle() {
         if (h >= 9) {
           const pct = total ? binVol[b] / total * 100 : 0;
           const txt = pct.toFixed(1) + '%';
-          const fs = Math.max(9, Math.min(11, Math.floor(h * 0.6)));
+          const fs = 11;   // 글자 크기 통일 기준 (매매동향 표·보조차트 축값 상자도 11px)
           ctx.font = (isPoc || isCur ? 'bold ' : '') + fs + 'px sans-serif';
           ctx.textBaseline = 'middle';
           const tw = ctx.measureText(txt).width;
@@ -2992,10 +2992,10 @@ function drawSubInner(canvas, key) {
       const hv = inrRaw[state.hoverIdx];
       if (hv != null) {
         const hy = yOf(Math.max(30, Math.min(80, hv)));
-        ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 7.7, PAD.r - 2, 15.4);
-        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 7.7, PAD.r - 2, 15.4);
-        ctx.fillStyle = '#ffd54f'; ctx.font = '9.9px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 3.4);
+        ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 8, PAD.r - 2, 16);
+        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 8, PAD.r - 2, 16);
+        ctx.fillStyle = '#ffd54f'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 4);
       }
     }
 
@@ -4107,7 +4107,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-05 축값 상자·매매동향 글자 10% 확대 · 개인 열 제거';
+const KG_CHART_BUILD = '2026-10-05b 글자 크기 통일(매물대·매매동향·축값 상자 11px)';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4128,11 +4128,11 @@ const AXVAL = {
 };
 function drawAxisVal(ctx, W, PAD, y, text, state){
   const c = AXVAL[state] || AXVAL.base;
-  /* 2026-10-05 글자·상자 10% 확대 (9px→9.9px, 높이 14→15.4) */
-  ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-7.7, PAD.r-2, 15.4);
-  ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-7.7, PAD.r-2, 15.4);
-  ctx.fillStyle = c.text; ctx.font = 'bold 9.9px monospace'; ctx.textAlign = 'left';
-  ctx.fillText(text, W-PAD.r+3, y+3.4);
+  /* 글자 크기 통일 — 매물대 비율 글자(11px)와 같게. 상자 높이 16 */
+  ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-8, PAD.r-2, 16);
+  ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-8, PAD.r-2, 16);
+  ctx.fillStyle = c.text; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'left';
+  ctx.fillText(text, W-PAD.r+3, y+4);
 }
 
 let chartStep = null;
@@ -4442,7 +4442,7 @@ function renderFlowTable(){
       const pv=rows[i+1] ? (fd[rows[i+1].date]||{}).ratio : null;
       const col = (pv==null || Math.abs(f.ratio-pv)<0.005) ? '#8b949e'
                 : (f.ratio>pv ? '#ef5350' : '#58a6ff');
-      rt = ` <span style="color:${col};font-size:10.45px">${f.ratio.toFixed(1)}%</span>`;
+      rt = ` <span style="color:${col};font-size:11px">${f.ratio.toFixed(1)}%</span>`;
     }
     h+='<tr><td>'+String(x.date).slice(5).replace('-','/')+'</td>'
      + '<td class="'+cls(f.net)+'">'+num(f.net)+rt+'</td>'
