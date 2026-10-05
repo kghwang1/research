@@ -982,6 +982,15 @@
   .dep-read .k{color:#8b949e}
   .dep-read .row{margin-top:5px}
   .dep-read .num{font-family:monospace;font-weight:700}
+  /* 자금 흐름 종합 판정 */
+  .dep-read .fv{margin-top:8px;padding:7px 9px;border:1px solid #30363d;border-radius:7px;background:#0d1117}
+  .dep-read .fv-h{font-weight:700;color:#f2c800;margin-bottom:3px}
+  .dep-read .fv-now{font-size:12.5px;font-weight:700;margin:2px 0 4px}
+  .dep-read table.fvt{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px}
+  .dep-read .fvt td{padding:3px 5px;border-top:1px solid #21262d;color:#8b949e;vertical-align:top}
+  .dep-read .fvt td:first-child{white-space:nowrap}
+  .dep-read .fvt tr.on td{color:#e6edf3;background:#f2c80018;font-weight:700}
+  .dep-read .fvt tr.on td:first-child{box-shadow:inset 3px 0 0 #f2c800}
   .dep-tip{min-height:62px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
@@ -7964,6 +7973,8 @@ function updateFtrendNote(){
   const idxL = ftrendIdx === 'kospi' ? '코스피' : '코스닥';
   const modeL = ftrendMode === 'cumul' ? '누적 순매수' : '순매수';
   note.textContent = idxL + ' ' + modeL + ' (억원) · 좌축 금액 / 우축 지수';
+  /* 증시자금동향 종합 판정은 외국인 자료를 쓰므로, 자료가 들어오면 다시 쓴다 */
+  try{ if(typeof DEP_VIEW!=='undefined' && DEP_VIEW.length) depReadOut(); }catch(e){}
 }
 
 // 3개 캔버스 모두 그리기
@@ -8962,7 +8973,99 @@ function depReadOut(){
 
   h+='<div class="row k">· 판단은 주가와 함께 보세요. 주가가 오르며 신용이 느는 것은 정상이지만, '
    + '주가가 정체·하락인데 신용만 늘면 위험 신호입니다.</div>';
+  h+=depFlowVerdict();
   el.innerHTML=h;
+}
+
+/* ───── 자금 흐름 종합 판정 (2026-10-05) ─────
+   최근 20거래일 동안의 ① 고객예탁금 ② 신용잔고 ③ 외국인 순매수(코스피+코스닥, 추세 탭 매매추이 자료)
+   ④ 코스피 등락을 묶어 지금이 어느 국면인지 고르고, 해석표에서 그 줄을 강조한다.
+   거래대금 자료는 없어 '주가가 따라오는가'(코스피 등락)로 열기를 대신 확인한다. */
+const DEP_FV_DAYS = 20;
+const DEP_FV_CASES = [
+  { id:'strong', c:'#ef5350', cond:'예탁금 ↑ + 외국인 순매수',          t:'자금 유입이 강한 국면 — 개인 대기자금과 외국인 돈이 함께 들어옵니다' },
+  { id:'heat',   c:'#f0883e', cond:'예탁금 ↑ + 신용잔고 급증',           t:'개인 과열 — 빚이 대기자금보다 빨리 늘어 조정에 주의' },
+  { id:'frgn',   c:'#d29922', cond:'예탁금 ↓ + 외국인 순매수',          t:'외국인 주도 — 개인 자금은 빠지는데 외국인이 끌어올립니다' },
+  { id:'indiv',  c:'#d29922', cond:'예탁금 ↑ + 외국인 순매도',          t:'개인이 받아내는 국면 — 외국인이 판 물량을 개인 돈이 받고 있습니다' },
+  { id:'out',    c:'#58a6ff', cond:'예탁금 ↓ + 외국인 순매도',          t:'자금 이탈 — 들어오는 돈이 없어 반등 힘이 약합니다' },
+  { id:'flat',   c:'#8b949e', cond:'뚜렷한 변화 없음',                  t:'관망 — 자금 흐름에 방향이 없습니다' },
+];
+function depFlowVerdict(){
+  const V=DEP_VIEW; if(!V || V.length<6) return '';
+  const last=V[V.length-1], base=V[Math.max(0, V.length-1-DEP_FV_DAYS)];
+  const pc=k=> (last[k]!=null && base[k]) ? (last[k]-base[k])/Math.abs(base[k])*100 : null;
+  const dP=pc('deposit'), cP=pc('credit');
+  if(dP==null) return '';
+
+  // 외국인 순매수 합계 (억원) — 같은 기간, 코스피+코스닥
+  let fSum=null, kP=null, fDays=0;
+  const F=(typeof FTREND_DATA!=='undefined' && FTREND_DATA) ? FTREND_DATA : null;
+  if(F && F.length){
+    const win=F.filter(r=>r.date>base.date);
+    if(win.length){
+      fSum=0;
+      win.forEach(r=>{
+        const ks=(r.foreignKospi!=null?r.foreignKospi:r.net)||0, kq=r.foreignKosdaq||0;
+        fSum+=ks+kq; fDays++;
+      });
+      // 코스피 등락 — 기간 시작 직전 종가 대비
+      const pre=F.filter(r=>r.date<=base.date && r.kospi!=null).slice(-1)[0];
+      const end=win.filter(r=>r.kospi!=null).slice(-1)[0];
+      if(pre && end) kP=(end.kospi-pre.kospi)/pre.kospi*100;
+    }
+  }
+
+  const DEP_BAND=1.0;      // 예탁금 ±1% 안이면 변화 없음
+  const F_BAND=3000;       // 외국인 ±3천억 안이면 변화 없음
+  const dUp=dP>DEP_BAND, dDn=dP<-DEP_BAND;
+  const fUp=fSum!=null && fSum>F_BAND, fDn=fSum!=null && fSum<-F_BAND;
+  const heat=(cP!=null && cP>=3 && cP>dP);   // 신용이 3% 넘게, 예탁금보다 빨리 늘면 급증
+
+  let id='flat';
+  if(dUp && heat) id='heat';
+  else if(dUp && fUp) id='strong';
+  else if(dDn && fDn) id='out';
+  else if(dDn && fUp) id='frgn';
+  else if(dUp && fDn) id='indiv';
+  else if(heat) id='heat';
+  else if(fUp && !dDn) id='strong';     // 예탁금 보합 + 외국인 매수 — 유입 쪽으로 본다
+  else if(fDn && !dUp) id='out';
+  const cs=DEP_FV_CASES.find(x=>x.id===id);
+
+  const sgn=(v,d)=> (v>=0?'+':'')+v.toFixed(d);
+  const col=v=> v>0?'#ef5350':v<0?'#58a6ff':'#8b949e';
+  const N=(v,txt)=> '<span class="num" style="color:'+col(v)+'">'+txt+'</span>';
+  const fTxt = fSum==null ? '<span class="k">자료 없음</span>'
+             : N(fSum, (fSum>=0?'+':'-')+(Math.abs(fSum)>=10000 ? (Math.abs(fSum)/10000).toFixed(2)+'조' : Math.round(Math.abs(fSum)).toLocaleString()+'억'));
+
+  let h='<div class="fv"><div class="fv-h">[자금 흐름 종합] <span class="k" style="font-weight:400">최근 '
+       + DEP_FV_DAYS+'거래일 · '+String(base.date).slice(5).replace('-','/')+'~'+String(last.date).slice(5).replace('-','/')+'</span></div>';
+  h+='<div>예탁금 '+N(dP, sgn(dP,1)+'%')
+    + ' · 신용잔고 '+(cP==null?'—':N(cP, sgn(cP,1)+'%'))
+    + ' · 외국인 순매수 '+fTxt
+    + (kP!=null ? ' · 코스피 '+N(kP, sgn(kP,1)+'%') : '')+'</div>';
+  h+='<div class="fv-now" style="color:'+cs.c+'">▶ '+cs.t+'</div>';
+
+  // 주가 확인 — 거래대금 대신
+  if(kP!=null){
+    let t='';
+    if((id==='strong'||id==='frgn') && kP<0) t='다만 코스피는 오히려 내렸습니다. 들어온 돈이 아직 주가를 밀어 올리지 못하고 있습니다.';
+    else if(id==='heat' && kP<=0) t='주가가 오르지 않는데 빚만 늘고 있어 특히 위험합니다.';
+    else if(id==='out' && kP>0) t='주가는 올랐지만 받쳐 주는 돈이 빠지고 있어 오름세가 오래가기 어렵습니다.';
+    else if(id==='strong' && kP>0) t='코스피도 함께 올라 돈과 주가가 같은 방향입니다.';
+    if(t) h+='<div class="k">· '+t+'</div>';
+  }
+  if(F==null) h+='<div class="k">· 외국인 자료는 위 매매추이 그래프를 불러오면 함께 반영됩니다.</div>';
+
+  // 해석표 — 지금 국면을 강조
+  h+='<table class="fvt">';
+  DEP_FV_CASES.forEach(x=>{
+    h+='<tr'+(x.id===id?' class="on"':'')+'><td>'+x.cond+'</td><td>'+x.t+'</td></tr>';
+  });
+  h+='</table>';
+  h+='<div class="k" style="margin-top:4px">기준: 예탁금 ±'+DEP_BAND+'% · 외국인 ±'+(F_BAND/1000)+'천억 안은 변화 없음, 신용잔고 +3% 이상이면서 예탁금보다 빨리 늘면 급증</div>';
+  h+='</div>';
+  return h;
 }
 
 function depShowTip(i){
