@@ -1733,6 +1733,7 @@ function divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W){
     grp.get(id).tags.push(DIV_TAG[k]);
   }));
   if (!grp.size) return;
+  const labels = [];   // 글자는 잘라내기(clip) 밖에서 따로 그린다
   ctx.save();
   ctx.beginPath(); ctx.rect(PAD.l, PAD.t, W - PAD.l - PAD.r, ch); ctx.clip();
   grp.forEach(({ v, tags }) => {
@@ -1745,8 +1746,29 @@ function divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W){
     ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.setLineDash([5, 3]);
     ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = col; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'center';
-    ctx.fillText((bull ? '▲' : '▼') + tags.join(''), x2, bull ? y2 + 13 : y2 - 5);
+    labels.push({ txt:(bull ? '▲' : '▼') + tags.join(''), col, bull, x:x2, y:y2, yc:yOf(p2) });
+  });
+  ctx.restore();
+
+  /* 글자 자리 — 보통은 선 끝의 위(▼)·아래(▲).
+     위·아래 끝에 붙어 잘리면 캔들 오른쪽 옆(고가·저가 높이)에 적고,
+     오른쪽이 모자라면 왼쪽 옆에 적는다. */
+  ctx.save();
+  ctx.font = 'bold 11px monospace';
+  labels.forEach(L => {
+    const tw = ctx.measureText(L.txt).width;
+    let tx = L.x, ty = L.bull ? L.y + 13 : L.y - 5, al = 'center';
+    const clipped = L.bull ? (ty > PAD.t + ch) : (ty - 10 < PAD.t);
+    if (clipped) {
+      ty = Math.max(PAD.t + 10, Math.min(PAD.t + ch - 2, L.yc + 4));
+      if (L.x + 7 + tw <= W - PAD.r) { tx = L.x + 7; al = 'left'; }
+      else { tx = L.x - 7; al = 'right'; }
+    }
+    if (tx < PAD.l || tx > W - PAD.r) return;
+    ctx.textAlign = al;
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,17,23,0.85)';   // 캔들 위에서도 읽히게 테두리
+    ctx.strokeText(L.txt, tx, ty);
+    ctx.fillStyle = L.col; ctx.fillText(L.txt, tx, ty);
   });
   ctx.restore();
 }
@@ -4257,7 +4279,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-05c 고점저점 탐색 조합 · 다이버전스 표시';
+const KG_CHART_BUILD = '2026-10-05d 다이버전스 글자 — 위아래 끝이면 캔들 옆에 표시';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
