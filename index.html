@@ -1219,6 +1219,7 @@
  <section id="study">
   <div class="stu-bar">
    <button class="sf on" data-s="ind">투자지표</button>
+   <button class="sf" data-s="peak">고점과 저점탐색</button>
    <button class="sf" data-s="etc">기타</button>
   </div>
   <div id="stuInd" class="stu-doc">
@@ -1529,6 +1530,94 @@ DPS ÷ 배당수익률 = ?</code></pre>
 </table>
 
 <p class="foot">작성 기준: 국내 증권사 기업분석 리포트의 일반적인 재무제표·투자지표 표 형식</p>
+  </div>
+  <div id="stuPeak" class="stu-doc" style="display:none">
+   <h2>고점저점 탐색으로 고점·저점 찾는 법</h2>
+<p class="lead">차트 화면의 <b>🎯 고점저점 탐색</b> 조합은 주가와 보조지표가 서로 반대로 움직이는 <b>다이버전스</b>를 찾아 선과 ▲▼로 보여 줍니다. 아래 순서대로 보시면 됩니다.</p>
+
+<div class="note">
+<p><b>다이버전스란</b></p>
+<p>주가는 신고점을 찍었는데 지표는 고점을 낮추면 <b>하락 다이버전스</b>(오르는 힘이 빠짐 → 고점 신호),<br>
+주가는 신저점인데 지표는 저점을 높이면 <b>상승 다이버전스</b>(내리는 힘이 빠짐 → 저점 신호)입니다.</p>
+</div>
+
+<h3>1단계 — 조합 켜기</h3>
+<p>차트의 지표 메뉴에서 <b>🎯 고점저점 탐색</b>을 누릅니다. 주가 창에 이동평균이 켜지고, 아래에 보조차트가 다음 순서로 나옵니다. 일봉을 기본으로 보세요.</p>
+<table>
+<tr><th>자리</th><th>지표</th><th>⇄ 교대</th><th>역할</th></tr>
+<tr><td>1</td><td>MACD</td><td>—</td><td>중기 추세의 힘 — 큰 고점·저점</td></tr>
+<tr><td>2</td><td>RSI</td><td>SlowStoch</td><td>단기 모멘텀 — 확인과 진입 시점</td></tr>
+<tr><td>3</td><td>Elder Ray</td><td>—</td><td>추세 방향 + 매수·매도세의 힘</td></tr>
+<tr><td>4</td><td>MFI</td><td>PVT</td><td>거래량(돈의 흐름)으로 검증</td></tr>
+</table>
+
+<h3>2단계 — 주가 창에서 신호 찾기</h3>
+<p>먼저 주가 창의 <b>점선과 글자</b>를 봅니다.</p>
+<ul>
+<li><b>▼ 푸른 점선</b> (고점 쪽): 주가는 고점을 높였는데 지표는 낮아졌습니다. 오르는 힘이 빠지고 있습니다.</li>
+<li><b>▲ 붉은 점선</b> (저점 쪽): 주가는 저점을 낮췄는데 지표는 높아졌습니다. 내리는 힘이 빠지고 있습니다.</li>
+</ul>
+<p>▼▲ 뒤의 글자는 신호를 낸 지표입니다.</p>
+<table>
+<tr><th>글자</th><th>지표</th></tr>
+<tr><td>R</td><td>RSI</td></tr>
+<tr><td>S</td><td>SlowStoch</td></tr>
+<tr><td>M</td><td>MACD</td></tr>
+<tr><td>E</td><td>Elder Ray</td></tr>
+<tr><td>F</td><td>MFI</td></tr>
+</table>
+<p>캔들이 차트 맨 위·아래에 닿아 글자가 잘릴 자리면 캔들 오른쪽 옆에 적힙니다.</p>
+
+<h3>3단계 — 글자 수로 신뢰도 판단</h3>
+<table>
+<tr><th>글자</th><th>신뢰도</th><th>대응</th></tr>
+<tr><td>1개 (예: ▼E)</td><td>낮음</td><td>참고만 합니다</td></tr>
+<tr><td>2개 (예: ▼MF)</td><td>보통</td><td>주목합니다</td></tr>
+<tr><td>3개 이상 (예: ▼RME)</td><td>높음</td><td>고점·저점 가능성이 큽니다</td></tr>
+</table>
+<p>글자 수보다 <b>조합</b>이 더 중요합니다. <b>M(중기 힘)과 F(돈의 흐름)가 함께</b> 있으면 단기 지표끼리 겹친 것보다 무게가 큽니다. 예를 들어 고점에 <code>▼MF</code>가 붙으면 중기 힘과 거래 자금이 모두 빠지고 있다는 뜻입니다.</p>
+
+<h3>4단계 — 보조차트에서 하나씩 확인</h3>
+<p>같은 날짜의 보조차트 칸에서, 지표의 두 꼭지를 잇는 실선이 실제로 주가와 반대로 기울었는지 봅니다.</p>
+<ul>
+<li><b>MACD</b> — 히스토그램 꼭지를 잇는 선입니다. 중기 추세가 꺾이는지 봅니다.</li>
+<li><b>RSI</b> — 70 근처 고점, 30 근처 저점에서 나온 신호일수록 믿을 만합니다.</li>
+<li><b>Elder Ray</b> — 고점은 Bull Power(붉은 선), 저점은 Bear Power(푸른 선)로 봅니다. 신호가 13일 이동평균 방향과 맞는지 확인하세요. 상승 추세 중의 ▼는 일시 조정일 수 있습니다.</li>
+<li><b>MFI</b> — 돈이 실제로 빠지는지(들어오는지) 확인합니다.</li>
+</ul>
+
+<h3>5단계 — ⇄ 로 교대 지표까지 확인</h3>
+<ul>
+<li>RSI 칸의 <b>⇄</b>를 눌러 <b>SlowStoch</b>로 바꿔 봅니다. 같은 자리에 신호가 나오면 단기 시점이 더 분명해집니다.</li>
+<li>MFI 칸의 <b>⇄</b>로 <b>PVT</b>로 바꾸면, 거래량 기준의 다이버전스와 전고점·전저점 돌파 신호를 함께 볼 수 있습니다.</li>
+</ul>
+
+<h3>6단계 — 확인 신호를 기다린 뒤 행동</h3>
+<p>다이버전스는 "힘이 빠진다"는 <b>경고</b>이지, 바로 꺾인다는 뜻이 아닙니다. 아래 중 하나가 나온 뒤에 행동하세요.</p>
+<table>
+<tr><th>신호</th><th>확인 조건</th></tr>
+<tr><td>고점 쪽 ▼</td><td>주가가 5일·20일 이동평균 아래로 내려감, 또는 RSI가 70 아래로 내려옴</td></tr>
+<tr><td>저점 쪽 ▲</td><td>주가가 20일 이동평균 위로 올라섬, 또는 RSI가 30 위로 올라옴</td></tr>
+</table>
+
+<hr>
+
+<h2>알아 두실 점</h2>
+<h4>표시는 5거래일 늦게 나옵니다.</h4>
+<p>꼭지는 그 뒤 5봉이 지나야 확정되기 때문입니다. "정확한 꼭지에서 판다"가 아니라 <b>"꼭지를 지났음을 확인하고 대응한다"</b>는 도구로 쓰세요. 대신 한 번 나온 표시가 나중에 사라지지는 않습니다.</p>
+<h4>강한 추세에서는 신호가 여러 번 나옵니다.</h4>
+<p>고점 신호가 이어져도 주가가 버티는 경우가 많습니다. 이럴 때는 Elder Ray의 13일 이동평균 방향과 이평선 이탈 여부가 판단의 열쇠입니다.</p>
+<h4>과거 신호를 점검해 보세요.</h4>
+<p>차트를 앞뒤로 넘겨 그 종목에서 신호가 얼마나 잘 맞았는지 보면, 종목마다 믿을 만한 정도를 익힐 수 있습니다.</p>
+
+<h3>판정 기준 (앱에 들어 있는 규칙)</h3>
+<ul>
+<li>고점·저점 = 좌우 5봉보다 높거나 낮은 봉 (같은 가격이 이어지면 앞쪽 봉)</li>
+<li>두 꼭지 사이가 5~60봉일 때만 비교</li>
+<li>첫 꼭지가 과열·침체 쪽일 때만 — RSI·MFI 60/40, SlowStoch 70/30, MACD·Elder Ray 0 위/아래</li>
+<li>지표 차이가 작으면 잡음으로 버림 — 0~100 지표는 2 미만, MACD·Elder Ray는 첫 값의 5% 미만</li>
+</ul>
+<p class="foot">고점저점 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
   </div>
   <div id="stuEtc" class="stu-doc" style="display:none">
    <div class="stu-empty">아직 비어 있습니다.<br>여기에 넣을 내용을 알려주시면 채워 넣겠습니다.</div>
@@ -2281,11 +2370,12 @@ function renderWatch(){
 let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
-/* ---------- STUDY 하부메뉴 (투자지표 / 기타) ---------- */
+/* ---------- STUDY 하부메뉴 (투자지표 / 고점과 저점탐색 / 기타) ---------- */
 $$('.stu-bar .sf').forEach(b=>b.onclick=()=>{
   $$('.stu-bar .sf').forEach(x=>x.classList.toggle('on', x===b));
-  const ind=$('#stuInd'), etc=$('#stuEtc');
+  const ind=$('#stuInd'), peak=$('#stuPeak'), etc=$('#stuEtc');
   if(ind) ind.style.display = (b.dataset.s==='ind') ? '' : 'none';
+  if(peak) peak.style.display = (b.dataset.s==='peak') ? '' : 'none';
   if(etc) etc.style.display = (b.dataset.s==='etc') ? '' : 'none';
   window.scrollTo(0,0);
 });
