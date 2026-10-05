@@ -6352,10 +6352,14 @@ function myLocal(){
 }
 let _myLastErr='';
 /* 목록에 실제로 담긴 종목 수 — 덮어쓰기가 안전한지 판단하는 잣대 */
+function myCodeCount(a){
+  return Array.isArray(a)
+    ? a.filter(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()).length : 0;
+}
 function myCount(o){
   if(!o) return 0;
-  return ['long','add','watch','invpf','wait'].reduce(
-    (n,k)=> n + (Array.isArray(o[k]) ? o[k].length : 0), 0);
+  /* 빈 입력 줄(['',''])은 세지 않는다 — 비어 있는데도 종목이 있는 것처럼 보여 막지 못했다 */
+  return ['long','add','watch','invpf','wait'].reduce((n,k)=> n + myCodeCount(o[k]), 0);
 }
 /* 되살리기용 직전본 — 목록만 담아 가볍게 둔다(전망·해설은 뺀다) */
 function myBakOf(o){
@@ -6373,8 +6377,32 @@ async function myServerPut(loud){
   if(_myLoadErr && !loud){ console.warn('서버를 읽지 못해 자동 저장을 건너뜁니다'); return false; }
   try{
     // 기존 selpf 내용을 읽어 관심·보유 목록을 지우지 않고 mylists 칸만 갈아끼운다
-    const cur = (await selFetchKey(MY_SRV_KEY)) || {};
+    let cur;
+    try{ cur = (await selFetchKeyStrict(MY_SRV_KEY)) || {}; }
+    catch(e){
+      /* 서버를 읽지 못하면 저장하지 않는다 — 빈 상자로 서버 전체를 덮어쓰지 않도록 */
+      _myLastErr = '서버 읽기 실패: '+(e.message||e);
+      console.warn('저장 전 서버 읽기 실패 — 저장을 건너뜁니다:', e);
+      if(loud) toast('저장하지 못했습니다 — 서버를 읽지 못했습니다');
+      return false;
+    }
     const next = myLocal();
+    /* 관심·보유는 따로 지킨다.
+       이 기기가 서버와 한 번도 맞춘 적이 없는데(기록 삭제 직후 = kg_my_saved_at 없음)
+       목록이 비어 있으면, 지운 것이 아니라 '날아간 것'으로 보고 서버 것을 덮어쓰지 않는다.
+       앱에서 일부러 지운 경우는 맞춘 기록이 남아 있으므로 그대로 저장된다. */
+    {
+      const synced = (()=>{ try{ return !!localStorage.getItem('kg_my_saved_at'); }catch(e){ return false; } })();
+      const sv = cur[MY_FIELD] || {};
+      const lost = ['watch','invpf'].filter(k=> myCodeCount(sv[k])>0 && myCodeCount(next[k])===0);
+      if(!synced && lost.length){
+        const nm = lost.map(k=> (k==='watch'?'관심':'보유')+' '+myCodeCount(sv[k])+'종목').join(', ');
+        if(!loud){ console.warn('서버와 맞춘 적 없는 빈 목록 — 자동 저장을 막았습니다 ('+nm+')'); return false; }
+        if(!confirm('이 기기의 선정주 목록이 비어 있습니다 (서버에는 '+nm+').\n'
+                  + '기록 삭제 뒤라면 [취소] 를 누르고 앱을 새로 고쳐 서버에서 받아오세요.\n\n'
+                  + '정말 빈 목록으로 저장할까요?')){ toast('저장하지 않았습니다'); return false; }
+      }
+    }
     /* 빈 목록으로 덮어쓰기 막기.
        인터넷 사용기록을 지우면 이 기기의 저장 공간이 통째로 비는데,
        그 상태가 그대로 올라가면 다른 기기의 자료까지 사라진다. */
@@ -6487,7 +6515,12 @@ let _myLoadErr=false;   // 서버에서 받아오기가 실패했는가 (실패�
 async function myServerLoad(){
   if(!SRV_URL){ _myLoaded=true; return; }
   try{
-    const box = await selFetchKey(MY_SRV_KEY);
+    let box;
+    try{ box = await selFetchKeyStrict(MY_SRV_KEY); }
+    catch(e1){
+      await new Promise(r=>setTimeout(r,1500));          // 한 번 더 시도
+      box = await selFetchKeyStrict(MY_SRV_KEY);          // 또 실패하면 아래 catch 로 → 자동 저장 멈춤
+    }
     const o = box && box[MY_FIELD];
     if(o){
       const put=(k,v)=>{ if(v!=null){ try{ localStorage.setItem(k, JSON.stringify(v)) }catch(e){} } };
@@ -6533,9 +6566,24 @@ async function myServerLoad(){
         return Array.isArray(a) && a.some(r=>String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim()); }catch(e){ return false; } };
       const mySaved = (()=>{ try{ return localStorage.getItem('kg_my_saved_at')||''; }catch(e){ return ''; } })();
       const srvNewer = !!(o.savedAt && (!mySaved || o.savedAt > mySaved));
-      const takeIt = k => (!hasLocal(k) || srvNewer) && !localNewer;
-      if(Array.isArray(o.watch) && o.watch.length && takeIt('kg_watch_rows')) put('kg_watch_rows', o.watch);
-      if(Array.isArray(o.invpf) && o.invpf.length && takeIt('kg_invpf_rows')) put('kg_invpf_rows', o.invpf);
+      /* 기록 삭제 직후 — 이 기기에 '서버와 맞춘 기록'도 '바꾼 기록'도 없다.
+         앱에서 지운 것이 아니므로 비어 있는 목록은 서버 것으로 되살린다. */
+      const wiped = !mySaved && !chAt;
+      const takeIt = k => (!hasLocal(k) && wiped) || ((!hasLocal(k) || srvNewer) && !localNewer);
+      let revived = 0;
+      [['watch','kg_watch_rows'],['invpf','kg_invpf_rows']].forEach(([f,k])=>{
+        if(!(Array.isArray(o[f]) && myCodeCount(o[f]) && takeIt(k))) return;
+        if(!hasLocal(k)) revived += myCodeCount(o[f]);
+        put(k, o[f]);
+      });
+      if(revived){
+        /* 메모리에 남은 빈 목록을 버리고 표를 다시 그린다 (받아 놓고도 0 으로 보이지 않게) */
+        try{ _WATCH_ROWS_watch=null; _WATCH_ROWS_invpf=null; WATCH_ROWS=null; }catch(e){}
+        setTimeout(()=>{
+          try{ if(typeof selRefreshIfOpen==='function') selRefreshIfOpen(); }catch(e){}
+          try{ toast('서버에서 선정주 '+revived+'종목을 되살렸습니다'); }catch(e){}
+        }, 0);
+      }
       /* 차트 설정 — 서버 것이 더 나중일 때만 되돌려 놓는다 */
       try{
         if(o.chart && typeof o.chart==='object'){
@@ -6592,7 +6640,9 @@ const SEL_LEGACY_KEYS = ['watch_portfolio', 'watch', 'invpf_portfolio'];  // 구
 
 async function selSaveToServer(btn){
   if(!SRV_URL){ toast('서버 설정이 필요합니다'); return; }
-  const prev = (await selFetchKey(SEL_SRV_KEY)) || {};
+  let prev;
+  try{ prev = (await selFetchKeyStrict(SEL_SRV_KEY)) || {}; }
+  catch(e){ toast('저장하지 못했습니다 — 서버를 읽지 못했습니다'); return; }
   const payload = {
     watch:  selReadRows('kg_watch_rows'),
     invest: selReadRows('kg_invpf_rows'),
@@ -6615,6 +6665,16 @@ async function selSaveToServer(btn){
 }
 
 // KV 한 키에서 행 배열 꺼내기 ({rows:[...]} 또는 [...] 또는 {watch,invest} 모두 대응)
+/* 서버 읽기 (엄격판) — 받아오기 실패는 예외로 던진다.
+   selFetchKey 는 실패해도 null 을 돌려줘 '서버에 자료가 없다'와 구분이 안 됐다.
+   그 상태로 저장하면 서버의 멀쩡한 자료를 덮어쓴다. 저장·되살리기에는 이것을 쓴다. */
+async function selFetchKeyStrict(key){
+  const r = await fetch(SRV_URL+'/?data='+key, {cache:'no-store'});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+  const d = await r.json();
+  if(!d || !d.ok) throw new Error((d&&(d.error||d.message))||'응답 오류');
+  return d.value ? JSON.parse(d.value) : null;
+}
 async function selFetchKey(key){
   try{
     const r = await fetch(SRV_URL+'/?data='+key);
