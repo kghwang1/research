@@ -561,6 +561,12 @@
   /* 외국인 지분율 상위 — 순매수/순매도 표와 같은 .trank-tbl 형식을 그대로 쓴다 */
   .frank-tbl td.frank-d{padding:2px 0}
   .frank-tbl .frank-svg{display:inline-block;vertical-align:middle}
+  .frank-tbl .fp-tag{font-size:8.5px;padding:0 3px;margin-left:3px;border-radius:3px;background:#3a2f12;color:#e3b341;border:1px solid #5c4a1a;vertical-align:1px}
+  .frank-tbl .fp-real{color:#e3b341}
+  .frank-tbl .fp-ask{color:#6e7681;cursor:pointer;border-bottom:1px dotted #6e7681}
+  .frank-tbl .fp-ed{color:#4a5261;cursor:pointer;font-size:9px;margin-left:2px}
+  .frank-tbl tr.fp-struct .frank-svg{opacity:.35}
+  .frank-tbl tr.fp-sep td{text-align:left;font-size:9.5px;color:#e3b341;background:#1a1710;padding:4px 6px;border-top:1px solid #5c4a1a}
   .val-tbl td.al{text-align:left}
   /* 투자종목 스크리너: 순서(1열) 최소폭, 종목(2열) 이름/번호 2줄·최소폭 */
   .inv-tbl th:first-child,.inv-tbl td:first-child{min-width:24px!important;max-width:34px!important;width:30px!important;text-align:center!important;box-shadow:none!important;white-space:nowrap!important}
@@ -7870,7 +7876,108 @@ async function frgnFill(codeList, onProgress){
 
 /* ===== 외국인 지분율 상위 종목 ===== */
 const FRANK_N = 10;
+const FRGN_KEEP = 10;    // 대주주 외 외국인 지분이 이 이상이면 순위에 포함
+const FRANK_FETCH = 50;   // 워커 최대치   // 외국계를 빼고도 10종목을 채우도록 넉넉히 받는다
 let FRANK_DATA = null;
+
+/* 외국계 대주주 표 — 외국인 지분율이 '해외 투자자 매수'가 아니라 대주주 지분에서 나오는 종목.
+   실질 외국인 지분 = 외국인 지분율 − 대주주 지분. 지분(pct)은 DART 사업보고서 '최대주주 현황'의
+   값을 그대로 넣는다(짐작한 값 금지). 모르는 것은 null — 화면에서 ✎ 로 입력하면 이 기기에 저장된다.
+   kind: 'parent' 외국 회사가 최대주주 / 'foreignco' 회사 자체가 해외 법인(대주주 지분이 통째로 외국인) */
+const FRGN_PARENT_SEED = {   // 지분: DART 2025 사업보고서 '최대주주 현황'(외국계 몫만), 2026-10-09 기록
+  '010950':{nm:'S-Oil', who:'사우디 아람코(AOC B.V.)', kind:'parent', pct:63.43, memo:'특수관계인 포함'},
+  '003470':{nm:'유안타증권', who:'대만 유안타증권아시아', kind:'parent', pct:58.82, memo:'특수관계인 포함'},
+  '075180':{nm:'새론오토모티브', who:'일본 닛신보홀딩스', kind:'parent', pct:65.0},
+  '092440':{nm:'기신정기', who:'일본 후타바전자공업', kind:'parent', pct:60.89, memo:'본인만(특수관계인 70.38%는 국내 주주 포함)'},
+  '950210':{nm:'프레스티지바이오파마', who:'싱가포르 Mayson Partners 외', kind:'foreignco', pct:52.04, memo:'특수관계인 포함'},
+  '013360':{nm:'일성건설', who:'IB Capital Ltd', kind:'parent', pct:60.41, memo:'해외 법인 명의'},
+  '077500':{nm:'유니퀘스트', who:'임창완(외국인 등록 추정)', kind:'parent', pct:45.93, memo:'소액주주 43%로는 외국인 61%가 안 나와 외국인 등록으로 판단'},
+  '192650':{nm:'드림텍', who:'임창완(외국인 등록 추정)', kind:'parent', pct:33.89, memo:'유니퀘스트와 같은 대주주. 2026-01 신고 합계 39.65%'},
+  '002960':{nm:'한국쉘석유', who:'쉘(Shell Petroleum B.V.)', kind:'parent', pct:53.85},
+  '013870':{nm:'지엠비코리아', who:'일본 GMB', kind:'parent', pct:54.37, memo:'본인만(특수관계인 59.23%는 지분율보다 커서 국내 주주 포함)'},
+  '014440':{nm:'영보화학', who:'일본 세키스이화학', kind:'parent', pct:51.0},
+  '034950':{nm:'한국기업평가', who:'미국 피치', kind:'parent', pct:73.55},
+  '033200':{nm:'모아텍', who:'일본 미네베아미쓰미', kind:'parent', pct:50.85},
+  '900290':{nm:'GRT', who:'주영남 외(중국계 해외 법인)', kind:'foreignco', pct:50.8, memo:'특수관계인 포함'},
+  '376290':{nm:'씨유테크', who:'일본 리스타(Restar)', kind:'parent', pct:69.4},
+  '214150':{nm:'클래시스', who:'베인캐피탈(BCPE Centur)', kind:'parent', pct:54.16},
+  '900310':{nm:'컬러레이', who:'줘중비아오(중국계 해외 법인)', kind:'foreignco', pct:45.56},
+  '064760':{nm:'티씨케이', who:'일본 도카이카본', kind:'parent', pct:52.6},
+  '025770':{nm:'한국정보통신', who:'PRIMAX MANAGEMENT', kind:'parent', pct:21.2, memo:'특수관계인 PRIMAX 몫만. 최대주주 박헌서(21.54%)가 외국인 등록이면 합계 42.74%'},
+  '094860':{nm:'네오리진', who:'싱가포르 조이프렌드(중국 뮤조이)', kind:'parent', pct:16.65, memo:'특수관계인 포함'},
+  '069510':{nm:'에스텍', who:'일본 포스타전기', kind:'parent', pct:49.41},
+  '900260':{nm:'로스웰', who:'저우샹동 외(중국계 해외 법인)', kind:'foreignco', pct:25.82, memo:'특수관계인 포함'},
+  '145020':{nm:'휴젤', who:'Aphrodite Acquisition Holdings(GS 컨소시엄)', kind:'parent', pct:43.53, memo:'2026-08 대량보유 신고 45.58%'},
+  '042110':{nm:'에스씨디', who:'일본 니덱 인스트루먼츠', kind:'parent', pct:51.42},
+  '052790':{nm:'액토즈소프트', who:'중국 샨다(Shengqu Technology)', kind:'parent', pct:51.1},
+  '288330':{nm:'파라택시스코리아', who:'미국 Parataxis 계열 LLC', kind:'parent', pct:50.35, memo:'Parataxis 4개 법인 합(국내 임원 지분 제외)'},
+  '025900':{nm:'동화기업', who:'Dongwha International', kind:'parent', pct:49.06, memo:'본인만'},
+  '223250':{nm:'드림씨아이에스', who:'중국 타이거메드(홍콩)', kind:'parent', pct:59.34, memo:'대주주 지분이 외국인 지분율보다 큼 — 원문 확인 필요'},
+  '303030':{nm:'지니틱스', who:'Halo Microelectronics', kind:'parent', pct:47.62, memo:'2026-04 대량보유 신고 기준(2025말 33.28%)'},
+  '071280':{nm:'로체시스템즈', who:'일본 Rorze International', kind:'parent', pct:40.14, memo:'본인만'},
+  '106190':{nm:'하이텍팜', who:'이탈리아 ACS Dobfar 외', kind:'parent', pct:42.53, memo:'ACS Dobfar 39.57% + Falciani 2.96%'},
+  '130580':{nm:'나이스디앤비', who:'싱가포르 Phillip Capital', kind:'parent', pct:26.62, memo:'최대주주 NICE홀딩스(국내)의 특수관계인 몫'},
+  '123410':{nm:'코리아에프티', who:'이탈리아 SIS S.R.L.', kind:'parent', pct:34.91, memo:'본인만'},
+  '900270':{nm:'헝셩그룹', who:'중국계 해외 법인', kind:'foreignco', pct:null, memo:'자료를 못 받음 — ✎로 입력'}
+};
+const FRGN_PARENT_KEY = 'frgn_parent_v1';
+function frgnParentUser(){ try{ return JSON.parse(localStorage.getItem(FRGN_PARENT_KEY)||'{}')||{}; }catch(e){ return {}; } }
+// 기기에 저장한 값이 씨앗보다 우선. 이름으로도 찾는다(코드가 바뀌어도 맞도록)
+function frgnParentOf(code, name){
+  const u = frgnParentUser();
+  if(u[code]) return u[code].off ? null : Object.assign({}, FRGN_PARENT_SEED[code]||{}, u[code]);
+  if(FRGN_PARENT_SEED[code]) return FRGN_PARENT_SEED[code];
+  const nm = String(name||'').trim();
+  for(const k in FRGN_PARENT_SEED){ if(FRGN_PARENT_SEED[k].nm===nm) return FRGN_PARENT_SEED[k]; }
+  return null;
+}
+// 실질 외국인 지분과 해석 단계
+function frgnReal(ratio, fp){
+  if(!fp || fp.pct==null || ratio==null) return null;
+  const r = Math.max(0, +ratio - +fp.pct);
+  const lv = r < 1 ? 'noise' : (r < 5 ? 'weak' : 'ok');
+  return {r, lv};
+}
+/* 순위 나누기 — 외국계 대주주 종목을 빼고 위에서 10개(main),
+   그 10개 범위 안에서 빠진 외국계 종목(ex, 원래 순위 rk 를 붙임)을 뒤에 둔다 */
+function frankSplit(rows){
+  /* 실질 지분 순 — 일반 종목은 지분율 그대로, 외국계 대주주 종목은 대주주 외 지분(실질)으로 줄을 세운다.
+     실질이 FRGN_KEEP(%) 미만이거나 대주주 지분을 모르는 외국계 종목은 순위에서 빼고(ex),
+     그중 전체 지분율이 10위의 실질 지분 이상이라 원래라면 보였을 것만 아래에 따로 보인다. */
+  const all = [];
+  (rows||[]).forEach((row,i)=>{
+    const r = Object.assign({rk:i+1}, row);
+    const fp = frgnParentOf(String(row.code||''), row.name);
+    if(!fp){ r.eff = (row.ratio!=null ? +row.ratio : -1); all.push(r); return; }
+    const rl = frgnReal(row.ratio, fp);
+    // 대주주 외 외국인이 FRGN_KEEP(%) 미만이거나 대주주 지분을 모르면 표에서 아예 뺀다
+    if(rl && rl.r >= FRGN_KEEP){ r.eff = rl.r; all.push(r); }
+  });
+  all.sort((x,y)=>y.eff-x.eff);
+  const main = all.slice(0, FRANK_N);
+  // 순위에 못 든 외국계 종목 전부 — 실질 지분 큰 순, 대주주 지분을 모르는 것은 맨 뒤
+  // 10위 밖으로 밀린 외국계 종목(실질 FRGN_KEEP% 이상) — 실질 지분 큰 순
+  const ex = all.slice(FRANK_N).filter(r=>frgnParentOf(String(r.code||''), r.name));
+  return {main, ex};
+}
+function frgnParentEdit(code, name){
+  const fp = frgnParentOf(code, name) || {};
+  const cur = fp.who ? (fp.who + (fp.pct!=null ? ','+fp.pct : '')) : '';
+  const v = prompt(name+' — 외국계 대주주 이름,지분(%)\n예) 닛신보,65\nDART 사업보고서의 최대주주 현황 값을 넣으세요.\n외국계 대주주가 아니면 "없음", 기본값으로 되돌리려면 빈칸', cur);
+  if(v===null) return;
+  const u = frgnParentUser(), t = v.trim();
+  if(!t) delete u[code];
+  else if(t==='없음') u[code] = {off:true};
+  else {
+    const m = t.split(/[,，]/);
+    const who = (m[0]||'').trim() || fp.who || '외국계';
+    const pct = m.length>1 && m[1].trim()!=='' ? parseFloat(m[1]) : null;
+    if(pct!=null && !(isFinite(pct) && pct>=0 && pct<=100)){ alert('지분은 0~100 사이 숫자로 넣어 주세요'); return; }
+    u[code] = {nm:name, who, kind:fp.kind||'parent', pct};
+  }
+  try{ localStorage.setItem(FRGN_PARENT_KEY, JSON.stringify(u)); }catch(e){}
+  renderFrank();
+}
 let frankBound = false;
 
 function frankBind(){
@@ -7885,7 +7992,7 @@ async function loadFrank(force){
   if(!force && FRANK_DATA){ renderFrank(); frankEnrich(); return; }
   if(!force){
     try{
-      const o = JSON.parse(localStorage.getItem('frank_v1') || 'null');
+      const o = JSON.parse(localStorage.getItem('frank_v2') || 'null');
       // 지분율은 하루 1회 갱신되는 자료라 1시간은 그대로 다시 쓴다
       if(o && o.data && (Date.now()-(o.ts||0) < 60*60*1000)){ FRANK_DATA=o.data; renderFrank(); frankEnrich(); return; }
     }catch(e){}
@@ -7894,11 +8001,11 @@ async function loadFrank(force){
   if(rb) rb.disabled = true;
   renderFrank();
   try{
-    const r = await fetch(SRV_URL+'/?frank=1&n='+FRANK_N+(force?'&fresh=1':''), {cache:'no-store'});
+    const r = await fetch(SRV_URL+'/?frank=1&n='+FRANK_FETCH+(force?'&fresh=1':''), {cache:'no-store'});
     const j = await r.json();
     if(!j || !j.ok) throw new Error('bad');
     FRANK_DATA = j;
-    try{ localStorage.setItem('frank_v1', JSON.stringify({ts:Date.now(), data:j})); }catch(e){}
+    try{ localStorage.setItem('frank_v2', JSON.stringify({ts:Date.now(), data:j})); }catch(e){}
     renderFrank(); frankEnrich();
   }catch(e){
     if(note) note.textContent = '지분율 순위 자료를 불러오지 못했습니다.';
@@ -7943,25 +8050,56 @@ function frankRatioCell(row){
   const dv = (rr && rr.diff!=null) ? rr.diff : null;
   const sub = (dv==null || Math.abs(dv)<0.005) ? ''
     : '<span class="sub '+(dv>0?'trank-up':'trank-dn')+'">'+(dv>0?'+':'')+dv.toFixed(2)+'</span>';
-  return '<td>'+v.toFixed(1)+'%'+sub+'</td>';
+  const code = String((row&&row.code)||''), nm = String((row&&row.name)||'').replace(/'/g,'');
+  const fp = frgnParentOf(code, row&&row.name);
+  let real = '';
+  if(fp){
+    const rl = frgnReal(v, fp);
+    if(rl){
+      const tip = fp.who+' '+(+fp.pct).toFixed(1)+'% 제외'+(fp.memo?' ('+fp.memo+')':'')+' · '+(rl.lv==='noise'?'외국인 수급 의미 없음':rl.lv==='weak'?'소수 펀드 수준 — 연속성만 참고':'일반 종목처럼 해석 가능');
+      real = '<span class="sub fp-real" title="'+escHtml(tip)+'" style="cursor:pointer" onclick="frgnParentEdit(\''+code+'\',\''+nm+'\')">실질 '+rl.r.toFixed(1)+'%</span>';
+    } else {
+      real = '<span class="sub fp-ask" title="'+escHtml(fp.who)+' 지분을 넣으면 실질 지분을 계산합니다" onclick="frgnParentEdit(\''+code+'\',\''+nm+'\')">대주주 지분 ✎</span>';
+    }
+  } else {
+    real = '<span class="fp-ed" title="외국계 대주주 입력" onclick="frgnParentEdit(\''+code+'\',\''+nm+'\')">✎</span>';
+  }
+  // 순위에 남긴 외국계 종목은 대주주 외 지분(실질)을 큰 글씨로, 전체 지분율은 아래 작게
+  const rk = fp ? frgnReal(v, fp) : null;
+  if(rk){
+    const tip = '대주주 외 외국인 '+rk.r.toFixed(1)+'% · 전체 '+v.toFixed(1)+'% 중 '+fp.who+' '+(+fp.pct).toFixed(1)+'%'+(fp.memo?' ('+fp.memo+')':'');
+    return '<td><span class="fp-real" title="'+escHtml(tip)+'" style="cursor:pointer" onclick="frgnParentEdit(\''+code+'\',\''+nm+'\')">'+rk.r.toFixed(1)+'%</span>'
+         + '<span class="sub dim">전체 '+v.toFixed(1)+'%</span>'+sub+'</td>';
+  }
+  return '<td>'+v.toFixed(1)+'%'+real+sub+'</td>';
 }
 
 function frankTable(mkt){
   const rows = ((FRANK_DATA||{})[mkt]) || [];
   if(!rows.length) return '<div class="trank-note">'+(FRANK_DATA?'자료 없음':'불러오는 중…')+'</div>';
   let body = '';
-  rows.slice(0, FRANK_N).forEach((row,i)=>{
+  const sp = frankSplit(rows);
+  const line = (row, rkHtml)=>{
     const code = String(row.code||'');
     const nm = escHtml(row.name || code);
     const link = '<a href="#" onclick="openChart(\''+code+'\',\''+String(row.name||'').replace(/'/g,'')+'\');return false">'+nm+'</a>';
-    body += '<tr><td>'+(i+1)+'</td><td class="nm">'+link+'</td>'
+    const fp = frgnParentOf(code, row.name);
+    const rl = frgnReal(row.ratio, fp);
+    const tag = fp ? '<span class="fp-tag" title="'+escHtml(fp.who)+(fp.kind==='foreignco'?' — 해외 법인 상장':' — 외국계 최대주주')+'">'+(fp.kind==='foreignco'?'해외법인':'외국계')+'</span>' : '';
+    const cls = (fp && (!rl || rl.lv==='noise')) ? ' class="fp-struct"' : '';
+    body += '<tr'+cls+'><td>'+rkHtml+'</td><td class="nm">'+link+tag+'</td>'
           + frankRatioCell(row) + trankPriceCell(row, true) + frankDaysCell(code) + '</tr>';
-  });
+  };
+  sp.main.forEach((row,i)=>line(row, String(i+1)));
+  if(sp.ex.length){
+    body += '<tr class="fp-sep"><td colspan="5">외국계 대주주 종목 — 실질 지분 '+FRGN_KEEP+'% 이상이지만 10위 밖 (괄호는 전체 지분율 순위)</td></tr>';
+    sp.ex.forEach(row=>line(row, '<span class="dim">('+row.rk+')</span>'));
+  }
   const d = (FRANK_DATA && FRANK_DATA.date)
     ? '<span class="hd">'+String(FRANK_DATA.date).slice(5)+'</span>' : '';
   return '<table class="trank-tbl frank-tbl">'
     + '<colgroup><col style="width:9%"><col style="width:27%"><col style="width:17%"><col style="width:21%"><col style="width:26%"></colgroup>'
-    + '<thead><tr><th>순위</th><th>종목'+d+'</th><th>지분율</th><th>주가</th><th>매수매도일</th></tr></thead>'
+    + '<thead><tr><th>순위</th><th>종목'+d+'</th><th>실질 지분</th><th>주가</th><th>매수매도일</th></tr></thead>'
     + '<tbody>'+body+'</tbody></table>';
 }
 
@@ -7974,8 +8112,9 @@ function renderFrank(){
   if(tm) tm.textContent = (FRANK_DATA && FRANK_DATA.date) ? (FRANK_DATA.date+' 기준') : '';
   const note = document.getElementById('frankNote');
   if(note && FRANK_DATA){
-    note.textContent = '외국인 지분율 높은 순 '+FRANK_N+'종목 · 지분율은 보유비율(%)과 전일 대비 변동'
+    note.textContent = '외국인 지분율 높은 순 '+FRANK_N+'종목을 실질 지분 순으로 · 외국계 대주주 종목은 대주주 몫을 뺀 실질 지분(노란 글씨)으로 줄을 세우고, 실질이 '+FRGN_KEEP+'% 미만인 외국계 종목은 표에서 뺍니다 · 지분율은 보유비율(%)과 전일 대비 변동'
       + ' · 매수매도일은 최근 7거래일 외국인 순매매로, 중앙선 위 빨강은 순매수·아래 파랑은 순매도이며 수량과 무관하게 한 칸으로 그립니다'
+      + ' · 외국계/해외법인 꼬리표는 외국인 지분이 대주주 몫인 종목이며, 실질 = 지분율 − 대주주 지분(1% 미만이면 외국인 수급 무시, 1~5%는 참고만). ✎ 로 대주주 지분을 넣거나 고칠 수 있습니다'
       + (FRANK_DATA.source==='naver' ? ' · KRX 자료를 받지 못해 네이버 시총 상위 500종목에서 추렸습니다' : '');
   }
 }
@@ -7984,7 +8123,8 @@ async function frankEnrich(){
   if(!FRANK_DATA) return;
   const codes = [];
   ['kospi','kosdaq'].forEach(m=>{
-    (FRANK_DATA[m]||[]).slice(0, FRANK_N).forEach(x=>{ const c=String(x.code||''); if(c.length===6) codes.push(c); });
+    const sp = frankSplit(FRANK_DATA[m]);
+    sp.main.concat(sp.ex).forEach(x=>{ const c=String(x.code||''); if(c.length===6) codes.push(c); });
   });
   await frgnFill(codes, renderFrank);
 }
@@ -17211,7 +17351,7 @@ function ftrendSrc(){
   let td = (typeof TRANK_DATA!=='undefined') ? TRANK_DATA : null;
   let fd = (typeof FRANK_DATA!=='undefined') ? FRANK_DATA : null;
   if(!td){ try{ const o=JSON.parse(localStorage.getItem('trank_v3')||'null'); if(o&&o.data) td=o.data; }catch(e){} }
-  if(!fd){ try{ const o=JSON.parse(localStorage.getItem('frank_v1')||'null'); if(o&&o.data) fd=o.data; }catch(e){} }
+  if(!fd){ try{ const o=JSON.parse(localStorage.getItem('frank_v2')||'null'); if(o&&o.data) fd=o.data; }catch(e){} }
   return {td, fd};
 }
 function ftrendGroups(){
@@ -17229,7 +17369,8 @@ function ftrendGroups(){
     });
   });
   ['kospi','kosdaq'].forEach(m=>{
-    const rows = pick((fd||{})[m], FRANK_N);
+    const sp = frankSplit((fd||{})[m]);
+    const rows = pick(sp.main, FRANK_N);
     if(rows.length) out.push({label:'지분율 상위 · '+MK[m], rows});
   });
   return out;
