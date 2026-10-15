@@ -4303,7 +4303,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-15f 다이버전스 — 지수 대비 효과 · 선정주에 결과 표시';
+const KG_CHART_BUILD = '2026-10-15g 다이버전스 — 조건별 적중도 비교';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5261,8 +5261,30 @@ async function divScanFetch(it){
   return null;
 }
 
+/* 조건별 비교 (2026-10-15) — 신호 확정일에 이미 알 수 있는 것만 쓴다
+   all   전체
+   n3    같은 꼭지에서 지표 3개 이상
+   conf  20일선 확인 — ▲ 는 확정 뒤 20거래일 안에 종가가 20일선 위로 올라선 날, ▼ 는 아래로 내려선 날 진입
+   trend 큰 흐름 — ▲ 는 120일선 위(상승 추세 속 눌림), ▼ 는 120일선 아래(하락 추세 속 반등)
+   deep  깊은 과열·침체 — 꼭지 앞뒤 2봉 RSI 가 ▲ 30 이하 / ▼ 70 이상
+   ct    20일선 확인 + 큰 흐름 */
+const DIVSCAN_CONDS = [
+  ['all',   '전체'],
+  ['n3',    '지표 3개+'],
+  ['conf',  '20일선 확인 뒤'],
+  ['trend', '큰 흐름(120일선)'],
+  ['deep',  '깊은 과열·침체(RSI)'],
+  ['ct',    '확인 + 큰 흐름'],
+];
+const DIVSCAN_CONF_WAIT = 20;   // 20일선 확인을 기다리는 최대 거래일
+function divScanSma(d, n){
+  const out = new Array(d.length).fill(null); let s = 0;
+  for (let i = 0; i < d.length; i++) { s += d[i].close; if (i >= n) s -= d[i - n].close; if (i >= n - 1) out[i] = s / n; }
+  return out;
+}
+
 /* 한 종목 분석 — 같은 꼭지(종류·두 번째 꼭지 봉)에서 난 신호는 지표 글자를 모아 하나로 본다.
-   idx = { K:{날짜→코스피 종가}, Q:{날짜→코스닥 종가} } — 신호 뒤 같은 기간 지수 등락을 함께 잰다 */
+   idx = { K:{날짜→코스피 종가}, Q:{날짜→코스닥 종가} } — 진입일부터 같은 기간 지수 등락을 함께 잰다 */
 function divScanOne(d, idx){
   const N = d.length, groups = new Map();
   DIVSCAN_KEYS.forEach(k => {
@@ -5279,37 +5301,70 @@ function divScanOne(d, idx){
   const sigs = [...groups.values()]
     .map(g => ({ type:g.type, b:g.b, t:g.b + DIV_L, tags:g.tags.sort((x, y) => order.indexOf(x) - order.indexOf(y)).join('') }))
     .filter(g => g.t < N);
+  const s20 = divScanSma(d, 20), s120 = divScanSma(d, 120);
+  let rsi = []; try { rsi = (CALC.RSI(d) || {}).rsi || []; } catch(e) {}
+  /* 조건 판정 — conf 는 진입일(없으면 -1: 실패, null: 아직 기다리는 중) */
+  const featOf = g => {
+    const bull = g.type === 'bull';
+    const tr = s120[g.t] != null && (bull ? d[g.t].close > s120[g.t] : d[g.t].close < s120[g.t]);
+    let dp = false;
+    for (let k = Math.max(0, g.b - 2); k <= Math.min(N - 1, g.b + 2); k++) {
+      const v = rsi[k]; if (v == null) continue;
+      if (bull ? v <= 30 : v >= 70) { dp = true; break; }
+    }
+    let ce = -1;
+    for (let j = g.t; j <= g.t + DIVSCAN_CONF_WAIT; j++) {
+      if (j >= N) { ce = null; break; }            // 아직 기다리는 중
+      if (s20[j] != null && (bull ? d[j].close > s20[j] : d[j].close < s20[j])) { ce = j; break; }
+    }
+    return { n3: g.tags.length >= 3, trend: tr, deep: dp, conf: ce };
+  };
   const iret = (m, a, b) => (m && m[a] && m[b]) ? (m[b] / m[a] - 1) * 100 : null;
-  const ev = sigs.map(g => {
-    const p0 = d[g.t].close, r = {}, rk = {}, rq = {};
+  const retFrom = e => {
+    const p0 = d[e].close, r = {}, rk = {}, rq = {};
     DIVSCAN_HZ.forEach(h => {
-      if (g.t + h >= N) return;
-      r[h] = (d[g.t + h].close / p0 - 1) * 100;
-      if (idx) { rk[h] = iret(idx.K, d[g.t].date, d[g.t + h].date); rq[h] = iret(idx.Q, d[g.t].date, d[g.t + h].date); }
+      if (e + h >= N) return;
+      r[h] = (d[e + h].close / p0 - 1) * 100;
+      if (idx) { rk[h] = iret(idx.K, d[e].date, d[e + h].date); rq[h] = iret(idx.Q, d[e].date, d[e + h].date); }
     });
-    return { type:g.type, n:g.tags.length, r, rk, rq };
-  });
+    return { r, rk, rq };
+  };
+  const ev = [];
+  const recent = [];
   const last = d[N - 1];
-  const recent = sigs.filter(g => N - 1 - g.t < DIVSCAN_RECENT).map(g => ({
-    type:g.type, tags:g.tags, date:d[g.t].date, piv:d[g.b].date, ago:N - 1 - g.t,
-    p0:d[g.t].close, chg:(last.close / d[g.t].close - 1) * 100,
-  }));
+  sigs.forEach(g => {
+    const f = featOf(g);
+    const atT = retFrom(g.t);
+    const push = (cat, rr) => ev.push(Object.assign({ type:g.type, cat }, rr));
+    push('all', atT);
+    if (f.n3) push('n3', atT);
+    if (f.trend) push('trend', atT);
+    if (f.deep) push('deep', atT);
+    if (f.conf != null && f.conf >= 0) { const atC = retFrom(f.conf); push('conf', atC); if (f.trend) push('ct', atC); }
+    if (N - 1 - g.t < DIVSCAN_RECENT) recent.push({
+      type:g.type, tags:g.tags, date:d[g.t].date, piv:d[g.b].date, ago:N - 1 - g.t,
+      p0:d[g.t].close, chg:(last.close / d[g.t].close - 1) * 100,
+      n3:f.n3, trend:f.trend, deep:f.deep,
+      conf: f.conf == null ? 'wait' : (f.conf < 0 ? 'no' : d[f.conf].date),
+    });
+  });
   return { ev, recent, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
 }
 
 /* 신호 뒤 h일 — 종목 평균 등락, 그리고 같은 기간 코스피·코스닥 지수와 비교한 초과 등락.
-   원자재는 지수 비교가 맞지 않아 이 표에서 뺀다 (종목만) */
+   조건(cat)마다 따로 모은다. 원자재는 지수 비교가 맞지 않아 뺀다 (종목만) */
 function divScanStats(all){
   const z = () => ({ s:0, c:0, w:0 });
-  const mk = () => { const o = {}; DIVSCAN_HZ.forEach(h => o[h] = { raw:z(), K:z(), Q:z(), own:z() }); return o; };
-  const S = { bull:mk(), bear:mk() };
+  const mkH = () => { const o = {}; DIVSCAN_HZ.forEach(h => o[h] = { raw:z(), K:z(), Q:z(), own:z() }); return o; };
+  const S = { bull:{}, bear:{} };
+  DIVSCAN_CONDS.forEach(([c]) => { S.bull[c] = mkH(); S.bear[c] = mkH(); });
   let from = null, to = null;
   all.forEach(x => {
     if (x.mk === '원자재') return;
     if (!from || x.from < from) from = x.from;
     if (!to || x.lastDate > to) to = x.lastDate;
     x.ev.forEach(e => {
-      const bull = e.type === 'bull', R = S[e.type];
+      const bull = e.type === 'bull', R = S[e.type][e.cat]; if (!R) return;
       DIVSCAN_HZ.forEach(h => {
         const v = e.r[h]; if (v == null) return;
         const A = R[h];
@@ -5321,39 +5376,51 @@ function divScanStats(all){
     });
   });
   const fin = A => A.c ? { avg:A.s / A.c, win:A.w / A.c * 100, n:A.c } : null;
-  const out = { from, to };
-  ['bull', 'bear'].forEach(t => {
-    out[t] = {};
-    DIVSCAN_HZ.forEach(h => { const A = S[t][h]; out[t][h] = { raw:fin(A.raw), K:fin(A.K), Q:fin(A.Q), own:fin(A.own) }; });
-  });
+  const out = { v:3, from, to, bull:{}, bear:{} };
+  ['bull', 'bear'].forEach(t => DIVSCAN_CONDS.forEach(([c]) => {
+    out[t][c] = {};
+    DIVSCAN_HZ.forEach(h => { const A = S[t][c][h]; out[t][c][h] = { raw:fin(A.raw), K:fin(A.K), Q:fin(A.Q), own:fin(A.own) }; });
+  }));
   return out;
 }
 
-/* 표의 숫자를 사람 말로 — 제 시장 지수보다 가장 크게 앞선(▼은 뒤처진) 날을 찾는다 */
+/* 표의 숫자를 사람 말로 — ① 전체 신호가 제 시장 지수보다 가장 크게 앞선 날
+   ② 2주(10일) 뒤 기준으로 어느 조건이 가장 나았나 */
 function divScanVerdict(st){
+  const H2 = 10;
   const line = (t) => {
-    const bull = t === 'bull', R = st[t];
-    if (!R) return '';
+    const bull = t === 'bull', nm = bull ? '▲ 저점' : '▼ 고점';
+    const R = st[t] && st[t].all; if (!R) return [];
+    const out = [];
     let best = null;
     DIVSCAN_HZ.forEach(h => {
       const o = R[h] && R[h].own; if (!o || o.n < 20) return;
       const edge = bull ? o.avg : -o.avg;
       if (!best || edge > best.edge) best = { h, edge, win:o.win };
     });
-    const nm = bull ? '▲ 저점' : '▼ 고점';
-    if (!best) return nm + ' 신호가 적어 아직 판단하기 이릅니다.';
-    if (best.edge < 0.3) return nm + ' 신호 뒤 종목은 같은 기간 지수와 큰 차이가 없었습니다 (최대 ' + best.edge.toFixed(2) + '%p).';
-    const lastH = DIVSCAN_HZ[DIVSCAN_HZ.length - 1];
-    const lo = R[lastH] && R[lastH].own;
-    let s = nm + ' 신호 뒤 종목은 같은 기간 제 시장 지수보다 ' + best.h + '일째에 가장 크게 ' + (bull ? '더 올랐습니다' : '덜 올랐습니다')
-          + ' (' + best.edge.toFixed(2) + '%p, ' + (bull ? '지수를 이긴' : '지수보다 약했던') + ' 비율 ' + Math.round(best.win) + '%).';
-    if (lo && best.h < lastH) {
-      const e2 = bull ? lo.avg : -lo.avg;
-      s += ' ' + lastH + '일째에는 ' + (e2 > 0.05 ? e2.toFixed(2) + '%p 로 줄었습니다.' : '차이가 사라졌습니다.');
+    if (!best) out.push(nm + ' 신호가 적어 아직 판단하기 이릅니다.');
+    else if (best.edge < 0.3) out.push(nm + ' 전체: 신호 뒤 종목은 같은 기간 지수와 큰 차이가 없었습니다 (가장 나은 날도 ' + Math.abs(best.edge).toFixed(2) + '%p 안쪽).');
+    else out.push(nm + ' 전체: 제 시장 지수보다 ' + best.h + '일째에 가장 크게 ' + (bull ? '더 올랐습니다' : '덜 올랐습니다') + ' (' + (bull ? '+' : '-') + best.edge.toFixed(2) + '%p, ' + (bull ? '이김 ' : '약함 ') + Math.round(best.win) + '%).');
+    /* 2주 뒤 조건 비교 */
+    const base = R[H2] && R[H2].own;
+    let top = null;
+    DIVSCAN_CONDS.forEach(([c, lbl]) => {
+      if (c === 'all') return;
+      const o = st[t][c] && st[t][c][H2] && st[t][c][H2].own; if (!o || o.n < 30) return;
+      const edge = bull ? o.avg : -o.avg;
+      if (!top || edge > top.edge) top = { c, lbl, edge, win:o.win, n:o.n };
+    });
+    if (top && base) {
+      const be = bull ? base.avg : -base.avg;
+      /* 표에 적힌 실제 값으로 말한다 — ▼ 은 지수보다 덜 오를수록(음수일수록) 맞은 것 */
+      const sv = v => { const a = bull ? v : -v; return (a >= 0 ? '+' : '') + a.toFixed(2) + '%p'; };
+      if (top.edge > be + 0.2) out.push('　2주 뒤 기준으로는 「' + top.lbl + '」 조건이 가장 나았습니다: 지수 대비 ' + sv(top.edge) + ', '
+        + (bull ? '이김 ' : '약함 ') + Math.round(top.win) + '% (' + top.n + '건) — 전체는 ' + sv(be) + ', ' + Math.round(base.win) + '%.');
+      else out.push('　2주 뒤 기준으로 조건을 붙여도 전체보다 뚜렷하게 나은 것이 없었습니다.');
     }
-    return s;
+    return out;
   };
-  return [line('bull'), line('bear')];
+  return line('bull').concat(line('bear'));
 }
 
 /* ── 화면 ── */
@@ -5392,7 +5459,10 @@ body.ds-embed #divscan{position:static;overflow:visible;padding:8px 2px 12px}
 #divscan .sm{font-size:10px}
 #divscan .ds-say{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px 10px;line-height:1.6;margin:6px 0}
 #divscan .ds-note{color:#8b949e;font-size:11px;line-height:1.6;margin-top:8px}
-#divscan .ds-empty{color:#6e7681;padding:8px 2px}`;
+#divscan .ds-empty{color:#6e7681;padding:8px 2px}
+#divscan .bd{display:inline-block;font:600 9.5px -apple-system,'Malgun Gothic',sans-serif;color:#c9d1d9;background:#21262d;border:1px solid #30363d;border-radius:4px;padding:0 3px;margin-left:2px;vertical-align:1px}
+#divscan .bd.bk{color:#3fb950;border-color:#238636}
+#divscan .bd.bw{color:#8b949e}`;
   document.head.appendChild(st);
 }
 function divScanEsc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
@@ -5414,6 +5484,15 @@ function divScanFit(){
   } catch(e) {}
 }
 
+/* 최근 신호에 붙이는 조건 표시 — 3+ · 흐름 · 깊음 · 확인(✓ 됨 / … 기다림) */
+function divScanBadges(x){
+  if (!('trend' in x)) return '';
+  const b = (on, t, tip) => on ? ' <span class="bd" title="' + tip + '">' + t + '</span>' : '';
+  const cf = x.conf === 'wait' ? ' <span class="bd bw" title="아직 20일선을 넘지 않음 — 확인 기다리는 중">확인…</span>'
+           : x.conf && x.conf !== 'no' ? ' <span class="bd bk" title="' + divScanEsc(x.conf) + ' 에 20일선 확인">확인✓</span>' : '';
+  return b(x.n3, '3+', '지표 3개 이상') + b(x.trend, '흐름', x.type === 'bull' ? '120일선 위 (상승 추세 속)' : '120일선 아래 (하락 추세 속)')
+       + b(x.deep, '깊음', x.type === 'bull' ? 'RSI 30 이하에서 남' : 'RSI 70 이상에서 남') + cf;
+}
 function divScanRender(res){
   const box = document.getElementById('ds-out');
   if (!box) return;
@@ -5426,7 +5505,7 @@ function divScanRender(res){
     rows.forEach(x => {
       h += '<tr class="ds-row" data-code="' + divScanEsc(x.code) + '" data-name="' + divScanEsc(x.name) + '">'
          + '<td class="l"><span class="nm">' + divScanEsc(x.name) + '</span><span class="mk">' + divScanEsc(x.mk) + '</span></td>'
-         + '<td class="l tg ' + (type === 'bull' ? 'up' : 'dn') + '">' + (type === 'bull' ? '▲' : '▼') + divScanEsc(x.tags) + '</td>'
+         + '<td class="l tg ' + (type === 'bull' ? 'up' : 'dn') + '">' + (type === 'bull' ? '▲' : '▼') + divScanEsc(x.tags) + divScanBadges(x) + '</td>'
          + '<td>' + divScanEsc(String(x.date).slice(5)) + '</td>'
          + '<td>' + (x.ago === 0 ? '오늘' : x.ago + '일') + '</td>'
          + '<td>' + divScanPct(x.chg, true) + '</td>'
@@ -5436,22 +5515,27 @@ function divScanRender(res){
   };
   const st = res.stats;
   let stH = '';
-  if (st && st.bull && st.bull[DIVSCAN_HZ[0]] && 'K' in st.bull[DIVSCAN_HZ[0]]) {
-    const rawRow = (lbl, t) => {
-      let h = '<tr><td class="l">' + lbl + '</td>';
-      DIVSCAN_HZ.forEach(hz => { const z = st[t][hz] && st[t][hz].raw;
-        h += '<td>' + (z ? divScanPct(z.avg, true) + '<br><span class="mu sm">' + (t === 'bull' ? '오름 ' : '내림 ') + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>') + '</td>'; });
-      const n = st[t][DIVSCAN_HZ[0]] && st[t][DIVSCAN_HZ[0]].raw ? st[t][DIVSCAN_HZ[0]].raw.n : 0;
-      return h + '<td class="mu">' + n.toLocaleString() + '</td></tr>';
+  if (st && st.v === 3) {
+    const cell = (z, t, unit, lbl) => z ? divScanPct(z.avg, true, unit) + '<br><span class="mu sm">' + lbl + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>';
+    const head = '<tr><th class="l">신호 뒤</th>' + DIVSCAN_HZ.map(h => '<th>' + h + '일</th>').join('') + '<th>건수</th></tr>';
+    /* 표 ① 전체 신호 — 종목 등락과 코스피·코스닥 대비 */
+    const rawRow = (lbl, t) => '<tr><td class="l">' + lbl + '</td>' + DIVSCAN_HZ.map(h => '<td>' + cell(st[t].all[h] && st[t].all[h].raw, t, '%', t === 'bull' ? '오름 ' : '내림 ') + '</td>').join('')
+      + '<td class="mu">' + ((st[t].all[DIVSCAN_HZ[0]].raw || {}).n || 0).toLocaleString() + '</td></tr>';
+    const exRow = (lbl, t, k) => '<tr class="ds-sub"><td class="l">' + lbl + '</td>' + DIVSCAN_HZ.map(h => '<td>' + cell(st[t].all[h] && st[t].all[h][k], t, '%p', t === 'bull' ? '이김 ' : '약함 ') + '</td>').join('')
+      + '<td class="mu">' + ((st[t].all[DIVSCAN_HZ[0]][k] || {}).n || 0).toLocaleString() + '</td></tr>';
+    /* 표 ② 조건별 — 제 시장 지수 대비 */
+    const condTable = (t) => {
+      let h = '<div class="ds-wrap"><table>' + head;
+      DIVSCAN_CONDS.forEach(([c, lbl]) => {
+        const R = st[t][c];
+        const n0 = R && R[DIVSCAN_HZ[0]] && R[DIVSCAN_HZ[0]].own ? R[DIVSCAN_HZ[0]].own.n : 0;
+        h += '<tr' + (c === 'all' ? '' : ' class="ds-sub"') + '><td class="l">' + (c === 'all' ? '<b>' + lbl + '</b>' : lbl) + '</td>'
+           + DIVSCAN_HZ.map(hz => '<td>' + cell(R && R[hz] && R[hz].own, t, '%p', t === 'bull' ? '이김 ' : '약함 ') + '</td>').join('')
+           + '<td class="mu">' + n0.toLocaleString() + '</td></tr>';
+      });
+      return h + '</table></div>';
     };
-    const exRow = (lbl, t, k) => {
-      let h = '<tr class="ds-sub"><td class="l">' + lbl + '</td>';
-      DIVSCAN_HZ.forEach(hz => { const z = st[t][hz] && st[t][hz][k];
-        h += '<td>' + (z ? divScanPct(z.avg, true, '%p') + '<br><span class="mu sm">' + (t === 'bull' ? '이김 ' : '약함 ') + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>') + '</td>'; });
-      const n = st[t][DIVSCAN_HZ[0]] && st[t][DIVSCAN_HZ[0]][k] ? st[t][DIVSCAN_HZ[0]][k].n : 0;
-      return h + '<td class="mu">' + n.toLocaleString() + '</td></tr>';
-    };
-    stH = '<div class="ds-wrap"><table><tr><th class="l">신호 뒤</th>' + DIVSCAN_HZ.map(h => '<th>' + h + '일</th>').join('') + '<th>건수</th></tr>'
+    stH = '<div class="ds-wrap"><table>' + head
         + rawRow('<span class="up">▲ 저점 · 종목 등락</span>', 'bull')
         + exRow('코스피 지수 대비', 'bull', 'K')
         + exRow('코스닥 지수 대비', 'bull', 'Q')
@@ -5459,13 +5543,16 @@ function divScanRender(res){
         + exRow('코스피 지수 대비', 'bear', 'K')
         + exRow('코스닥 지수 대비', 'bear', 'Q')
         + '</table></div>'
+        + '<h3>조건을 붙이면 나아지나 — 제 시장 지수 대비</h3>'
+        + '<div class="ds-note" style="margin:0 0 4px">▲ 저점</div>' + condTable('bull')
+        + '<div class="ds-note" style="margin:8px 0 4px">▼ 고점</div>' + condTable('bear')
         + '<div class="ds-say">' + divScanVerdict(st).map(divScanEsc).join('<br>') + '</div>'
-        + '<div class="ds-note">· 기간: ' + divScanEsc(st.from || '') + ' ~ ' + divScanEsc(st.to || '') + ' · 신호가 확정된 날 종가에 샀다고 보고, 같은 날부터 같은 기간의 지수 등락을 뺀 값입니다 (국내 종목만, 원자재 제외).<br>'
-        + '· <b>지수 대비</b> +면 지수보다 더 올랐다(덜 내렸다)는 뜻 · <b>이김</b> = ▲ 신호 종목이 지수보다 더 오른 비율 · <b>약함</b> = ▼ 신호 종목이 지수보다 덜 오른 비율.<br>'
-        + '· 아래 결론은 종목마다 제 시장 지수(코스피 종목은 코스피, 코스닥 종목은 코스닥)와 비교한 값으로 냅니다. 시장을 모르는 포트 종목은 코스피와 비교합니다.<br>'
-        + '· 지금 지수에 든 종목으로만 재므로(그 사이 빠진 종목은 없음) 실제보다 조금 좋게 나올 수 있고, 같은 시기 신호끼리는 함께 움직여 건수만큼 믿을 만하지는 않습니다.</div>';
+        + '<div class="ds-note">· 기간: ' + divScanEsc(st.from || '') + ' ~ ' + divScanEsc(st.to || '') + ' · 신호가 확정된 날(20일선 확인은 확인된 날) 종가에 샀다고 보고, 같은 날부터 같은 기간의 지수 등락을 뺀 값입니다 (국내 종목만, 원자재 제외).<br>'
+        + '· <b>지수 대비</b> +면 지수보다 더 올랐다(덜 내렸다)는 뜻 · <b>이김</b> = ▲ 종목이 지수보다 더 오른 비율 · <b>약함</b> = ▼ 종목이 지수보다 덜 오른 비율. 조건표는 종목마다 제 시장 지수(코스피·코스닥)와 비교합니다.<br>'
+        + '· 조건: <b>지표 3개+</b> 같은 꼭지에서 3개 이상 엇갈림 · <b>20일선 확인</b> 확정 뒤 ' + DIVSCAN_CONF_WAIT + '거래일 안에 종가가 20일선을 넘어선(▼ 은 밑돈) 날 진입, 끝내 못 넘은 신호는 빠짐 · <b>큰 흐름</b> ▲ 은 120일선 위, ▼ 은 120일선 아래 · <b>깊은 과열·침체</b> 꼭지 근처 RSI ▲ 30 이하 / ▼ 70 이상.<br>'
+        + '· 지금 지수에 든 종목으로만 재므로(그 사이 빠진 종목은 없음) 실제보다 조금 좋게 나올 수 있고, 같은 시기 신호끼리는 함께 움직여 건수만큼 믿을 만하지는 않습니다. 건수가 적은 칸(수십 건)은 우연이 크게 섞입니다.</div>';
   } else if (st) {
-    stH = '<div class="ds-empty">예전 방식으로 낸 통계입니다. [찾기]를 다시 누르면 지수와 비교한 표로 바뀝니다.</div>';
+    stH = '<div class="ds-empty">예전 방식으로 낸 통계입니다. [찾기]를 다시 누르면 지수·조건별로 비교한 표로 바뀝니다.</div>';
   }
   const failH = res.fail && res.fail.length
     ? '<div class="ds-note">자료를 못 받은 종목 ' + res.fail.length + '개: ' + divScanEsc(res.fail.slice(0, 12).join(', ')) + (res.fail.length > 12 ? ' …' : '') + '</div>' : '';
