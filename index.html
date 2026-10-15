@@ -1075,7 +1075,7 @@
  <div class="wrap">
   <div class="brand">
    <h1>KG리서치<b>보드</b></h1>
-   <span class="dt" id="today"></span>
+   <span class="dt" id="today" style="color:#f0a836" title="앱 버전 — 월.일.-v그날 몇 번째 교체"></span><!-- 색: 시황 그래프 코스닥 선(IDX3 kosdaq)과 같은 #f0a836 -->
   </div>
   <div class="mk-bar">
    <button class="mk-refresh" id="mkRefresh">↻ 새로고침</button>
@@ -1180,10 +1180,6 @@
 
  <!-- ===== MARKET (시황) ===== -->
  <section class="on" id="market">
-  <!-- 앱 이름 · 버전 (홈 화면에만) — 버전 = 월.일.-v그날 몇 번째 교체 (KG_APP_VER) -->
-  <div id="homeVer" style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 12px 2px;font-size:12px">
-    <b style="color:#f2c800">KG리서치보드</b><span style="color:#8b949e">버전 <span id="homeVerNo"></span></span>
-  </div>
 
   <!-- 코스피·코스닥·선물 흐름 비교 -->
   <div class="idx3-pair">
@@ -2009,8 +2005,7 @@ const num=n=>n||n===0?Number(n).toLocaleString('ko-KR'):'-';
 const todayISO=()=>new Date().toISOString().slice(0,10);
 
 // date header
-(()=>{const d=new Date();const w=['일','월','화','수','목','금','토'][d.getDay()];
- $('#today').textContent=`${d.getMonth()+1}.${d.getDate()} (${w})`;})();
+/* 날짜는 쓰지 않는다 — 그 자리에 앱 버전을 쓴다 (KG_APP_VER 정의 바로 아래에서, 2026-10-15) */
 
 /* ---------- storage ---------- */
 let REPORTS=[], WATCH=[];
@@ -14794,11 +14789,12 @@ const FCST_SEED = {
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
-   홈 화면 맨 위에만 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.15.-v12';
-const KG_APP_BUILD = KG_APP_VER + ' 버전 홈 표시';
+   맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
+const KG_APP_VER = '10.15.-v14';
+const KG_APP_BUILD = KG_APP_VER + ' 버전 글자색 = 코스닥 선';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
-document.addEventListener('DOMContentLoaded', ()=>{ const v=document.getElementById('homeVerNo'); if(v) v.textContent=KG_APP_VER; });
+try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
+
 
 const FTS_KEY='kg_fcst_ts';
 function ftsAll(){
