@@ -989,6 +989,9 @@ function init() {
 
   // URL 파라미터로 종목 자동 로드
   const params = new URLSearchParams(location.search);
+  if (params.get('divscan')) { divScanPage(); return; }   // 다이버전스 종목 찾기 화면
+  /* 다이버전스 목록에서 열면 ▲▼ 가 보이도록 고점저점 탐색 조합으로 */
+  if (params.get('div') && comboMode() !== 'peak') applyCombo(PEAK_COMBO.slice(), 'peak');
   const urlCode = params.get('code');
   const urlName = params.get('name');
   if (urlCode) {
@@ -1645,8 +1648,8 @@ const DIV_L = 5, DIV_MIN = 5, DIV_MAX = 60;
 const DIV_UP = '#ff5252', DIV_DN = '#4da3ff';
 const DIV_TAG = { RSI:'R', SLOWSTOCH:'S', MACD:'M', ELDER:'E', MFI:'F' };
 function divOn(){ return comboMode() === 'peak'; }
-function divFind(key){
-  const d = state.data;
+function divFind(key, dd){
+  const d = dd || state.data;      // dd: 다이버전스 종목 찾기가 다른 종목 자료를 넘길 때
   if (!d || d.length < 30 || !CALC[key] || !DIV_TAG[key]) return [];
   const r = CALC[key](d);
   let hiA, loA, hiOk, loOk;
@@ -4279,7 +4282,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-15a MFI⇄외국인순매수';
+const KG_CHART_BUILD = '2026-10-15b 다이버전스 종목 찾기';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5150,6 +5153,342 @@ window.addEventListener('orientationchange', () => setTimeout(renderAll, 250));
 // 시작!
 window.addEventListener('pageshow', () => { if (state.data && state.data.length) renderAll(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && state.data && state.data.length) renderAll(); });
+/* ═══════════════════════════════════════════════════════════════
+   다이버전스 종목 찾기 (kg-chart.html?divscan=1) — 2026-10-15
+   · 코스피200 · 코스닥100 · 주요 원자재의 일봉을 받아,
+     차트의 고점저점 탐색과 똑같은 divFind 로 다이버전스를 찾는다
+   · 신호가 '확정'되는 날 = 두 번째 꼭지 뒤 DIV_L 봉 (그래야 꼭지인 줄 안다)
+   · 최근 DIVSCAN_RECENT 거래일 안에 확정된 신호를 목록으로 보이고,
+     지난 자료 전체의 신호마다 1~20일 뒤 등락을 재어 '아무 날 산 경우'와 비교한다
+   · 결과는 하루 단위로 localStorage(kg_div_scan)에 두고, 부모창 왼쪽 목록이 읽는다
+   ═══════════════════════════════════════════════════════════════ */
+const DIVSCAN_KEY = 'kg_div_scan';
+const DIVSCAN_OPT = 'kg_div_scan_opt';
+const DIVSCAN_KEYS = ['RSI', 'SLOWSTOCH', 'MACD', 'ELDER', 'MFI'];
+const DIVSCAN_RECENT = 10;                 // 최근 10거래일(2주) 안에 확정된 신호
+const DIVSCAN_HZ = [1, 3, 5, 10, 15, 20];  // 신호 뒤 며칠째 등락을 볼지
+/* 개인이 국내 ETF·해외선물 등으로 투자하기 쉬운 주요 원자재 (야후 선물 연결 시세) */
+const DIVSCAN_CMDTY = [
+  ['GC=F', '금'], ['SI=F', '은'], ['HG=F', '구리'], ['PL=F', '백금'],
+  ['CL=F', 'WTI 원유'], ['BZ=F', '브렌트유'], ['NG=F', '천연가스'],
+  ['ZC=F', '옥수수'], ['ZS=F', '대두'], ['ZW=F', '밀'],
+];
+const DIVSCAN_TAGNAME = { R:'RSI', S:'SlowStoch', M:'MACD', E:'Elder Ray', F:'MFI' };
+
+function divScanSleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function divScanYmd(){ const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0'); }
+function divScanLoad(){ try { const o = JSON.parse(localStorage.getItem(DIVSCAN_KEY) || 'null'); return o && o.recent ? o : null; } catch(e) { return null; } }
+function divScanOpt(){
+  try { const o = JSON.parse(localStorage.getItem(DIVSCAN_OPT) || 'null'); if (o) return o; } catch(e) {}
+  return { kospi:true, kosdaq:true, cmdty:true };
+}
+
+/* 종목 목록 — 코스피200·코스닥100 은 워커의 시총 상위 목록 */
+async function divScanUniverse(opt){
+  const out = [];
+  const grab = async (q, mk, n) => {
+    for (let t = 0; t < 2; t++) {
+      try {
+        const r = await fetch(`${WORKER}/?${q}=${n}`, { cache:'no-store' });
+        const j = await r.json();
+        if (j && j.items && j.items.length) { j.items.forEach(x => out.push({ code:String(x.code), name:x.name || x.code, mk })); return true; }
+      } catch(e) {}
+      await divScanSleep(800);
+    }
+    return false;
+  };
+  const miss = [];
+  if (opt.kospi  && !(await grab('kospi',  '코스피', 200))) miss.push('코스피200 목록');
+  if (opt.kosdaq && !(await grab('kosdaq', '코스닥', 100))) miss.push('코스닥100 목록');
+  if (opt.cmdty) DIVSCAN_CMDTY.forEach(([c, n]) => out.push({ code:c, name:n, mk:'원자재' }));
+  const seen = new Set();
+  return { list: out.filter(x => seen.has(x.code) ? false : (seen.add(x.code), true)), miss };
+}
+
+/* 일봉 받기 — 국내는 차트와 같은 네이버(days=1000: 워커 캐시를 차트와 함께 쓴다), 원자재는 야후 */
+async function divScanFetch(it){
+  const u = it.mk === '원자재'
+    ? `${WORKER}/?yahooChart=${encodeURIComponent(it.code)}&range=3y&interval=1d`
+    : `${WORKER}/?naverChart=${it.code}&timeframe=day&days=1000`;
+  for (let t = 0; t < 3; t++) {
+    try {
+      const r = await fetch(u, { cache:'no-store' });
+      if (r.ok) {
+        const j = await r.json();
+        const d = j && j.ok ? (j.data || j.ohlcv) : null;
+        if (d && d.length >= 60) return d.filter(x => x && x.close > 0 && x.high > 0 && x.low > 0);
+        if (j && j.ok === false && !/40\d|5\d\d/.test(String(j.status || j.error || ''))) return null;
+      }
+    } catch(e) {}
+    await divScanSleep(700 * (t + 1));
+  }
+  return null;
+}
+
+/* 한 종목 분석 — 같은 꼭지(종류·두 번째 꼭지 봉)에서 난 신호는 지표 글자를 모아 하나로 본다 */
+function divScanOne(d){
+  const N = d.length, groups = new Map();
+  DIVSCAN_KEYS.forEach(k => {
+    let list = [];
+    try { list = divFind(k, d); } catch(e) {}
+    list.forEach(v => {
+      const id = v.type + '|' + v.b;
+      if (!groups.has(id)) groups.set(id, { type:v.type, b:v.b, tags:[] });
+      const g = groups.get(id);
+      if (!g.tags.includes(DIV_TAG[k])) g.tags.push(DIV_TAG[k]);
+    });
+  });
+  const order = 'RSMEF';
+  const sigs = [...groups.values()]
+    .map(g => ({ type:g.type, b:g.b, t:g.b + DIV_L, tags:g.tags.sort((x, y) => order.indexOf(x) - order.indexOf(y)).join('') }))
+    .filter(g => g.t < N);
+  const ev = sigs.map(g => {
+    const p0 = d[g.t].close, r = {};
+    DIVSCAN_HZ.forEach(h => { if (g.t + h < N) r[h] = (d[g.t + h].close / p0 - 1) * 100; });
+    return { type:g.type, n:g.tags.length, r };
+  });
+  /* 기준 = 아무 날이나 샀을 때 (지표가 자리 잡는 앞 30봉은 뺀다) */
+  const base = {};
+  DIVSCAN_HZ.forEach(h => {
+    let s = 0, c = 0, up = 0;
+    for (let i = 30; i + h < N; i++) { const x = (d[i + h].close / d[i].close - 1) * 100; s += x; c++; if (x > 0) up++; }
+    base[h] = { s, c, up };
+  });
+  const last = d[N - 1];
+  const recent = sigs.filter(g => N - 1 - g.t < DIVSCAN_RECENT).map(g => ({
+    type:g.type, tags:g.tags, date:d[g.t].date, piv:d[g.b].date, ago:N - 1 - g.t,
+    p0:d[g.t].close, chg:(last.close / d[g.t].close - 1) * 100,
+  }));
+  return { ev, base, recent, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
+}
+
+/* 여러 종목의 신호 결과를 모아 '며칠 뒤 평균 등락·맞은 비율'로 정리 */
+function divScanStats(all){
+  const mk = () => { const o = {}; DIVSCAN_HZ.forEach(h => o[h] = { s:0, c:0, w:0 }); return o; };
+  const S = { bull:mk(), bull2:mk(), bear:mk(), bear2:mk(), base:mk() };
+  let from = null, to = null;
+  all.forEach(x => {
+    if (!from || x.from < from) from = x.from;
+    if (!to || x.lastDate > to) to = x.lastDate;
+    x.ev.forEach(e => {
+      const rows = [S[e.type]]; if (e.n >= 2) rows.push(S[e.type + '2']);
+      DIVSCAN_HZ.forEach(h => {
+        const v = e.r[h]; if (v == null) return;
+        rows.forEach(R => { R[h].s += v; R[h].c++; if (e.type === 'bull' ? v > 0 : v < 0) R[h].w++; });
+      });
+    });
+    DIVSCAN_HZ.forEach(h => { const b = x.base[h]; S.base[h].s += b.s; S.base[h].c += b.c; S.base[h].w += b.up; });
+  });
+  const fin = R => { const o = {}; DIVSCAN_HZ.forEach(h => { const z = R[h]; o[h] = z.c ? { avg:z.s / z.c, win:z.w / z.c * 100, n:z.c } : null; }); return o; };
+  return { bull:fin(S.bull), bull2:fin(S.bull2), bear:fin(S.bear), bear2:fin(S.bear2), base:fin(S.base), from, to };
+}
+
+/* 표의 숫자를 사람 말로 — 신호 뒤가 '아무 날'보다 가장 크게 벌어지는 날을 찾는다 */
+function divScanVerdict(st){
+  const line = (key, bull) => {
+    const R = st[key], B = st.base;
+    let best = null;
+    DIVSCAN_HZ.forEach(h => {
+      if (!R[h] || !B[h] || R[h].n < 20) return;
+      const edge = bull ? R[h].avg - B[h].avg : B[h].avg - R[h].avg;
+      if (!best || edge > best.edge) best = { h, edge };
+    });
+    if (!best) return (bull ? '▲' : '▼') + ' 신호가 적어 아직 판단하기 이릅니다.';
+    const lastH = DIVSCAN_HZ[DIVSCAN_HZ.length - 1];
+    const tail = R[lastH] && B[lastH] ? (bull ? R[lastH].avg - B[lastH].avg : B[lastH].avg - R[lastH].avg) : null;
+    if (best.edge < 0.3) return (bull ? '▲ 저점' : '▼ 고점') + ' 신호 뒤 등락은 아무 날 산 경우와 큰 차이가 없었습니다 (최대 ' + best.edge.toFixed(2) + '%p).';
+    let s = (bull ? '▲ 저점 신호 뒤에는 아무 날보다 ' : '▼ 고점 신호 뒤에는 아무 날보다 ') + best.h + '일째에 가장 크게 '
+          + (bull ? '더 올랐습니다' : '덜 올랐습니다(더 내렸습니다)') + ' (' + best.edge.toFixed(2) + '%p).';
+    if (tail != null && best.h < lastH) s += ' ' + lastH + '일째에는 차이가 ' + (tail > 0 ? tail.toFixed(2) + '%p 로 줄었습니다.' : '사라졌습니다.');
+    return s;
+  };
+  return [line('bull', true), line('bear', false)];
+}
+
+/* ── 화면 ── */
+function divScanCss(){
+  const st = document.createElement('style');
+  st.textContent = `
+#divscan{position:fixed;inset:0;z-index:99999;background:#0d1117;color:#e6edf3;overflow-y:auto;font-family:-apple-system,'Malgun Gothic',sans-serif;font-size:12px;padding:12px 14px 40px}
+#divscan h2{font-size:15px;margin:0 0 6px;color:#f0a836}
+#divscan h3{font-size:13px;margin:16px 0 6px}
+#divscan .ds-bar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px}
+#divscan .ds-bar label{display:flex;gap:3px;align-items:center;cursor:pointer;color:#c9d1d9}
+#divscan button{background:#8957e5;color:#fff;border:0;border-radius:6px;padding:5px 12px;font-weight:700;cursor:pointer;font-size:12px}
+#divscan button:disabled{opacity:.5;cursor:default}
+#divscan .ds-meta{color:#8b949e;font-size:11px}
+#divscan .ds-prog{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin:6px 0}
+#divscan .ds-prog i{display:block;height:100%;width:0;background:#8957e5;transition:width .2s}
+#divscan .ds-wrap{overflow-x:auto}
+#divscan table{border-collapse:collapse;width:100%;min-width:340px}
+#divscan th,#divscan td{padding:5px 6px;border-bottom:1px solid #21262d;text-align:right;white-space:nowrap}
+#divscan th{color:#8b949e;font-weight:600;font-size:11px;background:#161b22}
+#divscan td.l,#divscan th.l{text-align:left}
+#divscan tr.ds-row{cursor:pointer}
+#divscan tr.ds-row:hover td{background:#161b22}
+#divscan .nm{font-weight:700}
+#divscan .mk{color:#6e7681;font-size:10px;margin-left:4px}
+#divscan .tg{font-family:monospace;font-weight:700}
+#divscan .up{color:#ff6b6b}
+#divscan .dn{color:#4da3ff}
+#divscan .mu{color:#6e7681}
+#divscan .ds-say{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px 10px;line-height:1.6;margin:6px 0}
+#divscan .ds-note{color:#8b949e;font-size:11px;line-height:1.6;margin-top:8px}
+#divscan .ds-empty{color:#6e7681;padding:8px 2px}`;
+  document.head.appendChild(st);
+}
+function divScanEsc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
+function divScanPct(v, signed){
+  if (v == null || !isFinite(v)) return '<span class="mu">-</span>';
+  const cls = v > 0 ? 'up' : v < 0 ? 'dn' : 'mu';
+  return '<span class="' + cls + '">' + (signed && v > 0 ? '+' : '') + v.toFixed(2) + '%</span>';
+}
+function divScanPrice(v){
+  if (v == null) return '-';
+  return v >= 1000 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(2) : v.toFixed(3);
+}
+
+function divScanRender(res){
+  const box = document.getElementById('ds-out');
+  if (!box) return;
+  if (!res) { box.innerHTML = '<div class="ds-empty">아직 찾은 결과가 없습니다. [찾기]를 누르세요.</div>'; return; }
+  const sigTable = (type) => {
+    const rows = res.recent.filter(x => x.type === type)
+      .sort((a, b) => (b.tags.length - a.tags.length) || (a.ago - b.ago));
+    if (!rows.length) return '<div class="ds-empty">최근 ' + DIVSCAN_RECENT + '거래일 안에 확정된 신호가 없습니다.</div>';
+    let h = '<div class="ds-wrap"><table><tr><th class="l">종목</th><th class="l">지표</th><th>확정일</th><th>지난 날</th><th>확정 뒤</th><th>현재가</th></tr>';
+    rows.forEach(x => {
+      h += '<tr class="ds-row" data-code="' + divScanEsc(x.code) + '" data-name="' + divScanEsc(x.name) + '">'
+         + '<td class="l"><span class="nm">' + divScanEsc(x.name) + '</span><span class="mk">' + divScanEsc(x.mk) + '</span></td>'
+         + '<td class="l tg ' + (type === 'bull' ? 'up' : 'dn') + '">' + (type === 'bull' ? '▲' : '▼') + divScanEsc(x.tags) + '</td>'
+         + '<td>' + divScanEsc(String(x.date).slice(5)) + '</td>'
+         + '<td>' + (x.ago === 0 ? '오늘' : x.ago + '일') + '</td>'
+         + '<td>' + divScanPct(x.chg, true) + '</td>'
+         + '<td>' + divScanPrice(x.last) + '</td></tr>';
+    });
+    return h + '</table></div>';
+  };
+  const st = res.stats;
+  let stH = '';
+  if (st) {
+    const rowOf = (lbl, R, isBear) => {
+      let h = '<tr><td class="l">' + lbl + '</td>';
+      DIVSCAN_HZ.forEach(hz => {
+        const z = R && R[hz];
+        h += '<td>' + (z ? divScanPct(z.avg, true) + '<br><span class="mu">' + (isBear === null ? '오름 ' : '맞음 ') + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>') + '</td>';
+      });
+      const n = R && R[DIVSCAN_HZ[0]] ? R[DIVSCAN_HZ[0]].n : 0;
+      return h + '<td class="mu">' + n.toLocaleString() + '</td></tr>';
+    };
+    stH = '<div class="ds-wrap"><table><tr><th class="l">신호 뒤</th>' + DIVSCAN_HZ.map(h => '<th>' + h + '일</th>').join('') + '<th>건수</th></tr>'
+        + rowOf('<span class="up">▲ 저점</span>', st.bull, false)
+        + rowOf('<span class="up">▲ 지표 2개+</span>', st.bull2, false)
+        + rowOf('<span class="dn">▼ 고점</span>', st.bear, true)
+        + rowOf('<span class="dn">▼ 지표 2개+</span>', st.bear2, true)
+        + rowOf('아무 날 (기준)', st.base, null)
+        + '</table></div>'
+        + '<div class="ds-say">' + divScanVerdict(st).map(divScanEsc).join('<br>') + '</div>'
+        + '<div class="ds-note">· 기간: ' + divScanEsc(st.from || '') + ' ~ ' + divScanEsc(st.to || '') + ' · 신호가 확정된 날 종가에 샀다고 보고 잰 등락의 평균입니다.<br>'
+        + '· <b>맞음</b> = ▲ 는 오른 비율, ▼ 는 내린 비율 · <b>오름</b> = 아무 날 산 경우 오른 비율.<br>'
+        + '· 지금 지수에 든 종목으로만 재므로(그 사이 빠진 종목은 없음) 실제보다 조금 좋게 나올 수 있고, 같은 시기 신호끼리는 함께 움직여 건수만큼 믿을 만하지는 않습니다.</div>';
+  }
+  const failH = res.fail && res.fail.length
+    ? '<div class="ds-note">자료를 못 받은 종목 ' + res.fail.length + '개: ' + divScanEsc(res.fail.slice(0, 12).join(', ')) + (res.fail.length > 12 ? ' …' : '') + '</div>' : '';
+  const missH = res.miss && res.miss.length ? '<div class="ds-note" style="color:#f0a836">' + divScanEsc(res.miss.join(', ')) + '을(를) 받지 못해 빠졌습니다.</div>' : '';
+  box.innerHTML =
+      '<h3 class="up">▲ 저점 다이버전스 — 반등 후보</h3>' + sigTable('bull')
+    + '<h3 class="dn">▼ 고점 다이버전스 — 하락 경계</h3>' + sigTable('bear')
+    + '<h3>신호 효과는 며칠 가나 — 지난 자료로 잰 결과</h3>' + (stH || '<div class="ds-empty">통계가 없습니다.</div>')
+    + missH + failH
+    + '<div class="ds-note">· 지표 글자: R=RSI · S=SlowStoch · M=MACD · E=Elder Ray · F=MFI. 글자가 많을수록 여러 지표가 같은 꼭지에서 엇갈린 것입니다.<br>'
+    + '· 확정일 = 두 번째 꼭지 뒤 ' + DIV_L + '거래일 — 그날이 지나야 꼭지인 줄 알 수 있어 차트의 ▲▼ 보다 늦게 잡힙니다.<br>'
+    + '· 장중에는 오늘 봉이 아직 움직이므로 결과가 바뀔 수 있습니다. 종목을 누르면 고점저점 탐색 조합으로 차트가 열립니다.</div>';
+  box.querySelectorAll('tr.ds-row').forEach(tr => tr.onclick = () => divScanOpen(tr.dataset.code, tr.dataset.name));
+}
+
+function divScanOpen(code, name){
+  try { if (window.parent && window.parent !== window && typeof window.parent.chartOpenFromDiv === 'function') { window.parent.chartOpenFromDiv(code, name); return; } } catch(e) {}
+  location.href = 'kg-chart.html?code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name) + '&div=1';
+}
+
+let divScanBusy = false;
+async function divScanRun(){
+  if (divScanBusy) return;
+  divScanBusy = true;
+  const opt = {
+    kospi:  document.getElementById('ds-kospi').checked,
+    kosdaq: document.getElementById('ds-kosdaq').checked,
+    cmdty:  document.getElementById('ds-cmdty').checked,
+  };
+  try { localStorage.setItem(DIVSCAN_OPT, JSON.stringify(opt)); } catch(e) {}
+  const btn = document.getElementById('ds-go'), meta = document.getElementById('ds-meta'), bar = document.querySelector('#divscan .ds-prog i');
+  btn.disabled = true;
+  meta.textContent = '종목 목록을 받는 중…';
+  bar.style.width = '0';
+  const { list, miss } = await divScanUniverse(opt);
+  const all = [], recent = [], fail = [];
+  let done = 0, idx = 0;
+  const work = async () => {
+    while (idx < list.length) {
+      const it = list[idx++];
+      const d = await divScanFetch(it);
+      if (d) {
+        try {
+          const r = divScanOne(d);
+          all.push(r);
+          r.recent.forEach(x => recent.push(Object.assign({ code:it.code, name:it.name, mk:it.mk, last:r.last }, x)));
+        } catch(e) { fail.push(it.name); }
+      } else fail.push(it.name);
+      done++;
+      bar.style.width = (done / list.length * 100).toFixed(1) + '%';
+      meta.textContent = done + ' / ' + list.length + ' · ' + it.name + ' · 신호 ' + recent.length + '건';
+      if (done % 25 === 0) divScanRender({ recent, stats:null, fail, miss });
+      await divScanSleep(60);
+    }
+  };
+  await Promise.all([work(), work(), work(), work()]);
+  const now = new Date();
+  const res = {
+    ymd: divScanYmd(), at: now.toISOString(),
+    atStr: divScanYmd() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
+    opt, count: all.length, recent, fail, miss, stats: divScanStats(all),
+  };
+  try { localStorage.setItem(DIVSCAN_KEY, JSON.stringify(res)); } catch(e) {}
+  divScanRender(res);
+  meta.textContent = '기준 ' + res.atStr + ' · ' + all.length + '종목 · 최근 ' + DIVSCAN_RECENT + '거래일 신호 ' + recent.length + '건';
+  bar.style.width = '100%';
+  btn.disabled = false;
+  divScanBusy = false;
+  try { if (window.parent && window.parent !== window && typeof window.parent.divScanUpdated === 'function') window.parent.divScanUpdated(); } catch(e) {}
+}
+
+function divScanPage(){
+  divScanCss();
+  const opt = divScanOpt();
+  const el = document.createElement('div');
+  el.id = 'divscan';
+  el.innerHTML =
+      '<h2>🎯 다이버전스 종목 찾기</h2>'
+    + '<div class="ds-bar">'
+    + '<label><input type="checkbox" id="ds-kospi"' + (opt.kospi ? ' checked' : '') + '>코스피200</label>'
+    + '<label><input type="checkbox" id="ds-kosdaq"' + (opt.kosdaq ? ' checked' : '') + '>코스닥100</label>'
+    + '<label><input type="checkbox" id="ds-cmdty"' + (opt.cmdty ? ' checked' : '') + '>원자재</label>'
+    + '<button id="ds-go">찾기</button></div>'
+    + '<div class="ds-prog"><i></i></div>'
+    + '<div class="ds-meta" id="ds-meta"></div>'
+    + '<div id="ds-out"></div>';
+  document.body.appendChild(el);
+  document.getElementById('ds-go').onclick = divScanRun;
+  const old = divScanLoad();
+  if (old) {
+    divScanRender(old);
+    document.getElementById('ds-meta').textContent = '기준 ' + (old.atStr || old.ymd) + ' · ' + (old.count || 0) + '종목 · 최근 ' + DIVSCAN_RECENT + '거래일 신호 ' + old.recent.length + '건'
+      + (old.ymd !== divScanYmd() ? ' · 오늘 것이 아니니 [찾기]로 새로 찾으세요' : '');
+    document.querySelector('#divscan .ds-prog i').style.width = '100%';
+  }
+  if (!old || old.ymd !== divScanYmd()) divScanRun();      // 오늘 결과가 없으면 바로 찾는다
+}
+
 init();
 </script>
 </body>

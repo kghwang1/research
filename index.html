@@ -1712,6 +1712,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <select id="chartPortSel">
       <option value="idx">지수</option>
       <option value="ftrend">외국인 추세</option>
+      <option value="div">🎯 다이버전스</option>
       <option value="kr">한국(체)</option>
       <option value="invest">코스피200</option>
       <option value="investkq">코스닥100</option>
@@ -17511,6 +17512,7 @@ function chartPortRows(port){
     return [];
   }
   if(port==='idx'){ return CHART_IDX_ROWS.map(r=>[r[0], r[1]]); }
+  if(port==='div'){ return divScanGroups().filter(r=>!r.hdr); }
   if(port==='ftrend'){
     const rows=ftrendRows();
     ftrendEnsure();            // 자료가 없거나 메모리에 아직 안 올라왔으면 받아 둔다
@@ -17737,9 +17739,47 @@ function chartBindItem(el){
     el.classList.add('on');
     stkSet(el.dataset.code, el.dataset.name);
     const ifr=$('#chartIframe');
-    if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name);
+    if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name)+(chartPort==='div'?'&div=1':'');
   };
 }
+/* ── 다이버전스 종목 찾기 (2026-10-15) ──
+   찾기는 챠트 칸의 kg-chart.html?divscan=1 이 하고 결과를 kg_div_scan 에 둔다.
+   왼쪽 목록은 그 결과에서 ▲ 저점 · ▼ 고점 묶음으로 보여 준다 */
+function divScanGroups(){
+  let res=null; try{ res=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); }catch(e){}
+  if(!res || !Array.isArray(res.recent)) return [];
+  const out=[];
+  [['bull','▲ 저점 · 반등 후보'],['bear','▼ 고점 · 하락 경계']].forEach(([t,lbl])=>{
+    const rows=res.recent.filter(x=>x.type===t)
+      .sort((a,b)=>(b.tags.length-a.tags.length)||(a.ago-b.ago));
+    if(!rows.length) return;
+    out.push({hdr:lbl+' ('+rows.length+')'});
+    rows.forEach(x=>out.push([x.code, x.name, (x.mk||'')+' '+(t==='bull'?'▲':'▼')+x.tags+' · '+(x.ago===0?'오늘':x.ago+'일 전')]));
+  });
+  return out;
+}
+function chartOpenDivScan(){
+  const box=$('#chartStockItems');
+  if(box){ box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
+    const dr=box.querySelector('.cs-divres'); if(dr) dr.classList.add('on'); }
+  const ifr=$('#chartIframe'); if(ifr) ifr.src='kg-chart.html?divscan=1';
+}
+/* 결과표에서 종목을 누르면 — 왼쪽 목록의 같은 종목을 누른 것과 똑같이 */
+window.chartOpenFromDiv=function(code, name){
+  const box=$('#chartStockItems');
+  const it=box && [...box.querySelectorAll('.cs-item[data-code]')].find(x=>x.dataset.code===String(code));
+  if(it){ it.click(); if(it.scrollIntoView) it.scrollIntoView({block:'nearest'}); return; }
+  stkSet(code, name);
+  const ifr=$('#chartIframe');
+  if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(code)+'&name='+encodeURIComponent(name)+'&div=1';
+};
+/* 찾기가 끝나면 왼쪽 목록을 새로 그린다 */
+window.divScanUpdated=function(){
+  if(chartPort!=='div') return;
+  const si=$('#chartStockSearch');
+  buildChartStockList(si?si.value:'');
+  const dr=$('#chartStockItems .cs-divres'); if(dr) dr.classList.add('on');
+};
 /* 포트 목록에 없는 종목 한 줄 (검색 결과 · 다른 화면에서 고른 종목) */
 function chartExtraItemHtml(code, name, tag){
   return `<div class="cs-item cs-search" data-code="${escHtml(code)}" data-name="${escHtml(name||code)}"><div class="cs-txt"><span class="cs-name">${escHtml(name||code)}</span><span class="cs-code">${escHtml(code)}${tag?' · '+tag:''}</span></div></div>`;
@@ -17753,7 +17793,7 @@ function buildChartStockList(filter){
   // 외국인 추세 — 검색어가 없을 때는 순매수·순매도·지분율 묶음별로 제목을 달아 보여 준다
   const list = (chartPort==='ftrend' && !f && !chartRowsOverride)
     ? ftrendGroups().flatMap(g=>[{hdr:g.label}].concat(g.rows))
-    : rows;
+    : (chartPort==='div' && !f) ? divScanGroups() : rows;
   let h='';
   list.forEach(r=>{
     if(r && r.hdr){ h+=`<div class="cs-hdr">${escHtml(r.hdr)}</div>`; return; }
@@ -17773,16 +17813,19 @@ function buildChartStockList(filter){
     const saveCode = isForeign ? ('US:'+String(code).toUpperCase()) : code;
     const inW=inPort('kg_watch_rows', saveCode), inI=inPort('kg_invpf_rows', saveCode);
     const chks=idxPort ? '' : `<div class="cs-chks"><label class="cs-chk" title="관심 복사"><input type="checkbox" data-cls="kg_watch_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inW?' checked':''}></label><label class="cs-chk" title="투자 복사"><input type="checkbox" data-cls="kg_invpf_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inI?' checked':''}></label></div>`;
-    h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}">${chks}<div class="cs-txt"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${isForeign?' · 해외':''}</span></div></div>`;
+    h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}">${chks}<div class="cs-txt"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${r[2]?' · '+escHtml(r[2]):(isForeign?' · 해외':'')}</span></div></div>`;
   });
   if(!h){
     const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요'
             : (chartPort==='invpf' ? '선정주에 담긴 종목이 없습니다'
-            : (chartPort==='ftrend' && !f ? '외국인 추세 자료를 불러오는 중…' : '종목이 없습니다'));
+            : (chartPort==='ftrend' && !f ? '외국인 추세 자료를 불러오는 중…'
+            : (chartPort==='div' ? '오른쪽 결과표에서 찾기를 마치면 여기에 종목이 나옵니다' : '종목이 없습니다')));
     h='<div style="padding:12px;color:var(--dim);font-size:11px">'+msg+'</div>';
   }
+  if(chartPort==='div') h='<div class="cs-item cs-divres"><div class="cs-txt"><span class="cs-name">📋 결과표 · 신호 효과</span><span class="cs-code">다시 찾기도 여기서</span></div></div>'+h;
   box.innerHTML=h;
-  box.querySelectorAll('.cs-item').forEach(chartBindItem);
+  box.querySelectorAll('.cs-item:not(.cs-divres)').forEach(chartBindItem);
+  const dr=box.querySelector('.cs-divres'); if(dr) dr.onclick=chartOpenDivScan;
   // 관심·투자 체크박스 → 포트 복사
   box.querySelectorAll('.cs-chk input[data-cls]').forEach(cb=>{
     cb.onchange=(e)=>{ e.stopPropagation(); togglePortMember(cb.dataset.cls, cb.dataset.clscode, cb.dataset.clsname); };
@@ -17891,13 +17934,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   // 포트폴리오 드롭다운 → 좌측 종목 목록 갱신 ('해석'이면 우측에 해설 표시)
   const ps=$('#chartPortSel'); if(ps){
     ps.onchange=()=>{
-      if(typeof stkSetPort==='function') stkSetPort(ps.value);
+      /* 다이버전스 목록은 챠트 화면에만 있다 — 분석·장기투자·보고서로는 넘기지 않는다 */
+      if(typeof stkSetPort==='function' && ps.value!=='div') stkSetPort(ps.value);
       chartPort=ps.value;
       chartRowsOverride=null;   // 사용자가 포트를 바꾸면 전체 목록으로
       if(chartPort==='guide'){ showChartGuide(true); return; }
       showChartGuide(false);
       const si2=$('#chartStockSearch'); if(si2) si2.value='';
       buildChartStockList();
+      if(chartPort==='div'){ chartOpenDivScan(); return; }   // 결과표부터 보여 준다
       setTimeout(()=>{ const first=$('#chartStockItems .cs-item'); if(first) first.click(); }, 60);
     };
   }
