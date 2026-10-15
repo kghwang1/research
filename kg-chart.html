@@ -4282,7 +4282,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-15b 다이버전스 종목 찾기';
+const KG_CHART_BUILD = '2026-10-15c 다이버전스 — 선정주 연동';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5442,6 +5442,8 @@ async function divScanRun(){
       done++;
       bar.style.width = (done / list.length * 100).toFixed(1) + '%';
       meta.textContent = done + ' / ' + list.length + ' · ' + it.name + ' · 신호 ' + recent.length + '건';
+      /* 선정주 › 다이버전스 의 [지금 찾기] 는 이 화면을 보이지 않게 띄우므로 진행을 부모 창에 알린다 */
+      try { if (window.parent && window.parent !== window && typeof window.parent.divScanProgress === 'function') window.parent.divScanProgress(done, list.length, it.name); } catch(e) {}
       if (done % 25 === 0) divScanRender({ recent, stats:null, fail, miss });
       await divScanSleep(60);
     }
@@ -5486,7 +5488,8 @@ function divScanPage(){
       + (old.ymd !== divScanYmd() ? ' · 오늘 것이 아니니 [찾기]로 새로 찾으세요' : '');
     document.querySelector('#divscan .ds-prog i').style.width = '100%';
   }
-  if (!old || old.ymd !== divScanYmd()) divScanRun();      // 오늘 결과가 없으면 바로 찾는다
+  /* 오늘 결과가 없거나 &run=1(선정주의 [지금 찾기])이면 바로 찾는다 */
+  if (!old || old.ymd !== divScanYmd() || new URLSearchParams(location.search).get('run')) divScanRun();
 }
 
 init();
