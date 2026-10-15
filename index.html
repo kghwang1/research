@@ -5135,6 +5135,7 @@ function renderWatchTable(){
     h+=`<tr class="add-row"><td colspan="9" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left;white-space:normal;line-height:1.6">
       ${dr ? `기준 ${escHtml(dr.atStr||dr.ymd||'')}${stale?' <b style="color:#f0a836">(오늘 것이 아님)</b>':''} · 최근 10거래일 안에 확정된 신호 · 국내 종목만 (원자재는 챠트 › 🎯 다이버전스 목록에서)` : '아직 찾은 결과가 없습니다.'}<br>
       ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI S=SlowStoch M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다<br>
+      <b style="color:#d29922">형성 중 3/5</b> = 두 번째 꼭지 뒤 3일째 지켜지는 중 — 5일이 차면 완성, 그 전에 꼭지가 깨지면 사라집니다 (괄호는 꼭지 날 종가 대비)<br>
       추가신호(찾은 때 마지막 봉 기준): <b style="color:#e53935">20▲</b>/<b style="color:#1e88e5">20▼</b> 종가가 20일선 위/아래 · <b style="color:#e53935">120▲</b>/<b style="color:#1e88e5">120▼</b> 120일선 위/아래 · RSI <b style="color:#1e88e5">30 이하 과매도</b> · <b style="color:#e53935">70 이상 과매수</b> · 그 사이는 보통<br>
       ↓ 아래에 찾은 전체 목록(원자재 포함)과 신호 효과 표가 있습니다 — 새로 찾으려면 아래 [찾기]</td></tr>`;
   }
@@ -5961,12 +5962,17 @@ const SEL_TOP20_ASOF = '2026-09-30';
 const DIV_FIXED = [['KOSPI','코스피'],['KOSDAQ','코스닥'],['^KS200','코스피200'],['EWY','MSCI 코리아'],['GC=F','금'],['SI=F','은'],['CL=F','WTI 원유']];
 function divIsFixed(code){ return DIV_FIXED.some(f=>f[0]===String(code||'').trim()); }
 function selDivRes(){ try{ const o=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); return o&&Array.isArray(o.recent)?o:null; }catch(e){ return null; } }
+/* 다이버전스 정렬 — ▲ 먼저 · 완성된 신호 먼저 · 겹친 지표 많은 순 · 완성은 최근 순, 형성 중은 오래 지켜진 순 */
+function divSigSort(a,b){
+  return (a.type===b.type?0:(a.type==='bull'?-1:1)) || ((a.forming?1:0)-(b.forming?1:0))
+      || (b.tags.length-a.tags.length) || (a.forming ? ((b.held||0)-(a.held||0)) : ((a.ago||0)-(b.ago||0)));
+}
 function selDivList(){
   const res=selDivRes(); if(!res) return [];
   const seen=new Set();
   return res.recent.filter(x=>/^\d{6}$/.test(String(x.code)))
-    .sort((a,b)=>(a.type===b.type?0:(a.type==='bull'?-1:1)) || (b.tags.length-a.tags.length) || (a.ago-b.ago))
-    .filter(x=>{ const k=x.code+'|'+x.type; return seen.has(k)?false:(seen.add(k),true); });
+    .sort(divSigSort)
+    .filter(x=>{ const k=x.code+'|'+x.type+'|'+(x.forming?'f':''); return seen.has(k)?false:(seen.add(k),true); });
 }
 function selDivOf(code){ return selDivList().filter(x=>x.code===String(code||'').trim()); }
 function selIsFixed(){ return selSub==='top20' || selSub==='div'; }   // 읽기 전용 고정 목록 부메뉴
@@ -5982,7 +5988,7 @@ function divCell(code){
   if(divIsFixed(c)){                       // 지수·원자재 — 찾기 결과에서 그 코드의 신호
     const res=selDivRes();
     if(!res || !res.fixed) return '<span class="rsub" title="[찾기]를 다시 누르면 지수·원자재도 훑습니다">—</span>';
-    const xs=res.recent.filter(x=>x.code===c).sort((a,b)=>(a.type===b.type?0:(a.type==='bull'?-1:1))||(a.ago-b.ago));
+    const xs=res.recent.filter(x=>x.code===c).sort(divSigSort);
     return xs.length ? selDivCell(c, xs) : '<span class="rsub">—</span>';
   }
   if(!/^\d{6}$/.test(c)) return '<span class="rsub">—</span>';
@@ -6014,6 +6020,10 @@ function selDivCell(code, pre){
   return xs.map(x=>{
     const up=x.type==='bull', col=up?'#ef5350':'#1e88e5';
     const chg=(x.chg!=null&&isFinite(x.chg))?`<span class="diffp${x.chg>=0?'':' neg'}">(${x.chg>=0?'+':''}${x.chg.toFixed(1)}%)</span>`:'';
+    if(x.forming){   // 형성 중 — 두 번째 꼭지 뒤 아직 5거래일이 안 참
+      return `<div style="white-space:nowrap;opacity:.85" title="${escHtml((up?'저점':'고점')+' 다이버전스 형성 중 · 두 번째 꼭지 '+(x.piv||'')+' · '+x.held+'일째 지켜지는 중 (5일이 차면 완성) · 괄호는 꼭지 날 종가 대비')}">`
+        + `<b style="color:${col};font-family:monospace">${up?'▲':'▼'}${escHtml(x.tags)}</b> <span style="color:#d29922;font-weight:700">형성 중 ${x.held}/5</span> ${chg}</div>`;
+    }
     return `<div style="white-space:nowrap" title="${escHtml((up?'저점':'고점')+' 다이버전스 · 확정 '+(x.date||'')+' · 두 번째 꼭지 '+(x.piv||''))}">`
       + `<b style="color:${col};font-family:monospace">${up?'▲':'▼'}${escHtml(x.tags)}</b> <span class="rsub">${x.ago===0?'오늘':x.ago+'일 전'}</span> ${chg}</div>`;
   }).join('');
@@ -17954,17 +17964,16 @@ function divScanGroups(){
   if(!res || !Array.isArray(res.recent)) return [];
   const out=[];
   [['bull','▲ 저점 · 반등 후보'],['bear','▼ 고점 · 하락 경계']].forEach(([t,lbl])=>{
-    const rows=res.recent.filter(x=>x.type===t)
-      .sort((a,b)=>(b.tags.length-a.tags.length)||(a.ago-b.ago));
+    const rows=res.recent.filter(x=>x.type===t).sort(divSigSort);
     if(!rows.length) return;
     out.push({hdr:lbl+' ('+rows.length+')'});
-    rows.forEach(x=>out.push([x.code, x.name, (x.mk||'')+' '+(t==='bull'?'▲':'▼')+x.tags+' · '+(x.ago===0?'오늘':x.ago+'일 전')]));
+    rows.forEach(x=>out.push([x.code, x.name, (x.mk||'')+' '+(t==='bull'?'▲':'▼')+x.tags+' · '+(x.forming?('형성 '+x.held+'/5'):(x.ago===0?'오늘':x.ago+'일 전'))]));
   });
   /* 맨 끝: 지수·원자재 7줄 — 신호가 없어도 늘 보인다 */
   out.push({hdr:'지수 · 원자재'});
   DIV_FIXED.forEach(([c,n])=>{
-    const xs=res.recent.filter(x=>x.code===c);
-    const tag=xs.length ? xs.map(x=>(x.type==='bull'?'▲':'▼')+x.tags+' '+(x.ago===0?'오늘':x.ago+'일 전')).join(' ') : '신호 없음';
+    const xs=res.recent.filter(x=>x.code===c).sort(divSigSort);
+    const tag=xs.length ? xs.map(x=>(x.type==='bull'?'▲':'▼')+x.tags+' '+(x.forming?('형성 '+x.held+'/5'):(x.ago===0?'오늘':x.ago+'일 전'))).join(' ') : '신호 없음';
     out.push([c, n, (/=F$/.test(c)?'원자재':'지수')+' · '+tag]);
   });
   return out;
