@@ -992,6 +992,14 @@ function init() {
   if (params.get('divscan')) { divScanPage(); return; }   // 다이버전스 종목 찾기 화면
   /* 다이버전스 목록에서 열면 ▲▼ 가 보이도록 고점저점 탐색 조합으로 */
   if (params.get('div') && comboMode() !== 'peak') applyCombo(PEAK_COMBO.slice(), 'peak');
+  /* 신호 난 지표가 보이게 ⇄ 칸을 맞춘다 — S 만 났으면 SlowStoch, F 가 났으면 MFI (외국인 순매수 대신) */
+  if (params.get('div') && params.get('tags')) {
+    const tg = params.get('tags'), m = swapMapGet();
+    if (/S/.test(tg) && !/R/.test(tg)) m.RSI = 'SLOWSTOCH';
+    else if (/R/.test(tg) && !/S/.test(tg)) delete m.RSI;
+    if (/F/.test(tg)) delete m.MFI;
+    try { localStorage.setItem(SWAP_KEY, JSON.stringify(m)); } catch(e) {}
+  }
   const urlCode = params.get('code');
   const urlName = params.get('name');
   if (urlCode) {
@@ -1648,8 +1656,20 @@ const DIV_L = 5, DIV_MIN = 5, DIV_MAX = 60;
 const DIV_UP = '#ff5252', DIV_DN = '#4da3ff';
 const DIV_TAG = { RSI:'R', SLOWSTOCH:'S', MACD:'M', ELDER:'E', MFI:'F' };
 function divOn(){ return comboMode() === 'peak'; }
+/* 같은 자료로 여러 번 그릴 때(끌기·확대) 다시 계산하지 않게 기억해 둔다 */
+let _divMemo = { data:null, len:0, last:null, map:{} };
 function divFind(key, dd){
-  const d = dd || state.data;      // dd: 다이버전스 종목 찾기가 다른 종목 자료를 넘길 때
+  if (!dd) {
+    const d0 = state.data, lc = d0 && d0.length ? d0[d0.length - 1].close : null;
+    if (_divMemo.data !== d0 || _divMemo.len !== (d0 ? d0.length : 0) || _divMemo.last !== lc)
+      _divMemo = { data:d0, len:d0 ? d0.length : 0, last:lc, map:{} };
+    if (!_divMemo.map[key]) _divMemo.map[key] = divFindRaw(key, d0);
+    return _divMemo.map[key];
+  }
+  return divFindRaw(key, dd);
+}
+function divFindRaw(key, dd){
+  const d = dd;                    // dd: 그릴 종목 자료 또는 다이버전스 종목 찾기가 넘긴 다른 종목 자료
   if (!d || d.length < 30 || !CALC[key] || !DIV_TAG[key]) return [];
   const r = CALC[key](d);
   let hiA, loA, hiOk, loOk;
@@ -1726,8 +1746,9 @@ function divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W){
 /* 주가 창 — 보이는 다이버전스 지표들의 짝을 주가 고점(저점)끼리 잇고, 어느 지표인지 글자로 붙인다 */
 function divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W){
   if (!divOn()) return;
-  const keys = getActiveKeys().map(k => swapShown(k)).filter(k => DIV_TAG[k]);
-  if (!keys.length) return;
+  /* 주가 창 글자는 ⇄ 로 가려진 지표까지 다섯 지표를 모두 모은다 (2026-10-15)
+     — 다이버전스 표의 ▲SEF 와 같은 글자가 나오도록. 보조 칸의 선은 보이는 지표만 그린다 */
+  const keys = Object.keys(DIV_TAG);
   const d = state.data, off = state.range[0];
   const grp = new Map();
   keys.forEach(k => divFind(k).forEach(v => {
@@ -4282,7 +4303,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-15d 다이버전스 — 포트 종목도 함께 찾기';
+const KG_CHART_BUILD = '2026-10-15f 다이버전스 — 지수 대비 효과 · 선정주에 결과 표시';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5183,7 +5204,9 @@ function divScanOpt(){
   return { kospi:true, kosdaq:true, cmdty:true };
 }
 
-/* 종목 목록 — 코스피200·코스닥100 은 워커의 시총 상위 목록 */
+/* 종목 목록 — 코스피200·코스닥100 은 워커의 시총 상위 목록.
+   워커 목록이 비면(2026-10 네이버 쪽 실패 확인) 앱이 가진 목록으로 대신한다:
+   코스피200·코스닥100 탭이 받아 둔 종목 + 앱 내장 목록 (parent.divScanFallback) */
 async function divScanUniverse(opt){
   const out = [];
   const grab = async (q, mk, n) => {
@@ -5195,16 +5218,23 @@ async function divScanUniverse(opt){
       } catch(e) {}
       await divScanSleep(800);
     }
+    /* 대신 쓸 목록 */
+    try {
+      const fb = (window.parent && window.parent !== window && typeof window.parent.divScanFallback === 'function')
+        ? window.parent.divScanFallback(q) : [];
+      if (fb && fb.length) { fb.forEach(x => out.push({ code:String(x.code), name:x.name || x.code, mk })); return 'fb:' + fb.length; }
+    } catch(e) {}
     return false;
   };
   const miss = [];
-  if (opt.kospi  && !(await grab('kospi',  '코스피', 200))) miss.push('코스피200 목록');
-  if (opt.kosdaq && !(await grab('kosdaq', '코스닥', 100))) miss.push('코스닥100 목록');
+  const note = (r, lbl) => { if (r === false) miss.push(lbl + ' 목록을 받지 못해 빠졌습니다'); else if (typeof r === 'string') miss.push(lbl + ' 목록을 서버에서 받지 못해 앱이 가진 ' + r.slice(3) + '종목으로 대신했습니다'); };
+  if (opt.kospi)  note(await grab('kospi',  '코스피', 200), '코스피200');
+  if (opt.kosdaq) note(await grab('kosdaq', '코스닥', 100), '코스닥100');
   /* 앱의 포트 종목(한국(체)·관심보유·대기·장기보유1·주간Top20)도 함께 — 표의 다이버전스 열을 채우려고 */
   try {
     const ex = (window.parent && window.parent !== window && typeof window.parent.divScanExtraCodes === 'function')
       ? window.parent.divScanExtraCodes() : [];
-    (ex || []).forEach(x => out.push({ code:String(x.code), name:x.name || x.code, mk:'포트' }));
+    (ex || []).forEach(x => out.push({ code:String(x.code), name:x.name || x.code, mk:x.mk || '포트' }));
   } catch(e) {}
   if (opt.cmdty) DIVSCAN_CMDTY.forEach(([c, n]) => out.push({ code:c, name:n, mk:'원자재' }));
   const seen = new Set();
@@ -5231,8 +5261,9 @@ async function divScanFetch(it){
   return null;
 }
 
-/* 한 종목 분석 — 같은 꼭지(종류·두 번째 꼭지 봉)에서 난 신호는 지표 글자를 모아 하나로 본다 */
-function divScanOne(d){
+/* 한 종목 분석 — 같은 꼭지(종류·두 번째 꼭지 봉)에서 난 신호는 지표 글자를 모아 하나로 본다.
+   idx = { K:{날짜→코스피 종가}, Q:{날짜→코스닥 종가} } — 신호 뒤 같은 기간 지수 등락을 함께 잰다 */
+function divScanOne(d, idx){
   const N = d.length, groups = new Map();
   DIVSCAN_KEYS.forEach(k => {
     let list = [];
@@ -5248,74 +5279,92 @@ function divScanOne(d){
   const sigs = [...groups.values()]
     .map(g => ({ type:g.type, b:g.b, t:g.b + DIV_L, tags:g.tags.sort((x, y) => order.indexOf(x) - order.indexOf(y)).join('') }))
     .filter(g => g.t < N);
+  const iret = (m, a, b) => (m && m[a] && m[b]) ? (m[b] / m[a] - 1) * 100 : null;
   const ev = sigs.map(g => {
-    const p0 = d[g.t].close, r = {};
-    DIVSCAN_HZ.forEach(h => { if (g.t + h < N) r[h] = (d[g.t + h].close / p0 - 1) * 100; });
-    return { type:g.type, n:g.tags.length, r };
-  });
-  /* 기준 = 아무 날이나 샀을 때 (지표가 자리 잡는 앞 30봉은 뺀다) */
-  const base = {};
-  DIVSCAN_HZ.forEach(h => {
-    let s = 0, c = 0, up = 0;
-    for (let i = 30; i + h < N; i++) { const x = (d[i + h].close / d[i].close - 1) * 100; s += x; c++; if (x > 0) up++; }
-    base[h] = { s, c, up };
+    const p0 = d[g.t].close, r = {}, rk = {}, rq = {};
+    DIVSCAN_HZ.forEach(h => {
+      if (g.t + h >= N) return;
+      r[h] = (d[g.t + h].close / p0 - 1) * 100;
+      if (idx) { rk[h] = iret(idx.K, d[g.t].date, d[g.t + h].date); rq[h] = iret(idx.Q, d[g.t].date, d[g.t + h].date); }
+    });
+    return { type:g.type, n:g.tags.length, r, rk, rq };
   });
   const last = d[N - 1];
   const recent = sigs.filter(g => N - 1 - g.t < DIVSCAN_RECENT).map(g => ({
     type:g.type, tags:g.tags, date:d[g.t].date, piv:d[g.b].date, ago:N - 1 - g.t,
     p0:d[g.t].close, chg:(last.close / d[g.t].close - 1) * 100,
   }));
-  return { ev, base, recent, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
+  return { ev, recent, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
 }
 
-/* 여러 종목의 신호 결과를 모아 '며칠 뒤 평균 등락·맞은 비율'로 정리 */
+/* 신호 뒤 h일 — 종목 평균 등락, 그리고 같은 기간 코스피·코스닥 지수와 비교한 초과 등락.
+   원자재는 지수 비교가 맞지 않아 이 표에서 뺀다 (종목만) */
 function divScanStats(all){
-  const mk = () => { const o = {}; DIVSCAN_HZ.forEach(h => o[h] = { s:0, c:0, w:0 }); return o; };
-  const S = { bull:mk(), bull2:mk(), bear:mk(), bear2:mk(), base:mk() };
+  const z = () => ({ s:0, c:0, w:0 });
+  const mk = () => { const o = {}; DIVSCAN_HZ.forEach(h => o[h] = { raw:z(), K:z(), Q:z(), own:z() }); return o; };
+  const S = { bull:mk(), bear:mk() };
   let from = null, to = null;
   all.forEach(x => {
+    if (x.mk === '원자재') return;
     if (!from || x.from < from) from = x.from;
     if (!to || x.lastDate > to) to = x.lastDate;
     x.ev.forEach(e => {
-      const rows = [S[e.type]]; if (e.n >= 2) rows.push(S[e.type + '2']);
+      const bull = e.type === 'bull', R = S[e.type];
       DIVSCAN_HZ.forEach(h => {
         const v = e.r[h]; if (v == null) return;
-        rows.forEach(R => { R[h].s += v; R[h].c++; if (e.type === 'bull' ? v > 0 : v < 0) R[h].w++; });
+        const A = R[h];
+        A.raw.s += v; A.raw.c++; if (bull ? v > 0 : v < 0) A.raw.w++;
+        const add = (slot, iv) => { if (iv == null) return; const ex = v - iv; slot.s += ex; slot.c++; if (bull ? ex > 0 : ex < 0) slot.w++; };
+        add(A.K, e.rk[h]); add(A.Q, e.rq[h]);
+        add(A.own, x.mk === '코스닥' ? e.rq[h] : e.rk[h]);   // 제 시장 지수 (모르면 코스피)
       });
     });
-    DIVSCAN_HZ.forEach(h => { const b = x.base[h]; S.base[h].s += b.s; S.base[h].c += b.c; S.base[h].w += b.up; });
   });
-  const fin = R => { const o = {}; DIVSCAN_HZ.forEach(h => { const z = R[h]; o[h] = z.c ? { avg:z.s / z.c, win:z.w / z.c * 100, n:z.c } : null; }); return o; };
-  return { bull:fin(S.bull), bull2:fin(S.bull2), bear:fin(S.bear), bear2:fin(S.bear2), base:fin(S.base), from, to };
+  const fin = A => A.c ? { avg:A.s / A.c, win:A.w / A.c * 100, n:A.c } : null;
+  const out = { from, to };
+  ['bull', 'bear'].forEach(t => {
+    out[t] = {};
+    DIVSCAN_HZ.forEach(h => { const A = S[t][h]; out[t][h] = { raw:fin(A.raw), K:fin(A.K), Q:fin(A.Q), own:fin(A.own) }; });
+  });
+  return out;
 }
 
-/* 표의 숫자를 사람 말로 — 신호 뒤가 '아무 날'보다 가장 크게 벌어지는 날을 찾는다 */
+/* 표의 숫자를 사람 말로 — 제 시장 지수보다 가장 크게 앞선(▼은 뒤처진) 날을 찾는다 */
 function divScanVerdict(st){
-  const line = (key, bull) => {
-    const R = st[key], B = st.base;
+  const line = (t) => {
+    const bull = t === 'bull', R = st[t];
+    if (!R) return '';
     let best = null;
     DIVSCAN_HZ.forEach(h => {
-      if (!R[h] || !B[h] || R[h].n < 20) return;
-      const edge = bull ? R[h].avg - B[h].avg : B[h].avg - R[h].avg;
-      if (!best || edge > best.edge) best = { h, edge };
+      const o = R[h] && R[h].own; if (!o || o.n < 20) return;
+      const edge = bull ? o.avg : -o.avg;
+      if (!best || edge > best.edge) best = { h, edge, win:o.win };
     });
-    if (!best) return (bull ? '▲' : '▼') + ' 신호가 적어 아직 판단하기 이릅니다.';
+    const nm = bull ? '▲ 저점' : '▼ 고점';
+    if (!best) return nm + ' 신호가 적어 아직 판단하기 이릅니다.';
+    if (best.edge < 0.3) return nm + ' 신호 뒤 종목은 같은 기간 지수와 큰 차이가 없었습니다 (최대 ' + best.edge.toFixed(2) + '%p).';
     const lastH = DIVSCAN_HZ[DIVSCAN_HZ.length - 1];
-    const tail = R[lastH] && B[lastH] ? (bull ? R[lastH].avg - B[lastH].avg : B[lastH].avg - R[lastH].avg) : null;
-    if (best.edge < 0.3) return (bull ? '▲ 저점' : '▼ 고점') + ' 신호 뒤 등락은 아무 날 산 경우와 큰 차이가 없었습니다 (최대 ' + best.edge.toFixed(2) + '%p).';
-    let s = (bull ? '▲ 저점 신호 뒤에는 아무 날보다 ' : '▼ 고점 신호 뒤에는 아무 날보다 ') + best.h + '일째에 가장 크게 '
-          + (bull ? '더 올랐습니다' : '덜 올랐습니다(더 내렸습니다)') + ' (' + best.edge.toFixed(2) + '%p).';
-    if (tail != null && best.h < lastH) s += ' ' + lastH + '일째에는 차이가 ' + (tail > 0 ? tail.toFixed(2) + '%p 로 줄었습니다.' : '사라졌습니다.');
+    const lo = R[lastH] && R[lastH].own;
+    let s = nm + ' 신호 뒤 종목은 같은 기간 제 시장 지수보다 ' + best.h + '일째에 가장 크게 ' + (bull ? '더 올랐습니다' : '덜 올랐습니다')
+          + ' (' + best.edge.toFixed(2) + '%p, ' + (bull ? '지수를 이긴' : '지수보다 약했던') + ' 비율 ' + Math.round(best.win) + '%).';
+    if (lo && best.h < lastH) {
+      const e2 = bull ? lo.avg : -lo.avg;
+      s += ' ' + lastH + '일째에는 ' + (e2 > 0.05 ? e2.toFixed(2) + '%p 로 줄었습니다.' : '차이가 사라졌습니다.');
+    }
     return s;
   };
-  return [line('bull', true), line('bear', false)];
+  return [line('bull'), line('bear')];
 }
 
 /* ── 화면 ── */
+function divScanEmbed(){ return !!new URLSearchParams(location.search).get('embed'); }
 function divScanCss(){
   const st = document.createElement('style');
   st.textContent = `
 #divscan{position:fixed;inset:0;z-index:99999;background:#0d1117;color:#e6edf3;overflow-y:auto;font-family:-apple-system,'Malgun Gothic',sans-serif;font-size:12px;padding:12px 14px 40px}
+body.ds-embed > *:not(#divscan){display:none !important}
+body.ds-embed{background:#0d1117;margin:0;overflow:hidden}
+body.ds-embed #divscan{position:static;overflow:visible;padding:8px 2px 12px}
 #divscan h2{font-size:15px;margin:0 0 6px;color:#f0a836}
 #divscan h3{font-size:13px;margin:16px 0 6px}
 #divscan .ds-bar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px}
@@ -5332,32 +5381,43 @@ function divScanCss(){
 #divscan td.l,#divscan th.l{text-align:left}
 #divscan tr.ds-row{cursor:pointer}
 #divscan tr.ds-row:hover td{background:#161b22}
+#divscan tr.ds-sub td{border-bottom-color:#161b22}
+#divscan tr.ds-sub td.l{padding-left:16px;color:#8b949e}
 #divscan .nm{font-weight:700}
 #divscan .mk{color:#6e7681;font-size:10px;margin-left:4px}
 #divscan .tg{font-family:monospace;font-weight:700}
 #divscan .up{color:#ff6b6b}
 #divscan .dn{color:#4da3ff}
 #divscan .mu{color:#6e7681}
+#divscan .sm{font-size:10px}
 #divscan .ds-say{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:8px 10px;line-height:1.6;margin:6px 0}
 #divscan .ds-note{color:#8b949e;font-size:11px;line-height:1.6;margin-top:8px}
 #divscan .ds-empty{color:#6e7681;padding:8px 2px}`;
   document.head.appendChild(st);
 }
 function divScanEsc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]); }
-function divScanPct(v, signed){
+function divScanPct(v, signed, unit){
   if (v == null || !isFinite(v)) return '<span class="mu">-</span>';
   const cls = v > 0 ? 'up' : v < 0 ? 'dn' : 'mu';
-  return '<span class="' + cls + '">' + (signed && v > 0 ? '+' : '') + v.toFixed(2) + '%</span>';
+  return '<span class="' + cls + '">' + (signed && v > 0 ? '+' : '') + v.toFixed(2) + (unit || '%') + '</span>';
 }
 function divScanPrice(v){
   if (v == null) return '-';
   return v >= 1000 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(2) : v.toFixed(3);
 }
+/* 부모 창(선정주 › 다이버전스)에 붙어 있을 때 높이를 알린다 */
+function divScanFit(){
+  if (!divScanEmbed()) return;
+  try {
+    const el = document.getElementById('divscan');
+    if (el && window.parent && typeof window.parent.divScanResize === 'function') window.parent.divScanResize(el.scrollHeight + 16);
+  } catch(e) {}
+}
 
 function divScanRender(res){
   const box = document.getElementById('ds-out');
   if (!box) return;
-  if (!res) { box.innerHTML = '<div class="ds-empty">아직 찾은 결과가 없습니다. [찾기]를 누르세요.</div>'; return; }
+  if (!res) { box.innerHTML = '<div class="ds-empty">아직 찾은 결과가 없습니다. [찾기]를 누르세요.</div>'; divScanFit(); return; }
   const sigTable = (type) => {
     const rows = res.recent.filter(x => x.type === type)
       .sort((a, b) => (b.tags.length - a.tags.length) || (a.ago - b.ago));
@@ -5376,44 +5436,62 @@ function divScanRender(res){
   };
   const st = res.stats;
   let stH = '';
-  if (st) {
-    const rowOf = (lbl, R, isBear) => {
+  if (st && st.bull && st.bull[DIVSCAN_HZ[0]] && 'K' in st.bull[DIVSCAN_HZ[0]]) {
+    const rawRow = (lbl, t) => {
       let h = '<tr><td class="l">' + lbl + '</td>';
-      DIVSCAN_HZ.forEach(hz => {
-        const z = R && R[hz];
-        h += '<td>' + (z ? divScanPct(z.avg, true) + '<br><span class="mu">' + (isBear === null ? '오름 ' : '맞음 ') + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>') + '</td>';
-      });
-      const n = R && R[DIVSCAN_HZ[0]] ? R[DIVSCAN_HZ[0]].n : 0;
+      DIVSCAN_HZ.forEach(hz => { const z = st[t][hz] && st[t][hz].raw;
+        h += '<td>' + (z ? divScanPct(z.avg, true) + '<br><span class="mu sm">' + (t === 'bull' ? '오름 ' : '내림 ') + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>') + '</td>'; });
+      const n = st[t][DIVSCAN_HZ[0]] && st[t][DIVSCAN_HZ[0]].raw ? st[t][DIVSCAN_HZ[0]].raw.n : 0;
+      return h + '<td class="mu">' + n.toLocaleString() + '</td></tr>';
+    };
+    const exRow = (lbl, t, k) => {
+      let h = '<tr class="ds-sub"><td class="l">' + lbl + '</td>';
+      DIVSCAN_HZ.forEach(hz => { const z = st[t][hz] && st[t][hz][k];
+        h += '<td>' + (z ? divScanPct(z.avg, true, '%p') + '<br><span class="mu sm">' + (t === 'bull' ? '이김 ' : '약함 ') + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>') + '</td>'; });
+      const n = st[t][DIVSCAN_HZ[0]] && st[t][DIVSCAN_HZ[0]][k] ? st[t][DIVSCAN_HZ[0]][k].n : 0;
       return h + '<td class="mu">' + n.toLocaleString() + '</td></tr>';
     };
     stH = '<div class="ds-wrap"><table><tr><th class="l">신호 뒤</th>' + DIVSCAN_HZ.map(h => '<th>' + h + '일</th>').join('') + '<th>건수</th></tr>'
-        + rowOf('<span class="up">▲ 저점</span>', st.bull, false)
-        + rowOf('<span class="up">▲ 지표 2개+</span>', st.bull2, false)
-        + rowOf('<span class="dn">▼ 고점</span>', st.bear, true)
-        + rowOf('<span class="dn">▼ 지표 2개+</span>', st.bear2, true)
-        + rowOf('아무 날 (기준)', st.base, null)
+        + rawRow('<span class="up">▲ 저점 · 종목 등락</span>', 'bull')
+        + exRow('코스피 지수 대비', 'bull', 'K')
+        + exRow('코스닥 지수 대비', 'bull', 'Q')
+        + rawRow('<span class="dn">▼ 고점 · 종목 등락</span>', 'bear')
+        + exRow('코스피 지수 대비', 'bear', 'K')
+        + exRow('코스닥 지수 대비', 'bear', 'Q')
         + '</table></div>'
         + '<div class="ds-say">' + divScanVerdict(st).map(divScanEsc).join('<br>') + '</div>'
-        + '<div class="ds-note">· 기간: ' + divScanEsc(st.from || '') + ' ~ ' + divScanEsc(st.to || '') + ' · 신호가 확정된 날 종가에 샀다고 보고 잰 등락의 평균입니다.<br>'
-        + '· <b>맞음</b> = ▲ 는 오른 비율, ▼ 는 내린 비율 · <b>오름</b> = 아무 날 산 경우 오른 비율.<br>'
+        + '<div class="ds-note">· 기간: ' + divScanEsc(st.from || '') + ' ~ ' + divScanEsc(st.to || '') + ' · 신호가 확정된 날 종가에 샀다고 보고, 같은 날부터 같은 기간의 지수 등락을 뺀 값입니다 (국내 종목만, 원자재 제외).<br>'
+        + '· <b>지수 대비</b> +면 지수보다 더 올랐다(덜 내렸다)는 뜻 · <b>이김</b> = ▲ 신호 종목이 지수보다 더 오른 비율 · <b>약함</b> = ▼ 신호 종목이 지수보다 덜 오른 비율.<br>'
+        + '· 아래 결론은 종목마다 제 시장 지수(코스피 종목은 코스피, 코스닥 종목은 코스닥)와 비교한 값으로 냅니다. 시장을 모르는 포트 종목은 코스피와 비교합니다.<br>'
         + '· 지금 지수에 든 종목으로만 재므로(그 사이 빠진 종목은 없음) 실제보다 조금 좋게 나올 수 있고, 같은 시기 신호끼리는 함께 움직여 건수만큼 믿을 만하지는 않습니다.</div>';
+  } else if (st) {
+    stH = '<div class="ds-empty">예전 방식으로 낸 통계입니다. [찾기]를 다시 누르면 지수와 비교한 표로 바뀝니다.</div>';
   }
   const failH = res.fail && res.fail.length
     ? '<div class="ds-note">자료를 못 받은 종목 ' + res.fail.length + '개: ' + divScanEsc(res.fail.slice(0, 12).join(', ')) + (res.fail.length > 12 ? ' …' : '') + '</div>' : '';
-  const missH = res.miss && res.miss.length ? '<div class="ds-note" style="color:#f0a836">' + divScanEsc(res.miss.join(', ')) + '을(를) 받지 못해 빠졌습니다.</div>' : '';
+  const missH = res.miss && res.miss.length ? '<div class="ds-note" style="color:#f0a836">' + res.miss.map(divScanEsc).join('<br>') + '</div>' : '';
+  const idxH = res.idxMiss ? '<div class="ds-note" style="color:#f0a836">' + divScanEsc(res.idxMiss) + '</div>' : '';
   box.innerHTML =
       '<h3 class="up">▲ 저점 다이버전스 — 반등 후보</h3>' + sigTable('bull')
     + '<h3 class="dn">▼ 고점 다이버전스 — 하락 경계</h3>' + sigTable('bear')
-    + '<h3>신호 효과는 며칠 가나 — 지난 자료로 잰 결과</h3>' + (stH || '<div class="ds-empty">통계가 없습니다.</div>')
-    + missH + failH
+    + '<h3>신호 효과는 며칠 가나 — 코스피·코스닥 지수와 비교</h3>' + (stH || '<div class="ds-empty">통계가 없습니다.</div>')
+    + missH + idxH + failH
     + '<div class="ds-note">· 지표 글자: R=RSI · S=SlowStoch · M=MACD · E=Elder Ray · F=MFI. 글자가 많을수록 여러 지표가 같은 꼭지에서 엇갈린 것입니다.<br>'
     + '· 확정일 = 두 번째 꼭지 뒤 ' + DIV_L + '거래일 — 그날이 지나야 꼭지인 줄 알 수 있어 차트의 ▲▼ 보다 늦게 잡힙니다.<br>'
     + '· 장중에는 오늘 봉이 아직 움직이므로 결과가 바뀔 수 있습니다. 종목을 누르면 고점저점 탐색 조합으로 차트가 열립니다.</div>';
   box.querySelectorAll('tr.ds-row').forEach(tr => tr.onclick = () => divScanOpen(tr.dataset.code, tr.dataset.name));
+  divScanFit();
 }
 
 function divScanOpen(code, name){
-  try { if (window.parent && window.parent !== window && typeof window.parent.chartOpenFromDiv === 'function') { window.parent.chartOpenFromDiv(code, name); return; } } catch(e) {}
+  try {
+    const P = window.parent;
+    if (P && P !== window) {
+      /* 선정주 › 다이버전스 표 아래에 붙어 있을 때 — 챠트 화면을 🎯 다이버전스 목록으로 연다 */
+      if (divScanEmbed() && typeof P.openChartView === 'function') { P.openChartView('div', code, name); return; }
+      if (typeof P.chartOpenFromDiv === 'function') { P.chartOpenFromDiv(code, name); return; }
+    }
+  } catch(e) {}
   location.href = 'kg-chart.html?code=' + encodeURIComponent(code) + '&name=' + encodeURIComponent(name) + '&div=1';
 }
 
@@ -5429,18 +5507,26 @@ async function divScanRun(){
   try { localStorage.setItem(DIVSCAN_OPT, JSON.stringify(opt)); } catch(e) {}
   const btn = document.getElementById('ds-go'), meta = document.getElementById('ds-meta'), bar = document.querySelector('#divscan .ds-prog i');
   btn.disabled = true;
-  meta.textContent = '종목 목록을 받는 중…';
+  meta.textContent = '종목 목록과 코스피·코스닥 지수를 받는 중…';
   bar.style.width = '0';
+  /* 비교용 지수 — 차트와 같은 네이버 일봉 (날짜 → 종가) */
+  const idx = { K:null, Q:null };
+  let idxMiss = '';
+  const toMap = d => { const m = {}; (d || []).forEach(x => { m[x.date] = x.close; }); return m; };
+  const [dk, dq] = await Promise.all([divScanFetch({ code:'KOSPI', mk:'지수' }), divScanFetch({ code:'KOSDAQ', mk:'지수' })]);
+  if (dk) idx.K = toMap(dk); if (dq) idx.Q = toMap(dq);
+  if (!dk || !dq) idxMiss = (!dk ? '코스피' : '') + (!dk && !dq ? '·' : '') + (!dq ? '코스닥' : '') + ' 지수를 받지 못해 그 비교 칸이 비었습니다.';
   const { list, miss } = await divScanUniverse(opt);
   const all = [], recent = [], fail = [];
-  let done = 0, idx = 0;
+  let done = 0, idxN = 0;
   const work = async () => {
-    while (idx < list.length) {
-      const it = list[idx++];
+    while (idxN < list.length) {
+      const it = list[idxN++];
       const d = await divScanFetch(it);
       if (d) {
         try {
-          const r = divScanOne(d);
+          const r = divScanOne(d, it.mk === '원자재' ? null : idx);
+          r.mk = it.mk;
           all.push(r);
           r.recent.forEach(x => recent.push(Object.assign({ code:it.code, name:it.name, mk:it.mk, last:r.last }, x)));
         } catch(e) { fail.push(it.name); }
@@ -5459,7 +5545,7 @@ async function divScanRun(){
   const res = {
     ymd: divScanYmd(), at: now.toISOString(),
     atStr: divScanYmd() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
-    opt, count: all.length, recent, fail, miss, stats: divScanStats(all),
+    opt, count: all.length, recent, fail, miss, idxMiss, stats: divScanStats(all),
     codes: list.filter(x => /^\d{6}$/.test(x.code)).map(x => x.code),   // 훑은 국내 종목 (표의 '밖' 판정용)
   };
   try { localStorage.setItem(DIVSCAN_KEY, JSON.stringify(res)); } catch(e) {}
@@ -5468,11 +5554,13 @@ async function divScanRun(){
   bar.style.width = '100%';
   btn.disabled = false;
   divScanBusy = false;
-  try { if (window.parent && window.parent !== window && typeof window.parent.divScanUpdated === 'function') window.parent.divScanUpdated(); } catch(e) {}
+  divScanFit();
+  try { if (window.parent && window.parent !== window && typeof window.parent.divScanUpdated === 'function') window.parent.divScanUpdated(divScanEmbed() ? 'embed' : ''); } catch(e) {}
 }
 
 function divScanPage(){
   divScanCss();
+  if (divScanEmbed()) document.body.classList.add('ds-embed');
   const opt = divScanOpt();
   const el = document.createElement('div');
   el.id = 'divscan';
@@ -5494,9 +5582,10 @@ function divScanPage(){
     document.getElementById('ds-meta').textContent = '기준 ' + (old.atStr || old.ymd) + ' · ' + (old.count || 0) + '종목 · 최근 ' + DIVSCAN_RECENT + '거래일 신호 ' + old.recent.length + '건'
       + (old.ymd !== divScanYmd() ? ' · 오늘 것이 아니니 [찾기]로 새로 찾으세요' : '');
     document.querySelector('#divscan .ds-prog i').style.width = '100%';
-  }
+  } else divScanRender(null);
   /* 오늘 결과가 없거나 &run=1(선정주의 [지금 찾기])이면 바로 찾는다 */
   if (!old || old.ymd !== divScanYmd() || new URLSearchParams(location.search).get('run')) divScanRun();
+  window.addEventListener('resize', divScanFit);
 }
 
 init();

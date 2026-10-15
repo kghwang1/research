@@ -1822,7 +1822,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div class="subtab" data-m="etf">한·미 ETF</div>
   <div class="subtab" data-m="dividend">배당</div>
  </div>
- <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table><div id="valNote" class="val-note" style="display:none"></div></div>
+ <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table><div id="valNote" class="val-note" style="display:none"></div><div id="selDivBox" style="display:none;padding:0 4px"><iframe id="selDivEmbed" title="다이버전스 찾기 결과" style="width:100%;height:420px;border:0;display:block;background:#0d1117"></iframe></div></div>
  <button id="scoreCardBtn" style="display:none;position:absolute;right:12px;bottom:14px;z-index:30;padding:9px 15px;border-radius:22px;border:none;background:#7c83ff;color:#fff;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35)">⚙ 점수표</button>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
  <div id="valMulti" style="display:none"></div>
@@ -3280,6 +3280,7 @@ function applyValNote(m){
   el.innerHTML = chg + (txt ? escHtml(txt).replace(/\n/g,'<br>') : '');
 }
 function renderVal(){
+  if(typeof selDivBoxSync==='function') selDivBoxSync();   // 다른 표로 가면 다이버전스 결과 칸을 감춘다
   const sc=$('#valScroll'), em=$('#valEmpty'), multi=$('#valMulti'), foot=$('#valFoot');
   const t=$('#valTbl');
   if(!t) return;
@@ -4831,6 +4832,7 @@ function renderWatchTable(){
   const isTop20   = (isSel && selSub==='top20');   // 주간Top20 탭 (고정 목록)
   const top20Of   = c => SEL_TOP20.find(r=>r[0]===String(c||'').trim());
   const isDiv     = (isSel && selSub==='div');     // 다이버전스 탭 (찾은 목록)
+  selDivBoxSync();
   // 종목·분류·현재가·ROE·외국인·매수액·공매도·52주·목표가·보고서
   const W = isLongUs
     ? [40,110,64,92,104,104,58,64,100,104,84]           // 국외: 미국(반) 적정주가 표와 같은 항목
@@ -5103,12 +5105,8 @@ function renderWatchTable(){
     const stale = dr && dr.ymd && dr.ymd!==kgYmdLocal();
     h+=`<tr class="add-row"><td colspan="8" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left;white-space:normal;line-height:1.6">
       ${dr ? `기준 ${escHtml(dr.atStr||dr.ymd||'')}${stale?' <b style="color:#f0a836">(오늘 것이 아님)</b>':''} · 최근 10거래일 안에 확정된 신호 · 국내 종목만 (원자재는 챠트 › 🎯 다이버전스 목록에서)` : '아직 찾은 결과가 없습니다.'}<br>
-      ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI S=SlowStoch M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다
-      <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <button type="button" id="selDivRun" class="rfr selrfr">🎯 지금 찾기</button>
-        <button type="button" id="selDivChart" class="rfr selrfr">📋 결과표 · 신호 효과 보기</button>
-        <span id="selDivProg" style="color:#8b949e"></span>
-      </div></td></tr>`;
+      ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI S=SlowStoch M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다<br>
+      ↓ 아래에 찾은 전체 목록(원자재 포함)과 신호 효과 표가 있습니다 — 새로 찾으려면 아래 [찾기]</td></tr>`;
   }
   else if(isTop20){
     h+=`<tr class="add-row"><td colspan="12" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left">
@@ -5980,9 +5978,42 @@ function selDivScan(){
 }
 /* 찾기 범위에 더할 종목 — 다이버전스 열이 있는 포트의 국내 종목
    (코스피200·코스닥100 밖의 한국(체)·관심보유·대기·장기보유1·주간Top20 종목도 함께 훑는다) */
+/* 선정주 › 다이버전스 표 아래 — 챠트의 찾기 결과 화면(kg-chart.html?divscan=1&embed=1)을 붙인다.
+   표(#valTbl)는 시세가 올 때마다 새로 그려지므로 그 바깥(#selDivBox)에 둬서 찾는 도중에도 끊기지 않게 한다 */
+function selDivBoxSync(){
+  const box=$('#selDivBox'), fr=$('#selDivEmbed'); if(!box||!fr) return;
+  const on = (typeof valMarket!=='undefined' && valMarket==='invpf' && typeof selSub!=='undefined' && selSub==='div');
+  box.style.display = on ? '' : 'none';
+  if(on && !fr.dataset.loaded){ fr.dataset.loaded='1'; fr.src='kg-chart.html?divscan=1&embed=1'; }
+}
+window.divScanResize=function(h){
+  const fr=$('#selDivEmbed'); if(fr && h>100) fr.style.height=Math.ceil(h)+'px';
+};
+/* 워커의 코스피200·코스닥100 목록이 비면 대신 쓸 목록 —
+   코스피200·코스닥100 탭이 받아 둔 종목 + 앱 내장 목록 */
+window.divScanFallback=function(q){
+  const kq=(q==='kosdaq');
+  const out=[], seen=new Set();
+  const add=(c,n)=>{ c=String(c||'').replace(/[^0-9]/g,''); if(c.length!==6||seen.has(c)) return; seen.add(c);
+    out.push({code:c, name:n || (typeof kgNameOf==='function' && kgNameOf(c)) || c}); };
+  try{ const P=kq?(typeof INVEST_KQ_POOL!=='undefined'?INVEST_KQ_POOL:[]):(typeof INVEST_POOL!=='undefined'?INVEST_POOL:[]); (P||[]).forEach(r=>add(r.code||r[0], r.name||r[1])); }catch(e){}
+  try{ const raw=localStorage.getItem(kq?'inv_kq_pool':'inv_pool'); const o=raw?JSON.parse(raw):null;
+    ((o&&o.rows)||[]).forEach(r=>add(r.code||r[0], r.name||r[1])); }catch(e){}
+  (kq?KOSDAQ_FALLBACK:KOSPI_FALLBACK).forEach(c=>add(c,''));
+  return out;
+};
+/* 종목의 시장(코스피·코스닥) — 지수 비교용. 모르면 빈 값 */
+function divMarketOf(code){
+  const c=String(code||'');
+  const inPool=(P,key)=>{ try{ if((P||[]).some(r=>String(r.code||r[0])===c)) return true;
+    const o=JSON.parse(localStorage.getItem(key)||'null'); return !!(o&&o.rows&&o.rows.some(r=>String(r.code||r[0])===c)); }catch(e){ return false; } };
+  if(KOSDAQ_FALLBACK.includes(c) || inPool(typeof INVEST_KQ_POOL!=='undefined'?INVEST_KQ_POOL:[], 'inv_kq_pool')) return '코스닥';
+  if(KOSPI_FALLBACK.includes(c) || inPool(typeof INVEST_POOL!=='undefined'?INVEST_POOL:[], 'inv_pool')) return '코스피';
+  return '';
+}
 window.divScanExtraCodes=function(){
   const out=[], seen=new Set();
-  const add=(c,n)=>{ c=String(c||'').trim(); if(!/^\d{6}$/.test(c) || seen.has(c)) return; seen.add(c); out.push({code:c, name:String(n||c)}); };
+  const add=(c,n)=>{ c=String(c||'').trim(); if(!/^\d{6}$/.test(c) || seen.has(c)) return; seen.add(c); out.push({code:c, name:String(n||c), mk:divMarketOf(c)||'포트'}); };
   try{ (VAL||[]).forEach(r=>add(String(r[0]||'').replace(/[^0-9]/g,''), r[1])); }catch(e){}
   ['kg_watch_rows','kg_addstk_rows','kg_invpf_rows',WAIT_KEY].forEach(k=>{
     try{ selReadRows(k).forEach(r=>add(Array.isArray(r)?r[0]:(r&&r.code), Array.isArray(r)?r[1]:(r&&r.name))); }catch(e){}
@@ -15864,6 +15895,9 @@ function anlCurrentPort(){
     /* 종목분석에서 넘어온 경우 그쪽에서 보고 있던 포트를 그대로 연다.
        아래 close* 를 부르면 화면이 닫혀 값을 못 읽으므로 반드시 먼저 읽는다. */
     const wantPort = (typeof anlCurrentPort==='function' && anlCurrentPort()) || 'kr';
+    /* 챠트에서 🎯 다이버전스 목록을 보고 있었으면 선정주 › 다이버전스 로 간다 (2026-10-15) */
+    const cfs=$('#chartFullScreen'), cps=$('#chartPortSel');
+    const fromDiv = !!(cfs && cfs.style.display!=='none' && cps && cps.value==='div');
     closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
     if(typeof appChromeRestore==='function') appChromeRestore();
     document.body.classList.remove('anl-mode');
@@ -15875,6 +15909,11 @@ function anlCurrentPort(){
     const tb=document.querySelector('.tab[data-t="port"]'); if(tb) tb.classList.add('on');
     const sc=$('#port'); if(sc) sc.classList.add('on');
     topPaint('port');
+    if(fromDiv){
+      if(typeof openPort==='function') openPort('invpf');
+      setTimeout(()=>{ if(typeof setSelSub==='function') setSelSub('div'); }, 0);
+      return;
+    }
     if(typeof openPort==='function') openPort(wantPort);
     return;
   }
@@ -17847,7 +17886,8 @@ function chartBindItem(el){
     el.classList.add('on');
     stkSet(el.dataset.code, el.dataset.name);
     const ifr=$('#chartIframe');
-    if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name)+(chartPort==='div'?'&div=1':'');
+    if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name)
+      +(chartPort==='div'?'&div=1&tags='+encodeURIComponent(divTagsOf(el.dataset.code)):'');
   };
 }
 /* ── 다이버전스 종목 찾기 (2026-10-15) ──
@@ -17866,6 +17906,14 @@ function divScanGroups(){
   });
   return out;
 }
+/* 그 종목에서 다이버전스가 난 지표 글자 모음 (▲▼ 모두) — 챠트가 그 지표를 보이게 ⇄ 를 맞춘다 */
+function divTagsOf(code){
+  let res=null; try{ res=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); }catch(e){}
+  if(!res || !Array.isArray(res.recent)) return '';
+  const set=new Set();
+  res.recent.filter(x=>x.code===String(code)).forEach(x=>String(x.tags||'').split('').forEach(t=>set.add(t)));
+  return [...set].join('');
+}
 function chartOpenDivScan(){
   const box=$('#chartStockItems');
   if(box){ box.querySelectorAll('.cs-item').forEach(x=>x.classList.remove('on'));
@@ -17879,11 +17927,13 @@ window.chartOpenFromDiv=function(code, name){
   if(it){ it.click(); if(it.scrollIntoView) it.scrollIntoView({block:'nearest'}); return; }
   stkSet(code, name);
   const ifr=$('#chartIframe');
-  if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(code)+'&name='+encodeURIComponent(name)+'&div=1';
+  if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(code)+'&name='+encodeURIComponent(name)+'&div=1&tags='+encodeURIComponent(divTagsOf(code));
 };
 /* 찾기가 끝나면 왼쪽 목록을 새로 그린다 */
-window.divScanUpdated=function(){
+window.divScanUpdated=function(from){
   const hf=document.getElementById('selDivFrame'); if(hf) setTimeout(()=>hf.remove(), 50);
+  /* 다른 곳(챠트 결과표 · 지금 찾기)에서 새로 찾았으면 표 아래 결과 화면도 다시 읽힌다 */
+  if(from!=='embed'){ const fr=$('#selDivEmbed'); if(fr && fr.dataset.loaded) fr.src='kg-chart.html?divscan=1&embed=1'; }
   /* 다이버전스 열이 있는 다른 표가 열려 있으면 그 표도 새로 그린다 (시세는 다시 받지 않는다) */
   try{
     if(valMarket==='kr') renderKrTable();
