@@ -1180,6 +1180,10 @@
 
  <!-- ===== MARKET (시황) ===== -->
  <section class="on" id="market">
+  <!-- 앱 이름 · 버전 (홈 화면에만) — 버전 = 월.일.-v그날 몇 번째 교체 (KG_APP_VER) -->
+  <div id="homeVer" style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 12px 2px;font-size:12px">
+    <b style="color:#f2c800">KG리서치보드</b><span style="color:#8b949e">버전 <span id="homeVerNo"></span></span>
+  </div>
 
   <!-- 코스피·코스닥·선물 흐름 비교 -->
   <div class="idx3-pair">
@@ -14789,8 +14793,12 @@ const FCST_SEED = {
    서버 자료든 이 파일에 담아 온 자료든, <b>시각이 나중인 쪽</b>이 이긴다. */
 /* 어느 판이 돌고 있는지 한눈에 보려고 적어 둔다.
    자료를 새로 담을 때마다 이 날짜를 올린다. */
-const KG_APP_BUILD = '2026-09-30b 시세·ROE 깜빡임 수정 · 선정주 주간Top20 · 한국(체) 9월 5주 · 미국(체) 9월 4주';
+/* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
+   홈 화면 맨 위에만 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
+const KG_APP_VER = '10.15.-v12';
+const KG_APP_BUILD = KG_APP_VER + ' 버전 홈 표시';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
+document.addEventListener('DOMContentLoaded', ()=>{ const v=document.getElementById('homeVerNo'); if(v) v.textContent=KG_APP_VER; });
 
 const FTS_KEY='kg_fcst_ts';
 function ftsAll(){
@@ -15246,7 +15254,6 @@ function fcstTableHtml(code){
        return `<span style="font-size:11px;color:#6e7681;margin-left:auto">입력 `
             + `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}</span>`;
      })()
-   + `<span style="font-size:10px;color:#484f58;margin-left:8px" title="지금 돌고 있는 앱 판">${escHtml(typeof KG_APP_BUILD!=='undefined'?KG_APP_BUILD:'')}</span>`
    + '</div>'
    + '<div id="fcstMsg" style="font-size:12px;color:#8b949e;margin:0 0 8px;display:none"></div>';
 
