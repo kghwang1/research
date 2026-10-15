@@ -4303,7 +4303,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-15h 다이버전스 — 지수·원자재 7줄';
+const KG_CHART_BUILD = '2026-10-15i 다이버전스 — 추가신호(20·120일선·RSI)';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5358,7 +5358,14 @@ function divScanOne(d, idx){
       conf: f.conf == null ? 'wait' : (f.conf < 0 ? 'no' : d[f.conf].date),
     });
   });
-  return { ev, recent, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
+  /* 추가신호 — 마지막 봉 기준: 종가가 20일선·120일선 위(+1)/아래(-1), RSI(14) 값 */
+  let rl = null; for (let i = N - 1; i >= Math.max(0, N - 5); i--) if (rsi[i] != null) { rl = rsi[i]; break; }
+  const state = {
+    a20:  s20[N - 1]  != null ? (last.close >= s20[N - 1]  ? 1 : -1) : null,
+    a120: s120[N - 1] != null ? (last.close >= s120[N - 1] ? 1 : -1) : null,
+    rsi:  rl != null ? Math.round(rl) : null,
+  };
+  return { ev, recent, state, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
 }
 
 /* 신호 뒤 h일 — 종목 평균 등락, 그리고 같은 기간 코스피·코스닥 지수와 비교한 초과 등락.
@@ -5614,7 +5621,7 @@ async function divScanRun(){
   if (dk) idx.K = toMap(dk); if (dq) idx.Q = toMap(dq);
   if (!dk || !dq) idxMiss = (!dk ? '코스피' : '') + (!dk && !dq ? '·' : '') + (!dq ? '코스닥' : '') + ' 지수를 받지 못해 그 비교 칸이 비었습니다.';
   const { list, miss } = await divScanUniverse(opt);
-  const all = [], recent = [], fail = [], fixed = {};
+  const all = [], recent = [], fail = [], fixed = {}, states = {};
   let done = 0, idxN = 0;
   const work = async () => {
     while (idxN < list.length) {
@@ -5624,6 +5631,7 @@ async function divScanRun(){
         try {
           const r = divScanOne(d, (it.mk === '원자재' || it.mk === '지수') ? null : idx);
           r.mk = it.mk;
+          states[it.code] = r.state;
           /* 표 끝 고정 줄의 현재가·전일대비 (찾은 시각 기준) */
           if (DIVSCAN_FIXED.some(f => f[0] === it.code) && d.length >= 2) {
             const a = d[d.length - 2].close, b = d[d.length - 1].close;
@@ -5647,7 +5655,7 @@ async function divScanRun(){
   const res = {
     ymd: divScanYmd(), at: now.toISOString(),
     atStr: divScanYmd() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
-    opt, count: all.length, recent, fail, miss, idxMiss, stats: divScanStats(all), fixed,
+    opt, count: all.length, recent, fail, miss, idxMiss, stats: divScanStats(all), fixed, state: states,
     codes: list.filter(x => /^\d{6}$/.test(x.code)).map(x => x.code),   // 훑은 국내 종목 (표의 '밖' 판정용)
   };
   try { localStorage.setItem(DIVSCAN_KEY, JSON.stringify(res)); } catch(e) {}

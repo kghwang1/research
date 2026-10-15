@@ -420,6 +420,20 @@
   .val-tbl.mp.selstick td:nth-child(2)>div{
     width:calc(var(--stkw) - 14px);max-width:calc(var(--stkw) - 14px);overflow:hidden}
   .val-tbl.mp.selstick td:nth-child(2) .winput{width:100%!important;min-width:0}
+  /* 선정주 › 다이버전스: 차수 · 투자 · 종목 세 열을 고정 (2026-10-15).
+     --stk2 = 차수 열 너비, --stk3 = 차수+투자 너비 — 표를 그린 뒤 JS 가 재어 넣는다 */
+  .val-tbl.mp.divstick{--stk2:56px;--stk3:134px;--stkw:100px}
+  .val-tbl.mp.divstick th:nth-child(2),.val-tbl.mp.divstick td:nth-child(2){
+    position:sticky;left:var(--stk2);z-index:2}
+  .val-tbl.mp.divstick th:nth-child(3),.val-tbl.mp.divstick td:nth-child(3){
+    position:sticky;left:var(--stk3);z-index:2;box-shadow:1px 0 0 rgba(0,0,0,.15);
+    width:var(--stkw);max-width:var(--stkw);overflow:hidden}
+  .val-tbl.mp.divstick thead th:nth-child(2),.val-tbl.mp.divstick thead th:nth-child(3){z-index:4}
+  .val-tbl.mp.divstick td:nth-child(3)>div,.val-tbl.mp.divstick td:nth-child(3)>a{
+    width:calc(var(--stkw) - 14px);max-width:calc(var(--stkw) - 14px);overflow:hidden}
+  .val-tbl.mp.divstick tr.divfix td{background:#f3f4f6}
+  .dxs{white-space:nowrap;font-weight:700;font-size:11px;line-height:1.5}
+  .dxs .u{color:#e53935} .dxs .d{color:#1e88e5}
   /* 미국 표 Symbol 열: 심볼/기업명 2줄 */
   .val-tbl:not(.mp) th:first-child,.val-tbl:not(.mp) td:first-child{font-weight:700;
     min-width:70px;max-width:115px;white-space:normal;word-break:break-word}
@@ -4845,7 +4859,7 @@ function renderWatchTable(){
        종목 너비는 CSS 의 --stkw 와 같은 값을 둔다 (두 곳이 어긋나면 열이 흔들린다) */
     ? (isDiv
       /* 다이버전스: 차수 · 종목 · 다이버전스 · 투자 · 현재가 · ROE · 외국인 · 5일매수액 */
-      ? [56,100,96,78,92,92,90,90]
+      ? [56,78,100,96,104,92,92,90,90]
       : [56,100,78,92,92,76,90,90,90,100,84,200])
     : [40,96,92,92,76,90,90,90,100,100,84,200];
   const hp=Object.values(watchRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
@@ -4856,7 +4870,7 @@ function renderWatchTable(){
     : isLongSub
     ? ["종목(코드입력)","장기<br>점수","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스"]
     : isDiv
-    ? ["차수","종목(코드입력)","다이버전스<br>(확정 뒤%)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)"]
+    ? ["차수","투자","종목(코드입력)","다이버전스<br>(확정 뒤%)","추가신호<br>(20·120일선·RSI)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)"]
     : isSel
     ? [isTop20?"등장":"차수","종목(코드입력)","투자","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"]
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
@@ -5004,14 +5018,14 @@ function renderWatchTable(){
       return;
     }
     if(isIdxRow && isDiv){
-      /* 다이버전스 표 끝의 지수·원자재 — 8열: (차수) · 종목 · 다이버전스 · (투자) · 현재가 · — · — · — */
+      /* 다이버전스 표 끝의 지수·원자재 — 9열: (차수) · (투자) · 종목 · 다이버전스 · 추가신호 · 현재가 · — · — · — */
       const fx=(selDivRes()||{}).fixed||{}, q=fx[code];
       const px = q && q.last!=null ? (q.last>=1000 ? Math.round(q.last).toLocaleString() : q.last.toFixed(2)) : '';
       const rt = q && q.rate!=null ? `<span class="diffp${q.rate>=0?'':' neg'}" style="display:block">(${q.rate>=0?'+':''}${q.rate.toFixed(2)}%)</span>` : '';
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">${/=F$/.test(code)?'원자재':'지수'}</span>`;
-      h+=`<tr style="background:rgba(139,148,158,.06)"><td></td>`
+      h+=`<tr class="divfix"><td></td><td></td>`
         + `<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="display:block;min-width:0;overflow:hidden">${stkInner}</a></td>`
-        + `<td class="mp-c">${divCell(code)}</td><td></td>`
+        + `<td class="mp-c">${divCell(code)}</td><td class="mp-c">${divExtraCell(code)}</td>`
         + `<td class="mp-r wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;text-decoration:underline dotted" title="${q&&q.date?'찾은 때 기준 '+escHtml(q.date):''}">${px||'차트▶'}${rt}</td>`
         + `<td class="rsub">—</td><td class="rsub">—</td><td class="rsub">—</td></tr>`;
       return;
@@ -5071,11 +5085,13 @@ function renderWatchTable(){
     // 직접 담은 종목은 종목명 칸을 옅은 노랑으로 표시한다
     const addedBg = (isSel && !isLongSub && _SEL_ADDED.has(String(rawCode).toUpperCase()))
       ? ' style="background:#fff8d6"' : '';
+    if(isDiv) h+=`<td class="cls-cell">${invCellHtml(rawCode)}</td>`;   // 다이버전스 표: 투자를 차수 다음에
     h+=`<td class="mp-l kr-stk kr-stk-wrap"${addedBg}>${stkCell}</td>`;
-    if(isDiv) h+=`<td class="mp-c">${divCell(rawCode)}</td>`;
+    if(isDiv) h+=`<td class="mp-c">${divCell(rawCode)}</td><td class="mp-c">${divExtraCell(rawCode)}</td>`;
     if(isLongSub) h+=`<td class="mp-c">${longScoreCell(code)}</td>`;
     // 선정주는 분류 대신 투자 칸만 둔다 (관심·보유는 다른 포트에서 체크한다)
-    if(isSel && !isLongSub) h+=`<td class="cls-cell">${invCellHtml(rawCode)}</td>`;
+    if(isDiv){ /* 투자 칸은 위에서 이미 넣었다 */ }
+    else if(isSel && !isLongSub) h+=`<td class="cls-cell">${invCellHtml(rawCode)}</td>`;
     else h+=`<td class="cls-cell">${isLongSub ? lclsCellHtml(rawCode) : clsCellHtml(code, nm||'')}</td>`;
     const liveCellStyle = code && liveStr && !/[—…]/.test(liveStr) ? ' style="cursor:pointer;text-decoration:underline dotted"' : '';
     h+=`<td class="mp-r wlive" data-code="${code}" data-name="${escHtml(nm)}"${liveCellStyle}>${liveStr}${liveStr&&!/[—…]/.test(liveStr)?rateHtml(watchRate[code]):''}</td>`;
@@ -5116,9 +5132,10 @@ function renderWatchTable(){
   if(isDiv){
     const dr=selDivRes();
     const stale = dr && dr.ymd && dr.ymd!==kgYmdLocal();
-    h+=`<tr class="add-row"><td colspan="8" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left;white-space:normal;line-height:1.6">
+    h+=`<tr class="add-row"><td colspan="9" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left;white-space:normal;line-height:1.6">
       ${dr ? `기준 ${escHtml(dr.atStr||dr.ymd||'')}${stale?' <b style="color:#f0a836">(오늘 것이 아님)</b>':''} · 최근 10거래일 안에 확정된 신호 · 국내 종목만 (원자재는 챠트 › 🎯 다이버전스 목록에서)` : '아직 찾은 결과가 없습니다.'}<br>
       ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI S=SlowStoch M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다<br>
+      추가신호(찾은 때 마지막 봉 기준): <b style="color:#e53935">20▲</b>/<b style="color:#1e88e5">20▼</b> 종가가 20일선 위/아래 · <b style="color:#e53935">120▲</b>/<b style="color:#1e88e5">120▼</b> 120일선 위/아래 · RSI <b style="color:#1e88e5">30 이하 과매도</b> · <b style="color:#e53935">70 이상 과매수</b> · 그 사이는 보통<br>
       ↓ 아래에 찾은 전체 목록(원자재 포함)과 신호 효과 표가 있습니다 — 새로 찾으려면 아래 [찾기]</td></tr>`;
   }
   else if(isTop20){
@@ -5139,12 +5156,14 @@ function renderWatchTable(){
     </td></tr>`;
   }
   h+='</tbody>';
-  t.className='val-tbl mp mpfix'+((isSel&&!isLongSub)?' selstick':''); t.innerHTML=h;
+  t.className='val-tbl mp mpfix'+(isDiv?' divstick':((isSel&&!isLongSub)?' selstick':'')); t.innerHTML=h;
   // 차수 열이 실제로 몇 px 로 그려졌는지 재어 종목 열을 딱 그만큼 왼쪽에 붙인다.
   // 이걸 안 하면 두 고정 열 사이에 바탕색 틈이 보인다.
   if(isSel && !isLongSub) requestAnimationFrame(()=>{
     const c1 = t.querySelector('thead th:first-child') || t.querySelector('tbody td:first-child');
     if(c1) t.style.setProperty('--stk2', c1.getBoundingClientRect().width+'px');
+    if(isDiv){ const c2 = t.querySelector('thead th:nth-child(2)');
+      if(c1 && c2) t.style.setProperty('--stk3', (c1.getBoundingClientRect().width + c2.getBoundingClientRect().width)+'px'); }
   });
   // 검색 바를 테이블 위에 별도 배치 (자동완성이 종목 행을 가리지 않도록)
   (function(){
@@ -5976,6 +5995,19 @@ function divCell(code){
     return '<span class="rsub">—</span>';
   }
   return selDivCell(c, xs);
+}
+/* 추가신호 칸 — 찾은 때 마지막 봉 기준: 20▲/▼ · 120▲/▼ · RSI 값 (30 이하 파랑 · 70 이상 빨강 · 그 사이 검정) */
+function divExtraCell(code){
+  const res=selDivRes(), st=res && res.state ? res.state[String(code||'').trim()] : null;
+  if(!st) return '<span class="rsub" title="'+(res&&!res.state?'[찾기]를 다시 누르면 나옵니다':'찾기 범위 밖')+'">—</span>';
+  const ma=(v,lbl)=> v==null ? '' : `<span class="${v>0?'u':'d'}" title="종가가 ${lbl}일선 ${v>0?'위':'아래'}">${lbl}${v>0?'▲':'▼'}</span>`;
+  let rs='';
+  if(st.rsi!=null){
+    const c = st.rsi<=30 ? 'd' : st.rsi>=70 ? 'u' : '';
+    const t = st.rsi<=30 ? '과매도' : st.rsi>=70 ? '과매수' : '보통';
+    rs=`<span class="${c}" title="RSI(14) ${st.rsi} · ${t}">RSI ${st.rsi}</span>`;
+  }
+  return `<div class="dxs">${[ma(st.a20,20), ma(st.a120,120)].filter(Boolean).join(' ')}${rs?'<br>'+rs:''}</div>`;
 }
 function selDivCell(code, pre){
   const xs=pre||selDivOf(code); if(!xs.length) return '<span class="rsub">—</span>';
