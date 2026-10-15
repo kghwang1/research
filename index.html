@@ -5003,6 +5003,19 @@ function renderWatchTable(){
       h+=`<tr>${swTdUS}<td class="mp-l kr-stk kr-stk-wrap"${addedBgUS}>${stkCell}</td>${clsTdUS}<td class="wusl" data-code="${escHtml(ticker)}" data-name="${escHtml(nm)}"${usLiveStyle}>${liveCell}</td><td>${roeStr}</td><td></td><td>—</td><td></td><td class="mp-r">${highStr}</td><td class="mp-r">${tgtCell}</td><td><span class="rsub">—</span></td><td class="mp-l rpt">${repCellUS}</td></tr>`;
       return;
     }
+    if(isIdxRow && isDiv){
+      /* 다이버전스 표 끝의 지수·원자재 — 8열: (차수) · 종목 · 다이버전스 · (투자) · 현재가 · — · — · — */
+      const fx=(selDivRes()||{}).fixed||{}, q=fx[code];
+      const px = q && q.last!=null ? (q.last>=1000 ? Math.round(q.last).toLocaleString() : q.last.toFixed(2)) : '';
+      const rt = q && q.rate!=null ? `<span class="diffp${q.rate>=0?'':' neg'}" style="display:block">(${q.rate>=0?'+':''}${q.rate.toFixed(2)}%)</span>` : '';
+      const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">${/=F$/.test(code)?'원자재':'지수'}</span>`;
+      h+=`<tr style="background:rgba(139,148,158,.06)"><td></td>`
+        + `<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="widx" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="display:block;min-width:0;overflow:hidden">${stkInner}</a></td>`
+        + `<td class="mp-c">${divCell(code)}</td><td></td>`
+        + `<td class="mp-r wlive" data-code="${escHtml(code)}" data-name="${escHtml(nm)}" style="cursor:pointer;text-decoration:underline dotted" title="${q&&q.date?'찾은 때 기준 '+escHtml(q.date):''}">${px||'차트▶'}${rt}</td>`
+        + `<td class="rsub">—</td><td class="rsub">—</td><td class="rsub">—</td></tr>`;
+      return;
+    }
     if(isIdxRow){
       // 지수/원자재: 이름·차트만 (시세·ROE·외국인·목표가·보고서 없음)
       const stkInner=`<span class="kn">${escHtml(nm||code)}</span><span class="kc" style="color:#8b949e">지수·원자재</span>`;
@@ -5317,7 +5330,8 @@ function renderWatchTable(){
   // 다이버전스 탭 — 지금 찾기 · 결과표 보기
   const dRun=t.querySelector('#selDivRun'); if(dRun) dRun.onclick=()=>selDivScan();
   const dCh=t.querySelector('#selDivChart'); if(dCh) dCh.onclick=()=>{ openChartView('div'); };
-  t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(c) openChart(c, nm, visRows()); }; });
+  t.querySelectorAll('a.widx').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code, nm=a.dataset.name; if(!c) return;
+    if(valMarket==='invpf' && selSub==='div') openChartView('div', c, nm); else openChart(c, nm, visRows()); }; });
   t.querySelectorAll('a.wusa').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code; if(c){ refreshOneStock('US:'+String(c).toUpperCase()); openNaverWorld(c); } }; });
   t.querySelectorAll('td.wusl').forEach(el=>{ el.onclick=ev=>{ ev.preventDefault(); const c=el.dataset.code, nm=el.dataset.name; if(c){ refreshOneStock('US:'+String(c).toUpperCase()); openChart('US:'+String(c).toUpperCase(), nm, visRows()); } }; });
   // 표 자료: 오늘자 서버 스냅샷이 있으면 재사용, 없으면 수집 후 저장
@@ -5924,6 +5938,9 @@ const SEL_TOP20_ASOF = '2026-09-30';
 /* 선정주 › 다이버전스 (2026-10-15) — 챠트 › 🎯 다이버전스 에서 찾은 결과(kg_div_scan) 중
    국내 종목만 표로 보인다 (원자재는 ROE·외국인 칸이 없어 챠트 목록에서만 본다).
    주간Top20 처럼 읽기 전용 목록이고, ✕·종목추가를 쓰지 않는다. */
+/* 다이버전스 표 맨 끝에 늘 붙는 지수·원자재 (챠트의 DIVSCAN_FIXED 와 같은 차례) */
+const DIV_FIXED = [['KOSPI','코스피'],['KOSDAQ','코스닥'],['^KS200','코스피200'],['EWY','MSCI 코리아'],['GC=F','금'],['SI=F','은'],['CL=F','WTI 원유']];
+function divIsFixed(code){ return DIV_FIXED.some(f=>f[0]===String(code||'').trim()); }
 function selDivRes(){ try{ const o=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); return o&&Array.isArray(o.recent)?o:null; }catch(e){ return null; } }
 function selDivList(){
   const res=selDivRes(); if(!res) return [];
@@ -5943,6 +5960,12 @@ function kgYmdLocal(){ const n=new Date(); return n.getFullYear()+'-'+String(n.g
    — = 찾았는데 최근 10거래일 신호 없음 · 밖 = 찾기 뒤에 담아 아직 안 훑은 종목 */
 function divCell(code){
   const c=String(code||'').trim();
+  if(divIsFixed(c)){                       // 지수·원자재 — 찾기 결과에서 그 코드의 신호
+    const res=selDivRes();
+    if(!res || !res.fixed) return '<span class="rsub" title="[찾기]를 다시 누르면 지수·원자재도 훑습니다">—</span>';
+    const xs=res.recent.filter(x=>x.code===c).sort((a,b)=>(a.type===b.type?0:(a.type==='bull'?-1:1))||(a.ago-b.ago));
+    return xs.length ? selDivCell(c, xs) : '<span class="rsub">—</span>';
+  }
   if(!/^\d{6}$/.test(c)) return '<span class="rsub">—</span>';
   const res=selDivRes();
   if(!res) return '<span class="rsub" title="아직 찾지 않았습니다 — 선정주 › 다이버전스 › 🎯 지금 찾기">—</span>';
@@ -6037,7 +6060,8 @@ function selAllRows(){
   if(selSub==='div'){       // 다이버전스 — 한 종목에 ▲▼ 가 함께 있어도 한 줄
     const seen=new Set();
     return selDivList().filter(x=>seen.has(x.code)?false:(seen.add(x.code),true))
-      .map(x=>({code:x.code, name:x.name, isUS:false, watch:false, invest:false}));
+      .map(x=>({code:x.code, name:x.name, isUS:false, watch:false, invest:false}))
+      .concat(DIV_FIXED.map(f=>({code:f[0], name:f[1], isUS:false, watch:false, invest:false})));   // 맨 끝: 지수·원자재
   }
   // 대기 탭은 대기 목록만 보여준다
   if(selSub==='wait'){
@@ -17904,6 +17928,13 @@ function divScanGroups(){
     out.push({hdr:lbl+' ('+rows.length+')'});
     rows.forEach(x=>out.push([x.code, x.name, (x.mk||'')+' '+(t==='bull'?'▲':'▼')+x.tags+' · '+(x.ago===0?'오늘':x.ago+'일 전')]));
   });
+  /* 맨 끝: 지수·원자재 7줄 — 신호가 없어도 늘 보인다 */
+  out.push({hdr:'지수 · 원자재'});
+  DIV_FIXED.forEach(([c,n])=>{
+    const xs=res.recent.filter(x=>x.code===c);
+    const tag=xs.length ? xs.map(x=>(x.type==='bull'?'▲':'▼')+x.tags+' '+(x.ago===0?'오늘':x.ago+'일 전')).join(' ') : '신호 없음';
+    out.push([c, n, (/=F$/.test(c)?'원자재':'지수')+' · '+tag]);
+  });
   return out;
 }
 /* 그 종목에서 다이버전스가 난 지표 글자 모음 (▲▼ 모두) — 챠트가 그 지표를 보이게 ⇄ 를 맞춘다 */
@@ -17972,7 +18003,8 @@ function buildChartStockList(filter){
     if(!rawCode) return;  // 현금 등 코드 없는 항목 제외
     // 차트 열기용 코드
     let code, isForeign=false;
-    if(idxPort){ code=rawCode; }                          // 지수는 변환 없이 그대로
+    const divFix=(chartPort==='div' && typeof divIsFixed==='function' && divIsFixed(rawCode));   // 다이버전스 목록 끝의 지수·원자재
+    if(idxPort || divFix){ code=rawCode; }                // 지수는 변환 없이 그대로 (^KS200 등)
     else if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
     else if(/^\d{6}$/.test(rawCode)){ code=rawCode; }   // 국내 6자리
     else if(usPort && /^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // 미국 티커
@@ -17982,7 +18014,7 @@ function buildChartStockList(filter){
     // 관심/투자 저장용 코드: 해외는 US:티커, 국내는 6자리
     const saveCode = isForeign ? ('US:'+String(code).toUpperCase()) : code;
     const inW=inPort('kg_watch_rows', saveCode), inI=inPort('kg_invpf_rows', saveCode);
-    const chks=idxPort ? '' : `<div class="cs-chks"><label class="cs-chk" title="관심 복사"><input type="checkbox" data-cls="kg_watch_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inW?' checked':''}></label><label class="cs-chk" title="투자 복사"><input type="checkbox" data-cls="kg_invpf_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inI?' checked':''}></label></div>`;
+    const chks=(idxPort||divFix) ? '' : `<div class="cs-chks"><label class="cs-chk" title="관심 복사"><input type="checkbox" data-cls="kg_watch_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inW?' checked':''}></label><label class="cs-chk" title="투자 복사"><input type="checkbox" data-cls="kg_invpf_rows" data-clscode="${escHtml(saveCode)}" data-clsname="${escHtml(name)}"${inI?' checked':''}></label></div>`;
     h+=`<div class="cs-item" data-code="${escHtml(code)}" data-name="${escHtml(name)}">${chks}<div class="cs-txt"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${escHtml(code)}${r[2]?' · '+escHtml(r[2]):(isForeign?' · 해외':'')}</span></div></div>`;
   });
   if(!h){

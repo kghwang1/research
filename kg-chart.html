@@ -4303,7 +4303,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '2026-10-15g 다이버전스 — 조건별 적중도 비교';
+const KG_CHART_BUILD = '2026-10-15h 다이버전스 — 지수·원자재 7줄';
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5194,6 +5194,12 @@ const DIVSCAN_CMDTY = [
   ['CL=F', 'WTI 원유'], ['BZ=F', '브렌트유'], ['NG=F', '천연가스'],
   ['ZC=F', '옥수수'], ['ZS=F', '대두'], ['ZW=F', '밀'],
 ];
+/* 다이버전스 표 맨 끝에 늘 붙는 지수·원자재 (2026-10-15) — 원자재 체크와 상관없이 언제나 훑는다
+   [코드, 이름, 받는 곳]  naver:X = 네이버 일봉(차트와 같은 코드), yahoo = 야후 */
+const DIVSCAN_FIXED = [
+  ['KOSPI', '코스피', 'naver:KOSPI'], ['KOSDAQ', '코스닥', 'naver:KOSDAQ'], ['^KS200', '코스피200', 'naver:KPI200'],
+  ['EWY', 'MSCI 코리아', 'yahoo'], ['GC=F', '금', 'yahoo'], ['SI=F', '은', 'yahoo'], ['CL=F', 'WTI 원유', 'yahoo'],
+];
 const DIVSCAN_TAGNAME = { R:'RSI', S:'SlowStoch', M:'MACD', E:'Elder Ray', F:'MFI' };
 
 function divScanSleep(ms){ return new Promise(r => setTimeout(r, ms)); }
@@ -5237,15 +5243,19 @@ async function divScanUniverse(opt){
     (ex || []).forEach(x => out.push({ code:String(x.code), name:x.name || x.code, mk:x.mk || '포트' }));
   } catch(e) {}
   if (opt.cmdty) DIVSCAN_CMDTY.forEach(([c, n]) => out.push({ code:c, name:n, mk:'원자재' }));
+  /* 표 끝에 고정으로 붙는 지수·원자재 — 원자재를 끈 경우에도 금·은·WTI 는 넣는다 */
+  DIVSCAN_FIXED.forEach(([c, n, src]) => out.push({ code:c, name:n, mk:/=F$/.test(c) ? '원자재' : '지수', src }));
   const seen = new Set();
   return { list: out.filter(x => seen.has(x.code) ? false : (seen.add(x.code), true)), miss };
 }
 
 /* 일봉 받기 — 국내는 차트와 같은 네이버(days=1000: 워커 캐시를 차트와 함께 쓴다), 원자재는 야후 */
 async function divScanFetch(it){
-  const u = it.mk === '원자재'
+  /* 받는 곳: it.src 가 있으면 그대로 (naver:코드 / yahoo), 없으면 원자재는 야후 · 나머지는 네이버 */
+  const src = it.src || (it.mk === '원자재' ? 'yahoo' : 'naver:' + it.code);
+  const u = src === 'yahoo'
     ? `${WORKER}/?yahooChart=${encodeURIComponent(it.code)}&range=3y&interval=1d`
-    : `${WORKER}/?naverChart=${it.code}&timeframe=day&days=1000`;
+    : `${WORKER}/?naverChart=${encodeURIComponent(src.slice(6))}&timeframe=day&days=1000`;
   for (let t = 0; t < 3; t++) {
     try {
       const r = await fetch(u, { cache:'no-store' });
@@ -5360,7 +5370,7 @@ function divScanStats(all){
   DIVSCAN_CONDS.forEach(([c]) => { S.bull[c] = mkH(); S.bear[c] = mkH(); });
   let from = null, to = null;
   all.forEach(x => {
-    if (x.mk === '원자재') return;
+    if (x.mk === '원자재' || x.mk === '지수') return;
     if (!from || x.from < from) from = x.from;
     if (!to || x.lastDate > to) to = x.lastDate;
     x.ev.forEach(e => {
@@ -5600,11 +5610,11 @@ async function divScanRun(){
   const idx = { K:null, Q:null };
   let idxMiss = '';
   const toMap = d => { const m = {}; (d || []).forEach(x => { m[x.date] = x.close; }); return m; };
-  const [dk, dq] = await Promise.all([divScanFetch({ code:'KOSPI', mk:'지수' }), divScanFetch({ code:'KOSDAQ', mk:'지수' })]);
+  const [dk, dq] = await Promise.all([divScanFetch({ code:'KOSPI', mk:'지수', src:'naver:KOSPI' }), divScanFetch({ code:'KOSDAQ', mk:'지수', src:'naver:KOSDAQ' })]);
   if (dk) idx.K = toMap(dk); if (dq) idx.Q = toMap(dq);
   if (!dk || !dq) idxMiss = (!dk ? '코스피' : '') + (!dk && !dq ? '·' : '') + (!dq ? '코스닥' : '') + ' 지수를 받지 못해 그 비교 칸이 비었습니다.';
   const { list, miss } = await divScanUniverse(opt);
-  const all = [], recent = [], fail = [];
+  const all = [], recent = [], fail = [], fixed = {};
   let done = 0, idxN = 0;
   const work = async () => {
     while (idxN < list.length) {
@@ -5612,8 +5622,13 @@ async function divScanRun(){
       const d = await divScanFetch(it);
       if (d) {
         try {
-          const r = divScanOne(d, it.mk === '원자재' ? null : idx);
+          const r = divScanOne(d, (it.mk === '원자재' || it.mk === '지수') ? null : idx);
           r.mk = it.mk;
+          /* 표 끝 고정 줄의 현재가·전일대비 (찾은 시각 기준) */
+          if (DIVSCAN_FIXED.some(f => f[0] === it.code) && d.length >= 2) {
+            const a = d[d.length - 2].close, b = d[d.length - 1].close;
+            fixed[it.code] = { last:b, rate:a ? (b / a - 1) * 100 : null, date:d[d.length - 1].date };
+          }
           all.push(r);
           r.recent.forEach(x => recent.push(Object.assign({ code:it.code, name:it.name, mk:it.mk, last:r.last }, x)));
         } catch(e) { fail.push(it.name); }
@@ -5632,7 +5647,7 @@ async function divScanRun(){
   const res = {
     ymd: divScanYmd(), at: now.toISOString(),
     atStr: divScanYmd() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
-    opt, count: all.length, recent, fail, miss, idxMiss, stats: divScanStats(all),
+    opt, count: all.length, recent, fail, miss, idxMiss, stats: divScanStats(all), fixed,
     codes: list.filter(x => /^\d{6}$/.test(x.code)).map(x => x.code),   // 훑은 국내 종목 (표의 '밖' 판정용)
   };
   try { localStorage.setItem(DIVSCAN_KEY, JSON.stringify(res)); } catch(e) {}
