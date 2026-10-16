@@ -4310,7 +4310,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.16.-v5';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.16.-v7';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5312,7 +5312,7 @@ function divScanSma(d, n){
 
 /* 한 종목 분석 — 같은 꼭지(종류·두 번째 꼭지 봉)에서 난 신호는 지표 글자를 모아 하나로 본다.
    idx = { K:{날짜→코스피 종가}, Q:{날짜→코스닥 종가} } — 진입일부터 같은 기간 지수 등락을 함께 잰다 */
-function divScanOne(d, idx, fmap){
+function divScanOne(d, idx, fmap, rmap){
   const N = d.length, groups = new Map();
   DIVSCAN_KEYS.forEach(k => {
     let list = [];
@@ -5338,6 +5338,13 @@ function divScanOne(d, idx, fmap){
     let sum = 0, got = 0;
     for (let k = Math.max(0, e - DIVSCAN_FRGN_N + 1); k <= e; k++) { const v = fmap[d[k].date]; if (v != null) { sum += v; got++; } }
     return got >= 3 ? sum : null;
+  };
+  /* 외국인 보유비중 — e 일(없으면 그 앞 가장 가까운 날)의 비중과, DIVSCAN_FRGN_N 거래일 전 대비 증감(%p) */
+  const frgnHold = e => {
+    if (!rmap) return { fh:null, fd:null };
+    const at = j => { for (let k = j; k >= Math.max(0, j - 3); k--) { const v = rmap[d[k].date]; if (v != null) return v; } return null; };
+    const h1 = at(e), h0 = e - DIVSCAN_FRGN_N >= 0 ? at(e - DIVSCAN_FRGN_N) : null;
+    return { fh: h1, fd: (h1 != null && h0 != null) ? +(h1 - h0).toFixed(2) : null };
   };
   const featOf = g => {
     const bull = g.type === 'bull';
@@ -5386,7 +5393,7 @@ function divScanOne(d, idx, fmap){
     if (N - 1 - g.t < DIVSCAN_RECENT && divKeepSig(g)) recent.push({
       type:g.type, tags:g.tags, date:d[g.t].date, piv:d[g.b].date, ago:N - 1 - g.t,
       p0:d[g.t].close, chg:(last.close / d[g.t].close - 1) * 100,
-      n3:f.n3, trend:f.trend, deep:f.deep, rp:f.rp != null ? Math.round(f.rp) : null, fr:f.fr,
+      n3:f.n3, trend:f.trend, deep:f.deep, rp:f.rp != null ? Math.round(f.rp) : null, fr:f.fr, ...frgnHold(N - 1), ...(h => ({ kh:h.fh, kd:h.fd }))(frgnHold(g.t)),
       conf: f.conf == null ? 'wait' : (f.conf < 0 ? 'no' : d[f.conf].date),
     });
   });
@@ -5403,7 +5410,7 @@ function divScanOne(d, idx, fmap){
     recent.push({
       type:g.type, tags:g.tags, forming:true, held:L - g.b, date:d[g.b].date, piv:d[g.b].date, ago:null,
       p0:d[g.b].close, chg:(last.close / d[g.b].close - 1) * 100,
-      n3:g.tags.length >= 3, trend:s120[L] != null && (bull ? last.close > s120[L] : last.close < s120[L]), deep:dp, rp:rp != null ? Math.round(rp) : null, conf:'wait', fr:frgnSum(L),
+      n3:g.tags.length >= 3, trend:s120[L] != null && (bull ? last.close > s120[L] : last.close < s120[L]), deep:dp, rp:rp != null ? Math.round(rp) : null, conf:'wait', fr:frgnSum(L), ...frgnHold(L),
     });
   });
   /* 추가신호 — 마지막 봉 기준: 종가가 20일선·120일선 위(+1)/아래(-1), RSI(14) 값 */
@@ -5522,6 +5529,8 @@ body.ds-embed #divscan{position:static;overflow:visible;padding:8px 2px 12px}
 #divscan th{color:#8b949e;font-weight:600;font-size:11px;background:#161b22}
 #divscan td.l,#divscan th.l{text-align:left}
 #divscan td.cc,#divscan th.cc{text-align:center;min-width:42px}
+#divscan td.cc .sm{margin-left:1px}
+#divscan td.cc .fsub{font-size:9.5px;line-height:1.2;margin-top:1px;font-weight:400}
 #divscan tr.ds-row{cursor:pointer}
 #divscan tr.ds-row:hover td{background:#161b22}
 #divscan tr.ds-sub td{border-bottom-color:#161b22}
@@ -5581,9 +5590,24 @@ function divScanCondCells(x){
   // 120일 — 주가가 120일선 위/아래 (trend = 신호와 같은 쪽)
   const above120 = bull ? !!x.trend : !x.trend;
   const c120 = tri(above120, !!x.trend, '120일선 ' + (above120 ? '위' : '아래') + (x.trend ? ' — 신호와 같은 방향' : ' — 신호와 반대 방향'));
-  // 외국인 — 최근 5일 순매수 합
-  const cf = (x.fr == null) ? none('외국인 자료 없음')
-    : '<td class="cc ' + ((x.fr > 0) === bull ? (x.fr > 0 ? 'up' : 'dn') : 'mu') + '" title="최근 5일 외국인 순' + (x.fr > 0 ? '매수' : '매도') + '">' + (x.fr > 0 ? '매수' : '매도') + '</td>';
+  // 외국인 — 위: 가장 최근일 ▲▼ 보유비중 (5일 증감). 예: ▲23%(0.37%)
+  //          아래(작게): 확정일 기준 5일 증감. 예: 확정일 ▼(0.12%) — 형성 중 신호는 둘이 같아 생략
+  let cf;
+  const sub = (x.kd != null && !x.forming)
+    ? '<div class="fsub ' + (((x.kd > 0) && bull) || ((x.kd < 0) && !bull) ? (x.kd > 0 ? 'up' : 'dn') : 'mu') + '" title="신호 확정일(' + divScanEsc(x.date) + ')까지 '
+      + DIVSCAN_FRGN_N + '거래일 보유비중 ' + (x.kd >= 0 ? '+' : '') + x.kd.toFixed(2) + '%p' + (x.kh != null ? ' · 그날 비중 ' + x.kh.toFixed(2) + '%' : '') + '">확정일 '
+      + (x.kd > 0 ? '▲' : x.kd < 0 ? '▼' : '–') + '(' + Math.abs(x.kd).toFixed(2) + '%)</div>'
+    : '';
+  if (x.fh != null) {
+    const dv = x.fd, up = dv != null && dv > 0, dn = dv != null && dv < 0;
+    const hv = x.fh >= 10 ? Math.round(x.fh) : x.fh.toFixed(1);
+    const good = (up && bull) || (dn && !bull);              // 신호와 같은 방향이면 진하게
+    cf = '<td class="cc ' + (good ? (up ? 'up' : 'dn') : 'mu') + '" title="외국인 보유비중 ' + x.fh.toFixed(2) + '% · '
+       + DIVSCAN_FRGN_N + '거래일 전보다 ' + (dv == null ? '자료 없음' : (dv >= 0 ? '+' : '') + dv.toFixed(2) + '%p') + '">'
+       + (up ? '▲' : dn ? '▼' : '–') + hv + '%' + (dv != null ? '<span class="sm">(' + Math.abs(dv).toFixed(2) + '%)</span>' : '') + sub + '</td>';
+  } else if (x.fr != null) {   // 예전 결과 — 보유비중 없이 순매수만 있음
+    cf = '<td class="cc ' + ((x.fr > 0) === bull ? (x.fr > 0 ? 'up' : 'dn') : 'mu') + '" title="최근 5일 외국인 순' + (x.fr > 0 ? '매수' : '매도') + ' (다시 찾으면 보유비중으로 표시)">' + (x.fr > 0 ? '▲' : '▼') + '</td>';
+  } else cf = none('외국인 자료 없음');
   return rc + c20 + c120 + cf;
 }
 /* (옛) 조건 표시 — 다른 곳에서 부를 수 있어 남겨 둔다 */
@@ -5728,20 +5752,21 @@ async function divScanRun(){
       const it = list[idxN++];
       const d = await divScanFetch(it);
       /* 외국인 일별 순매수 (국내 종목만, 차트와 같은 days=300 — 워커 캐시를 함께 쓴다) */
-      let fmap = null;
+      let fmap = null, rmap = null;   // rmap: 날짜별 외국인 보유비중(%)
       if (d && opt.frgn && /^\d{6}$/.test(it.code)) {
         try {
           const fr = await fetch(`${WORKER}/?frgnDaily=${it.code}&days=300`, { cache:'no-store' });
           const fj = await fr.json();
           if (fj && fj.ok && Array.isArray(fj.data) && fj.data.length) {
-            fmap = {}; fj.data.forEach(x => { if (x && x.date) fmap[x.date] = (x.amt != null ? x.amt : x.net); });
+            fmap = {}; rmap = {};
+            fj.data.forEach(x => { if (x && x.date) { fmap[x.date] = (x.amt != null ? x.amt : x.net); if (x.ratio > 0) rmap[x.date] = x.ratio; } });
             frgnOk++;
           } else frgnNo++;
         } catch(e) { frgnNo++; }
       }
       if (d) {
         try {
-          const r = divScanOne(d, (it.mk === '원자재' || it.mk === '지수') ? null : idx, fmap);
+          const r = divScanOne(d, (it.mk === '원자재' || it.mk === '지수') ? null : idx, fmap, rmap);
           r.mk = it.mk;
           states[it.code] = r.state;
           /* 표 끝 고정 줄의 현재가·전일대비 (찾은 시각 기준) */
