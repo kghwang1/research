@@ -850,6 +850,8 @@
   #rptFullScreen .anl-layout,#chartFullScreen .anl-layout{height:auto;flex:1;min-height:0}
   #rptFullScreen .anl-main{display:flex;flex-direction:column;overflow:hidden;min-height:0}
   /* 좌우 경계 — 끌어서 종목 칸 폭을 조절한다 (챠트 화면과 같은 방식) */
+  /* 경계선을 끄는 동안 iframe 이 마우스를 가로채면 오른쪽으로 못 간다 → 끄는 동안만 iframe 을 투명하게 */
+  body.rz-drag iframe{pointer-events:none}
   .side-rz{width:6px;flex:none;cursor:col-resize;background:var(--line);position:relative;touch-action:none}
   .side-rz::before{content:'';position:absolute;left:1.5px;top:50%;transform:translateY(-50%);
     width:3px;height:40px;border-radius:2px;background:#4a525e}
@@ -5978,7 +5980,10 @@ const SEL_TOP20_ASOF = '2026-09-30';
 /* 다이버전스 표 맨 끝에 늘 붙는 지수·원자재 (챠트의 DIVSCAN_FIXED 와 같은 차례) */
 const DIV_FIXED = [['KOSPI','코스피'],['KOSDAQ','코스닥'],['^KS200','코스피200'],['EWY','MSCI 코리아'],['GC=F','금'],['SI=F','은'],['CL=F','WTI 원유']];
 function divIsFixed(code){ return DIV_FIXED.some(f=>f[0]===String(code||'').trim()); }
-function selDivRes(){ try{ const o=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); return o&&Array.isArray(o.recent)?o:null; }catch(e){ return null; } }
+/* 다이버전스 종목 선정 규칙 (2026-10-16) — 한 지표에서만 나온 신호는 빼고, 두 지표 이상 겹친 것만 남긴다.
+   단 RSI(R) 는 혼자 나와도 남긴다. */
+function divKeepSig(x){ const t=String((x&&x.tags)||''); return t.length>=2 || t.indexOf('R')>=0; }
+function selDivRes(){ try{ const o=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); if(o&&Array.isArray(o.recent)){ o.recent=o.recent.filter(divKeepSig); return o; } return null; }catch(e){ return null; } }
 /* 다이버전스 정렬 — ▲ 먼저 · 완성된 신호 먼저 · 겹친 지표 많은 순 · 완성은 최근 순, 형성 중은 오래 지켜진 순 */
 function divSigSort(a,b){
   return (a.type===b.type?0:(a.type==='bull'?-1:1)) || ((a.forming?1:0)-(b.forming?1:0))
@@ -14808,7 +14813,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.16.-v3';
+const KG_APP_VER = '10.16.-v5';
 const KG_APP_BUILD = KG_APP_VER + ' 관심 부메뉴 글자 진한 황토색';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -16148,13 +16153,13 @@ function anlSideInit(){
   };
   const stop=()=>{
     if(!dragging) return;
-    dragging=false; rz.classList.remove('on'); document.body.style.userSelect='';
+    dragging=false; rz.classList.remove('on'); document.body.style.userSelect=''; document.body.classList.remove('rz-drag');
     try{ localStorage.setItem(ANL_W_KEY, String(parseInt(side.style.width,10)||150)); }catch(e){}
   };
   rz.addEventListener('dblclick', ()=>{ side.style.width='150px';
     try{ localStorage.setItem(ANL_W_KEY,'150'); }catch(e){} });
   rz.addEventListener('mousedown', e=>{
-    dragging=true; rz.classList.add('on'); document.body.style.userSelect='none'; e.preventDefault();
+    dragging=true; rz.classList.add('on'); document.body.style.userSelect='none'; document.body.classList.add('rz-drag'); e.preventDefault();
   });
   document.addEventListener('mousemove', e=>{ if(dragging) move(e.clientX); });
   document.addEventListener('mouseup', stop);
@@ -17983,7 +17988,7 @@ function chartBindItem(el){
    찾기는 챠트 칸의 kg-chart.html?divscan=1 이 하고 결과를 kg_div_scan 에 둔다.
    왼쪽 목록은 그 결과에서 ▲ 저점 · ▼ 고점 묶음으로 보여 준다 */
 function divScanGroups(){
-  let res=null; try{ res=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); }catch(e){}
+  const res=selDivRes();
   if(!res || !Array.isArray(res.recent)) return [];
   const out=[];
   [['bull','▲ 저점 · 반등 후보'],['bear','▼ 고점 · 하락 경계']].forEach(([t,lbl])=>{
@@ -18003,7 +18008,7 @@ function divScanGroups(){
 }
 /* 그 종목에서 다이버전스가 난 지표 글자 모음 (▲▼ 모두) — 챠트가 그 지표를 보이게 ⇄ 를 맞춘다 */
 function divTagsOf(code){
-  let res=null; try{ res=JSON.parse(localStorage.getItem('kg_div_scan')||'null'); }catch(e){}
+  const res=selDivRes();
   if(!res || !Array.isArray(res.recent)) return '';
   const set=new Set();
   res.recent.filter(x=>x.code===String(code)).forEach(x=>String(x.tags||'').split('').forEach(t=>set.add(t)));
@@ -18228,10 +18233,10 @@ document.addEventListener('DOMContentLoaded',()=>{
       sd.style.width=Math.round(w)+'px';
     };
     const stop=()=>{ if(!dragging) return; dragging=false;
-      rz.classList.remove('on'); document.body.style.userSelect='';
+      rz.classList.remove('on'); document.body.style.userSelect=''; document.body.classList.remove('rz-drag');
       try{ localStorage.setItem(KEY, String(parseInt(sd.style.width,10)||150)); }catch(e){} };
     rz.addEventListener('mousedown',e=>{ dragging=true; rz.classList.add('on');
-      document.body.style.userSelect='none'; e.preventDefault(); });
+      document.body.style.userSelect='none'; document.body.classList.add('rz-drag'); e.preventDefault(); });
     document.addEventListener('mousemove',e=>{ if(dragging) move(e.clientX); });
     document.addEventListener('mouseup', stop);
     rz.addEventListener('touchstart',e=>{ dragging=true; rz.classList.add('on');
@@ -18261,15 +18266,15 @@ document.addEventListener('DOMContentLoaded',()=>{
     };
     const stop=()=>{
       if(!dragging) return;
-      dragging=false; document.body.style.userSelect='';
+      dragging=false; document.body.style.userSelect=''; document.body.classList.remove('rz-drag');
       const sb=$('#chartSidebar');
       if(sb) try{ localStorage.setItem(KEY, String(parseInt(sb.style.width,10)||150)); }catch(e){}
     };
-    rz.addEventListener('mousedown',e=>{ dragging=true; e.preventDefault(); document.body.style.userSelect='none'; });
+    rz.addEventListener('mousedown',e=>{ dragging=true; e.preventDefault(); document.body.style.userSelect='none'; document.body.classList.add('rz-drag'); });
     document.addEventListener('mousemove',e=>{ if(dragging) onMove(e.clientX); });
     document.addEventListener('mouseup', stop);
     // 터치(모바일)
-    rz.addEventListener('touchstart',e=>{ dragging=true; document.body.style.userSelect='none'; },{passive:true});
+    rz.addEventListener('touchstart',e=>{ dragging=true; document.body.style.userSelect='none'; document.body.classList.add('rz-drag'); },{passive:true});
     document.addEventListener('touchmove',e=>{ if(dragging && e.touches[0]) onMove(e.touches[0].clientX); },{passive:true});
     document.addEventListener('touchend', stop);
     rz.addEventListener('dblclick', ()=>{
