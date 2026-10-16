@@ -866,11 +866,12 @@
   .subnav button.on{background:var(--accent);border-color:var(--accent);color:#0d1117;font-weight:700}
   .subnav .subsep{width:1px;height:16px;background:var(--line);margin:0 3px}
   /* 선정주 하부메뉴 — 종목분석 하부메뉴와 분리 */
-  .selnav{display:inline-flex;align-items:center;gap:4px;margin:0 8px 0 6px;vertical-align:middle}
-  .selnav button{background:transparent;border:1px solid var(--line);color:#8b949e;
-    border-radius:6px;padding:3px 11px;font-size:11.5px;cursor:pointer;white-space:nowrap;font-weight:600}
-  .selnav button:hover{color:#e6edf3}
-  .selnav button.on{background:var(--accent);border-color:var(--accent);color:#0d1117}
+  /* 관심 부메뉴 — 포트 부메뉴(.valfull-top .subtab)와 같은 글자 크기·색·모양 (2026-10-16) */
+  .selnav{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 8px 0 0;vertical-align:middle}
+  .selnav button{background:var(--panel);border:1px solid var(--line);color:var(--mut);
+    border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:700}
+  .selnav button:hover{color:var(--ink)}
+  .selnav button.on{background:var(--accent2);border-color:var(--accent2);color:#0a0a0a}
   .selnav .selrfr{width:auto;color:#f0883e}
   .lfil{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:#8b949e;cursor:pointer;margin-right:8px}
   .lfil input{margin:0;cursor:pointer}
@@ -1089,7 +1090,7 @@
    <div class="tab on" data-t="market">시황</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
-   <div class="tab" data-t="sel">선정주</div>
+   <div class="tab" data-t="sel">관심</div>
    <div class="tab" id="stkTabBtn">종목분석</div>
    <div class="tab" data-t="watch">방송</div>
    <div class="tab" data-t="study">STUDY</div>
@@ -1097,7 +1098,7 @@
  </div>
 </header>
 
-<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">선정주</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
+<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
 
 <div class="wrap">
 
@@ -1106,7 +1107,7 @@
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
    <div class="anl-row">
-    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">선정주</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
     <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
    </div>
    <div class="anl-row">
@@ -1722,7 +1723,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">선정주</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
       <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1762,7 +1763,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="rptFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">선정주</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1795,7 +1796,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">선정주</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1829,7 +1830,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
 <!-- ===== 주식 전체화면 ===== -->
 <div id="valFull" class="valfull">
- <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">선정주</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
+ <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
  <div class="valfull-top" id="valSub">
   <div class="subtab on" data-m="invpf">선정주</div>
   <div class="subtab" data-m="kr">한국(체)</div>
@@ -4892,7 +4893,7 @@ function renderWatchTable(){
     : ["종목(코드입력)","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const scoreInputHtml = '';
-  const capTitle = isSel ? '선정주' : '관심 종목';
+  const capTitle = isSel ? '' : '관심 종목';     // 주메뉴 '관심' 화면에서는 제목 글자를 쓰지 않는다 (2026-10-16)
   let capFilter = '';
   if(isSel){
     const cw = selReadRows('kg_watch_rows').filter(r=>String((Array.isArray(r)?r[0]:r&&r.code)||'').trim()).length;
@@ -14807,8 +14808,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.16.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 선정주를 주메뉴로';
+const KG_APP_VER = '10.16.-v2';
+const KG_APP_BUILD = KG_APP_VER + ' 선정주 → 관심, 부메뉴 모양을 포트와 같게';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
