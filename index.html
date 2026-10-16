@@ -1252,7 +1252,7 @@
   <div class="stu-bar">
    <button class="sf on" data-s="ind">투자지표</button>
    <button class="sf" data-s="peak">고점과 저점탐색</button>
-   <button class="sf" data-s="etc">기타</button>
+   <button class="sf" data-s="chart">챠트 기본조합해석</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -1651,9 +1651,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
 </ul>
 <p class="foot">고점저점 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
   </div>
-  <div id="stuEtc" class="stu-doc" style="display:none">
-   <div class="stu-empty">아직 비어 있습니다.<br>여기에 넣을 내용을 알려주시면 채워 넣겠습니다.</div>
-  </div>
+  <!-- 챠트에 있던 '📖 해석' 을 STUDY 로 옮겼다 (2026-10-16). 내용은 CHART_GUIDE_HTML 에서 채운다 -->
+  <div id="stuChart" class="stu-doc" style="display:none"></div>
  </section>
 
  <!-- ===== VALUATION (적정주가) ===== -->
@@ -1755,7 +1754,6 @@ DPS ÷ 배당수익률 = ?</code></pre>
         <option value="div">🎯 다이버전스</option>
         <option value="top20">주간Top20</option>
       </optgroup>
-      <option value="guide">📖 해석</option>
     </select>
       <span class="stk-now"></span>
     </div>
@@ -2410,13 +2408,19 @@ function renderWatch(){
 let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
-/* ---------- STUDY 하부메뉴 (투자지표 / 고점과 저점탐색 / 기타) ---------- */
+/* ---------- STUDY 하부메뉴 (투자지표 / 고점과 저점탐색 / 챠트 기본조합해석) ---------- */
+const STU_DOCS={ ind:'#stuInd', peak:'#stuPeak', chart:'#stuChart' };
+/* 챠트 기본조합해석 — 챠트 화면에 있던 해석 내용을 처음 열 때 채운다 */
+function stuChartFill(){
+  const el=$('#stuChart');
+  if(!el || el.dataset.filled) return;
+  if(typeof CHART_GUIDE_HTML!=='string') return;
+  el.innerHTML=CHART_GUIDE_HTML; el.dataset.filled='1';
+}
 $$('.stu-bar .sf').forEach(b=>b.onclick=()=>{
   $$('.stu-bar .sf').forEach(x=>x.classList.toggle('on', x===b));
-  const ind=$('#stuInd'), peak=$('#stuPeak'), etc=$('#stuEtc');
-  if(ind) ind.style.display = (b.dataset.s==='ind') ? '' : 'none';
-  if(peak) peak.style.display = (b.dataset.s==='peak') ? '' : 'none';
-  if(etc) etc.style.display = (b.dataset.s==='etc') ? '' : 'none';
+  if(b.dataset.s==='chart') stuChartFill();
+  Object.keys(STU_DOCS).forEach(k=>{ const el=$(STU_DOCS[k]); if(el) el.style.display=(b.dataset.s===k)?'':'none'; });
   window.scrollTo(0,0);
 });
 $$('.watch-bar .wf').forEach(b=>b.onclick=()=>{
@@ -14845,8 +14849,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.16.-v8';
-const KG_APP_BUILD = KG_APP_VER + ' 챠트 포트 순서 · 다이버전스 부메뉴';
+const KG_APP_VER = '10.16.-v9';
+const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
