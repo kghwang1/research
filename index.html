@@ -875,6 +875,11 @@
   .selnav button:hover{color:#d4a02a}
   .selnav button.on{background:var(--accent2);border-color:var(--accent2);color:#0a0a0a}
   .selnav .selrfr{width:auto;color:#f0883e}
+  .divnav{margin-left:2px}
+  .divnav button{color:#58a6ff}
+  /* 다이버전스 › 종목찾기 — 표 본문·머리글만 감추고 caption(부메뉴)은 남긴다 */
+  body.div-scan #valTbl thead, body.div-scan #valTbl tbody, body.div-scan #valTbl tfoot{display:none}
+  body.div-scan #valNote{display:none !important}
   .lfil{display:inline-flex;align-items:center;gap:3px;font-size:11.5px;color:#8b949e;cursor:pointer;margin-right:8px}
   .lfil input{margin:0;cursor:pointer}
   .anl-resize{flex:none;width:7px;cursor:col-resize;background:var(--panel);
@@ -1733,16 +1738,23 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <select id="chartPortSel">
       <option value="idx">지수</option>
       <option value="ftrend">외국인 추세</option>
-      <option value="div">🎯 다이버전스</option>
-      <option value="kr">한국(체)</option>
-      <option value="invest">코스피200</option>
-      <option value="investkq">코스닥100</option>
-      <option value="invpf">관심보유</option>
-      <option value="long">장기보유</option>
-      <option value="usc">미국(체)</option>
-      <option value="us">미국(반)</option>
-      <option value="etf">한·미 ETF</option>
-      <option value="dividend">배당</option>
+      <optgroup label="포트">
+        <option value="kr">한국(체)</option>
+        <option value="invest">코스피200</option>
+        <option value="investkq">코스닥100</option>
+        <option value="usc">미국(체)</option>
+        <option value="us">미국(반)</option>
+        <option value="etf">한·미 ETF</option>
+        <option value="dividend">배당</option>
+      </optgroup>
+      <optgroup label="관심">
+        <option value="invpf">관심보유</option>
+        <option value="wait">대기</option>
+        <option value="long1">장기보유1</option>
+        <option value="long2">장기보유2</option>
+        <option value="div">🎯 다이버전스</option>
+        <option value="top20">주간Top20</option>
+      </optgroup>
       <option value="guide">📖 해석</option>
     </select>
       <span class="stk-now"></span>
@@ -4923,7 +4935,14 @@ function renderWatchTable(){
   const capBtns = isSel
     ? {}                                                                             // 선정주: 새로고침은 위 줄로 옮김
     : {refresh:'watchDataBtn', save:'watchSaveBtn', load:'watchLoadBtn', reset:'watchResetBtn'};
-  let h='<caption class="kr-cap">'+capTitle+subNav+pfMenuHtml(capBtns, {checks: (isSel&&isLongTab()) ? longFilterHtml() : capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
+  /* 다이버전스 탭 부메뉴 — [포트폴리오][종목찾기] */
+  const divNav = isDiv
+    ? '<span class="selnav divnav">'
+      + `<button type="button" data-divview="pf"${selDivView==='pf'?' class="on"':''}>포트폴리오</button>`
+      + `<button type="button" data-divview="scan"${selDivView==='scan'?' class="on"':''}>종목찾기</button>`
+      + '</span>'
+    : '';
+  let h='<caption class="kr-cap">'+capTitle+subNav+divNav+pfMenuHtml(capBtns, {checks: (isSel&&isLongTab()) ? longFilterHtml() : capFilter})+(snapStamp(SNAP_SEL)?'<span style="display:block;font-size:10px;color:#6e7681;margin-top:2px">자료 '+snapStamp(SNAP_SEL)+'</span>':'')+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
@@ -5278,6 +5297,9 @@ function renderWatchTable(){
   bindSelAddInput(t);
   t.querySelectorAll('.selnav button[data-selsub]').forEach(b=>{
     b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setSelSub(b.dataset.selsub); };
+  });
+  t.querySelectorAll('.divnav button[data-divview]').forEach(b=>{
+    b.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setSelDivView(b.dataset.divview); };
   });
   t.querySelectorAll('input[data-lfil]').forEach(cb=>{
     cb.onchange=(ev)=>{ ev.stopPropagation(); setLongFilter(cb.dataset.lfil, cb.checked); };
@@ -6065,13 +6087,23 @@ function selDivScan(){
 }
 /* 찾기 범위에 더할 종목 — 다이버전스 열이 있는 포트의 국내 종목
    (코스피200·코스닥100 밖의 한국(체)·관심보유·대기·장기보유1·주간Top20 종목도 함께 훑는다) */
+/* 다이버전스 탭 안쪽 부메뉴 — pf: 포트폴리오 표(기본) · scan: 종목찾기 화면 */
+let selDivView='pf';
+function setSelDivView(v){
+  selDivView = (v==='scan') ? 'scan' : 'pf';
+  renderWatchTable();        // caption 의 부메뉴 불빛을 새로 그린다
+  selDivBoxSync();
+}
 /* 선정주 › 다이버전스 표 아래 — 챠트의 찾기 결과 화면(kg-chart.html?divscan=1&embed=1)을 붙인다.
    표(#valTbl)는 시세가 올 때마다 새로 그려지므로 그 바깥(#selDivBox)에 둬서 찾는 도중에도 끊기지 않게 한다 */
 function selDivBoxSync(){
   const box=$('#selDivBox'), fr=$('#selDivEmbed'); if(!box||!fr) return;
   const on = (typeof valMarket!=='undefined' && valMarket==='invpf' && typeof selSub!=='undefined' && selSub==='div');
-  box.style.display = on ? '' : 'none';
-  if(on && !fr.dataset.loaded){ fr.dataset.loaded='1'; fr.src='kg-chart.html?divscan=1&embed=1'; }
+  /* 다이버전스 탭 안에서 '종목찾기' 를 고른 때만 찾기 화면을 보여 준다 (기본은 포트폴리오 표) */
+  const scan = on && selDivView==='scan';
+  box.style.display = scan ? '' : 'none';
+  document.body.classList.toggle('div-scan', !!scan);
+  if(scan && !fr.dataset.loaded){ fr.dataset.loaded='1'; fr.src='kg-chart.html?divscan=1&embed=1'; }
 }
 window.divScanResize=function(h){
   const fr=$('#selDivEmbed'); if(fr && h>100) fr.style.height=Math.ceil(h)+'px';
@@ -14813,8 +14845,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.16.-v7';
-const KG_APP_BUILD = KG_APP_VER + ' 관심 부메뉴 글자 진한 황토색';
+const KG_APP_VER = '10.16.-v8';
+const KG_APP_BUILD = KG_APP_VER + ' 챠트 포트 순서 · 다이버전스 부메뉴';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -15992,6 +16024,9 @@ function anlCurrentPort(){
     /* 챠트에서 🎯 다이버전스 목록을 보고 있었으면 선정주 › 다이버전스 로 간다 (2026-10-15) */
     const cfs=$('#chartFullScreen'), cps=$('#chartPortSel');
     const fromDiv = !!(cfs && cfs.style.display!=='none' && cps && cps.value==='div');
+    /* 챠트에서 관심 부메뉴 목록을 보고 있었으면 '관심' 을 눌렀을 때 같은 부메뉴를 연다 */
+    const fromSelSub = (cfs && cfs.style.display!=='none' && cps)
+      ? ({invpf:'own', wait:'wait', long1:'long1', long2:'long2', top20:'top20'})[cps.value] : null;
     closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
     if(typeof appChromeRestore==='function') appChromeRestore();
     document.body.classList.remove('anl-mode');
@@ -16006,6 +16041,11 @@ function anlCurrentPort(){
     if(fromDiv){
       if(typeof openPort==='function') openPort('invpf');
       setTimeout(()=>{ if(typeof setSelSub==='function') setSelSub('div'); }, 0);
+      return;
+    }
+    if(which==='sel' && fromSelSub){
+      if(typeof openPort==='function') openPort('invpf');
+      setTimeout(()=>{ if(typeof setSelSub==='function') setSelSub(fromSelSub==='own'?'own':fromSelSub); }, 0);
       return;
     }
     if(typeof openPort==='function') openPort(wantPort);
@@ -17293,7 +17333,12 @@ function openChart(code, name, rowsOverride) {
   const portMap={ kr:'kr', invest:'invest', investkq:'investkq',
                   invpf:'invpf', watch:'invpf', addstk:'invpf', long:'long',
                   usc:'usc', us:'us', etf:'etf', dividend:'dividend' };
-  const port = portMap[valMarket] || 'invpf';
+  let port = portMap[valMarket] || 'invpf';
+  /* 관심 탭은 부메뉴(관심보유·대기·장기보유1·2·다이버전스·주간Top20)를 그대로 넘겨
+     챠트 왼쪽 목록이 보고 있던 표와 같아지게 한다 */
+  if(valMarket==='invpf' && typeof selSub!=='undefined'){
+    port = ({own:'invpf', wait:'wait', long1:'long1', long2:'long2', div:'div', top20:'top20'})[selSub] || 'invpf';
+  }
   if(typeof stkSetPort==='function') stkSetPort(port);
   if(typeof stkSet==='function' && code) stkSet(code, name);
   openChartView(port, code, name, rowsOverride);
@@ -17496,6 +17541,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
   // 포트: 지정값 또는 기본(지수)
   chartPort = initPort || STK.port || 'kr';
   if(chartPort==='guide') chartPort='idx';        // 해석 화면을 남긴 채 종목을 열지 않도록
+  if(chartPort==='long') chartPort='long1';       // 옛 '장기보유' → 장기보유1(국내)
   if(typeof showChartGuide==='function') showChartGuide(false);
   // 표에서 넘어온 목록이 있으면 그 종목만, 없으면(홈→차트 등) 포트 전체
   chartRowsOverride = (rowsOverride && rowsOverride.length) ? { port: chartPort, rows: rowsOverride } : null;
@@ -17543,11 +17589,14 @@ function openLongView(port, code){
   $$('.tab').forEach(x=>x.classList.remove('on'));
   $$('section').forEach(x=>x.classList.remove('on'));
   const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
-  const ps=$('#longPortSel'); if(ps) ps.value = port || STK.port || 'kr';
+  let lport = port || STK.port || 'kr';
+  const ps=$('#longPortSel');
+  /* 이 화면 드롭다운에 없는 포트(챠트에만 있는 관심 부메뉴 등)가 넘어오면 한국(체)로 — 빈칸 방지 */
+  if(ps){ ps.value=lport; if(!ps.value){ lport='kr'; ps.value='kr'; } }
   longBarBind();
   const ifr=$('#longIframe');
   if(ifr){
-    const q = LONG_URL + '&port=' + encodeURIComponent(port||STK.port||'kr')
+    const q = LONG_URL + '&port=' + encodeURIComponent(lport)
             + (code ? '&code='+encodeURIComponent(code) : '');
     if(!ifr.src || ifr.src==='about:blank' || ifr._q!==q){ ifr._q=q; ifr.src=q; }
   }
@@ -17759,10 +17808,34 @@ function chartPortRows(port){
     ftrendEnsure();            // 자료가 없거나 메모리에 아직 안 올라왔으면 받아 둔다
     return rows;
   }
+  if(port==='wait'){   // 관심 › 대기
+    const key=(typeof WAIT_KEY!=='undefined') ? WAIT_KEY : 'kg_wait_rows';
+    try{ const a=JSON.parse(localStorage.getItem(key)||'[]');
+      if(Array.isArray(a)) return a.map(x=>[
+          String((Array.isArray(x)?x[0]:(x&&x.code))||'').trim(),
+          String((Array.isArray(x)?x[1]:(x&&x.name))||'')
+        ]).filter(x=>x[0]);
+    }catch(e){}
+    return [];
+  }
+  if(port==='long1' || port==='long2'){   // 관심 › 장기보유1(국내 6자리) · 장기보유2(해외 티커)
+    const us=(port==='long2');
+    if(typeof selLongRows==='function') return selLongRows(us?'us':'kr').map(r=>[r[0], r[1]]);
+    return (chartPortRows('long')||[]).filter(r => us ? !/^\d{6}$/.test(r[0]) : /^\d{6}$/.test(r[0]));
+  }
+  if(port==='top20'){  // 관심 › 주간Top20 (고정 목록)
+    return (typeof SEL_TOP20!=='undefined') ? SEL_TOP20.map(r=>[r[0], r[1]]) : [];
+  }
   if(port==='invpf'){
-    // 선정주 = 관심 + 투자 통합 (선정주 표와 동일)
+    // 관심보유 = 관심 + 투자 통합 (관심 › 관심보유 표와 동일)
     if(typeof selAllRows==='function'){
-      const m=selAllRows().map(it=>[it.code, it.name||it.code]);
+      /* selAllRows 는 지금 열려 있는 관심 부메뉴(selSub)를 따라간다.
+         챠트 목록은 부메뉴와 상관없이 '관심보유'를 내야 하므로 잠시 own 으로 두고 부른다 */
+      let m=[];
+      const keep=(typeof selSub!=='undefined') ? selSub : null;
+      try{ if(keep!==null) selSub='own'; m=selAllRows().map(it=>[it.code, it.name||it.code]); }
+      catch(e){ m=[]; }
+      finally{ if(keep!==null) selSub=keep; }
       if(m.length) return m;
     }
     const out=[]; const seen=new Set();
@@ -18088,9 +18161,13 @@ function buildChartStockList(filter){
   });
   if(!h){
     const msg=(chartPort==='invest'||chartPort==='investkq') ? '먼저 해당 탭을 한 번 열어 데이터를 불러오세요'
-            : (chartPort==='invpf' ? '선정주에 담긴 종목이 없습니다'
+            : (chartPort==='wait' ? '대기 목록에 담긴 종목이 없습니다'
+            : (chartPort==='long1' ? '장기보유1(국내)에 담긴 종목이 없습니다'
+            : (chartPort==='long2' ? '장기보유2(해외)에 담긴 종목이 없습니다'
+            : (chartPort==='top20' ? '주간Top20 목록이 비어 있습니다'
+            : (chartPort==='invpf' ? '관심보유에 담긴 종목이 없습니다'
             : (chartPort==='ftrend' && !f ? '외국인 추세 자료를 불러오는 중…'
-            : (chartPort==='div' ? '오른쪽 결과표에서 찾기를 마치면 여기에 종목이 나옵니다' : '종목이 없습니다')));
+            : (chartPort==='div' ? '오른쪽 결과표에서 찾기를 마치면 여기에 종목이 나옵니다' : '종목이 없습니다')))))));
     h='<div style="padding:12px;color:var(--dim);font-size:11px">'+msg+'</div>';
   }
   if(chartPort==='div') h='<div class="cs-item cs-divres"><div class="cs-txt"><span class="cs-name">📋 결과표 · 신호 효과</span><span class="cs-code">다시 찾기도 여기서</span></div></div>'+h;
