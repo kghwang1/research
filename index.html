@@ -870,9 +870,9 @@
   /* 선정주 하부메뉴 — 종목분석 하부메뉴와 분리 */
   /* 관심 부메뉴 — 포트 부메뉴(.valfull-top .subtab)와 같은 글자 크기·색·모양 (2026-10-16) */
   .selnav{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;margin:0 8px 0 0;vertical-align:middle}
-  .selnav button{background:var(--panel);border:1px solid var(--line);color:#b8860b;   /* 진한 황토색 (--mut 는 정의돼 있지 않아 직접 쓴다) */
+  .selnav button{background:var(--panel);border:1px solid var(--line);color:#ffffff;   /* 흰색 (2026-10-17, 진노랑에서 바꿈) */
     border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer;white-space:nowrap;font-weight:700}
-  .selnav button:hover{color:#d4a02a}
+  .selnav button:hover{color:#ffffff;border-color:#8b949e}
   .selnav button.on{background:var(--accent2);border-color:var(--accent2);color:#0a0a0a}
   .selnav .selrfr{width:auto;color:#f0883e}
   .divnav{margin-left:2px}
@@ -14849,7 +14849,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.16.-v9';
+const KG_APP_VER = '10.17.-v1';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
