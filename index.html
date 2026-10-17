@@ -9205,7 +9205,11 @@ async function loadIdx3(){
   }catch(e){ if(tip) tip.textContent='불러오기 실패: '+(e.message||e); }
 }
 
-function drawIdx3(){ drawIdx3One('#idx3Canvas','kr'); drawIdx3One('#idx3CanvasUS','us'); }
+function drawIdx3(){
+  drawIdx3One('#idx3Canvas','kr'); drawIdx3One('#idx3CanvasUS','us');
+  /* 밀어서 구간이 바뀌면 범례의 다이버전스도 그 구간에 맞춘다 */
+  if(idx3Hover>=0){ idx3Tip1('#idx3TipKR','kr'); idx3Tip1('#idx3TipUS','us'); }
+}
 function drawIdx3One(sel, mkt){
   const cv=$(sel); if(!cv||!IDX3_DATA) return;
   const SER=idx3Of(mkt);
@@ -9258,11 +9262,7 @@ function drawIdx3One(sel, mkt){
 
   // 다이버전스 (고점저점 탐색과 같은 규칙·모양)
   try{ idx3DrawDiv(ctx, SER, d, from, to, xOf, yOf, pct, PAD, W, ch); }catch(e){ console.warn('시황 다이버전스', e); }
-  // 기간 안내 — 한국 그래프 안쪽 왼쪽 위에만
-  if(mkt==='kr'){
-    ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='left';
-    ctx.fillText('최근 1개월', PAD.l+3, PAD.t+10);
-  }
+  // 기간 안내는 범례 줄에 적는다 (그래프 안에 두면 다이버전스 글자와 겹친다)
   // 날짜 (양끝)
   ctx.fillStyle='#6e7681'; ctx.font='9px monospace';
   const lab=i=>String(d.dates[at(i)]).slice(5).replace('-','/');
@@ -9296,22 +9296,26 @@ function idx3ShowTip(i){
   if(!IDX3_DATA) return;
   const d=IDX3_DATA, n=d.dates.length;
   idx3Hover=Math.max(0,Math.min(n-1,i));
-  idx3Tip1('#idx3TipKR','kr'); idx3Tip1('#idx3TipUS','us');
   drawIdx3();
 }
-/* 범례에 붙일 다이버전스 — 짚은 날(없으면 마지막 날) 기준으로
-   최근 10거래일 안에 두 번째 꼭지가 온 신호 중 가장 최근 것. 같은 날 ▲·▼ 가 함께 있으면 둘 다 */
-function idx3DivBadge(k, at){
+/* 지금 그래프에 보이는 구간 [from, to) — drawIdx3One 과 같은 셈 */
+function idx3ViewRange(){
+  const total=IDX3_DATA?IDX3_DATA.dates.length:0;
+  const span=Math.min(IDX3_VIEW,total), off=Math.max(0,Math.min(idx3Off,Math.max(0,total-span)));
+  return { from:total-span-off, to:total-off };
+}
+/* 범례에 붙일 다이버전스 (2026-10-17 고침) — 그래프에 지금 그려진 신호와 똑같은 것만, 날짜 순으로.
+   (전에는 짚은 날 기준으로 골라 그래프와 범례가 서로 달랐다) */
+function idx3DivBadge(k){
   const d=IDX3_DATA; if(!d || !IDX3_DIV[k] || !IDX3_DIV[k].length) return '';
-  const dates=d.dates, cur=dates[at]; if(!cur) return '';
-  const lo=dates[Math.max(0, at-10)];
-  const cand=IDX3_DIV[k].filter(g=>g.db<=cur && g.db>=lo);
-  if(!cand.length) return '';
-  const last=cand.reduce((m,g)=>g.db>m?g.db:m, '');
-  return cand.filter(g=>g.db===last).map(g=>{
-    const bull=g.type==='bull';
-    return ` <b style="color:${bull?MD_UP:MD_DN};font-family:monospace" title="${bull?'저점':'고점'} 다이버전스 · 꼭지 ${g.da.slice(5)} → ${g.db.slice(5)}${g.forming?' · 형성 중':''}">${bull?'▲':'▼'}${g.tags}${g.forming?'…':''}</b>`;
-  }).join('');
+  const {from,to}=idx3ViewRange();
+  const lo=d.dates[from], hi=d.dates[to-1]; if(!lo||!hi) return '';
+  return IDX3_DIV[k].filter(g=>g.db>=lo && g.db<=hi)
+    .sort((a,b)=>a.db<b.db?-1:a.db>b.db?1:0)
+    .map(g=>{
+      const bull=g.type==='bull';
+      return ` <b style="color:${bull?MD_UP:MD_DN};font-family:monospace" title="${bull?'저점':'고점'} 다이버전스 · 꼭지 ${g.da.slice(5)} → ${g.db.slice(5)}${g.forming?' · 형성 중':''}">${bull?'▲':'▼'}${g.tags}${g.forming?'…':''}</b>`;
+    }).join('');
 }
 function idx3Tip1(sel, mkt){
   const el=$(sel); if(!el||!IDX3_DATA) return;
@@ -9323,10 +9327,10 @@ function idx3Tip1(sel, mkt){
     const v=d[se.k][idx3Hover];
     const rel = (v!=null && IDX3_MAX[se.k]) ? ' ('+Math.round((v/IDX3_MAX[se.k])*100)+'%)' : '';
     return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
-         + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}${idx3DivBadge(se.k, idx3Hover)}</span></div>`;
+         + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}${idx3DivBadge(se.k)}</span></div>`;
   }).join('')
     + (mkt==='kr'
-        ? '<div class="tipline" style="color:#6e7681;font-size:11px">52주 최고가 기준 비율</div>'
+        ? '<div class="tipline" style="color:#6e7681;font-size:11px">52주 최고가 기준 비율 · 최근 1개월</div>'
         : '')
     + '<div class="tipline">&nbsp;</div>'.repeat(Math.max(0, MAXLINE - SER.length - (mkt==='kr'?1:0)));
 }
@@ -15019,7 +15023,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.17.-v4';
+const KG_APP_VER = '10.17.-v5';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
