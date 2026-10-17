@@ -875,6 +875,10 @@
   .selnav button:hover{color:#ffffff;border-color:#8b949e}
   .selnav button.on{background:var(--accent2);border-color:var(--accent2);color:#0a0a0a}
   .selnav .selrfr{width:auto;color:#f0883e}
+  /* 관심 부메뉴 고정 줄 — 상단 메뉴 바로 아래에 붙어 표와 함께 올라가지 않는다 */
+  .selnav-bar{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 10px;
+    background:var(--bg);border-bottom:1px solid var(--line);overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .selnav-bar .selnav{margin:0}
   .divnav{margin-left:2px}
   .divnav button{color:#58a6ff}
   /* 다이버전스 › 종목찾기 — 표 본문·머리글만 감추고 caption(부메뉴)은 남긴다 */
@@ -1857,6 +1861,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div class="subtab" data-m="etf">한·미 ETF</div>
   <div class="subtab" data-m="dividend">배당</div>
  </div>
+ <!-- 관심 부메뉴 고정 줄 (2026-10-17) — 표 제목(caption) 안에 있던 부메뉴를 여기로 옮겨, 표를 올려도 따라 올라가지 않게 한다 -->
+ <div id="selNavBar" class="selnav-bar" style="display:none"></div>
  <div class="val-scroll" id="valScroll"><table class="val-tbl" id="valTbl"></table><div id="valNote" class="val-note" style="display:none"></div><div id="selDivBox" style="display:none;padding:0 4px"><iframe id="selDivEmbed" title="다이버전스 찾기 결과" style="width:100%;height:420px;border:0;display:block;background:#0d1117"></iframe></div></div>
  <button id="scoreCardBtn" style="display:none;position:absolute;right:12px;bottom:14px;z-index:30;padding:9px 15px;border-radius:22px;border:none;background:#7c83ff;color:#fff;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.35)">⚙ 점수표</button>
  <div class="val-empty" id="valEmpty" style="display:none">이 분류의 자료는 준비 중입니다.</div>
@@ -3323,6 +3329,19 @@ function applyValNote(m){
 }
 /* 포트 화면 ↔ 선정주 화면 — 같은 #valFull 을 쓴다.
    선정주(invpf)일 때는 포트 부메뉴 줄을 감추고, 주메뉴 불빛을 '선정주'로 옮긴다 */
+/* 관심 부메뉴를 표 제목(caption)에서 꺼내 고정 줄(#selNavBar)로 옮긴다.
+   단추의 연결(onclick)은 renderWatchTable 안에서 이미 끝났으므로 그대로 옮겨도 동작한다 */
+function selNavLift(){
+  const bar=$('#selNavBar'); if(!bar) return;
+  const on=(typeof valMarket!=='undefined' && valMarket==='invpf');
+  const t=$('#valTbl');
+  const navs=(on && t) ? [...t.querySelectorAll('caption .selnav')] : [];
+  bar.innerHTML='';
+  navs.forEach(n=>bar.appendChild(n));
+  bar.style.display = navs.length ? '' : 'none';
+}
+{ const _rwt = renderWatchTable;           // 선언이 끌어올려지므로 여기서 감쌀 수 있다
+  renderWatchTable = function(){ const r=_rwt.apply(this, arguments); try{ selNavLift(); }catch(e){} return r; }; }
 function valModeSync(){
   const vf=$('#valFull'); if(!vf) return;
   const sel=(valMarket==='invpf');
@@ -3334,6 +3353,7 @@ function valModeSync(){
 }
 function renderVal(){
   valModeSync();
+  if(valMarket!=='invpf'){ const nb=$('#selNavBar'); if(nb){ nb.innerHTML=''; nb.style.display='none'; } }
   if(typeof selDivBoxSync==='function') selDivBoxSync();   // 다른 표로 가면 다이버전스 결과 칸을 감춘다
   const sc=$('#valScroll'), em=$('#valEmpty'), multi=$('#valMulti'), foot=$('#valFoot');
   const t=$('#valTbl');
@@ -15023,7 +15043,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.17.-v7';
+const KG_APP_VER = '10.17.-v8';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
