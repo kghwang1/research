@@ -74,7 +74,7 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 /* 3줄: 주가 정보 */
 #selected-stock { font-weight:700; font-size:13px; color:#58a6ff; margin-right:4px; }
 #header-row3 {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 4px;   /* 좁은 화면에서는 단추가 다음 줄로 */
   padding: 4px 10px;
 }
 #ohlc-info { display: flex; gap: 10px; color: #8b949e; flex-wrap: wrap; }
@@ -172,10 +172,10 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
 /* 주가차트 — 세로축 왼편 위 */
 #main-swap { top: 3px; right: 66px; }
 /* 주가차트에 겹쳐 볼 지표 고르기 [이평][일목][볼린저] — 세로축 왼편 위 */
-#main-ovsel { position: absolute; z-index: 20; top: 3px; right: 66px; display: flex; gap: 3px; }
+#main-ovsel { display: flex; gap: 3px; flex-wrap: wrap; align-items: center; }
 #main-ovsel button {
-  padding: 4px 8px; border-radius: 4px;
-  background: #0d1117cc; border: 1px solid #30363d;
+  padding: 4px 8px; border-radius: 5px;
+  background: #21262d; border: 1px solid #30363d;
   color: #8b949e; font-size: 11.5px; font-weight: 700; line-height: 1; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none;
 }
@@ -192,7 +192,15 @@ body { background: #0d1117; color: #e6edf3; font-family: 'Noto Sans KR', monospa
   flex: 0 0 416px; height: 416px;   /* 거래량 막대 자리를 두려고 30% 키움 (320 → 416) */
   border: 1px solid #21262d; border-radius: 4px;
   overflow: hidden; position: sticky; top: 0; z-index: 10;
+  display: flex; flex-direction: column;
 }
+#candle-box { flex: 1 1 auto; min-height: 0; position: relative; }
+/* 주가차트 아래 정보 줄 — 거래량 · 최저가 대비 상승률 */
+#main-info { flex: 0 0 20px; height: 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 0 8px; background: #0d1117; border-top: 1px solid #21262d;
+  font: 11px monospace; color: #8b949e; white-space: nowrap; overflow: hidden; }
+#main-info .hot { color: #ffd54f; font-weight: 700; }
+#mi-low { color: #3fb950; font-weight: 700; }
 /* touch-action:pan-y → 위아래 넘김은 브라우저에게, 좌우 이동은 차트가 직접 처리.
    이것이 없으면 손가락 좌우 이동을 브라우저가 스크롤로 가로채 차트가 멈춘다. */
 #candle-canvas { width: 100%; height: 100%; display: block; cursor: crosshair;
@@ -307,6 +315,14 @@ body.stock-closed #step-pad { display: flex; }
       <span><span class="label">저</span><span id="info-low" style="color:#1976d2">-</span></span>
     </div>
     <button id="iframe-sidebar-btn" onclick="toggleSidebar()" style="background:#21262d;border:1px solid #30363d;color:#8b949e;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700">☰ 지표</button>
+    <!-- 주가차트에 겹쳐 볼 것 고르기 — 차트 위에 떠 있으면 캔들·다이버전스 글자를 가려 '지표' 옆으로 옮김 (2026-10-17) -->
+    <div id="main-ovsel">
+      <button type="button" data-ov="LEGEND" class="lg-btn" title="좌상단 범례 보기/감추기">범례</button>
+      <button type="button" data-ov="VPROFILE" class="vp-btn" title="매물대 켜기/끄기">매물대</button>
+      <button type="button" data-ov="MA" title="이동평균선 5·20·60">이평</button>
+      <button type="button" data-ov="ICHIMOKU" title="일목균형표">일목</button>
+      <button type="button" data-ov="BB" title="볼린저밴드(20,2)">볼린저</button>
+    </div>
     <span id="iframe-stock-name" style="font-weight:700;font-size:13px;color:#e6edf3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
     <select id="interval-select" style="margin-left:auto;background:#21262d;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:5px;font-size:13px;font-weight:700;cursor:pointer">
       <option value="5m">5분</option>
@@ -387,14 +403,9 @@ body.stock-closed #step-pad { display: flex; }
 <!-- 챠트 영역 -->
   <div id="chart-area">
     <div id="candle-wrap">
-      <canvas id="candle-canvas"></canvas>
-      <div id="main-ovsel">
-        <button type="button" data-ov="LEGEND" class="lg-btn" title="좌상단 범례 보기/감추기">범례</button>
-        <button type="button" data-ov="VPROFILE" class="vp-btn" title="매물대 켜기/끄기">매물대</button>
-        <button type="button" data-ov="MA" title="이동평균선 5·20·60">이평</button>
-        <button type="button" data-ov="ICHIMOKU" title="일목균형표">일목</button>
-        <button type="button" data-ov="BB" title="볼린저밴드(20,2)">볼린저</button>
-      </div>
+      <div id="candle-box"><canvas id="candle-canvas"></canvas></div>
+      <!-- 주가차트와 보조차트 사이 정보 줄 (2026-10-17) — 거래량 · 최저가 대비 상승률 -->
+      <div id="main-info"><span id="mi-vol"></span><span id="mi-low"></span></div>
     </div>
   </div>
   <!-- 우측 패널: 월봉 · 투자자별 매매동향 -->
@@ -1159,7 +1170,7 @@ async function fetchReal(stock) {
 // 로딩 표시
 function showLoading(msg) {
   const canvas = document.getElementById('candle-canvas');
-  const wrap = document.getElementById('candle-wrap');
+  const wrap = document.getElementById('candle-box') || document.getElementById('candle-wrap');
   const dpr = window.devicePixelRatio || 1;
   const W = wrap.clientWidth, H = wrap.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -1781,28 +1792,65 @@ function divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W){
   });
   ctx.restore();
 
-  /* 글자 자리 — 보통은 선 끝의 위(▼)·아래(▲).
-     위·아래 끝에 붙어 잘리면 캔들 오른쪽 옆(고가·저가 높이)에 적고,
-     오른쪽이 모자라면 왼쪽 옆에 적는다. */
+  /* 글자 자리 (2026-10-17 고침) — 가려지지 않는 자리를 차례로 찾는다.
+     피할 것: 주가차트 위의 [범례·매물대·이평·일목·볼린저] 단추, 최고가·최저가 글자, 먼저 놓은 다이버전스 글자, 차트 바깥.
+     후보 차례: ① 선 끝 위(▼)·아래(▲)  ② 캔들 오른쪽 옆  ③ 왼쪽 옆  ④ 반대쪽(▼는 캔들 아래 · ▲는 위)  ⑤ 한 줄 더 바깥 */
+  const avoid = MAIN_TXT_BOXES.slice();
+  try {                                                 // 단추 묶음 자리 (캔버스 기준 좌표)
+    const ov = document.getElementById('main-ovsel'), cv = document.getElementById('candle-canvas');
+    if (ov && cv && ov.offsetParent) {
+      const a = ov.getBoundingClientRect(), b = cv.getBoundingClientRect();
+      avoid.push({ x1:a.left - b.left - 4, y1:a.top - b.top - 2, x2:a.right - b.left + 4, y2:a.bottom - b.top + 3 });
+    }
+  } catch(e) {}
+  const hits = (r) => avoid.some(o => r.x1 < o.x2 && r.x2 > o.x1 && r.y1 < o.y2 && r.y2 > o.y1);
+  const inside = (r) => r.x1 >= PAD.l && r.x2 <= W - PAD.r && r.y1 >= PAD.t - 2 && r.y2 <= PAD.t + ch + 2;
   ctx.save();
   ctx.font = 'bold 11px monospace';
   labels.forEach(L => {
-    const tw = ctx.measureText(L.txt).width;
-    let tx = L.x, ty = L.bull ? L.y + 13 : L.y - 5, al = 'center';
-    const clipped = L.bull ? (ty > PAD.t + ch) : (ty - 10 < PAD.t);
-    if (clipped) {
-      ty = Math.max(PAD.t + 10, Math.min(PAD.t + ch - 2, L.yc + 4));
-      if (L.x + 7 + tw <= W - PAD.r) { tx = L.x + 7; al = 'left'; }
-      else { tx = L.x - 7; al = 'right'; }
+    const tw = ctx.measureText(L.txt).width, th = 11;
+    const box = (tx, ty, al) => { const x1 = al === 'left' ? tx : al === 'right' ? tx - tw : tx - tw / 2; return { x1, y1:ty - th + 1, x2:x1 + tw, y2:ty + 2 }; };
+    const sideY = Math.max(PAD.t + th, Math.min(PAD.t + ch - 2, L.yc + 4));
+    const cands = [
+      [L.x, L.bull ? L.y + 13 : L.y - 5, 'center'],
+      [L.x + 7, sideY, 'left'],
+      [L.x - 7, sideY, 'right'],
+      [L.x, L.bull ? L.yc - 10 : L.yc + 18, 'center'],
+      [L.x, L.bull ? L.y + 26 : L.y - 18, 'center'],
+      [L.x + 7, L.bull ? sideY - 13 : sideY + 13, 'left'],
+    ];
+    let pick = null;
+    for (const [tx, ty, al] of cands) { const r = box(tx, ty, al); if (inside(r) && !hits(r)) { pick = [tx, ty, al, r]; break; } }
+    if (!pick) {                                         // 다 막히면 차트 안에 들어오는 첫 자리
+      for (const [tx, ty, al] of cands) { const r = box(tx, ty, al); if (inside(r)) { pick = [tx, ty, al, r]; break; } }
     }
-    if (tx < PAD.l || tx > W - PAD.r) return;
+    if (!pick) return;
+    const [tx, ty, al, r] = pick;
+    avoid.push(r);
     ctx.textAlign = al;
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,17,23,0.85)';   // 캔들 위에서도 읽히게 테두리
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,17,23,0.9)';   // 캔들 위에서도 읽히게 테두리
     ctx.strokeText(L.txt, tx, ty);
     ctx.fillStyle = L.col; ctx.fillText(L.txt, tx, ty);
   });
   ctx.restore();
 }
+/* 정보 줄 — 짚은 날(없으면 마지막 날)의 거래량과 20일 평균 대비 배수. 거래량 겹쳐보기를 꺼도 나온다 */
+function mainInfoVol(data, range, slice){
+  const mv = document.getElementById('mi-vol'); if (!mv) return;
+  const li = (state.hoverIdx >= 0 && state.hoverIdx < slice.length) ? state.hoverIdx : slice.length - 1;
+  const gi = range[0] + li, row = data[gi];
+  if (!row || !(row.volume > 0)) { mv.textContent = ''; return; }
+  let sum = 0, cnt = 0;
+  for (let j = Math.max(0, gi - 19); j <= gi; j++) { sum += data[j].volume || 0; cnt++; }
+  const lv = row.volume, la = cnt === 20 ? sum / 20 : 0;
+  const volTxt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억주' : n >= 1e4 ? Math.round(n / 1e4).toLocaleString() + '만주' : Math.round(n).toLocaleString() + '주';
+  const dt = String(row.date || '').slice(2, 10).replace(/-/g, '.');
+  const hot = la > 0 && lv / la >= 2;
+  mv.innerHTML = '거래량 ' + volTxt(lv) + (la > 0 ? ' · 20일평균비 <span' + (hot ? ' class="hot"' : '') + '>' + (lv / la).toFixed(1) + '배</span>' : '')
+               + (dt ? ' <span style="color:#6e7681">(' + dt + ')</span>' : '');
+}
+/* 주가차트에 이미 적힌 글자 자리 (최고가·최저가) — 다이버전스 글자가 피해 간다 */
+let MAIN_TXT_BOXES = [];
 function loadDefaults() {
   /* '거래량 겹쳐보기'를 새로 넣었다. 저장해 둔 조합에는 없으므로 처음 한 번만 켜 준다.
      한 번 보여 준 뒤에는 끄면 끈 채로 남는다 */
@@ -2067,7 +2115,7 @@ function setupSidebar() {
 // ══════════════════════════════════════
 function drawCandle() {
   const canvas = document.getElementById('candle-canvas');
-  const wrap = document.getElementById('candle-wrap');
+  const wrap = document.getElementById('candle-box') || document.getElementById('candle-wrap');
   canvas.style.width = '100%'; canvas.style.height = '100%';
   const dpr = window.devicePixelRatio || 1;
   const W = wrap.clientWidth, H = wrap.clientHeight;
@@ -2130,7 +2178,8 @@ function drawCandle() {
   }
 
   const pad = (maxP - minP) * 0.04;
-  maxP += pad; minP -= pad;
+  /* 고점저점 탐색 조합이면 위쪽 여백을 넓힌다 — 꼭대기 캔들과 ▼ 글자가 위쪽 단추에 가리지 않게 (2026-10-17) */
+  maxP += (typeof divOn === 'function' && divOn()) ? (maxP - minP) * 0.08 : pad; minP -= pad;
   const xOf = i => PAD.l + (i + 0.5) * (cw / slotCount);
   const yOf = v => PAD.t + ch - ((v - minP) / (maxP - minP)) * ch;
   const bw = Math.max(1, cw / slotCount * 0.55);
@@ -2444,11 +2493,7 @@ function drawCandle() {
       const volTxt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억주'
                         : n >= 1e4 ? Math.round(n / 1e4).toLocaleString() + '만주'
                         : Math.round(n).toLocaleString() + '주';
-      let txt = '거래량 ' + volTxt(lv);
-      if (la > 0) txt += '  20일평균비 ' + (lv / la).toFixed(1) + '배';
-      ctx.font = '9px monospace'; ctx.textAlign = 'right';
-      ctx.fillStyle = (la > 0 && lv / la >= 2) ? '#ffd54f' : C.muted;
-      ctx.fillText(txt, W - PAD.r - 3, base - volH - 3);
+      /* 글자는 차트 아래 정보 줄에 적는다 (차트 안에 두면 캔들·다이버전스 글자와 겹친다) — 아래 mainInfoVol */
     }
   }
 
@@ -2462,6 +2507,8 @@ function drawCandle() {
   });
 
   // ── 최고가 / 최저가 마커 (현재가 대비 비율 표시) ──
+  MAIN_TXT_BOXES = [];
+  const noteBox = (tx, ty, tw, al) => { const x1 = al === 'right' ? tx - tw : tx; MAIN_TXT_BOXES.push({ x1:x1 - 2, y1:ty - 11, x2:x1 + tw + 12, y2:ty + 3 }); };
   let hiIdx = 0, loIdx = -1;
   slice.forEach((d, i) => {
     if (d.high > slice[hiIdx].high) hiIdx = i;
@@ -2485,9 +2532,11 @@ function drawCandle() {
       ctx.fillStyle = '#ef5350'; ctx.textAlign = 'right';
       ctx.fillText(hiTxt, hx - 8, hy - 2);
       ctx.fillText('←', hx - 2, hy - 2);
+      noteBox(hx - 8, hy - 2, tw, 'right');
     } else {
       ctx.fillStyle = '#ef5350'; ctx.textAlign = 'left';
       ctx.fillText('→ ' + hiTxt, hx + 6, hy - 2);
+      noteBox(hx + 6, hy - 2, tw + 14, 'left');
     }
     // 가는 점선으로 캔들 가리킴
     ctx.strokeStyle = '#ef535055'; ctx.lineWidth = 0.5; ctx.setLineDash([2,2]);
@@ -2497,16 +2546,21 @@ function drawCandle() {
   // 최저가 (녹색, 좌측 표시 + 화살표)
   {
     const lx = xOf(loIdx), ly = yOf(loVal);
-    const loTxt = Math.round(loVal).toLocaleString() + ' ' + (loPct >= 0 ? '+' : '') + loPct + '%';
+    const loTxt = Math.round(loVal).toLocaleString();   // 상승률은 아래 정보 줄에 적는다
+    mainInfoVol(data, range, slice);
+    const ml = document.getElementById('mi-low');
+    if (ml) ml.textContent = '최저 ' + Math.round(loVal).toLocaleString() + (loDate ? ' (' + loDate + ')' : '') + ' 대비 ' + (loPct >= 0 ? '+' : '') + loPct + '%';
     ctx.font = 'bold 11.5px monospace';
     const tw = ctx.measureText(loTxt).width;
     if (lx - tw - 20 > PAD.l) {
       ctx.fillStyle = '#3fb950'; ctx.textAlign = 'right';
       ctx.fillText(loTxt, lx - 8, ly + 14);
       ctx.fillText('←', lx - 2, ly + 14);
+      noteBox(lx - 8, ly + 14, tw, 'right');
     } else {
       ctx.fillStyle = '#3fb950'; ctx.textAlign = 'left';
       ctx.fillText('→ ' + loTxt, lx + 6, ly + 14);
+      noteBox(lx + 6, ly + 14, tw + 14, 'left');
     }
     ctx.strokeStyle = '#3fb95055'; ctx.lineWidth = 0.5; ctx.setLineDash([2,2]);
     ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx, ly + 6); ctx.stroke();
@@ -4310,7 +4364,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.17.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.17.-v7';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4702,7 +4756,7 @@ function fitPanels() {
   const k = subs.length;
   const gap = 3;
   // 사용 가능한 세로 공간 (아래쪽 여백은 넘기기 버튼 자리만 남긴다)
-  const avail = area.clientHeight - 8 - gap * (k + 1);
+  const avail = area.clientHeight - 8 - gap * (k + 1) - 20;   // 20: 주가차트 아래 정보 줄
   if (avail <= 0) return;
 
   let mainH, subH;
@@ -4721,8 +4775,9 @@ function fitPanels() {
       mainH = Math.max(FIT_MAIN_MIN, avail - subH * k);
     }
   }
-  main.style.flex = '0 0 ' + mainH + 'px';
-  main.style.height = mainH + 'px';
+  const infoH = 20;                     // 주가차트 아래 정보 줄 — 차트 높이는 그대로 두고 그만큼 더한다
+  main.style.flex = '0 0 ' + (mainH + infoH) + 'px';
+  main.style.height = (mainH + infoH) + 'px';
   subs.forEach(w => {
     // 거래량은 조금 낮게 유지
     const h = (w.dataset.key === 'VOLUME') ? Math.max(FIT_SUB_MIN, Math.round(subH * 0.85)) : subH;
