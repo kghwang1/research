@@ -4310,7 +4310,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.16.-v7';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.17.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5567,7 +5567,7 @@ function divScanFit(){
   if (!divScanEmbed()) return;
   try {
     const el = document.getElementById('divscan');
-    if (el && window.parent && typeof window.parent.divScanResize === 'function') window.parent.divScanResize(el.scrollHeight + 16);
+    if (el && window.parent && typeof window.parent.divScanResize === 'function') window.parent.divScanResize(el.scrollHeight + 16, window);
   } catch(e) {}
 }
 
@@ -5722,9 +5722,38 @@ function divScanOpen(code, name){
 }
 
 let divScanBusy = false;
+/* 여러 화면(챠트 · 관심 › 다이버전스 · STUDY › 다이버전스)에 같은 찾기 화면이 떠 있을 수 있다 (2026-10-17).
+   결과는 모두 localStorage(kg_div_scan) 하나를 함께 쓰고, 한 곳에서 찾는 동안에는
+   잠금(kg_div_scan_lock)으로 다른 곳이 겹쳐 찾지 않게 한다. 진행 상황도 잠금에 실어 다른 화면이 따라 그린다. */
+const DIVSCAN_LOCK = 'kg_div_scan_lock';
+const DIVSCAN_ME = Math.random().toString(36).slice(2);
+function divScanLockGet(){ try { return JSON.parse(localStorage.getItem(DIVSCAN_LOCK) || 'null'); } catch(e) { return null; } }
+function divScanLockOther(){ const L = divScanLockGet(); return !!(L && L.id !== DIVSCAN_ME && Date.now() - (L.at || 0) < 90000); }
+function divScanLockSet(done, total, name){ try { localStorage.setItem(DIVSCAN_LOCK, JSON.stringify({ id:DIVSCAN_ME, at:Date.now(), done:done || 0, total:total || 0, name:name || '' })); } catch(e) {} }
+function divScanLockClear(){ const L = divScanLockGet(); if (L && L.id === DIVSCAN_ME) try { localStorage.removeItem(DIVSCAN_LOCK); } catch(e) {} }
+window.addEventListener('pagehide', divScanLockClear);
+/* 다른 화면에서 찾는 중일 때 이 화면의 표시 */
+function divScanShowOther(L){
+  const btn = document.getElementById('ds-go'), meta = document.getElementById('ds-meta'), bar = document.querySelector('#divscan .ds-prog i');
+  if (!btn || !meta || !bar) return;
+  btn.disabled = true;
+  bar.style.width = (L && L.total ? (L.done / L.total * 100).toFixed(1) : 0) + '%';
+  meta.textContent = '다른 화면에서 찾는 중… ' + (L && L.total ? L.done + ' / ' + L.total + (L.name ? ' · ' + L.name : '') : '') + ' — 끝나면 여기에도 바로 반영됩니다';
+}
+function divScanShowSaved(){
+  const old = divScanLoad();
+  const btn = document.getElementById('ds-go'), meta = document.getElementById('ds-meta'), bar = document.querySelector('#divscan .ds-prog i');
+  if (btn) btn.disabled = false;
+  if (!old) return;
+  divScanRender(old);
+  if (meta) meta.textContent = '기준 ' + (old.atStr || old.ymd) + ' · ' + (old.count || 0) + '종목 · 최근 ' + DIVSCAN_RECENT + '거래일 신호 ' + old.recent.length + '건';
+  if (bar) bar.style.width = '100%';
+}
 async function divScanRun(){
   if (divScanBusy) return;
+  if (divScanLockOther()) { divScanShowOther(divScanLockGet()); return; }
   divScanBusy = true;
+  divScanLockSet(0, 0, '');
   const opt = {
     kospi:  document.getElementById('ds-kospi').checked,
     kosdaq: document.getElementById('ds-kosdaq').checked,
@@ -5783,6 +5812,7 @@ async function divScanRun(){
       meta.textContent = done + ' / ' + list.length + ' · ' + it.name + ' · 신호 ' + recent.length + '건';
       /* 선정주 › 다이버전스 의 [지금 찾기] 는 이 화면을 보이지 않게 띄우므로 진행을 부모 창에 알린다 */
       try { if (window.parent && window.parent !== window && typeof window.parent.divScanProgress === 'function') window.parent.divScanProgress(done, list.length, it.name); } catch(e) {}
+      divScanLockSet(done, list.length, it.name);   // 다른 화면에도 진행을 알린다
       if (done % 25 === 0) divScanRender({ recent, stats:null, fail, miss });
       await divScanSleep(60);
     }
@@ -5801,6 +5831,7 @@ async function divScanRun(){
   bar.style.width = '100%';
   btn.disabled = false;
   divScanBusy = false;
+  divScanLockClear();
   divScanFit();
   try { if (window.parent && window.parent !== window && typeof window.parent.divScanUpdated === 'function') window.parent.divScanUpdated(divScanEmbed() ? 'embed' : ''); } catch(e) {}
 }
@@ -5832,8 +5863,19 @@ function divScanPage(){
     document.querySelector('#divscan .ds-prog i').style.width = '100%';
   } else divScanRender(null);
   /* 오늘 결과가 없거나 &run=1(선정주의 [지금 찾기])이면 바로 찾는다 */
-  if (!old || old.ymd !== divScanYmd() || new URLSearchParams(location.search).get('run')) divScanRun();
+  /* 다른 화면에서 이미 찾는 중이면 따라가기만 한다 */
+  if (divScanLockOther()) divScanShowOther(divScanLockGet());
+  else if (!old || old.ymd !== divScanYmd() || new URLSearchParams(location.search).get('run')) divScanRun();
   window.addEventListener('resize', divScanFit);
+  /* 다른 화면에서 찾은 결과·진행을 이 화면에도 바로 반영한다 */
+  window.addEventListener('storage', e => {
+    if (divScanBusy) return;
+    if (e.key === DIVSCAN_KEY) { divScanShowSaved(); divScanFit(); }
+    else if (e.key === DIVSCAN_LOCK) {
+      const L = divScanLockGet();
+      if (L && L.id !== DIVSCAN_ME) divScanShowOther(L); else divScanShowSaved();
+    }
+  });
 }
 
 init();
