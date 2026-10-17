@@ -9299,6 +9299,20 @@ function idx3ShowTip(i){
   idx3Tip1('#idx3TipKR','kr'); idx3Tip1('#idx3TipUS','us');
   drawIdx3();
 }
+/* 범례에 붙일 다이버전스 — 짚은 날(없으면 마지막 날) 기준으로
+   최근 10거래일 안에 두 번째 꼭지가 온 신호 중 가장 최근 것. 같은 날 ▲·▼ 가 함께 있으면 둘 다 */
+function idx3DivBadge(k, at){
+  const d=IDX3_DATA; if(!d || !IDX3_DIV[k] || !IDX3_DIV[k].length) return '';
+  const dates=d.dates, cur=dates[at]; if(!cur) return '';
+  const lo=dates[Math.max(0, at-10)];
+  const cand=IDX3_DIV[k].filter(g=>g.db<=cur && g.db>=lo);
+  if(!cand.length) return '';
+  const last=cand.reduce((m,g)=>g.db>m?g.db:m, '');
+  return cand.filter(g=>g.db===last).map(g=>{
+    const bull=g.type==='bull';
+    return ` <b style="color:${bull?MD_UP:MD_DN};font-family:monospace" title="${bull?'저점':'고점'} 다이버전스 · 꼭지 ${g.da.slice(5)} → ${g.db.slice(5)}${g.forming?' · 형성 중':''}">${bull?'▲':'▼'}${g.tags}${g.forming?'…':''}</b>`;
+  }).join('');
+}
 function idx3Tip1(sel, mkt){
   const el=$(sel); if(!el||!IDX3_DATA) return;
   const d=IDX3_DATA;
@@ -9309,7 +9323,7 @@ function idx3Tip1(sel, mkt){
     const v=d[se.k][idx3Hover];
     const rel = (v!=null && IDX3_MAX[se.k]) ? ' ('+Math.round((v/IDX3_MAX[se.k])*100)+'%)' : '';
     return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
-         + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}</span></div>`;
+         + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}${idx3DivBadge(se.k, idx3Hover)}</span></div>`;
   }).join('')
     + (mkt==='kr'
         ? '<div class="tipline" style="color:#6e7681;font-size:11px">52주 최고가 기준 비율</div>'
@@ -15005,7 +15019,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.17.-v3';
+const KG_APP_VER = '10.17.-v4';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
