@@ -8979,7 +8979,7 @@ const IDX3 = [
 ];
 const idx3Of = mkt => IDX3.filter(se=>se.mkt===mkt);
 const IDX3_DAYS = 260;   // 받아오는 총 일수 (약 52주)
-const IDX3_VIEW = 10;    // 한 화면에 보이는 일수
+const IDX3_VIEW = 22;    // 한 화면에 보이는 일수 — 1개월(약 22거래일) (2026-10-17, 10일에서 늘림)
 let idx3Off = 0;         // 오른쪽 끝에서 몇 봉 왼쪽으로 밀었는지
 let IDX3_DATA = null;   // { dates:[], 계열별 종가 배열 }
 let IDX3_MAX = {};      // 계열별 52주 최고가 (비율 기준)
@@ -8995,17 +8995,157 @@ function idx3CalcMax(data){
 }
 let idx3Hover = -1;
 
+/* ───── 시황 그래프 다이버전스 (2026-10-17) ─────
+   챠트 › 🎯 고점저점 탐색과 똑같은 규칙(kg-chart.html 의 divFindRaw)으로
+   RSI·SlowStoch·MACD·Elder Ray·MFI 의 다이버전스를 찾아 시황 그래프에 같은 모양으로 그린다.
+   형성 중(두 번째 꼭지 뒤 5봉이 덜 찬 것)도 흐린 점선과 '…' 로 보인다.
+   지표 기간은 챠트 설정(kgchart_params)을 그대로 따른다 */
+const MD_L = 5, MD_MIN = 5, MD_MAX = 60;
+const MD_UP = '#ff5252', MD_DN = '#4da3ff';
+const MD_TAG = { RSI:'R', SLOWSTOCH:'S', MACD:'M', ELDER:'E', MFI:'F' };
+function mdP(key, idx, def){
+  try{ const all=JSON.parse(localStorage.getItem('kgchart_params')||'{}'); const v=all[key]?all[key][idx]:null; if(v!=null && v>=2) return v; }catch(e){}
+  return def;
+}
+function mdEma(arr, len){
+  const k=2/(len+1), r=new Array(arr.length).fill(null); let sum=0, cnt=0;
+  for(let i=0;i<arr.length;i++){ if(arr[i]==null) continue;
+    if(cnt<len){ sum+=arr[i]; cnt++; if(cnt===len) r[i]=sum/len; } else r[i]=arr[i]*k+r[i-1]*(1-k); }
+  return r;
+}
+function mdSma(arr,len){ return arr.map((_,i)=> i<len-1 ? null : arr.slice(i-len+1,i+1).reduce((a,b)=>a+(b||0),0)/len); }
+const MD_CALC = {
+  MACD:d=>{ const c=d.map(x=>x.close), e1=mdEma(c,mdP('MACD',0,12)), e2=mdEma(c,mdP('MACD',1,26));
+    const macd=e1.map((v,i)=>v&&e2[i]?v-e2[i]:null), sig=mdEma(macd,mdP('MACD',2,9));
+    return { hist:macd.map((v,i)=>v&&sig[i]?v-sig[i]:null) }; },
+  ELDER:d=>{ const e=mdEma(d.map(x=>x.close), mdP('ELDER',0,13));
+    return { bull:d.map((x,i)=>e[i]==null?null:x.high-e[i]), bear:d.map((x,i)=>e[i]==null?null:x.low-e[i]) }; },
+  RSI:d=>{ const rp=mdP('RSI',0,14), c=d.map(x=>x.close), g=[], l=[];
+    for(let i=1;i<c.length;i++){ const df=c[i]-c[i-1]; g.push(df>0?df:0); l.push(df<0?-df:0); }
+    if(g.length<rp) return { rsi:[] };
+    const rsi=[null]; let ag=g.slice(0,rp).reduce((a,b)=>a+b,0)/rp, al=l.slice(0,rp).reduce((a,b)=>a+b,0)/rp;
+    rsi.push(...new Array(rp-1).fill(null)); rsi.push(100-100/(1+ag/(al||1e-10)));
+    for(let i=rp;i<g.length;i++){ ag=(ag*(rp-1)+g[i])/rp; al=(al*(rp-1)+l[i])/rp; rsi.push(100-100/(1+ag/(al||1e-10))); }
+    return { rsi }; },
+  SLOWSTOCH:d=>{ const K=d.map((_,i)=>{ if(i<13) return null; const sl=d.slice(i-13,i+1), hh=Math.max(...sl.map(x=>x.high)), ll=Math.min(...sl.map(x=>x.low)); return hh===ll?50:((d[i].close-ll)/(hh-ll))*100; });
+    return { k:mdSma(K,3) }; },
+  MFI:d=>{ if(!d.some(x=>x.volume>0)) return { mfi:[] };          // 거래량이 없는 자료는 건너뛴다
+    const tp=d.map(x=>(x.high+x.low+x.close)/3);
+    return { mfi:tp.map((_,i)=>{ if(i<14) return null; let pos=0,neg=0; for(let j=i-13;j<=i;j++){ const mf=tp[j]*(d[j].volume||0); if(j>0&&tp[j]>tp[j-1]) pos+=mf; else neg+=mf; } return 100-100/(1+pos/(neg||1e-10)); }) }; },
+};
+function mdFind(key, d){
+  if(!d || d.length<30 || !MD_CALC[key]) return [];
+  const r=MD_CALC[key](d);
+  let hiA, loA, hiOk, loOk;
+  if(key==='RSI')            { hiA=loA=r.rsi;  hiOk=v=>v>=60; loOk=v=>v<=40; }
+  else if(key==='SLOWSTOCH') { hiA=loA=r.k;    hiOk=v=>v>=70; loOk=v=>v<=30; }
+  else if(key==='MFI')       { hiA=loA=r.mfi;  hiOk=v=>v>=60; loOk=v=>v<=40; }
+  else if(key==='MACD')      { hiA=loA=r.hist; hiOk=v=>v>0;   loOk=v=>v<0; }
+  else                       { hiA=r.bull; loA=r.bear; hiOk=v=>v>0; loOk=v=>v<0; }
+  if(!hiA || !loA || !hiA.length) return [];
+  const N=d.length, pivH=[], pivL=[];
+  for(let i=MD_L;i<N;i++){
+    let isH=true, isL=true;
+    for(let k=i-MD_L;k<=Math.min(N-1,i+MD_L)&&(isH||isL);k++){
+      if(k===i) continue;
+      if(k<i ? d[k].high>=d[i].high : d[k].high>d[i].high) isH=false;
+      if(k<i ? d[k].low <=d[i].low  : d[k].low <d[i].low)  isL=false;
+    }
+    if(isH) pivH.push(i); if(isL) pivL.push(i);
+  }
+  const ext=(arr,i,hi)=>{ let b=-1; for(let k=Math.max(0,i-2);k<=Math.min(N-1,i+2);k++){ const v=arr[k]; if(v==null) continue; if(b<0||(hi?v>arr[b]:v<arr[b])) b=k; } return b; };
+  const out=[];
+  const scan=(piv,arr,hi,ok)=>{
+    for(let j=1;j<piv.length;j++){
+      const a=piv[j-1], b=piv[j], g=b-a;
+      if(g<MD_MIN||g>MD_MAX) continue;
+      const oa=ext(arr,a,hi), ob=ext(arr,b,hi); if(oa<0||ob<0) continue;
+      const va=arr[oa], vb=arr[ob]; if(!ok(va)) continue;
+      const gapMin=(key==='MACD'||key==='ELDER') ? Math.abs(va)*0.05 : 2;
+      if(Math.abs(va-vb)<gapMin) continue;
+      const forming=b+MD_L>N-1;
+      if(hi  && d[b].high>d[a].high && vb<va) out.push({type:'bear', a, b, forming});
+      if(!hi && d[b].low <d[a].low  && vb>va) out.push({type:'bull', a, b, forming});
+    }
+  };
+  scan(pivH,hiA,true,hiOk); scan(pivL,loA,false,loOk);
+  return out;
+}
+/* 지수 하나의 일봉(rows)으로 다이버전스 묶음을 만든다 — 같은 두 꼭지를 쓴 지표끼리 글자를 합친다 (▲RME) */
+function mdGroups(rows){
+  const d=(rows||[]).filter(x=>x && x.date && x.close>0 && x.high>0 && x.low>0);
+  if(d.length<30) return [];
+  const grp=new Map();
+  Object.keys(MD_TAG).forEach(k=>{
+    let list=[]; try{ list=mdFind(k,d); }catch(e){}
+    list.forEach(v=>{
+      const id=v.type+'|'+v.a+'|'+v.b;
+      if(!grp.has(id)) grp.set(id,{type:v.type, da:d[v.a].date, db:d[v.b].date, forming:v.forming, tags:[]});
+      grp.get(id).tags.push(MD_TAG[k]);
+    });
+  });
+  const order='RSMEF';
+  return [...grp.values()].map(g=>({...g, tags:g.tags.sort((x,y)=>order.indexOf(x)-order.indexOf(y)).join('')}));
+}
+let IDX3_DIV = {};   // 계열별 다이버전스 묶음 (날짜로 적는다)
+function idx3CalcDiv(rowsByKey){
+  const out={};
+  IDX3.forEach(se=>{ out[se.k]=mdGroups(rowsByKey && rowsByKey[se.k]); });
+  return out;
+}
+/* 시황 그래프에 그리기 — 챠트 주가 창과 같은 모양:
+   두 꼭지를 잇는 점선(완성 [5,3] · 형성 중 [2,3] 흐리게) + 두 번째 꼭지에 ▲▼글자(형성 중은 …)
+   글자가 위·아래 끝에 걸려 잘리면 선 끝의 오른쪽(모자라면 왼쪽) 옆에 적는다 */
+function idx3DrawDiv(ctx, SER, d, from, to, xOf, yOf, pct, PAD, W, ch){
+  const labels=[];
+  const idxOf={}; d.dates.forEach((dt,i)=>{ idxOf[dt]=i; });
+  ctx.save();
+  ctx.beginPath(); ctx.rect(PAD.l, PAD.t, W-PAD.l-PAD.r, ch); ctx.clip();
+  SER.forEach(se=>{
+    (IDX3_DIV[se.k]||[]).forEach(g=>{
+      const ia=idxOf[g.da], ib=idxOf[g.db];
+      if(ia==null || ib==null || ib<from || ia>=to) return;
+      const pa=pct(d[se.k][ia],se.k), pb=pct(d[se.k][ib],se.k);
+      if(pa==null || pb==null) return;
+      const bull=g.type==='bull', col=bull?MD_UP:MD_DN, dy=bull?5:-5;
+      const x1=xOf(ia-from), y1=yOf(pa)+dy, x2=xOf(ib-from), y2=yOf(pb)+dy;
+      ctx.strokeStyle=col; ctx.lineWidth=1.5; ctx.setLineDash(g.forming?[2,3]:[5,3]);
+      ctx.globalAlpha=g.forming?0.7:1;
+      ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      if(ib<to) labels.push({ txt:(bull?'▲':'▼')+g.tags+(g.forming?'…':''), col, bull, x:x2, y:y2, yc:yOf(pb) });
+    });
+  });
+  ctx.restore();
+  ctx.save();
+  ctx.font='bold 10px monospace';
+  labels.forEach(L=>{
+    const tw=ctx.measureText(L.txt).width;
+    let tx=L.x, ty=L.bull?L.y+11:L.y-4, al='center';
+    const clipped=L.bull ? (ty>PAD.t+ch) : (ty-9<PAD.t);
+    if(clipped || tx-tw/2<PAD.l || tx+tw/2>W-PAD.r){
+      ty=Math.max(PAD.t+9, Math.min(PAD.t+ch-2, L.yc+3));
+      if(L.x+6+tw<=W-PAD.r){ tx=L.x+6; al='left'; } else { tx=L.x-6; al='right'; }
+    }
+    ctx.textAlign=al;
+    ctx.lineWidth=3; ctx.strokeStyle='rgba(13,17,23,0.85)'; ctx.strokeText(L.txt,tx,ty);
+    ctx.fillStyle=L.col; ctx.fillText(L.txt,tx,ty);
+  });
+  ctx.restore();
+}
+
 async function loadIdx3(){
   const tip=$('#idx3Tip');
   if(!SRV_URL){ if(tip) tip.textContent='서버 설정이 필요합니다'; return; }
   // ① 기기에 남은 자료를 먼저 그려 화면이 비지 않게 (10분 이내면 그대로 사용)
   try{
-    const raw=localStorage.getItem('kg_idx3_v4');
+    const raw=localStorage.getItem('kg_idx3_v5');
     if(raw){
       const o=JSON.parse(raw);
       if(o && o.data && o.data.dates && o.data.dates.length){
         IDX3_DATA=o.data;
         IDX3_MAX=idx3CalcMax(IDX3_DATA);
+        IDX3_DIV=idx3CalcDiv(o.rows);
   idx3Bind(); drawIdx3(); idx3ShowTip(IDX3_DATA.dates.length-1);
         if(Date.now()-(o.ts||0) < 10*60*1000) return;   // 아직 신선하면 조회 생략
       }
@@ -9053,7 +9193,12 @@ async function loadIdx3(){
     IDX3_MAX = {};
     IDX3_MAX=idx3CalcMax(out);
     IDX3_DATA = out;
-    try{ localStorage.setItem('kg_idx3_v4', JSON.stringify({ts:Date.now(), data:out})); }catch(e){}
+    /* 다이버전스는 지수마다 자기 일봉(고가·저가·거래량 포함)으로 찾는다 — 최근 1년치만 남긴다 */
+    const rows={};
+    IDX3.forEach((se,i)=>{ rows[se.k]=(got[i]||[]).filter(x=>x&&x.date&&x.close!=null)
+      .map(x=>({date:x.date, open:x.open, high:x.high, low:x.low, close:x.close, volume:x.volume||0})).slice(-IDX3_DAYS); });
+    IDX3_DIV=idx3CalcDiv(rows);
+    try{ localStorage.setItem('kg_idx3_v5', JSON.stringify({ts:Date.now(), data:out, rows})); }catch(e){}
     idx3Bind();
     drawIdx3();
     idx3ShowTip(out.dates.length-1);
@@ -9111,10 +9256,12 @@ function drawIdx3One(sel, mkt){
     ctx.stroke(); ctx.setLineDash([]);
   });
 
+  // 다이버전스 (고점저점 탐색과 같은 규칙·모양)
+  try{ idx3DrawDiv(ctx, SER, d, from, to, xOf, yOf, pct, PAD, W, ch); }catch(e){ console.warn('시황 다이버전스', e); }
   // 기간 안내 — 한국 그래프 안쪽 왼쪽 위에만
   if(mkt==='kr'){
     ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='left';
-    ctx.fillText('최근 '+n+'일', PAD.l+3, PAD.t+10);
+    ctx.fillText('최근 1개월', PAD.l+3, PAD.t+10);
   }
   // 날짜 (양끝)
   ctx.fillStyle='#6e7681'; ctx.font='9px monospace';
@@ -14858,7 +15005,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.17.-v2';
+const KG_APP_VER = '10.17.-v3';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
