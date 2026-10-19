@@ -4364,7 +4364,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.17.-v7';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.19.-v5';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5269,7 +5269,7 @@ const DIVSCAN_TAGNAME = { R:'RSI', S:'SlowStoch', M:'MACD', E:'Elder Ray', F:'MF
 
 function divScanSleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 function divScanYmd(){ const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0'); }
-function divScanLoad(){ try { const o = JSON.parse(localStorage.getItem(DIVSCAN_KEY) || 'null'); if (o && Array.isArray(o.recent)) { o.recent = o.recent.filter(divKeepSig); return o; } return null; } catch(e) { return null; } }
+function divScanLoad(){ try { const o = JSON.parse(localStorage.getItem(DIVSCAN_KEY) || 'null'); if (o && Array.isArray(o.recent)) { o.recent = krNamesFix(o.recent.filter(divKeepSig)); return o; } return null; } catch(e) { return null; } }
 function divScanOpt(){
   try { const o = JSON.parse(localStorage.getItem(DIVSCAN_OPT) || 'null'); if (o) return o; } catch(e) {}
   return { kospi:true, kosdaq:true, cmdty:true };
@@ -5278,6 +5278,33 @@ function divScanOpt(){
 /* 종목 목록 — 코스피200·코스닥100 은 워커의 시총 상위 목록.
    워커 목록이 비면(2026-10 네이버 쪽 실패 확인) 앱이 가진 목록으로 대신한다:
    코스피200·코스닥100 탭이 받아 둔 종목 + 앱 내장 목록 (parent.divScanFallback) */
+/* 국내 종목 이름 (2026-10-19) — 서버 목록을 못 받아 앱 내장 목록(코드만 있음)으로 대신하면
+   이름 자리에 번호가 나왔다. 시세 조회(?symbols=STK:코드)로 이름을 받아 기기에 기억해 둔다 */
+const KRNAME_KEY = 'kg_kr_names';
+function krNamesGet(){ try { const o = JSON.parse(localStorage.getItem(KRNAME_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch(e) { return {}; } }
+function krNamesFix(arr){                     // 이름이 번호뿐인 줄에 기억해 둔 이름을 채운다
+  const m = krNamesGet();
+  (arr || []).forEach(x => { if (x && /^\d{6}$/.test(String(x.code)) && (!x.name || x.name === x.code) && m[x.code]) x.name = m[x.code]; });
+  return arr;
+}
+async function divScanFillNames(list){
+  krNamesFix(list);
+  const need = [...new Set(list.filter(x => /^\d{6}$/.test(String(x.code)) && (!x.name || x.name === x.code)).map(x => x.code))];
+  if (!need.length) return;
+  const m = krNamesGet();
+  for (let i = 0; i < need.length; i += 20) {            // 워커 한 번에 20종목까지 (요청 수 제한)
+    try {
+      const r = await fetch(`${WORKER}/?symbols=` + need.slice(i, i + 20).map(c => 'STK:' + c).join(','), { cache:'no-store' });
+      const j = await r.json();
+      ((j && j.items) || []).forEach(it => {
+        const c = String(it.symbol || '').replace(/^STK:/, '');
+        if (it.ok && it.name && it.name !== c) m[c] = String(it.name);
+      });
+    } catch(e) {}
+  }
+  try { localStorage.setItem(KRNAME_KEY, JSON.stringify(m)); } catch(e) {}
+  krNamesFix(list);
+}
 async function divScanUniverse(opt){
   const out = [];
   const grab = async (q, mk, n) => {
@@ -5311,7 +5338,9 @@ async function divScanUniverse(opt){
   /* 표 끝에 고정으로 붙는 지수·원자재 — 원자재를 끈 경우에도 금·은·WTI 는 넣는다 */
   DIVSCAN_FIXED.forEach(([c, n, src]) => out.push({ code:c, name:n, mk:/=F$/.test(c) ? '원자재' : '지수', src }));
   const seen = new Set();
-  return { list: out.filter(x => seen.has(x.code) ? false : (seen.add(x.code), true)), miss };
+  const list = out.filter(x => seen.has(x.code) ? false : (seen.add(x.code), true));
+  await divScanFillNames(list);              // 번호로만 온 종목의 이름을 채운다
+  return { list, miss };
 }
 
 /* 일봉 받기 — 국내는 차트와 같은 네이버(days=1000: 워커 캐시를 차트와 함께 쓴다), 원자재는 야후 */
