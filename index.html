@@ -587,6 +587,23 @@
   .frank-tbl .fp-ask{color:#6e7681;cursor:pointer;border-bottom:1px dotted #6e7681}
   .frank-tbl .fp-ed{color:#4a5261;cursor:pointer;font-size:9px;margin-left:2px}
   .frank-tbl tr.fp-struct .frank-svg{opacity:.35}
+  /* 추세 부메뉴 — STUDY 부메뉴와 같은 모양 (클래스는 따로: STUDY 단추 연결에 섞이지 않게) */
+  .trd-bar{display:flex;gap:8px;align-items:stretch;margin:2px 0 12px}
+  .trd-bar .tf{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel);
+    color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
+  .trd-bar .tf.on{background:var(--accent);color:#0c0e14;border-color:var(--accent)}
+  /* 지수분석 */
+  .ixa-note{font-size:11.5px;color:var(--dim);margin:0 2px 8px}
+  .ixa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:10px}
+  @media(max-width:600px){ .ixa-grid{grid-template-columns:1fr} }
+  .ixa-card{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+  .ixa-h{display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line)}
+  .ixa-h b{font-size:14px;color:#f2c800}
+  .ixa-h span{font-size:11px;color:var(--dim)}
+  .ixa-box{position:relative;height:300px}
+  .ixa-box iframe{width:100%;height:100%;border:0;display:block;background:#0d1117}
+  .ixa-hit{position:absolute;inset:0;cursor:pointer}      /* 그래프 위를 덮어 누르면 챠트로 */
+  .ixa-hit:hover{background:rgba(88,166,255,.05)}
   /* 추세 화면 표 — 줄마다 옅은 회색 음영을 번갈아 넣어 읽기 쉽게 (2026-10-19) */
   #valuation .trank-tbl tr:nth-child(even):not(.fp-sep) > td{background:rgba(255,255,255,.05)}
   #valuation .pnl-dir .pd-row{padding:3px 6px;margin:0 -6px;border-radius:4px}
@@ -1673,7 +1690,14 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
  <!-- ===== VALUATION (적정주가) ===== -->
  <section id="valuation">
+  <!-- 추세 부메뉴 (2026-10-19) -->
+  <div class="trd-bar">
+   <button class="tf on" data-tv="psy">외국인 투자심리</button>
+   <button class="tf" data-tv="flow">외국인 매매동향</button>
+   <button class="tf" data-tv="idx">지수분석</button>
+  </div>
   <div class="pnl-wrap">
+  <div id="trdPsy" class="trd-pane">
   <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
 
   <!-- 투자자별 매매 추이 막대그래프 -->
@@ -1708,7 +1732,9 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div class="dep-tip" id="depTip"></div>
     <div class="dep-read" id="depRead"></div>
   </div>
+  </div><!-- /trdPsy -->
 
+  <div id="trdFlow" class="trd-pane" style="display:none">
   <!-- 외국인·기관 순매수 순매도 종목 -->
   <div class="trank-box">
     <div class="trank-title">외국인 기관 순매수 순매도 종목</div>
@@ -1737,6 +1763,13 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div class="trank-mkt">코스닥</div>
     <div id="frankKosdaq"></div>
     <div class="trank-note" id="frankNote">불러오는 중…</div>
+  </div>
+  </div><!-- /trdFlow -->
+
+  <!-- 지수분석 — 챠트 화면의 주가차트를 작게(kg-chart.html?mini=1) 붙인다. 누르면 종목분석 › 챠트로 -->
+  <div id="trdIdx" class="trd-pane" style="display:none">
+   <div class="ixa-note">최근 3개월 일봉 · 고점저점 탐색 다이버전스 표시 · 그래프를 누르면 종목분석 › 챠트로 갑니다</div>
+   <div class="ixa-grid" id="ixaGrid"></div>
   </div>
  </div>
  </section>
@@ -7942,6 +7975,41 @@ function openPort(m){
   if(s){ s.click(); } else { openValFull(); }
 }
 function closeValFull(){ $('#valFull').classList.remove('on'); document.body.classList.remove('topbar-mode'); }
+/* ===== 추세 부메뉴 (2026-10-19) =====
+   외국인 투자심리(투자심리·매매추이·증시자금동향) / 외국인 매매동향(순매수·지분율 상위) / 지수분석 */
+const TRD_KEY='kg_trend_view';
+const IXA_LIST=[
+  ['KOSPI','코스피'], ['KOSDAQ','코스닥'], ['^GSPC','S&P500'], ['^IXIC','나스닥'], ['^DJI','다우'],
+];
+function ixaBuild(){
+  const g=$('#ixaGrid'); if(!g || g.dataset.built) return;
+  g.dataset.built='1';
+  g.innerHTML=IXA_LIST.map(([c,n])=>
+    `<div class="ixa-card"><div class="ixa-h"><b>${n}</b><span>${c}</span></div>`
+   +`<div class="ixa-box"><iframe loading="lazy" title="${n} 그래프" src="kg-chart.html?code=${encodeURIComponent(c)}&name=${encodeURIComponent(n)}&mini=1"></iframe>`
+   +`<div class="ixa-hit" data-code="${c}" data-name="${n}" title="${n} — 종목분석 챠트로"></div></div></div>`).join('');
+  g.querySelectorAll('.ixa-hit').forEach(h=>h.onclick=()=>{
+    if(typeof openChartView==='function') openChartView('idx', h.dataset.code, h.dataset.name);
+  });
+}
+function setTrendView(v){
+  v=(v==='flow'||v==='idx')?v:'psy';
+  try{ localStorage.setItem(TRD_KEY, v); }catch(e){}
+  $$('.trd-bar .tf').forEach(b=>b.classList.toggle('on', b.dataset.tv===v));
+  const show=(id,on)=>{ const el=$('#'+id); if(el) el.style.display=on?'':'none'; };
+  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx', v==='idx');
+  /* 그래프 5개는 추세 화면이 실제로 열려 있을 때만 불러온다 (시황만 볼 때 미리 받지 않게) */
+  const sec=$('#valuation');
+  if(v==='idx' && sec && sec.classList.contains('on')) ixaBuild();
+  /* 감춰져 있던 동안 폭이 0 이라 그래프가 비어 있을 수 있다 — 보일 때 다시 그린다 */
+  if(v==='psy') setTimeout(()=>{
+    try{ if(typeof drawFtrendAll==='function') drawFtrendAll(); }catch(e){}
+    try{ if(typeof DEP_VIEW!=='undefined' && DEP_VIEW.length && typeof drawDeposit==='function') drawDeposit(); }catch(e){}
+  }, 0);
+}
+$$('.trd-bar .tf').forEach(b=>b.onclick=()=>{ setTrendView(b.dataset.tv); window.scrollTo(0,0); });
+(function(){ let v='psy'; try{ v=localStorage.getItem(TRD_KEY)||'psy'; }catch(e){} setTrendView(v); })();
+
 /* ===== 손익곡선 (외국인 포지션) ===== */
 const PNL={mode:'both', spotV:null, spotK:null, futN:null, futK:null, cur:null, nfPrice:null, nfRate:null};
 const PT_PER=0.025; // 코스피200 1포인트 = 25만원 = 0.025억원/계약
@@ -7956,6 +8024,7 @@ function openPnl(){
   trankBind(); loadTrank(); // 외국인·기관 순매수/순매도 종목 순위
   frankBind(); loadFrank(); // 외국인 지분율 상위 종목
   loadDeposit_init(); // 증시자금동향
+  { let v='psy'; try{ v=localStorage.getItem(TRD_KEY)||'psy'; }catch(e){} setTrendView(v); }   // 부메뉴 — 마지막으로 본 칸
 }
 
 /* ===== 외국인·기관 순매수/순매도 종목 (일간) ===== */
@@ -15240,7 +15309,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.19.-v6';
+const KG_APP_VER = '10.19.-v7';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
