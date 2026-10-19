@@ -30,14 +30,18 @@
   .tagline{font-size:12px;color:var(--sub);margin-top:3px}
 
   /* tabs */
-  .tabs{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:14px}
-  .tab{flex:1;text-align:center;padding:7px 0;font-size:12px;font-weight:600;color:var(--sub);
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;transition:.15s}
-  .tab.on{color:#0c0e14;background:var(--accent);border-color:var(--accent)}
+  /* 홈 주메뉴 — 추세·포트·종목분석 화면의 상단 메뉴(.topnav)와 같은 모양 (2026-10-19 v12)
+     지금 위치만 노란색 16.9px, 나머지는 회색 15.2px · 상자 없음 */
+  .tabs{display:flex;align-items:baseline;gap:3px;margin-top:12px;flex-wrap:wrap}
+  .tabs .anl-ttl{margin-right:5px}
+  .tab{background:transparent;border:0;padding:0 4px;cursor:pointer;
+    font-size:15.2px;font-weight:800;color:#8b949e;line-height:1.2;white-space:nowrap}
+  .tab:hover{color:#e6edf3}
+  .tab.on{color:#f2c800;font-size:16.9px}
 
 
   /* 종목 목록 — 챠트·분석·장기투자·보고서 공통 */
-  .cs-item{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
+  .cs-item{padding:6px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:#e6edf3;
     display:flex;align-items:center;gap:6px;font-size:12px}
   .cs-chks{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
   .cs-chk{display:flex;margin:0;cursor:pointer}
@@ -46,7 +50,12 @@
   .cs-item:hover{background:var(--panel)}
   .cs-item.on{background:var(--accent);color:#0c0e14;font-weight:700}
   .cs-item .cs-name,.cs-item .cs-nm{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .cs-item .cs-code,.cs-item .cs-cd{font-size:10px;color:var(--dim);display:block}
+  .cs-item .cs-code,.cs-item .cs-cd{font-size:10px;color:#aab4bf;display:block}
+  /* 오늘 등락에 따라 종목명 색 — 상승 진붉은색 · 하락 밝은 하늘색 (2026-10-19 v15) */
+  .cs-item .cs-name.cs-up, .anl-list .ai .cs-name.cs-up{color:#ff3d3d}
+  .cs-item .cs-name.cs-dn, .anl-list .ai .cs-name.cs-dn{color:#7fd8ff}
+  .cs-item.on .cs-name.cs-up, .anl-list .ai.on .cs-name.cs-up{color:#b00000}
+  .cs-item.on .cs-name.cs-dn, .anl-list .ai.on .cs-name.cs-dn{color:#0050b0}
   .cs-item.on .cs-code,.cs-item.on .cs-cd{color:#0c0e14aa}
   /* 외국인 추세 목록의 묶음 제목 */
   .cs-hdr{padding:7px 8px 3px;font-size:10.5px;font-weight:700;color:#d4af00;background:var(--bg);
@@ -925,11 +934,11 @@
     background:var(--panel2,#1d212a);color:var(--ink);font-size:11px}
   .anl-side .anl-sug{left:6px;right:auto;min-width:210px;max-height:280px;overflow-y:auto;z-index:60}
   .anl-list{flex:1;overflow-y:auto;font-size:11.5px}
-  .anl-list .ai{padding:7px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:var(--sub);
+  .anl-list .ai{padding:7px 8px;cursor:pointer;border-bottom:1px solid var(--line);color:#e6edf3;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .anl-list .ai:hover{background:var(--bg)}
   .anl-list .ai.on{background:var(--accent);color:#0c0e14;font-weight:700}
-  .anl-list .ai .c{color:var(--mut);font-size:10px;margin-left:4px}
+  .anl-list .ai .c{color:#aab4bf;font-size:10px;margin-left:4px}
   .anl-list .ai.on .c{color:#0c0e14aa}
   /* 우측 본문 — 네 화면 공통 */
   .anl-main{flex:1;min-width:0;overflow-y:auto;padding:10px 12px 24px}
@@ -1056,21 +1065,27 @@
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
 
-  /* ═══ 부메뉴 통일 (2026-10-19) ═══
-     포트·관심·추세·STUDY·방송·종목분석(챠트·분석·장기투자·보고서)·다이버전스 부메뉴 단추를
-     포트 부메뉴와 같은 크기(글자 13px · 굵게 · 안쪽 여백 8px 14px · 모서리 10px)로 맞추고,
-     바탕은 진녹색으로 통일한다. 고른 단추는 지금처럼 밝은 색으로 표시한다. */
+  /* ═══ 부메뉴 통일 (2026-10-19 v13) ═══
+     포트·관심·추세·STUDY·방송·종목분석(챠트·분석·장기투자·보고서)·다이버전스 부메뉴 단추 —
+     상자 없이 글씨만. 안 고른 단추: 파랑 글씨 13px
+     고른 단추: 5% 큰 글씨(13.65px) · 진노랑 */
   .valfull-top .subtab, .selnav button, .trd-bar .tf, .stu-bar .sf, .watch-bar .wf, .subnav button{
     flex:none !important; font-size:13px !important; font-weight:700 !important; line-height:1.2;
-    padding:8px 14px !important; border-radius:10px !important; white-space:nowrap; cursor:pointer;
-    background:#1b3d2b !important; border:1px solid #2f6346 !important; color:#e6edf3 !important; }
+    padding:6px 8px !important; border-radius:0 !important; white-space:nowrap; cursor:pointer;
+    background:transparent !important; border:0 !important; box-shadow:none !important;
+    color:#58a6ff !important; transition:font-size .12s, color .12s; }
   .valfull-top .subtab:hover, .selnav button:hover, .trd-bar .tf:hover, .stu-bar .sf:hover,
-  .watch-bar .wf:hover, .subnav button:hover{ background:#24503a !important; border-color:#3f8a60 !important; }
+  .watch-bar .wf:hover, .subnav button:hover{ background:transparent !important; color:#8cc4ff !important; }
   .valfull-top .subtab.on, .selnav button.on, .trd-bar .tf.on, .stu-bar .sf.on, .watch-bar .wf.on, .subnav button.on{
-    background:var(--accent2) !important; border-color:var(--accent2) !important; color:#0a0a0a !important; }
-  .selnav .selrfr{ color:#f0883e !important; }              /* ↻ 새로 · 💾 저장 · ⛁ 서버 는 글자색 그대로 */
-  .divnav button:not(.on){ color:#58a6ff !important; }      /* 다이버전스 [포트폴리오][종목찾기] */
+    background:transparent !important; border:0 !important; color:#f2b600 !important; font-size:13.65px !important; }
   .trd-bar, .stu-bar, .watch-bar{ flex-wrap:wrap; justify-content:flex-start; }
+  /* 추세·STUDY·방송 부메뉴 — 화면을 올려도 상단 메뉴(.pagetop) 바로 아래에 붙어 있게 (v14)
+     --ptH 는 상단 메뉴 높이 (ptHeightSync 가 맞춘다) */
+  body.topbar-mode .trd-bar, body.topbar-mode .stu-bar, body.topbar-mode .watch-bar{
+    position:sticky; top:var(--ptH,38px); z-index:39; background:var(--bg);
+    margin-top:-12px; padding:8px 0 6px; border-bottom:1px solid var(--line); }
+  /* 종목분석 부메뉴(챠트·분석·장기투자·보고서)는 늘 상단 메뉴 아랫줄에 놓는다 */
+  .anl-row > .subnav{ flex:0 0 100% !important; width:100%; }
 </style>
 </head>
 <body>
@@ -1139,7 +1154,8 @@
    <span class="mk-time" id="mkTime"></span>
   </div>
   <div class="tabs">
-   <div class="tab on" data-t="market">시황</div>
+   <span class="anl-ttl">KG</span>
+   <div class="tab on" data-t="market">홈</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
    <div class="tab" data-t="sel">관심</div>
@@ -11511,7 +11527,8 @@ function anlRenderList(filter){
   if(!rows.length){ el.innerHTML='<div style="padding:10px;color:#6e7681;font-size:11px">목록이 없습니다</div>'; return; }
   el.innerHTML=rows.map(r=>
     `<div class="ai${r.code===ANL_CODE?' on':''}" data-code="${r.code}" data-name="${escHtml(r.name||'')}">`
-    + `${escHtml(r.name||r.code)}<span class="c">${r.code}</span></div>`).join('');
+    + `<span class="cs-name">${escHtml(r.name||r.code)}</span><span class="c">${r.code}</span></div>`).join('');
+  try{ csRatePaint(el); }catch(e){}
   el.querySelectorAll('.ai').forEach(d=>{
     d.onclick=()=>anlPick(d.dataset.code, d.dataset.name);
   });
@@ -11661,6 +11678,7 @@ function rptBuildList(filter){
   // 지금 보고 있는 종목이 목록에 없으면(검색해서 고른 종목) 맨 위에 남겨 둔다
   if(!f.trim() && rptCode && !seen.has(rptCode)) h = extra(rptCode, rptName||rptCode, '목록 밖') + h;
   box.innerHTML = h || '<div style="padding:14px;color:#8b949e;font-size:12px">종목이 없습니다.</div>';
+  try{ csRatePaint(box); }catch(e){}
   box.querySelectorAll('.cs-item').forEach(el=>{
     el.onclick=()=>rptPick(el.dataset.code, el.dataset.name);
   });
@@ -15325,7 +15343,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.19.-v9';
+const KG_APP_VER = '10.19.-v15';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -16475,7 +16493,65 @@ function subPaint(which){
   const st=$('#stkTabBtn'); if(st) st.classList.add('on');
 }
 /* 상단 메뉴(KG · 홈 · 포트 · 종목분석 · 방송)에서 지금 위치를 노란색으로 칠한다 */
+/* ── 종목분석 좌측 목록: 오늘 등락률로 종목명 색칠 ──
+   CS_RATE[코드] = 등락률(%) · 1분 동안은 다시 묻지 않는다 */
+var CS_RATE={}, CS_RATE_T={};
+function csRateOf(code){
+  if(CS_RATE[code]!=null) return CS_RATE[code];
+  try{ if(typeof STK_PX!=='undefined' && STK_PX[code] && STK_PX[code].rate!=null && isFinite(parseFloat(STK_PX[code].rate))) return parseFloat(STK_PX[code].rate); }catch(e){}
+  try{
+    const k=/^\d{6}$/.test(code)?code:('US:'+String(code).toUpperCase());
+    const v=(typeof watchRate!=='undefined') ? (watchRate[k]!=null?watchRate[k]:watchRate[code]) : null;
+    if(v!=null && isFinite(parseFloat(v))) return parseFloat(v);
+  }catch(e){}
+  return null;
+}
+function csRateApply(box){
+  box.querySelectorAll('[data-code]').forEach(el=>{
+    const nm=el.querySelector('.cs-name'); if(!nm) return;
+    const r=csRateOf(el.dataset.code);
+    nm.classList.toggle('cs-up', r!=null && r>0);
+    nm.classList.toggle('cs-dn', r!=null && r<0);
+  });
+}
+async function csRatePaint(box){
+  if(!box) return;
+  csRateApply(box);
+  if(typeof SRV_URL==='undefined' || !SRV_URL) return;
+  const now=Date.now();
+  const codes=[...new Set([...box.querySelectorAll('[data-code]')].map(el=>el.dataset.code).filter(Boolean))]
+    .filter(c=>!(CS_RATE_T[c] && now-CS_RATE_T[c]<60000));
+  if(!codes.length) return;
+  codes.forEach(c=>CS_RATE_T[c]=now);
+  const sym=c=>/^\d{6}$/.test(c)?('STK:'+c):c;
+  for(let i=0;i<codes.length;i+=40){
+    const part=codes.slice(i,i+40);
+    try{
+      const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(sym).join(',')));
+      const d=await r.json();
+      ((d&&d.items)||[]).forEach(q=>{
+        if(!q||!q.ok||q.rate==null) return;
+        const v=parseFloat(q.rate); if(!isFinite(v)) return;
+        const s=String(q.symbol||'').replace(/^STK:/,'');
+        const hit=part.find(c=>c===s || c.toUpperCase()===s.toUpperCase());
+        CS_RATE[hit||s]=v;
+      });
+    }catch(e){}
+    if(box.isConnected) csRateApply(box);
+  }
+}
+/* 상단 메뉴 높이를 CSS 변수로 — 부메뉴 줄이 그 바로 아래에 붙는다 */
+function ptHeightSync(){
+  try{
+    let h=0;
+    document.querySelectorAll('body > .pagetop').forEach(el=>{ if(el.offsetParent!==null || getComputedStyle(el).display!=='none') h=Math.max(h, el.offsetHeight); });
+    if(h>0) document.documentElement.style.setProperty('--ptH', h+'px');
+  }catch(e){}
+}
+window.addEventListener('resize', ptHeightSync);
+try{ const _pt=document.querySelector('body > .pagetop'); if(_pt && window.ResizeObserver) new ResizeObserver(ptHeightSync).observe(_pt); }catch(e){}
 function topPaint(which){
+  setTimeout(ptHeightSync, 0);
   $$('.topnav button[data-top]').forEach(b=>b.classList.toggle('cur', b.dataset.top===which));
 }
 function goSub(which){
@@ -18670,6 +18746,7 @@ function buildChartStockList(filter){
   }
   if(chartPort==='div') h='<div class="cs-item cs-divres"><div class="cs-txt"><span class="cs-name">📋 결과표 · 신호 효과</span><span class="cs-code">다시 찾기도 여기서</span></div></div>'+h;
   box.innerHTML=h;
+  try{ csRatePaint(box); }catch(e){}
   box.querySelectorAll('.cs-item:not(.cs-divres)').forEach(chartBindItem);
   const dr=box.querySelector('.cs-divres'); if(dr) dr.onclick=chartOpenDivScan;
   // 관심·투자 체크박스 → 포트 복사
