@@ -173,6 +173,9 @@
   .mk-pinned .qc .qcname{color:var(--ink)}   /* 코스피·코스닥은 기존 밝기 유지 */
   .qc .qcsym{font-size:9.5px;color:var(--dim)}
   .qc .qcprice-inline{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--ink)}
+  /* 지수 이름 — 누르면 챠트 › 지수로 간다 */
+  .mk-name-go{cursor:pointer}
+  .mk-name-go:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px}
   .qc .qcprice-inline.mk-go{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-decoration-color:rgba(255,255,255,.28);text-underline-offset:3px}
   .qc .qcprice-inline.mk-go:active{color:var(--accent2)}
   .qc .qcr{text-align:right;display:flex;flex-direction:row;align-items:center;gap:4px;justify-content:flex-end}
@@ -2696,7 +2699,7 @@ function drawMiniChart(points){
        <div class="mc-points">${ptLabels}</div>
      </div>`;
 }
-/* 시황 카드의 숫자를 누르면 앱의 종목분석(챠트) 화면으로 이동한다.
+/* 시황 카드의 이름·숫자를 누르면 앱의 종목분석(챠트) 화면으로 이동한다 (이름은 2026-10-19 추가).
    포트폴리오는 '지수'로 맞추고, 누른 지수의 챠트를 연다.
    카드 이름(카드 전체)은 지금처럼 네이버 페이지로 간다. */
 const MK_CHART_CODE={ '^KS11':'KOSPI', '^KQ11':'KOSDAQ', 'UST2Y':'2YY=F' };
@@ -2714,13 +2717,13 @@ function mkSkeleton(){
       // 고정 카드: 컴팩트 2줄 (코스피명+가격 / 기호+변동)
       g.innerHTML=MK[gid].map(it=>
         `<div class="qc" id="qc-${cssId(it.sym+'-'+it.nm)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
-           <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcprice-inline mk-go" onclick="event.stopPropagation();mkOpenChart('${it.sym}','${esc(it.nm)}')">${SRV_URL?'…':'—'}</span></div>
+           <div class="qcl"><span class="qcname mk-name-go" title="챠트 › 지수에서 보기" onclick="event.stopPropagation();mkOpenChart('${it.sym}','${esc(it.nm)}')">${it.nm}</span><span class="qcprice-inline mk-go" onclick="event.stopPropagation();mkOpenChart('${it.sym}','${esc(it.nm)}')">${SRV_URL?'…':'—'}</span></div>
            <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
          </div>`).join('');
     } else {
       g.innerHTML=MK[gid].map(it=>
         `<div class="qc" id="qc-${cssId(it.sym+'-'+it.nm)}" onclick="openMiniChart('${it.sym}','${esc(it.nm)}')">
-           <div class="qcl"><span class="qcname">${it.nm}</span><span class="qcprice-inline mk-go" onclick="event.stopPropagation();mkOpenChart('${it.sym}','${esc(it.nm)}')">${SRV_URL?'…':'—'}</span></div>
+           <div class="qcl"><span class="qcname mk-name-go" title="챠트 › 지수에서 보기" onclick="event.stopPropagation();mkOpenChart('${it.sym}','${esc(it.nm)}')">${it.nm}</span><span class="qcprice-inline mk-go" onclick="event.stopPropagation();mkOpenChart('${it.sym}','${esc(it.nm)}')">${SRV_URL?'…':'—'}</span></div>
            <div class="qcr"><span class="qcld">${SRV_URL?'불러오는 중…':'서버 미설정'}</span></div>
          </div>`).join('');
     }
@@ -9337,6 +9340,13 @@ function idx3DivBadge(k){
       return ` <b style="color:${bull?MD_UP:MD_DN};font-family:monospace" title="${bull?'저점':'고점'} 다이버전스 · 꼭지 ${g.da.slice(5)} → ${g.db.slice(5)}${g.forming?' · 형성 중':''}">${bull?'▲':'▼'}${g.tags}${g.forming?'…':''}</b>`;
     }).join('');
 }
+/* 시황 그래프 범례의 지수 이름을 누르면 챠트 › 지수 포트폴리오에서 그 지수를 연다.
+   지수 목록에 없는 것(M7 MAGS 등)도 '목록 밖' 줄로 이어서 연다 */
+function idx3OpenChart(k){
+  const se=IDX3.find(x=>x.k===k); if(!se) return;
+  const row=(typeof CHART_IDX_ROWS!=='undefined') ? CHART_IDX_ROWS.find(r=>String(r[0])===se.code) : null;
+  openChartView('idx', se.code, row ? row[1] : se.n);
+}
 function idx3Tip1(sel, mkt){
   const el=$(sel); if(!el||!IDX3_DATA) return;
   const d=IDX3_DATA;
@@ -9347,7 +9357,7 @@ function idx3Tip1(sel, mkt){
     const v=d[se.k][idx3Hover];
     const rel = (v!=null && IDX3_MAX[se.k]) ? ' ('+Math.round((v/IDX3_MAX[se.k])*100)+'%)' : '';
     return `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
-         + `<b>${se.n}:</b><span class="tv">${fmt(v)}${rel}${idx3DivBadge(se.k)}</span></div>`;
+         + `<b class="mk-name-go" title="챠트 › 지수에서 보기" onclick="event.stopPropagation();idx3OpenChart('${se.k}')">${se.n}:</b><span class="tv">${fmt(v)}${rel}${idx3DivBadge(se.k)}</span></div>`;
   }).join('')
     + (mkt==='kr'
         ? '<div class="tipline" style="color:#6e7681;font-size:11px">52주 최고가 기준 비율 · 최근 1개월</div>'
@@ -15043,7 +15053,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.17.-v8';
+const KG_APP_VER = '10.19.-v1';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
