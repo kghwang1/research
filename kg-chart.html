@@ -220,11 +220,12 @@ body.mini-mode #candle-wrap { position: relative; border: none; border-radius: 0
   padding:4px 9px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px }
 .side-tg.on{ background:#1f6feb22;border-color:#58a6ff;color:#58a6ff }
 #side-pane{ display:none;flex-direction:column;gap:6px;width:300px;flex:none;
-  padding:6px;overflow-y:auto;background:var(--bg);border-left:1px solid #30363d }
+  padding:6px;overflow:hidden;background:var(--bg);border-left:1px solid #30363d }
 body.sp-open #side-pane{ display:flex }
 #mon-box,#flow-box{ display:none }
 body.sp-mon #mon-box{ display:block }
-body.sp-flow #flow-box{ display:block }
+body.sp-flow #flow-box{ display:flex;flex-direction:column;flex:1 1 auto;min-height:0 }
+#mon-box{ flex:none }
 .sp-h{ font-size:11.5px;font-weight:700;color:#f2c800;margin:0 0 4px }
 .sp-h .sp-k{ color:#6e7681;font-weight:400 }
 #mon-canvas{ width:100%;height:172px;display:block;background:#161b22;
@@ -235,6 +236,12 @@ body.sp-flow #flow-box{ display:block }
 #flow-tbl td{ text-align:right;padding:2px 3px;border-bottom:1px solid #21262d;color:#e6edf3 }
 #flow-tbl td:first-child{ text-align:left;color:#8b949e }
 #flow-tbl .up{ color:#ef5350 } #flow-tbl .dn{ color:#58a6ff }
+#flow-tbl{ position:relative;flex:1 1 auto;min-height:0;overflow-y:auto }
+#flow-lg{ display:flex;gap:10px;align-items:center;font-size:11px;font-family:monospace;
+  position:sticky;top:0;z-index:2;background:var(--bg);padding:3px 2px;border-bottom:1px solid #30363d }
+#flow-lg i{ display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:3px;vertical-align:middle }
+#flow-hv{ margin-left:auto;color:#8b949e }
+#flow-cv{ width:100%;display:block;touch-action:pan-y }
 @media(max-width:820px){ #side-pane{ width:210px } }
 
 #step-pad { position: fixed; right: 14px; bottom: 18px; z-index: 60; display: none; gap: 8px; }
@@ -4777,40 +4784,165 @@ function drawMonthly(){
   }
 }
 
-/* 투자자별 매매동향 — 날짜·종가·대비·기관·외국인 */
+/* 투자자별 매매동향 — 선그래프 (2026-10-19)
+   세로축 = 날짜(위가 최근, 최근 2개월), 가로축 = 순매수 주식 수.
+   외국인·기관은 1.5배 굵게, 개인은 보통 굵기. 주가차트의 날짜 선택과 서로 연동한다. */
+const FLOW_COL = { net:'#ef5350', inst:'#ffd54f', indiv:'#58a6ff' };
+const FLOW_NM  = { net:'외국인', inst:'기관', indiv:'개인' };
+const FLOW_LW  = { net:2.25, inst:2.25, indiv:1.5 };     // 외국인·기관 = 개인(1.5)의 1.5배
+const FLOW_MONTHS = 2;
+const FLOW_RH = 16;                       // 날짜 한 줄 높이
+const FLOW_PAD = { t:14, b:4, l:34, r:6 };
+let flowHover = -1, flowRows = [], flowDrives = false;
+function flowNum(v){
+  if(v==null) return '—';
+  const a=Math.abs(v);
+  return (v<0?'-':'') + (a>=1e4 ? (a/1e4).toFixed(1)+'만' : Math.round(a).toLocaleString());
+}
+/* 매매동향 날짜 → 지금 주가차트에 보이는 봉의 위치 (보이지 않으면 -1) */
+function flowIdxInView(date){
+  const d=state.data, r=state.range;
+  if(!d || !d.length || !r) return -1;
+  const end=Math.min(r[1], d.length);
+  let j=-1;
+  for(let i=Math.max(0,r[0]); i<end; i++){
+    if(String(d[i].date).slice(0,10)<=date) j=i; else break;
+  }
+  if(j<0) return -1;
+  if(String(d[j].date).slice(0,10)!==date && j===end-1) return -1;   // 마지막 봉 뒤 날짜는 연동 안 함
+  return j-r[0];
+}
+/* 주가차트에서 짚은 봉의 날짜 → 매매동향 줄 번호 */
+function flowRowOfHover(){
+  if(state.hoverIdx<0 || !state.data || !flowRows.length) return -1;
+  const b=state.data[state.range[0]+state.hoverIdx];
+  if(!b) return -1;
+  const dt=String(b.date).slice(0,10);
+  for(let i=0;i<flowRows.length;i++){ if(flowRows[i].date<=dt) return i; }   // 최신이 먼저
+  return -1;
+}
 function renderFlowTable(){
   const box=document.getElementById('flow-tbl'); if(!box) return;
   const d=(state.dailyData && state.dailyData.length) ? state.dailyData : (state.data||[]);
   const fd=state.frgnData;
-  if(!fd || !d.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">한국 종목·일봉에서만 나옵니다.</div>'; return; }
-  /* 외국인 자료가 있는 날만, 최근 120거래일까지 (칸 안에서 위아래로 넘겨 본다) */
-  const rows=d.filter(x=>fd[x.date]).slice(-120).reverse();
-  if(!rows.length){ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">매매동향 자료가 없습니다.</div>'; return; }
+  const msg=t=>{ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">'+t+'</div>'; };
+  if(!fd || !d.length){ msg('한국 종목·일봉에서만 나옵니다.'); return; }
+  const all=d.filter(x=>fd[String(x.date).slice(0,10)] || fd[x.date]);
+  if(!all.length){ msg('매매동향 자료가 없습니다.'); return; }
+  /* 가장 최근 날짜에서 2개월 전까지 */
+  const last=String(all[all.length-1].date).slice(0,10);
+  const c=new Date(last+'T00:00:00'); c.setMonth(c.getMonth()-FLOW_MONTHS);
+  const cutoff=c.getFullYear()+'-'+String(c.getMonth()+1).padStart(2,'0')+'-'+String(c.getDate()).padStart(2,'0');
+  const rows=all.filter(x=>String(x.date).slice(0,10)>=cutoff).reverse();   // 최신이 맨 위
+  flowRows = rows.map(x=>{ const k=String(x.date).slice(0,10); const f=fd[x.date]||fd[k]||{};
+    return { date:k, net:f.net, inst:f.inst, indiv:f.indiv }; });
   const kEl=document.querySelector('#flow-box .sp-k');
-  if(kEl) kEl.textContent='(주) · '+rows.length+'일';
-  const num=v=>{ if(v==null) return '—';
-    const a=Math.abs(v);
-    return (v<0?'-':'') + (a>=1e4 ? (a/1e4).toFixed(1)+'만' : Math.round(a).toLocaleString()); };
-  let h='<table><tr><th>날짜</th><th>외국인</th><th>기관</th></tr>';
-  rows.forEach((x,i)=>{
-    const f=fd[x.date]||{};
-    const cls=v=> v==null?'':(v>0?'up':(v<0?'dn':''));
-    /* 보유비율 — 전날보다 늘면 붉은색, 줄면 푸른색.
-       rows 는 최신이 먼저이므로 다음 칸(i+1)이 전날이다. */
-    let rt='';
-    if(f.ratio!=null && f.ratio>0){
-      const pv=rows[i+1] ? (fd[rows[i+1].date]||{}).ratio : null;
-      const col = (pv==null || Math.abs(f.ratio-pv)<0.005) ? '#8b949e'
-                : (f.ratio>pv ? '#ef5350' : '#58a6ff');
-      rt = ` <span style="color:${col};font-size:11px">${f.ratio.toFixed(1)}%</span>`;
-    }
-    h+='<tr><td>'+String(x.date).slice(5).replace('-','/')+'</td>'
-     + '<td class="'+cls(f.net)+'">'+num(f.net)+rt+'</td>'
-     + '<td class="'+cls(f.inst)+'">'+num(f.inst)+'</td></tr>';
-  });
-  h+='</table>';
-  box.innerHTML=h;
+  if(kEl) kEl.textContent='(주) · '+FLOW_MONTHS+'개월 '+rows.length+'일';
+
+  if(!document.getElementById('flow-cv')){
+    box.innerHTML='<div id="flow-lg">'
+      + ['net','inst','indiv'].map(k=>'<span><i style="background:'+FLOW_COL[k]+';height:'+Math.round(FLOW_LW[k]+1)+'px"></i>'+FLOW_NM[k]+'</span>').join('')
+      + '<span id="flow-hv"></span></div><canvas id="flow-cv"></canvas>';
+    const cv=document.getElementById('flow-cv');
+    const pick=ev=>{
+      const r=cv.getBoundingClientRect();
+      const y=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
+      const i=Math.floor((y-FLOW_PAD.t)/FLOW_RH);
+      const h=(i>=0 && i<flowRows.length)?i:-1;
+      if(h===flowHover) return;
+      flowHover=h;
+      /* 주가차트에도 같은 날짜의 십자선이 나타나도록 */
+      flowDrives = h>=0;
+      state.hoverIdx = h>=0 ? flowIdxInView(flowRows[h].date) : -1;
+      if(state.hoverIdx>=0 && typeof updateOHLC==='function') updateOHLC(state.data[state.range[0]+state.hoverIdx]);
+      if(window.kgRedrawSoon) window.kgRedrawSoon(); else drawFlowChart();
+    };
+    cv.style.touchAction='pan-y';
+    cv.addEventListener('pointermove',pick);
+    cv.addEventListener('pointerdown',pick);
+    cv.addEventListener('pointerleave',()=>{
+      flowHover=-1;
+      if(flowDrives){ flowDrives=false; state.hoverIdx=-1; if(typeof updateOHLC==='function') updateOHLC(); }
+      if(window.kgRedrawSoon) window.kgRedrawSoon(); else drawFlowChart();
+    });
+  }
+  flowHover=-1; flowDrives=false;
+  drawFlowChart();
 }
+function drawFlowChart(){
+  const cv=document.getElementById('flow-cv'); if(!cv || !flowRows.length) return;
+  if(!cv.clientWidth) return;                         // 칸이 접혀 있으면 그리지 않는다
+  const W=cv.clientWidth, n=flowRows.length;
+  const H=FLOW_PAD.t + n*FLOW_RH + FLOW_PAD.b;
+  const dpr=window.devicePixelRatio||1;
+  if(cv._w!==W || cv._h!==H || cv._d!==dpr){
+    cv._w=W; cv._h=H; cv._d=dpr;
+    cv.style.height=H+'px';
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  }
+  const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,W,H);
+  const keys=['net','inst','indiv'];
+  let mx=0;
+  flowRows.forEach(r=>keys.forEach(k=>{ if(r[k]!=null && isFinite(r[k])) mx=Math.max(mx,Math.abs(r[k])); }));
+  if(!mx) mx=1;
+  const cw=W-FLOW_PAD.l-FLOW_PAD.r, x0=FLOW_PAD.l+cw/2;
+  const xOf=v=>x0+(v/mx)*(cw/2);
+  const yOf=i=>FLOW_PAD.t+i*FLOW_RH+FLOW_RH/2;
+
+  // 가로 눈금(−최대 · 0 · +최대)과 세로 격자
+  ctx.font='9px monospace'; ctx.textAlign='center'; ctx.fillStyle='#6e7681';
+  [-1,-0.5,0,0.5,1].forEach(t=>{
+    const x=x0+t*(cw/2);
+    ctx.strokeStyle = t===0 ? '#8b949e' : '#21262d'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,FLOW_PAD.t); ctx.lineTo(x,H-FLOW_PAD.b); ctx.stroke();
+    if(t===-1||t===0||t===1) ctx.fillText(t===0?'0':flowNum(t*mx), Math.min(Math.max(x,FLOW_PAD.l),W-14), 9);
+  });
+
+  // 짚은 날 — 주가차트에서 짚었으면 그 날짜, 매매동향에서 짚었으면 그 줄
+  let hr = flowDrives ? flowHover : flowRowOfHover();
+  if(hr<0 && flowHover>=0) hr=flowHover;
+  if(hr>=0){
+    ctx.fillStyle='rgba(139,148,158,.15)';
+    ctx.fillRect(FLOW_PAD.l, yOf(hr)-FLOW_RH/2, cw, FLOW_RH);
+  }
+
+  // 날짜 글자
+  ctx.textAlign='left';
+  flowRows.forEach((r,i)=>{
+    ctx.fillStyle = i===hr ? '#e6edf3' : '#6e7681';
+    ctx.fillText(r.date.slice(5).replace('-','/'), 1, yOf(i)+3);
+  });
+
+  // 선 3개 — 개인을 먼저 그려 뒤로 보내고 기관·외국인(굵은 선)을 위에
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ['indiv','inst','net'].forEach(k=>{
+    ctx.strokeStyle=FLOW_COL[k]; ctx.lineWidth=FLOW_LW[k]; ctx.beginPath();
+    let on=false;
+    flowRows.forEach((r,i)=>{
+      const v=r[k];
+      if(v==null || !isFinite(v)){ on=false; return; }
+      const x=xOf(v), y=yOf(i);
+      if(on) ctx.lineTo(x,y); else { ctx.moveTo(x,y); on=true; }
+    });
+    ctx.stroke();
+  });
+
+  // 짚은 날의 가로선과 값
+  const hv=document.getElementById('flow-hv');
+  if(hr>=0){
+    const r=flowRows[hr], y=yOf(hr);
+    ctx.strokeStyle='#ffffff99'; ctx.lineWidth=1.3;
+    ctx.beginPath(); ctx.moveTo(FLOW_PAD.l,y); ctx.lineTo(W-FLOW_PAD.r,y); ctx.stroke();
+    keys.forEach(k=>{
+      if(r[k]==null) return;
+      ctx.fillStyle=FLOW_COL[k]; ctx.beginPath(); ctx.arc(xOf(r[k]),y,3,0,6.283); ctx.fill();
+    });
+    if(hv) hv.innerHTML=r.date.slice(5).replace('-','/')+' '
+      + keys.map(k=>'<span style="color:'+FLOW_COL[k]+'">'+flowNum(r[k])+'</span>').join(' ');
+  } else if(hv) hv.textContent='';
+}
+window.addEventListener('resize', ()=>{ if(document.getElementById('flow-cv')) drawFlowChart(); });
 
 function bindStepBtn(){
   const setup = (id, dir, endMsg) => {
@@ -5067,6 +5199,7 @@ function setupMouseEvent() {
 
   function redrawAll() {
     drawCandle();
+    if (typeof drawFlowChart === 'function') drawFlowChart();   // 짚은 날짜를 매매동향과 맞춘다
     document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
       const base = getActiveKeys()[i];
       const key = base ? swapShown(base) : null;   // 밀어서 바꾼 지표를 그대로 유지한다
@@ -5082,6 +5215,7 @@ function setupMouseEvent() {
     if (rafId) return;
     rafId = requestAnimationFrame(() => { rafId = 0; redrawAll(); });
   }
+  window.kgRedrawSoon = redrawSoon;   // 매매동향 그래프에서 주가차트를 다시 그리게 할 때 쓴다
 
   // ── 캔들 1개씩 넘기기 (‹ 버튼) ──
   // 확대·위치는 손으로 잡아두고, 버튼으로 하루씩 진행시켜 방향예측을 연습하는 용도
