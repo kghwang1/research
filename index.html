@@ -1055,6 +1055,22 @@
   .dep-tip{min-height:62px;margin-top:6px;padding:7px 10px;background:#21262d;border:1px solid #30363d;border-radius:8px;
     font-size:12px;line-height:1.7;color:var(--ink);font-family:monospace;
     display:grid;grid-template-columns:1fr 1fr;column-gap:12px}
+
+  /* ═══ 부메뉴 통일 (2026-10-19) ═══
+     포트·관심·추세·STUDY·방송·종목분석(챠트·분석·장기투자·보고서)·다이버전스 부메뉴 단추를
+     포트 부메뉴와 같은 크기(글자 13px · 굵게 · 안쪽 여백 8px 14px · 모서리 10px)로 맞추고,
+     바탕은 진녹색으로 통일한다. 고른 단추는 지금처럼 밝은 색으로 표시한다. */
+  .valfull-top .subtab, .selnav button, .trd-bar .tf, .stu-bar .sf, .watch-bar .wf, .subnav button{
+    flex:none !important; font-size:13px !important; font-weight:700 !important; line-height:1.2;
+    padding:8px 14px !important; border-radius:10px !important; white-space:nowrap; cursor:pointer;
+    background:#1b3d2b !important; border:1px solid #2f6346 !important; color:#e6edf3 !important; }
+  .valfull-top .subtab:hover, .selnav button:hover, .trd-bar .tf:hover, .stu-bar .sf:hover,
+  .watch-bar .wf:hover, .subnav button:hover{ background:#24503a !important; border-color:#3f8a60 !important; }
+  .valfull-top .subtab.on, .selnav button.on, .trd-bar .tf.on, .stu-bar .sf.on, .watch-bar .wf.on, .subnav button.on{
+    background:var(--accent2) !important; border-color:var(--accent2) !important; color:#0a0a0a !important; }
+  .selnav .selrfr{ color:#f0883e !important; }              /* ↻ 새로 · 💾 저장 · ⛁ 서버 는 글자색 그대로 */
+  .divnav button:not(.on){ color:#58a6ff !important; }      /* 다이버전스 [포트폴리오][종목찾기] */
+  .trd-bar, .stu-bar, .watch-bar{ flex-wrap:wrap; justify-content:flex-start; }
 </style>
 </head>
 <body>
@@ -1128,13 +1144,13 @@
    <div class="tab" data-t="port">포트</div>
    <div class="tab" data-t="sel">관심</div>
    <div class="tab" id="stkTabBtn">종목분석</div>
-   <div class="tab" data-t="watch">방송</div>
    <div class="tab" data-t="study">STUDY</div>
+   <div class="tab" data-t="watch">방송</div>
   </div>
  </div>
 </header>
 
-<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
+<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span></div>
 
 <div class="wrap">
 
@@ -1143,7 +1159,7 @@
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
    <div class="anl-row">
-    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
     <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
    </div>
    <div class="anl-row">
@@ -1778,7 +1794,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
       <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1824,7 +1840,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="rptFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1857,7 +1873,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -1891,7 +1907,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
 <!-- ===== 주식 전체화면 ===== -->
 <div id="valFull" class="valfull">
- <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="watch">방송</button><button data-top="study">STUDY</button></span></div>
+ <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span></div>
  <div class="valfull-top" id="valSub">
   <div class="subtab on" data-m="invpf">선정주</div>
   <div class="subtab" data-m="kr">한국(체)</div>
@@ -15309,7 +15325,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.19.-v7';
+const KG_APP_VER = '10.19.-v9';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
