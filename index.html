@@ -1087,6 +1087,15 @@
   /* 종목분석 부메뉴(챠트·분석·장기투자·보고서)는 늘 상단 메뉴 아랫줄에 놓는다 */
   .anl-row > .subnav{ flex:0 0 100% !important; width:100%; }
 </style>
+<script>
+/* 국내 종목코드 정리 — 6자리 숫자 또는 신규 ETF 처럼 영문이 섞인 6자리(예: 0167A0)는 그대로 둔다.
+   그 밖의 글자는 예전처럼 숫자만 남긴다. (2026-10-19 v16) */
+function krDigits(x){
+  const u=String(x==null?'':x).trim().toUpperCase();
+  if(/^\d[0-9A-Z]{5}$/.test(u)) return u;
+  return u.replace(/[^0-9]/g,'');
+}
+</script>
 </head>
 <body>
 <!-- ===== 시작 로딩 화면 ===== -->
@@ -2207,7 +2216,7 @@ function upside(r){
 }
 async function loadLivePrices(){
   if(!SRV_URL) return;
-  const codes=[...new Set(REPORTS.map(r=>r.code).filter(c=>/^\d{6}$/.test(c||'')))];
+  const codes=[...new Set(REPORTS.map(r=>r.code).filter(c=>/^\d[0-9A-Z]{5}$/.test(c||'')))];
   if(!codes.length) return;
   try{
     const syms=codes.map(c=>'STK:'+c).join(',');
@@ -2244,11 +2253,11 @@ function renderArchive(){
     const upHtml = up===null?'' :
       `<div class="tp"><span class="lb">상승여력</span><span class="vl ${up>=0?'up':'dn'}">${up>=0?'+':''}${up.toFixed(1)}%</span></div>`;
     const tgt = tv!=null?`<div class="tp"><span class="lb">목표주가</span><span class="vl">${num(tv)}</span></div>`
-      :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">목표주가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
+      :(r.code&&/^\d[0-9A-Z]{5}$/.test(r.code)?`<div class="tp"><span class="lb">목표주가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
     const now = lv!=null?`<div class="tp"><span class="lb">현재가</span><span class="vl">${num(lv)}${archRateHtml(r.code)}</span></div>`
-      :(r.code&&/^\d{6}$/.test(r.code)?`<div class="tp"><span class="lb">현재가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
+      :(r.code&&/^\d[0-9A-Z]{5}$/.test(r.code)?`<div class="tp"><span class="lb">현재가</span><span class="vl" style="color:var(--mut)">${livePricesLoaded?'—':'…'}</span></div>`:'');
     const tprow=(tgt||now||upHtml)?`<div class="tp-row">${tgt}${now}${upHtml}</div>`:'';
-    const stockUrl=r.stockUrl||(/^\d{6}$/.test(r.code||'')?'https://finance.naver.com/item/main.naver?code='+r.code:'');
+    const stockUrl=r.stockUrl||(/^\d[0-9A-Z]{5}$/.test(r.code||'')?'https://finance.naver.com/item/main.naver?code='+r.code:'');
     const urls=r.urls||(r.url?[r.url]:[]);
     const urlBtns=urls.map((u,i)=>`<a class="pill lk" href="${esc(u)}" target="_blank" rel="noopener noreferrer">원본${urls.length>1?(i+1):''} ↗</a>`).join('');
     return `<div class="card">
@@ -2410,7 +2419,7 @@ function parseNaverReport(raw){
   //   url      : 붙여넣은 텍스트에 PDF/원문 주소가 있을 때만 — "원본" 버튼
   out.stockUrl='';
   out.url='';
-  if(out.code && /^\d{6}$/.test(out.code)){
+  if(out.code && /^\d[0-9A-Z]{5}$/.test(out.code)){
     out.stockUrl='https://finance.naver.com/item/main.naver?code='+out.code;
   }
   const urlMatch=raw.match(/https?:\/\/[^\s"'<>]+/);
@@ -2453,7 +2462,7 @@ $('#saveReport').onclick=()=>{
     name, code:mCode,
     head:$('#rHeadLine').value.trim(), broker:$('#rBroker').value.trim(),
     date:$('#rDate').value||todayISO(), op:curOp,
-    stockUrl:/^\d{6}$/.test(mCode)?'https://finance.naver.com/item/main.naver?code='+mCode:'',
+    stockUrl:/^\d[0-9A-Z]{5}$/.test(mCode)?'https://finance.naver.com/item/main.naver?code='+mCode:'',
     urls:[...document.querySelectorAll('#rUrls input')].map(i=>i.value.trim()).filter(Boolean),
     memo:$('#rMemo').value.trim()
   };
@@ -3312,8 +3321,8 @@ function krMerge(saved){
   // 기본자료(사진 갱신분)
   const base = VAL_DEFAULT.kr.map(d=>{ const s=byCode[String(d[0])]; return [d[0],d[1],d[2],d[3], s?(s[4]||''):'', s?(s[5]||''):'']; });
   // 사용자가 직접 추가한 종목(사진 갱신과 무관하게 유지). 기본자료에 이미 있으면 제외
-  const baseCodes=new Set(VAL_DEFAULT.kr.map(d=>String(d[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
-  const extra=krExtraLoad().filter(e=>{ const c=String(e[0]||'').replace(/[^0-9]/g,''); return c && !baseCodes.has(c); })
+  const baseCodes=new Set(VAL_DEFAULT.kr.map(d=>krDigits(String(d[0]||''))).filter(Boolean));
+  const extra=krExtraLoad().filter(e=>{ const c=krDigits(String(e[0]||'')); return c && !baseCodes.has(c); })
     .map(e=>{ const c=String(e[0]); const s=byCode[c]; return [e[0],e[1],e[2]!=null?e[2]:null,e[3]!=null?e[3]:null, s?(s[4]||''):'', s?(s[5]||''):'']; });
   return base.concat(extra);
 }
@@ -3766,9 +3775,9 @@ function addKrRow(){
   // 한국체 포트폴리오에 종목 영구 추가 (사진 갱신과 무관하게 유지)
   const code = prompt('추가할 종목코드(6자리)를 입력하세요:');
   if(!code) return;
-  const c = code.trim().replace(/[^0-9]/g,'').padStart(6,'0').slice(0,6);
+  const c = krDigits(code.trim()).padStart(6,'0').slice(0,6);
   if(!c || c.length!==6){ alert('6자리 숫자 코드를 입력해 주세요.'); return; }
-  if(VAL.some(r=>String(r[0]||'').replace(/[^0-9]/g,'')=== c)){ alert('이미 목록에 있는 종목입니다.'); return; }
+  if(VAL.some(r=>krDigits(String(r[0]||''))=== c)){ alert('이미 목록에 있는 종목입니다.'); return; }
   const name = prompt('종목명을 입력하세요:') || '';
   const weightStr = prompt('비중(%)을 입력하세요 (없으면 빈칸):') || '';
   const weight = weightStr==='' ? null : parseFloat(weightStr);
@@ -3788,13 +3797,13 @@ function addWatchRow(){
   // 관심 포트폴리오에 빈 행 추가
   const code = prompt('추가할 종목코드(6자리)를 입력하세요:');
   if(!code) return;
-  const c = code.trim().replace(/[^0-9]/g,'').padStart(6,'0').slice(0,6);
+  const c = krDigits(code.trim()).padStart(6,'0').slice(0,6);
   if(!c || c.length!==6){ alert('6자리 숫자 코드를 입력해 주세요.'); return; }
   loadWatchRows();
-  if(WATCH_ROWS.some(r=>String(r[0]||'').replace(/[^0-9]/g,'')=== c)){ alert('이미 관심 목록에 있는 종목입니다.'); return; }
+  if(WATCH_ROWS.some(r=>krDigits(String(r[0]||''))=== c)){ alert('이미 관심 목록에 있는 종목입니다.'); return; }
   const name = prompt('종목명을 입력하세요 (없으면 빈칸):') || '';
   // 마지막 빈 행 앞에 삽입
-  const empIdx = WATCH_ROWS.findIndex(r=>!String(r[0]||'').replace(/[^0-9]/g,''));
+  const empIdx = WATCH_ROWS.findIndex(r=>!krDigits(String(r[0]||'')));
   if(empIdx>=0) WATCH_ROWS.splice(empIdx, 0, [c, name]);
   else WATCH_ROWS.push([c, name]);
   saveWatchRows();
@@ -3805,12 +3814,12 @@ function addWatchRow(){
 
 // 코스피200/코스닥100 → 관심 목록에 담기 (코드+이름 확정)
 function investAddToWatch(code, name){
-  const c = String(code||'').replace(/[^0-9]/g,'');
+  const c = krDigits(String(code||''));
   if(!c || c.length!==6){ alert('올바른 종목코드가 아닙니다.'); return; }
   loadWatchRows();
-  if(WATCH_ROWS.some(r=>String(r[0]||'').replace(/[^0-9]/g,'')=== c)){ toast('이미 관심 목록에 있습니다: '+(name||c)); return; }
+  if(WATCH_ROWS.some(r=>krDigits(String(r[0]||''))=== c)){ toast('이미 관심 목록에 있습니다: '+(name||c)); return; }
   // 마지막 빈 줄 앞에 삽입 (없으면 그냥 추가)
-  const empIdx = WATCH_ROWS.findIndex(r=>!String(r[0]||'').replace(/[^0-9]/g,''));
+  const empIdx = WATCH_ROWS.findIndex(r=>!krDigits(String(r[0]||'')));
   if(empIdx>=0) WATCH_ROWS.splice(empIdx, 0, [c, name||'']);
   else WATCH_ROWS.push([c, name||'']);
   saveWatchRows();
@@ -3860,7 +3869,7 @@ function bindInvestAddInput(t){
       ev.preventDefault();
       const v=String(inp.value||'').trim();
       // 6자리 숫자 직접 입력이면 바로 담기
-      const c=v.replace(/[^0-9]/g,'');
+      const c=krDigits(v);
       if(c.length===6){ investAddToWatch(c, ''); inp.value=''; closeAc(); }
     } else if(ev.key==='Escape'){ closeAc(); }
   };
@@ -3987,7 +3996,7 @@ function bindPinEvents(tbl, renderFn, portId){
 async function fetchKrLive(rows){
   /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(!SRV_URL||!rows||!rows.length) return;
-  const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
+  const codes=[...new Set(rows.map(r=>krDigits(String(r[0]))).filter(c=>c.length===6))];
   const syms=codes.map(c=>'STK:'+c), CH=40;
   for(let i=0;i<syms.length;i+=CH){
     const part=syms.slice(i,i+CH).join(',');
@@ -4003,7 +4012,7 @@ let krTarget={}, krHigh52={}; // code -> str
 async function fetchKrTargets(rows){
   /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(!SRV_URL||!rows||!rows.length) return;
-  const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
+  const codes=[...new Set(rows.map(r=>krDigits(String(r[0]))).filter(c=>c.length===6))];
   const CH=40;
   for(let i=0;i<codes.length;i+=CH){
     const part=codes.slice(i,i+CH).join(',');
@@ -4024,7 +4033,7 @@ async function fetchKrTargets(rows){
 async function fetchKrRoe(rows){
   /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
   if(!SRV_URL||!rows||!rows.length) return;
-  const codes=[...new Set(rows.map(r=>String(r[0]).replace(/[^0-9]/g,'')).filter(c=>c.length===6))];
+  const codes=[...new Set(rows.map(r=>krDigits(String(r[0]))).filter(c=>c.length===6))];
   for(let i=0;i<codes.length;i+=25){
     const part=codes.slice(i,i+25);
     try{ const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.join(','))); const d=await r.json(); ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) krRoe[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; }); }catch(e){}
@@ -4112,16 +4121,16 @@ function renderKrTable(){
   let h='<caption class="kr-cap">'+KR_LABEL+pfMenuHtml({save:'valSave', load:'valReset'})+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
-  const krExtraCodes=new Set(krExtraLoad().map(e=>String(e[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
+  const krExtraCodes=new Set(krExtraLoad().map(e=>krDigits(String(e[0]||''))).filter(Boolean));
   const krDisp = (()=>{
-    let arr=[...VAL]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT.kr;
+    let arr=[...VAL]; const gc=r=>krDigits(String(r[0]||'')); const ps=PSORT.kr;
     const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
     if(sk) arr.sort((a,b)=>sortValOf(sk,gc(b),null)-sortValOf(sk,gc(a),null));
     if(ps.pin) arr.sort((a,b)=>pinVal(gc(b))-pinVal(gc(a)));
     return pfTopSort(arr, gc);          // 관심·투자 체크 시 위로
   })();
   krDisp.forEach((r,ri)=>{
-    const code=String(r[0]||'').replace(/[^0-9]/g,'');
+    const code=krDigits(String(r[0]||''));
     const live=krLive[code];
     const liveStr= live? addComma(live) : (code?(SRV_URL?'…':'—'):'');
     const tgt=krTarget[code];
@@ -4186,7 +4195,7 @@ function renderKrTable(){
     const c = sp.dataset.code;
     if(!c) return;
     if(!confirm('추가한 종목을 삭제할까요?')) return;
-    const extra = krExtraLoad().filter(e=>String(e[0]||'').replace(/[^0-9]/g,'')!==c);
+    const extra = krExtraLoad().filter(e=>krDigits(String(e[0]||''))!==c);
     krExtraSave(extra);
     loadVal();
     renderKrTable();
@@ -4198,7 +4207,7 @@ function renderKrTable(){
     const nm = td.dataset.name;
     if(c) openChart(c, nm, domVisRows(t,'td.krlive','code','name'));
   }; });
-  const krCodes=VAL.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean);
+  const krCodes=VAL.map(r=>krDigits(String(r[0]||''))).filter(Boolean);
   ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes);
 }
 
@@ -4479,7 +4488,7 @@ function snapStamp(key){
 const SNAP_SEL='snap_sel';
 let watchDataState='idle';   // idle | loading | ready
 function watchCodesKr(){
-  return [...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
+  return [...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d[0-9A-Z]{5}$/.test(rc)?rc:''; }).filter(Boolean))];
 }
 async function ensureWatchData(force){
   if(!SRV_URL) return;
@@ -4524,7 +4533,7 @@ async function fillWatchGaps(){
   (WATCH_ROWS||[]).forEach(r=>{
     const c=String((r&&r[0])||'').trim(); if(!c) return;
     const isUS=/^US:/i.test(c);
-    if(!isUS && !/^\d{6}$/.test(c)) return;               // 지수·원자재 행은 제외
+    if(!isUS && !/^\d[0-9A-Z]{5}$/.test(c)) return;               // 지수·원자재 행은 제외
     const key=isUS ? ('US:'+c.replace(/^US:/i,'').toUpperCase()) : c;
     if(watchLive[key]==null) missing.push(c);
   });
@@ -4614,7 +4623,7 @@ async function refreshOneStock(rawCode){
           if(u.newsTitle) watchUsNews[key]={title:u.newsTitle, link:u.newsLink||'', date:u.newsDate||''};
         }
       }catch(e){}
-    } else if(/^\d{6}$/.test(c)){
+    } else if(/^\d[0-9A-Z]{5}$/.test(c)){
       const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent('STK:'+c)+'&fresh=1');
       const d=await r.json();
       const q=((d&&d.items)||[])[0];
@@ -4640,7 +4649,7 @@ async function refreshOneStock(rawCode){
 }
 
 async function refreshOneWatch(code){
-  if(!SRV_URL || !/^\d{6}$/.test(code)) return;
+  if(!SRV_URL || !/^\d[0-9A-Z]{5}$/.test(code)) return;
   try{
     const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent('STK:'+code)+'&fresh=1');
     const d=await r.json();
@@ -4680,7 +4689,7 @@ function usReuseFromUsc(tickers){
 
 async function fetchWatchLive(fresh){
   /* 비우지 않는다 — 조회 도중 표가 다시 그려지면 빈칸이 됐다가 다시 차는 깜빡임이 생긴다. 새 값으로 덮어쓰기만 한다 */
-  const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d{6}$/.test(rc)?rc:''; }).filter(Boolean))];
+  const codes=[...new Set((WATCH_ROWS||[]).map(r=>{ const rc=String(r[0]||'').trim(); return /^\d[0-9A-Z]{5}$/.test(rc)?rc:''; }).filter(Boolean))];
   if(!SRV_URL) return;
   const hasUs=(WATCH_ROWS||[]).some(r=>{ const rc=String(r[0]||'').trim(); return /^US:/i.test(rc)||isUsCode(rc); });
   if(!codes.length && !hasUs) return;   // 해외만 있어도 아래 해외 조회는 진행한다
@@ -4693,7 +4702,7 @@ async function fetchWatchLive(fresh){
       const d=await r.json();
       ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol||'').replace('STK:',''); watchLive[c]=q.priceStr||String(q.price); if(q.rate!=null) watchRate[c]=q.rate;
         // 종목명 자동 채우기
-        if(q.name){ const row=WATCH_ROWS.find(x=>String(x[0]||'').replace(/[^0-9]/g,'')===c); if(row && !row[1]){ row[1]=q.name; } }
+        if(q.name){ const row=WATCH_ROWS.find(x=>krDigits(String(x[0]||''))===c); if(row && !row[1]){ row[1]=q.name; } }
       } });
     }catch(e){}
     try{
@@ -4773,7 +4782,7 @@ async function fetchWatchLive(fresh){
 }
 
 function watchCommit(idx, code, name){
-  const clean=String(code||'').replace(/[^0-9]/g,'');
+  const clean=krDigits(String(code||''));
   if(!clean || clean.length!==6) return;
   if(!WATCH_ROWS[idx]) WATCH_ROWS[idx]=['',''];
   WATCH_ROWS[idx][0]=clean;
@@ -4850,8 +4859,8 @@ function watchMinScoreSet(v){ try{ localStorage.setItem('kg_watch_minscore', Str
 // 세 포트폴리오(한국체·코스피200·코스닥100)의 전체 종목 풀 만들기
 async function buildDomesticPool(btn){
   const pool=new Map();
-  (VAL_DEFAULT.kr||[]).forEach(r=>{ const c2=String(r[0]||'').replace(/[^0-9]/g,''); if(c2) pool.set(c2, r[1]||''); });
-  if(typeof krExtraLoad==='function'){ krExtraLoad().forEach(r=>{ const c2=String(r[0]||'').replace(/[^0-9]/g,''); if(c2) pool.set(c2, r[1]||pool.get(c2)||''); }); }
+  (VAL_DEFAULT.kr||[]).forEach(r=>{ const c2=krDigits(String(r[0]||'')); if(c2) pool.set(c2, r[1]||''); });
+  if(typeof krExtraLoad==='function'){ krExtraLoad().forEach(r=>{ const c2=krDigits(String(r[0]||'')); if(c2) pool.set(c2, r[1]||pool.get(c2)||''); }); }
   if(!investLoaded){ if(btn) btn.textContent='코스피200 불러오는 중…'; await loadInvest(); }
   (INVEST_POOL||[]).forEach(r=>{ if(r.code) pool.set(r.code, r.name||pool.get(r.code)||''); });
   if(!investKqLoaded){ if(btn) btn.textContent='코스닥100 불러오는 중…'; await loadInvestKq(); }
@@ -4861,7 +4870,7 @@ async function buildDomesticPool(btn){
 
 // 수집된 종목을 관심 목록에 중복 없이 추가
 function addToWatchList(matched){
-  const existing=new Set(WATCH_ROWS.map(r=>String(r[0]||'').replace(/[^0-9]/g,'')).filter(Boolean));
+  const existing=new Set(WATCH_ROWS.map(r=>krDigits(String(r[0]||''))).filter(Boolean));
   let added=0;
   matched.forEach(m=>{
     if(existing.has(m.code)) return;
@@ -4951,21 +4960,21 @@ function renderWatchTable(){
   const empties = WATCH_ROWS.filter(r=>!String(r[0]||'').trim());
   let sorted = filled.slice();
   // ROE 필터 (지수/원자재 행은 항상 통과)
-  const isIdxCode = c => c!=='' && !/^\d{6}$/.test(c);
+  const isIdxCode = c => c!=='' && !/^\d[0-9A-Z]{5}$/.test(c);
   if(watchRoeMin==='up'){
-    sorted = sorted.filter(r=>{ const rc=String(r[0]||'').trim(); if(isIdxCode(rc)) return true; const z=watchRoe[rc.replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.prevRoe!=null && (z.roe-z.prevRoe)>0; });
+    sorted = sorted.filter(r=>{ const rc=String(r[0]||'').trim(); if(isIdxCode(rc)) return true; const z=watchRoe[krDigits(rc)]; return z && z.roe!=null && z.prevRoe!=null && (z.roe-z.prevRoe)>0; });
   } else if(watchRoeMin>0){
-    sorted = sorted.filter(r=>{ const rc=String(r[0]||'').trim(); if(isIdxCode(rc)) return true; const z=watchRoe[rc.replace(/[^0-9]/g,'')]; return z && z.roe!=null && z.roe>=watchRoeMin; });
+    sorted = sorted.filter(r=>{ const rc=String(r[0]||'').trim(); if(isIdxCode(rc)) return true; const z=watchRoe[krDigits(rc)]; return z && z.roe!=null && z.roe>=watchRoeMin; });
   }
   // 외국인 정렬
   if(watchSortFrgn){
-    sorted.sort((a,b)=>{ const fa=frgnStarCount(String(a[0]||'').replace(/[^0-9]/g,'')), fb=frgnStarCount(String(b[0]||'').replace(/[^0-9]/g,'')); return fb-fa; });
+    sorted.sort((a,b)=>{ const fa=frgnStarCount(krDigits(String(a[0]||''))), fb=frgnStarCount(krDigits(String(b[0]||''))); return fb-fa; });
   }
   // 기본 배열: 국내(6자리) 먼저, 해외(US:) 나중, 지수는 그 사이 — 안정 정렬로 기존 순서 유지
   const rowClass = r => {
     const c=String(r[0]||'').trim();
     if(/^US:/i.test(c)) return 2;        // 해외
-    if(/^\d{6}$/.test(c)) return 0;      // 국내 종목
+    if(/^\d[0-9A-Z]{5}$/.test(c)) return 0;      // 국내 종목
     return 1;                             // 지수·원자재
   };
   sorted = sorted.map((r,i)=>[r,i]).sort((a,b)=>{
@@ -5048,7 +5057,7 @@ function renderWatchTable(){
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='watch';
   const watchDisp = (()=>{
-    let arr=[...displayRows]; const gc=r=>String(r[0]||'').replace(/[^0-9]/g,''); const ps=PSORT[watchPort]||PSORT.watch;
+    let arr=[...displayRows]; const gc=r=>krDigits(String(r[0]||'')); const ps=PSORT[watchPort]||PSORT.watch;
     /* 대기 열 — 1차·2차를 체크한 종목을 위로 올린다.
        숫자만 남기면 해외 티커가 빈 값이 되므로 원래 코드를 그대로 쓴다 */
     if(ps.swait){
@@ -5074,8 +5083,8 @@ function renderWatchTable(){
     // 지수/원자재/해외: 6자리 숫자 종목코드가 아닌 것
     // 'US:AAPL' 뿐 아니라 'SNDK' 처럼 접두사 없는 티커도 해외로 본다
     const isUSRow = /^US:/i.test(rawCode) || (isLongSub && isUsCode(rawCode));
-    const isIdxRow = rawCode!=='' && !/^\d{6}$/.test(rawCode) && !isUSRow;
-    const code = (isIdxRow||isUSRow) ? rawCode : rawCode.replace(/[^0-9]/g,'');
+    const isIdxRow = rawCode!=='' && !/^\d[0-9A-Z]{5}$/.test(rawCode) && !isUSRow;
+    const code = (isIdxRow||isUSRow) ? rawCode : krDigits(rawCode);
     const nm=r[1]||'';
     if(isUSRow){
       // 해외(미국) 종목: 현재가·등락률·ROE·52주최고가·목표가·뉴스 (외국인·매수액·공매도는 해당없음)
@@ -5409,12 +5418,12 @@ function renderWatchTable(){
   const rb=$('#watchResetBtn'); if(rb) rb.onclick=()=>{
     loadWatchRows();
     const kept=WATCH_ROWS.filter(r=>{
-      const c=String(r[0]||'').replace(/[^0-9]/g,'');
+      const c=krDigits(String(r[0]||''));
       if(!c) return false;
       const mk=PIN_MARKS.get(c);
       return mk==='pink'||mk==='green';
     });
-    const delCnt=WATCH_ROWS.filter(r=>String(r[0]||'').replace(/[^0-9]/g,'')).length - kept.length;
+    const delCnt=WATCH_ROWS.filter(r=>krDigits(String(r[0]||''))).length - kept.length;
     if(!delCnt){ toast('삭제할 종목이 없습니다 (색칠 종목은 보존됩니다)'); return; }
     if(!confirm(delCnt+'개 종목을 삭제합니다.\n색칠(분홍/녹색)된 '+kept.length+'개 종목은 보존됩니다.')) return;
     WATCH_ROWS = kept.concat([['','']]);
@@ -5471,7 +5480,7 @@ function renderWatchTable(){
       if(ev.key==='Enter'){
         ev.preventDefault();
         const v=String(inp.value||'').trim();
-        const clean=v.replace(/[^0-9]/g,'');
+        const clean=krDigits(v);
         if(clean.length===6 && clean===v) watchCommit(idx, clean, '');
         else if(acBox && acBox.querySelector('.wac-item')) acBox.querySelector('.wac-item').dispatchEvent(new Event('mousedown'));
       }
@@ -5542,7 +5551,7 @@ async function loadCaution(){
 
   // 1) 세 포트폴리오 코드/이름 모으기
   const pool=new Map();
-  (VAL_DEFAULT.kr||[]).forEach(r=>{ const c=String(r[0]||'').replace(/[^0-9]/g,''); if(c) pool.set(c, r[1]||''); });
+  (VAL_DEFAULT.kr||[]).forEach(r=>{ const c=krDigits(String(r[0]||'')); if(c) pool.set(c, r[1]||''); });
   if(!investLoaded){ if(msg) msg.textContent='코스피200 불러오는 중…'; await loadInvest(); }
   (INVEST_POOL||[]).forEach(r=>{ if(r.code) pool.set(r.code, r.name||pool.get(r.code)||''); });
   if(!investKqLoaded){ if(msg) msg.textContent='코스닥100 불러오는 중…'; await loadInvestKq(); }
@@ -5919,7 +5928,7 @@ function renderEtfTable(tableEl, market, cfg, arr){
       if(c.kind==='cls'){
         const tk=String(row[0]||'').trim();
         const nm=row[1]||tk;
-        const cell = (cfg.link==='domestic' && /^\d{6}$/.test(tk)) ? clsCellHtml(tk, nm) : clsCellHtmlUS(tk, nm);
+        const cell = (cfg.link==='domestic' && /^\d[0-9A-Z]{5}$/.test(tk)) ? clsCellHtml(tk, nm) : clsCellHtmlUS(tk, nm);
         h+=`<td class="cls-cell">${cell}</td>`;
         return;  // di 증가 안 함
       }
@@ -6111,7 +6120,7 @@ function selDivRes(){ try{ const o=JSON.parse(localStorage.getItem('kg_div_scan'
     o.recent=o.recent.filter(divKeepSig);
     /* 이름이 번호뿐이면 챠트가 기억해 둔 이름(kg_kr_names)으로 채운다 */
     let nm={}; try{ nm=JSON.parse(localStorage.getItem('kg_kr_names')||'{}')||{}; }catch(e){}
-    o.recent.forEach(x=>{ if(x && /^\d{6}$/.test(String(x.code)) && (!x.name||x.name===x.code)) x.name = nm[x.code] || (typeof kgNameOf==='function' && kgNameOf(x.code)) || x.name; });
+    o.recent.forEach(x=>{ if(x && /^\d[0-9A-Z]{5}$/.test(String(x.code)) && (!x.name||x.name===x.code)) x.name = nm[x.code] || (typeof kgNameOf==='function' && kgNameOf(x.code)) || x.name; });
     return o; } return null; }catch(e){ return null; } }
 /* 다이버전스 정렬 — ▲ 먼저 · 완성된 신호 먼저 · 겹친 지표 많은 순 · 완성은 최근 순, 형성 중은 오래 지켜진 순 */
 function divSigSort(a,b){
@@ -6121,7 +6130,7 @@ function divSigSort(a,b){
 function selDivList(){
   const res=selDivRes(); if(!res) return [];
   const seen=new Set();
-  return res.recent.filter(x=>/^\d{6}$/.test(String(x.code)))
+  return res.recent.filter(x=>/^\d[0-9A-Z]{5}$/.test(String(x.code)))
     .sort(divSigSort)
     .filter(x=>{ const k=x.code+'|'+x.type+'|'+(x.forming?'f':''); return seen.has(k)?false:(seen.add(k),true); });
 }
@@ -6142,7 +6151,7 @@ function divCell(code){
     const xs=res.recent.filter(x=>x.code===c).sort(divSigSort);
     return xs.length ? selDivCell(c, xs) : '<span class="rsub">—</span>';
   }
-  if(!/^\d{6}$/.test(c)) return '<span class="rsub">—</span>';
+  if(!/^\d[0-9A-Z]{5}$/.test(c)) return '<span class="rsub">—</span>';
   const res=selDivRes();
   if(!res) return '<span class="rsub" title="아직 찾지 않았습니다 — 선정주 › 다이버전스 › 🎯 지금 찾기">—</span>';
   const xs=selDivOf(c);
@@ -6224,7 +6233,7 @@ window.divScanResize=function(h, w){
 window.divScanFallback=function(q){
   const kq=(q==='kosdaq');
   const out=[], seen=new Set();
-  const add=(c,n)=>{ c=String(c||'').replace(/[^0-9]/g,''); if(c.length!==6||seen.has(c)) return; seen.add(c);
+  const add=(c,n)=>{ c=krDigits(String(c||'')); if(c.length!==6||seen.has(c)) return; seen.add(c);
     let nm={}; try{ nm=JSON.parse(localStorage.getItem('kg_kr_names')||'{}')||{}; }catch(e){}
     out.push({code:c, name:n || (typeof kgNameOf==='function' && kgNameOf(c)) || nm[c] || c}); };
   try{ const P=kq?(typeof INVEST_KQ_POOL!=='undefined'?INVEST_KQ_POOL:[]):(typeof INVEST_POOL!=='undefined'?INVEST_POOL:[]); (P||[]).forEach(r=>add(r.code||r[0], r.name||r[1])); }catch(e){}
@@ -6244,8 +6253,8 @@ function divMarketOf(code){
 }
 window.divScanExtraCodes=function(){
   const out=[], seen=new Set();
-  const add=(c,n)=>{ c=String(c||'').trim(); if(!/^\d{6}$/.test(c) || seen.has(c)) return; seen.add(c); out.push({code:c, name:String(n||c), mk:divMarketOf(c)||'포트'}); };
-  try{ (VAL||[]).forEach(r=>add(String(r[0]||'').replace(/[^0-9]/g,''), r[1])); }catch(e){}
+  const add=(c,n)=>{ c=String(c||'').trim(); if(!/^\d[0-9A-Z]{5}$/.test(c) || seen.has(c)) return; seen.add(c); out.push({code:c, name:String(n||c), mk:divMarketOf(c)||'포트'}); };
+  try{ (VAL||[]).forEach(r=>add(krDigits(String(r[0]||'')), r[1])); }catch(e){}
   ['kg_watch_rows','kg_addstk_rows','kg_invpf_rows',WAIT_KEY].forEach(k=>{
     try{ selReadRows(k).forEach(r=>add(Array.isArray(r)?r[0]:(r&&r.code), Array.isArray(r)?r[1]:(r&&r.name))); }catch(e){}
   });
@@ -6375,12 +6384,12 @@ function selLongAll(){
 }
 function selLongRows(mkt){
   const m = mkt || selLongMkt;
-  return selLongAll().filter(x => m==='us' ? !/^\d{6}$/.test(x[0]) : /^\d{6}$/.test(x[0]));
+  return selLongAll().filter(x => m==='us' ? !/^\d[0-9A-Z]{5}$/.test(x[0]) : /^\d[0-9A-Z]{5}$/.test(x[0]));
 }
 function selLongCount(){
   const all=selLongAll();
-  return { kr: all.filter(x=>/^\d{6}$/.test(x[0])).length,
-           us: all.filter(x=>!/^\d{6}$/.test(x[0])).length };
+  return { kr: all.filter(x=>/^\d[0-9A-Z]{5}$/.test(x[0])).length,
+           us: all.filter(x=>!/^\d[0-9A-Z]{5}$/.test(x[0])).length };
 }
 
 /* 장기보유2(해외) 표는 미국(반) 적정주가 표와 같은 항목을 쓴다.
@@ -6453,7 +6462,7 @@ async function fillNameLater(code, keys){
 
 function selAddStock(code, name){
   const raw=String(code||'').trim();
-  const dg=raw.replace(/[^0-9]/g,'');
+  const dg=krDigits(raw);
   let c;
   if(dg.length===6) c=dg;
   else if(/^(US:)?[A-Za-z][A-Za-z.\-]{0,6}$/.test(raw)) c='US:'+raw.replace(/^US:/i,'').toUpperCase();
@@ -6514,7 +6523,7 @@ function bindSelAddInput(t){
       try{
         const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(v));
         const d=await r.json();
-        let items=((d&&d.items)||[]).filter(it=>it.code&&/^\d{6}$/.test(it.code)).slice(0,8);
+        let items=((d&&d.items)||[]).filter(it=>it.code&&/^\d[0-9A-Z]{5}$/.test(it.code)).slice(0,8);
         /* 영문만 넣으면 미국 티커일 수 있다 —
            시세를 물어 실제로 있는지 확인하고 회사 이름을 붙여 추천한다. */
         if(/^[A-Za-z][A-Za-z.\-]{0,6}$/.test(v)){
@@ -6542,7 +6551,7 @@ function bindSelAddInput(t){
     if(ev.key==='Enter'){
       ev.preventDefault();
       const v=String(inp.value||'').trim();
-      const c=v.replace(/[^0-9]/g,'');
+      const c=krDigits(v);
       if(c.length===6){ close(); inp.value=''; selAddStock(c,''); }
       else if(/^(US:)?[A-Za-z][A-Za-z.\-]{0,6}$/.test(v)){ close(); inp.value=''; selAddStock(v,''); }
     } else if(ev.key==='Escape') close();
@@ -6919,7 +6928,7 @@ async function myServerPut(loud){
 function myEnsureWatch(){
   const want=new Map();
   const put=r=>{ const c=String((Array.isArray(r)?r[0]:(r&&r.code))||'').trim();
-                 if(/^\d{6}$/.test(c)) want.set(c, (Array.isArray(r)?r[1]:(r&&r.name))||''); };
+                 if(/^\d[0-9A-Z]{5}$/.test(c)) want.set(c, (Array.isArray(r)?r[1]:(r&&r.name))||''); };
   // 추가종목만 관심에 반영한다. 장기보유는 자체 분류(관망·투자)를 쓰므로 넘기지 않는다.
   try{ selReadRows('kg_addstk_rows').forEach(put); }catch(e){}
   if(!want.size) return 0;
@@ -7229,7 +7238,7 @@ function bindSelSearch(box){
       try{
         if(SRV_URL){ const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q)); const d=await r.json();
           ((d&&d.items)||[]).slice(0,8).forEach(it=>{
-            if(it.code&&it.name){ const isForeign=/[A-Za-z]/.test(it.code)&&!/^\d{6}$/.test(it.code);
+            if(it.code&&it.name){ const isForeign=/[A-Za-z]/.test(it.code)&&!/^\d[0-9A-Z]{5}$/.test(it.code);
               results.push({type:isForeign?'us':'kr', code:it.code, name:it.name}); }
           });
         }
@@ -7767,7 +7776,7 @@ function renderEtfAll(){
 
 /* ===== 기업정보: FnGuide 컨센서스 ===== */
 function openConsensus(code){
-  const c=String(code).replace(/[^0-9]/g,''); if(!c) return;
+  const c=krDigits(String(code)); if(!c) return;
   const u='https://comp.fnguide.com/SVO2/ASP/SVD_Consensus.asp?pGB=1&gicode=A'+c+'&MenuYn=Y&NewMenuID=108&stkGb=701';
   const w=window.open('about:blank','_blank'); if(w){ w.location=u; } else { location.href=u; }
 }
@@ -7786,7 +7795,7 @@ function cgOpen(src){
   const urlOf=code=> src==='naver'?cgUrlNaver(code):cgUrlCG(code);
   const w=window.open('about:blank','_blank');           // 먼저 창을 열어 팝업차단 회피
   const go=code=>{ const u=urlOf(code); if(w){ w.location=u; } else { location.href=u; } };
-  if(/^\d{6}$/.test(v)){ go(v); if(res){ res.innerHTML=cgCard(v,''); cgBind(res); } return; }
+  if(/^\d[0-9A-Z]{5}$/.test(v)){ go(v); if(res){ res.innerHTML=cgCard(v,''); cgBind(res); } return; }
   if(!SRV_URL){ if(w) w.close(); if(res) res.innerHTML='<div class="cg-hint">종목코드 6자리로 입력해 주세요.</div>'; return; }
   if(res) res.innerHTML='<div class="cg-hint">검색 중…</div>';
   fetch(SRV_URL+'/?find='+encodeURIComponent(v)).then(r=>r.json()).then(d=>{
@@ -7892,7 +7901,7 @@ async function loadFtopData(force){
 
   // 2) 각 종목의 실제 최근 5일 순매수 시퀀스 조회 (한국(체)와 동일한 ?frgns=)
   const enrichSeq = async (arr) => {
-    const codes = arr.map(s => s.code).filter(c => /^\d{6}$/.test(c));
+    const codes = arr.map(s => s.code).filter(c => /^\d[0-9A-Z]{5}$/.test(c));
     const seqMap = {};
     for(let i=0;i<codes.length;i+=20){
       const part = codes.slice(i, i+20);
@@ -8127,7 +8136,7 @@ function trankPriceCell(row, link){
   const px = (+row.price).toLocaleString();
   // link — 주가를 누르면 종목분석(챠트)을 '외국인 추세' 목록으로 연다
   const code = String(row.code||'');
-  const body = (link && /^\d{6}$/.test(code))
+  const body = (link && /^\d[0-9A-Z]{5}$/.test(code))
     ? `<a href="#" class="pxl" onclick="openFrgnChart('${code}','${escHtml(String(row.name||'').replace(/['\\]/g,''))}');return false">${px}</a>`
     : px;
   return `<td>${body}${sub}</td>`;
@@ -10345,14 +10354,14 @@ function anlInit(){
     if(timer) clearTimeout(timer);
     if(!q){ if(sug){ sug.innerHTML=''; sug.classList.remove('on'); } return; }
     // 6자리 숫자면 바로 조회
-    if(/^\d{6}$/.test(q)){ anlPick(q, q); return; }
+    if(/^\d[0-9A-Z]{5}$/.test(q)){ anlPick(q, q); return; }
   if(/^[A-Za-z.\-]{1,6}$/.test(q) && q.length>=2 && q===q.toUpperCase()){ anlPick(q, q); return; }
     timer=setTimeout(async()=>{
       if(!SRV_URL || !sug) return;
       try{
         const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q));
         const d=await r.json();
-        const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d{6}$/.test(it.code)).slice(0,8);
+        const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d[0-9A-Z]{5}$/.test(it.code)).slice(0,8);
         if(!items.length){ sug.innerHTML='<div style="color:#8b949e">국내 종목만 조회됩니다</div>'; sug.classList.add('on'); return; }
         sug.innerHTML=items.map(it=>`<div data-code="${it.code}" data-name="${escHtml(it.name)}">${escHtml(it.name)}<span class="sc">${it.code}</span></div>`).join('');
         sug.classList.add('on');
@@ -10362,7 +10371,7 @@ function anlInit(){
       }catch(e){}
     }, 250);
   };
-  inp.onkeydown=e=>{ if(e.key==='Enter'){ const q=inp.value.trim(); if(/^\d{6}$/.test(q)) anlPick(q,q); } };
+  inp.onkeydown=e=>{ if(e.key==='Enter'){ const q=inp.value.trim(); if(/^\d[0-9A-Z]{5}$/.test(q)) anlPick(q,q); } };
   anlBindCanvas();
 }
 
@@ -11487,7 +11496,7 @@ function anlLoadPort(mk, wantCode){
   const seen=new Set(); const uniq=[];
   rows.forEach(r=>{
     const raw=String(r.code||'').trim();
-    const digits=raw.replace(/[^0-9]/g,'');
+    const digits=krDigits(raw);
     const c = (digits.length===6) ? digits : (isUsCode(raw) ? raw : '');
     if(!c) return;
     const k=c.toUpperCase();
@@ -11500,7 +11509,7 @@ function anlLoadPort(mk, wantCode){
   const wc = String(wantCode||'').replace(/^US:/i,'').trim();
   const wcIdx = (typeof CHART_IDX_ROWS!=='undefined') && CHART_IDX_ROWS.some(r=>String(r[0]).toUpperCase()===wc.toUpperCase());
   if(want) anlPick(want.code, want.name);
-  else if(wc && !wcIdx && (/^\d{6}$/.test(wc) || /^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(wc)))
+  else if(wc && !wcIdx && (/^\d[0-9A-Z]{5}$/.test(wc) || /^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(wc)))
     anlPick(wc, (typeof STK!=='undefined' && STK.code===String(wantCode) && STK.name) ? STK.name : wc);   // 목록 밖 종목
   else if(uniq.length && !ANL_CODE) anlPick(uniq[0].code, uniq[0].name);
   ensureFin3(uniq.slice(0,40).map(r=>r.code));
@@ -11515,7 +11524,7 @@ const ETF_NAME=/(KODEX|TIGER|KBSTAR|ARIRANG|HANARO|SOL |ACE |PLUS |RISE |WOORI|K
 function anlSetList(rows, fromMarket){
   const usPort = (fromMarket==='usc'||fromMarket==='us'||fromMarket==='etf');
   ANL_LIST=(rows||[])
-    .filter(r=>r && (/^\d{6}$/.test(String(r.code||'')) || isUsCode(r.code)))
+    .filter(r=>r && (/^\d[0-9A-Z]{5}$/.test(String(r.code||'')) || isUsCode(r.code)))
     .filter(r=>usPort || !ETF_NAME.test(String(r.name||'')));   // 해외 포트는 ETF 도 그대로 둔다
   ANL_FROM=fromMarket||null;
   anlRenderList();
@@ -11613,9 +11622,9 @@ function openRptView(port, code, name){
   const ps=$('#rptPortSel'); if(ps) ps.value=rptPort;
   rptBuildList();
   const wantRaw = String(code||'').trim();
-  const want = (/^\d{6}$/.test(wantRaw) || (typeof isUsCode==='function' && isUsCode(wantRaw))) ? wantRaw : '';
+  const want = (/^\d[0-9A-Z]{5}$/.test(wantRaw) || (typeof isUsCode==='function' && isUsCode(wantRaw))) ? wantRaw : '';
   const first = (chartPortRows(rptPort)||[]).map(r=>String(r[0]||''))
-    .find(c=>/^\d{6}$/.test(c) || (typeof isUsCode==='function' && isUsCode(c)));
+    .find(c=>/^\d[0-9A-Z]{5}$/.test(c) || (typeof isUsCode==='function' && isUsCode(c)));
   rptPick(want || first || '', name||'');
   rptBind();
 }
@@ -11640,7 +11649,7 @@ function rptFind(q){
     try{
       const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q));
       const d=await r.json();
-      const items=((d&&d.items)||[]).filter(it=>/^\d{6}$/.test(String((it&&it.code)||'')))
+      const items=((d&&d.items)||[]).filter(it=>/^\d[0-9A-Z]{5}$/.test(String((it&&it.code)||'')))
         .slice(0,10).map(it=>[String(it.code), it.name||String(it.code)]);
       const sc=$('#rptSearch');
       if(!sc || sc.value.trim()!==q) return;         // 그 사이 검색어가 바뀌었으면 버린다
@@ -11654,7 +11663,7 @@ function rptBuildList(filter){
   const f=String(filter||'').toLowerCase();
   const rows=(chartPortRows(rptPort)||[]).filter(r=>{
     const c=String(r[0]||'').trim();
-    return /^\d{6}$/.test(c) || (typeof isUsCode==='function' && isUsCode(c));   // 미국 티커도 전망을 넣을 수 있다
+    return /^\d[0-9A-Z]{5}$/.test(c) || (typeof isUsCode==='function' && isUsCode(c));   // 미국 티커도 전망을 넣을 수 있다
   });
   const seen=new Set();
   let h='';
@@ -15343,7 +15352,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.19.-v15';
+const KG_APP_VER = '10.19.-v16';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -16457,7 +16466,7 @@ function rptBind(){
     ps.onchange=()=>{ rptPort=ps.value; if(typeof stkSetPort==='function') stkSetPort(rptPort);
       rptCode=''; rptBuildList();
       const first=(chartPortRows(rptPort)||[]).map(r=>String(r[0]||''))
-        .find(c=>/^\d{6}$/.test(c) || (typeof isUsCode==='function' && isUsCode(c)));
+        .find(c=>/^\d[0-9A-Z]{5}$/.test(c) || (typeof isUsCode==='function' && isUsCode(c)));
       const nm=(chartPortRows(rptPort)||[]).find(r=>String(r[0])===first); rptPick(first||'', nm?nm[1]:''); };
   }
   const sc=$('#rptSearch');
@@ -16466,7 +16475,7 @@ function rptBind(){
     // 6자리 코드를 치고 Enter 면 목록에 없어도 바로 연다
     sc.onkeydown=e=>{ if(e.key!=='Enter') return;
       const raw=String(sc.value||'').trim();
-      const c=raw.replace(/[^0-9]/g,'');
+      const c=krDigits(raw);
       if(c.length===6){ e.preventDefault(); rptPick(c, (typeof kgNameOf==='function' && kgNameOf(c)) || c); return; }
       // 미국 티커를 치고 Enter — 해외 종목 전망을 바로 넣을 수 있다
       if(/^[A-Za-z][A-Za-z0-9.\-]{0,9}$/.test(raw)){ e.preventDefault(); rptPick(raw.toUpperCase(), raw.toUpperCase()); } };
@@ -16500,7 +16509,7 @@ function csRateOf(code){
   if(CS_RATE[code]!=null) return CS_RATE[code];
   try{ if(typeof STK_PX!=='undefined' && STK_PX[code] && STK_PX[code].rate!=null && isFinite(parseFloat(STK_PX[code].rate))) return parseFloat(STK_PX[code].rate); }catch(e){}
   try{
-    const k=/^\d{6}$/.test(code)?code:('US:'+String(code).toUpperCase());
+    const k=/^\d[0-9A-Z]{5}$/.test(code)?code:('US:'+String(code).toUpperCase());
     const v=(typeof watchRate!=='undefined') ? (watchRate[k]!=null?watchRate[k]:watchRate[code]) : null;
     if(v!=null && isFinite(parseFloat(v))) return parseFloat(v);
   }catch(e){}
@@ -16523,7 +16532,7 @@ async function csRatePaint(box){
     .filter(c=>!(CS_RATE_T[c] && now-CS_RATE_T[c]<60000));
   if(!codes.length) return;
   codes.forEach(c=>CS_RATE_T[c]=now);
-  const sym=c=>/^\d{6}$/.test(c)?('STK:'+c):c;
+  const sym=c=>/^\d[0-9A-Z]{5}$/.test(c)?('STK:'+c):c;
   for(let i=0;i<codes.length;i+=40){
     const part=codes.slice(i,i+40);
     try{
@@ -16818,7 +16827,7 @@ document.addEventListener('click', (e)=>{
   if(tbl){
     tbl.querySelectorAll('td.fin3-go').forEach(td=>{
       const c=td.dataset.code, n=td.dataset.name;
-      if(c && /^\d{6}$/.test(c)) rows.push({code:c, name:n||c});
+      if(c && /^\d[0-9A-Z]{5}$/.test(c)) rows.push({code:c, name:n||c});
     });
   }
   anlSetList(rows, (typeof valMarket!=='undefined') ? valMarket : null);
@@ -16874,7 +16883,7 @@ function fin3Save(){
 // 표에 있는 종목 중 아직 안 받은 것만 순차 조회 (네이버 차단 방지)
 /* 해외 재무 전용 worker — 국내 ?fin3= 과 같은 키로 돌려준다 */
 const USFIN_URL='https://kg-usfin.kghwang1.workers.dev';
-const isUsCode = c => !/^\d{6}$/.test(String(c||'').replace(/^US:/i,'')) && /[A-Za-z]/.test(String(c||''));
+const isUsCode = c => !/^\d[0-9A-Z]{5}$/.test(String(c||'').replace(/^US:/i,'')) && /[A-Za-z]/.test(String(c||''));
 const usTickerOf = c => String(c||'').replace(/^US:/i,'').trim().toUpperCase();
 
 async function ensureFin3(codes, onDone){
@@ -16884,7 +16893,7 @@ async function ensureFin3(codes, onDone){
      그때마다 onDone 이 표를 다시 그려 무한 재렌더가 된다.
      표가 계속 교체되면 mousedown 과 mouseup 사이에 요소가 사라져 클릭이 먹지 않는다.
      (ensureShort 에서 같은 문제를 겪어 null 표시를 두는 방식으로 고쳤다) */
-  const kr=all.filter(c=>/^\d{6}$/.test(c)).filter(c=>!(c in FIN3));
+  const kr=all.filter(c=>/^\d[0-9A-Z]{5}$/.test(c)).filter(c=>!(c in FIN3));
   const us=all.filter(c=>isUsCode(c)).filter(c=>!(c in FIN3));
   if(!kr.length && !us.length) return;
   fin3Busy=true;
@@ -16933,7 +16942,7 @@ async function ensureFin3(codes, onDone){
 // 미니 그래프 (SVG) — 계열마다 자기 축
 function fin3Cell(code, name){
   const raw0=String(code||'').trim();
-  const dg=raw0.replace(/[^0-9]/g,'');
+  const dg=krDigits(raw0);
   const c = (dg.length===6) ? dg : raw0;
   const d=FIN3[c];
   if(!d) return '<span class="rsub">'+(SRV_URL?'…':'—')+'</span>';
@@ -17291,7 +17300,7 @@ let ADD_ROWS=[], ADD_DATA={}, addStkLoading=false;
 function loadAddRows(){
   try{ const r=localStorage.getItem(ADD_KEY); const a=r?JSON.parse(r):[];
        ADD_ROWS = Array.isArray(a)
-         ? a.filter(x=>Array.isArray(x) && (/^\d{6}$/.test(String(x[0]||'')) || /^US:[A-Z.\-]{1,7}$/i.test(String(x[0]||''))))
+         ? a.filter(x=>Array.isArray(x) && (/^\d[0-9A-Z]{5}$/.test(String(x[0]||'')) || /^US:[A-Z.\-]{1,7}$/i.test(String(x[0]||''))))
          : []; }
   catch(e){ ADD_ROWS=[]; }
   return ADD_ROWS;
@@ -17304,7 +17313,7 @@ function saveAddRows(){
 }
 function addStkAdd(code, name){
   const raw=String(code||'').trim();
-  const dg=raw.replace(/[^0-9]/g,'');
+  const dg=krDigits(raw);
   // 국내는 6자리 코드, 해외는 티커(US: 접두사로 저장)
   let c;
   if(dg.length===6) c=dg;
@@ -17539,7 +17548,7 @@ function bindAddStkInput(t){
       try{
         const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(v));
         const d=await r.json();
-        const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d{6}$/.test(it.code)).slice(0,10);
+        const items=((d&&d.items)||[]).filter(it=>it.code&&/^\d[0-9A-Z]{5}$/.test(it.code)).slice(0,10);
         if(!items.length){ close(); return; }
         box.innerHTML=items.map(it=>`<div class="aac-item" data-code="${it.code}" data-name="${escHtml(it.name)}" style="padding:9px 11px;cursor:pointer;font-size:12.5px;color:#e6edf3;border-bottom:1px solid #21262d"><b>${escHtml(it.name)}</b> <span style="color:#8b949e">${it.code}</span></div>`).join('');
         box.querySelectorAll('.aac-item').forEach(el=>{
@@ -17559,7 +17568,7 @@ function bindAddStkInput(t){
     if(ev.key==='Enter'){
       ev.preventDefault();
       const v=String(inp.value||'').trim();
-      const c=v.replace(/[^0-9]/g,'');
+      const c=krDigits(v);
       if(c.length===6){ addStkAdd(c,''); inp.value=''; close(); }
       else if(/^(US:)?[A-Za-z][A-Za-z.\-]{0,6}$/.test(v)){ addStkAdd(v,''); inp.value=''; close(); }
     } else if(ev.key==='Escape') close();
@@ -17991,10 +18000,10 @@ function watchAddIdx(code, name){
 }
 // 관심/투자 표 상단 종목 검색창: 검색 → 선택 시 목록 맨 아래(빈 줄 앞)에 추가
 function watchAddCode(code, name){
-  const c=String(code||'').replace(/[^0-9]/g,'').padStart(6,'0').slice(0,6);
+  const c=krDigits(String(code||'')).padStart(6,'0').slice(0,6);
   if(!c || c.length!==6){ toast('올바른 종목코드가 아닙니다'); return; }
   loadWatchRows();
-  if(WATCH_ROWS.some(r=>String(r[0]||'').replace(/[^0-9]/g,'')===c)){ toast('이미 목록에 있습니다: '+(name||c)); return; }
+  if(WATCH_ROWS.some(r=>krDigits(String(r[0]||''))===c)){ toast('이미 목록에 있습니다: '+(name||c)); return; }
   const empIdx=WATCH_ROWS.findIndex(r=>!String(r[0]||''));
   if(empIdx>=0) WATCH_ROWS.splice(empIdx,0,[c, name||'']);
   else WATCH_ROWS.push([c, name||'']);
@@ -18052,7 +18061,7 @@ function bindWatchSearch(t){
     }, 250);
   };
   inp.onkeydown=ev=>{
-    if(ev.key==='Enter'){ ev.preventDefault(); const c=inp.value.replace(/[^0-9]/g,''); if(c.length===6){ watchAddCode(c,''); inp.value=''; close(); } }
+    if(ev.key==='Enter'){ ev.preventDefault(); const c=krDigits(inp.value); if(c.length===6){ watchAddCode(c,''); inp.value=''; close(); } }
     else if(ev.key==='Escape'){ close(); }
   };
   inp.onblur=()=>{ setTimeout(close, 200); };
@@ -18077,7 +18086,7 @@ async function saveWatchToServer(){
       body: data
     });
     const d = await r.json();
-    if(d.ok) toast('서버에 저장 완료 ('+WATCH_ROWS.filter(r=>String(r[0]||'').replace(/[^0-9]/g,'')).length+'종목)');
+    if(d.ok) toast('서버에 저장 완료 ('+WATCH_ROWS.filter(r=>krDigits(String(r[0]||''))).length+'종목)');
     else toast('저장 실패: '+(d.error||''));
   }catch(e){ toast('저장 실패: '+e.message); }
 }
@@ -18131,7 +18140,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
       target=[...box.querySelectorAll('.cs-item')].find(el=>String(el.dataset.code||'').toUpperCase()===want);
       // 포트 목록에 없는 종목(검색해서 고른 종목 등)도 그대로 이어서 연다. 지수 코드는 지수 목록에서만.
       const isIdxCode=CHART_IDX_ROWS.some(r=>String(r[0]).toUpperCase()===want);
-      if(!target && !isIdxCode && (/^\d{6}$/.test(want) || /^[A-Z][A-Z0-9.\-]{0,9}$/.test(want))){
+      if(!target && !isIdxCode && (/^\d[0-9A-Z]{5}$/.test(want) || /^[A-Z][A-Z0-9.\-]{0,9}$/.test(want))){
         if(!box.querySelector('.cs-item')) box.innerHTML='';
         box.insertAdjacentHTML('afterbegin', chartExtraItemHtml(want, initName||STK.name||want, '목록 밖'));
         target=box.firstElementChild; chartBindItem(target);
@@ -18220,7 +18229,7 @@ function ftrendGroups(){
   const MK = {kospi:'코스피', kosdaq:'코스닥'};
   const pick = (arr, n)=>(Array.isArray(arr)?arr:[]).slice(0, n)
     .map(x=>[String((x&&x.code)||''), (x&&x.name)||''])
-    .filter(r=>/^\d{6}$/.test(r[0]));
+    .filter(r=>/^\d[0-9A-Z]{5}$/.test(r[0]));
   const out = [];
   [['buy','순매수'],['sell','순매도']].forEach(([side, lb])=>{
     ['kospi','kosdaq'].forEach(m=>{
@@ -18395,7 +18404,7 @@ function chartPortRows(port){
   if(port==='long1' || port==='long2'){   // 관심 › 장기보유1(국내 6자리) · 장기보유2(해외 티커)
     const us=(port==='long2');
     if(typeof selLongRows==='function') return selLongRows(us?'us':'kr').map(r=>[r[0], r[1]]);
-    return (chartPortRows('long')||[]).filter(r => us ? !/^\d{6}$/.test(r[0]) : /^\d{6}$/.test(r[0]));
+    return (chartPortRows('long')||[]).filter(r => us ? !/^\d[0-9A-Z]{5}$/.test(r[0]) : /^\d[0-9A-Z]{5}$/.test(r[0]));
   }
   if(port==='top20'){  // 관심 › 주간Top20 (고정 목록)
     return (typeof SEL_TOP20!=='undefined') ? SEL_TOP20.map(r=>[r[0], r[1]]) : [];
@@ -18722,10 +18731,10 @@ function buildChartStockList(filter){
     const divFix=(chartPort==='div' && typeof divIsFixed==='function' && divIsFixed(rawCode));   // 다이버전스 목록 끝의 지수·원자재
     if(idxPort || divFix){ code=rawCode; }                // 지수는 변환 없이 그대로 (^KS200 등)
     else if(/^US:/i.test(rawCode)){ code=rawCode.replace(/^US:/i,''); isForeign=true; }
-    else if(/^\d{6}$/.test(rawCode)){ code=rawCode; }   // 국내 6자리
+    else if(/^\d[0-9A-Z]{5}$/.test(rawCode)){ code=rawCode; }   // 국내 6자리
     else if(usPort && /^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // 미국 티커
     else if(/^[A-Za-z]/.test(rawCode)){ code=rawCode; isForeign=true; }  // ETF 등 티커
-    else { code=rawCode.replace(/[^0-9]/g,'') || rawCode; }
+    else { code=krDigits(rawCode) || rawCode; }
     if(f && !name.toLowerCase().includes(f) && !code.toLowerCase().includes(f)) return;
     // 관심/투자 저장용 코드: 해외는 US:티커, 국내는 6자리
     const saveCode = isForeign ? ('US:'+String(code).toUpperCase()) : code;

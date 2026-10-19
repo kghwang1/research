@@ -1025,7 +1025,7 @@ function init() {
   const urlName = params.get('name');
   if (urlCode) {
     const stock = { code: urlCode, name: urlName || urlCode, price: 50000 };
-    const isKr = /^\d{6}$/.test(urlCode) || urlCode === 'KOSPI' || urlCode === 'KOSDAQ';
+    const isKr = /^\d[0-9A-Z]{5}$/.test(urlCode) || urlCode === 'KOSPI' || urlCode === 'KOSDAQ';
     if (!isKr) {
       stock.yahooSym = urlCode;
     }
@@ -1055,7 +1055,7 @@ function toYahooSymbol(stock) {
   const code = stock.code;
   if (code === 'KOSPI')  return '^KS11';
   if (code === 'KOSDAQ') return '^KQ11';
-  if (/^\d{6}$/.test(code)) return code + '.KS';
+  if (/^\d[0-9A-Z]{5}$/.test(code)) return code + '.KS';
   return code; // 그 외 그대로 (미국 티커 등)
 }
 
@@ -1084,7 +1084,7 @@ function calcShowCount(period, interval) {
 // 한국 6자리 코드 → KIS API, 미국/지수 → 야후
 async function fetchReal(stock) {
   const code = stock.code;
-  const isKrStock = /^\d{6}$/.test(code); // 순수 한국 주식 (지수 제외)
+  const isKrStock = /^\d[0-9A-Z]{5}$/.test(code); // 순수 한국 주식 (지수 제외)
   const range = toYahooRange(state.period, state.interval);
 
   // ── 한국 종목·지수 일/주/월봉: 네이버 차트 우선 (KRX 공식 데이터, HTS와 일치) ──
@@ -1227,7 +1227,7 @@ function clearView() {
 async function loadStock(stock) {
   state.stock = stock;
   const inp = document.getElementById('search-input');
-  const isKorean = /^\d{6}$/.test(stock.code) || stock.code === 'KOSPI' || stock.code === 'KOSDAQ';
+  const isKorean = /^\d[0-9A-Z]{5}$/.test(stock.code) || stock.code === 'KOSPI' || stock.code === 'KOSDAQ';
 
   // 검색창 표시:
   //  한국 = 기업명 / 외국 = 티커
@@ -1536,7 +1536,7 @@ function setupSearch() {
         return;
       }
       // 없으면 직접 입력 처리
-      if (/^\d{6}$/.test(q)) {
+      if (/^\d[0-9A-Z]{5}$/.test(q)) {
         loadStock({ code: q, name: q, price: 50000 });
       } else if (state.market === 'us') {
         loadStock({ code: q.toUpperCase(), name: q.toUpperCase(), price: 100, yahooSym: q.toUpperCase() });
@@ -4385,7 +4385,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.19.-v10';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.19.-v11';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4609,7 +4609,7 @@ async function loadMonthlySeries(){
     return null;
   };
   try{
-    const isKr = /^\d{6}$/.test(code);
+    const isKr = /^\d[0-9A-Z]{5}$/.test(code);
     const IDX = { 'KOSPI':'KOSPI','KOSDAQ':'KOSDAQ','^KS11':'KOSPI','^KQ11':'KOSDAQ','^KS200':'KPI200' };
     const nCode = isKr ? code : IDX[String(code).toUpperCase()];
     if(nCode) rows = await get(`${WORKER}/?naverChart=${nCode}&timeframe=month&days=4000&_t=${Date.now()}`);
@@ -5392,12 +5392,12 @@ const KRNAME_KEY = 'kg_kr_names';
 function krNamesGet(){ try { const o = JSON.parse(localStorage.getItem(KRNAME_KEY) || '{}'); return (o && typeof o === 'object') ? o : {}; } catch(e) { return {}; } }
 function krNamesFix(arr){                     // 이름이 번호뿐인 줄에 기억해 둔 이름을 채운다
   const m = krNamesGet();
-  (arr || []).forEach(x => { if (x && /^\d{6}$/.test(String(x.code)) && (!x.name || x.name === x.code) && m[x.code]) x.name = m[x.code]; });
+  (arr || []).forEach(x => { if (x && /^\d[0-9A-Z]{5}$/.test(String(x.code)) && (!x.name || x.name === x.code) && m[x.code]) x.name = m[x.code]; });
   return arr;
 }
 async function divScanFillNames(list){
   krNamesFix(list);
-  const need = [...new Set(list.filter(x => /^\d{6}$/.test(String(x.code)) && (!x.name || x.name === x.code)).map(x => x.code))];
+  const need = [...new Set(list.filter(x => /^\d[0-9A-Z]{5}$/.test(String(x.code)) && (!x.name || x.name === x.code)).map(x => x.code))];
   if (!need.length) return;
   const m = krNamesGet();
   for (let i = 0; i < need.length; i += 20) {            // 워커 한 번에 20종목까지 (요청 수 제한)
@@ -5974,7 +5974,7 @@ async function divScanRun(){
       const d = await divScanFetch(it);
       /* 외국인 일별 순매수 (국내 종목만, 차트와 같은 days=300 — 워커 캐시를 함께 쓴다) */
       let fmap = null, rmap = null;   // rmap: 날짜별 외국인 보유비중(%)
-      if (d && opt.frgn && /^\d{6}$/.test(it.code)) {
+      if (d && opt.frgn && /^\d[0-9A-Z]{5}$/.test(it.code)) {
         try {
           const fr = await fetch(`${WORKER}/?frgnDaily=${it.code}&days=300`, { cache:'no-store' });
           const fj = await fr.json();
@@ -6015,7 +6015,7 @@ async function divScanRun(){
     ymd: divScanYmd(), at: now.toISOString(),
     atStr: divScanYmd() + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0'),
     opt, count: all.length, recent, fail, miss, idxMiss, stats: divScanStats(all), fixed, state: states, frgnOk, frgnNo,
-    codes: list.filter(x => /^\d{6}$/.test(x.code)).map(x => x.code),   // 훑은 국내 종목 (표의 '밖' 판정용)
+    codes: list.filter(x => /^\d[0-9A-Z]{5}$/.test(x.code)).map(x => x.code),   // 훑은 국내 종목 (표의 '밖' 판정용)
   };
   try { localStorage.setItem(DIVSCAN_KEY, JSON.stringify(res)); } catch(e) {}
   divScanRender(res);
