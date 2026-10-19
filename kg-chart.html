@@ -4792,7 +4792,7 @@ const FLOW_NM  = { net:'외국인', inst:'기관', indiv:'개인' };
 const FLOW_LW  = { net:2.25, inst:2.25, indiv:1.5 };     // 외국인·기관 = 개인(1.5)의 1.5배
 const FLOW_MONTHS = 2;
 const FLOW_RH = 16;                       // 날짜 한 줄 높이
-const FLOW_PAD = { t:14, b:4, l:34, r:6 };
+const FLOW_PAD = { t:26, b:4, l:34, r:6 };   // 위 12px 은 매도·매수 안내 줄
 let flowHover = -1, flowRows = [], flowDrives = false;
 function flowNum(v){
   if(v==null) return '—';
@@ -4841,7 +4841,7 @@ function renderFlowTable(){
 
   if(!document.getElementById('flow-cv')){
     box.innerHTML='<div id="flow-lg">'
-      + ['net','inst','indiv'].map(k=>'<span><i style="background:'+FLOW_COL[k]+';height:'+Math.round(FLOW_LW[k]+1)+'px"></i>'+FLOW_NM[k]+'</span>').join('')
+      + ['net','inst','indiv'].map(k=>'<span><i style="background:'+(k==='indiv'?'repeating-linear-gradient(90deg,'+FLOW_COL[k]+' 0 4px,transparent 4px 7px)':FLOW_COL[k])+';height:'+Math.round(FLOW_LW[k]+1)+'px"></i>'+FLOW_NM[k]+'</span>').join('')
       + '<span id="flow-hv"></span></div><canvas id="flow-cv"></canvas>';
     const cv=document.getElementById('flow-cv');
     const pick=ev=>{
@@ -4896,8 +4896,13 @@ function drawFlowChart(){
     const x=x0+t*(cw/2);
     ctx.strokeStyle = t===0 ? '#8b949e' : '#21262d'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,FLOW_PAD.t); ctx.lineTo(x,H-FLOW_PAD.b); ctx.stroke();
-    if(t===-1||t===0||t===1) ctx.fillText(t===0?'0':flowNum(t*mx), Math.min(Math.max(x,FLOW_PAD.l),W-14), 9);
+    if(t===-1||t===0||t===1) ctx.fillText(t===0?'0':flowNum(t*mx), Math.min(Math.max(x,FLOW_PAD.l),W-14), 22);
   });
+  // 방향 안내 — 왼쪽 매도, 오른쪽 매수
+  ctx.font='bold 10px monospace'; ctx.fillStyle='#c9d1d9'; ctx.textAlign='center';
+  ctx.fillText('◀ 매도', x0-cw/4, 10);
+  ctx.fillText('매수 ▶', x0+cw/4, 10);
+  ctx.font='9px monospace';
 
   // 짚은 날 — 주가차트에서 짚었으면 그 날짜, 매매동향에서 짚었으면 그 줄
   let hr = flowDrives ? flowHover : flowRowOfHover();
@@ -4918,6 +4923,7 @@ function drawFlowChart(){
   ctx.lineJoin='round'; ctx.lineCap='round';
   ['indiv','inst','net'].forEach(k=>{
     ctx.strokeStyle=FLOW_COL[k]; ctx.lineWidth=FLOW_LW[k]; ctx.beginPath();
+    ctx.setLineDash(k==='indiv' ? [4,3] : []);          // 개인 = 파란 점선
     let on=false;
     flowRows.forEach((r,i)=>{
       const v=r[k];
@@ -4926,6 +4932,7 @@ function drawFlowChart(){
       if(on) ctx.lineTo(x,y); else { ctx.moveTo(x,y); on=true; }
     });
     ctx.stroke();
+    ctx.setLineDash([]);
   });
 
   // 짚은 날의 가로선과 값
