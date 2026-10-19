@@ -611,8 +611,7 @@
   .ixa-h span{font-size:11px;color:var(--dim)}
   .ixa-box{position:relative;height:300px}
   .ixa-box iframe{width:100%;height:100%;border:0;display:block;background:#0d1117}
-  .ixa-hit{position:absolute;inset:0;cursor:pointer}      /* 그래프 위를 덮어 누르면 챠트로 */
-  .ixa-hit:hover{background:rgba(88,166,255,.05)}
+  .ixa-box iframe{cursor:grab}
   /* 추세 화면 표 — 줄마다 옅은 회색 음영을 번갈아 넣어 읽기 쉽게 (2026-10-19) */
   #valuation .trank-tbl tr:nth-child(even):not(.fp-sep) > td{background:rgba(255,255,255,.05)}
   #valuation .pnl-dir .pd-row{padding:3px 6px;margin:0 -6px;border-radius:4px}
@@ -8027,12 +8026,17 @@ function ixaBuild(){
   g.dataset.built='1';
   g.innerHTML=IXA_LIST.map(([c,n])=>
     `<div class="ixa-card"><div class="ixa-h"><b>${n}</b><span>${c}</span></div>`
-   +`<div class="ixa-box"><iframe loading="lazy" title="${n} 그래프" src="kg-chart.html?code=${encodeURIComponent(c)}&name=${encodeURIComponent(n)}&mini=1"></iframe>`
-   +`<div class="ixa-hit" data-code="${c}" data-name="${n}" title="${n} — 종목분석 챠트로"></div></div></div>`).join('');
-  g.querySelectorAll('.ixa-hit').forEach(h=>h.onclick=()=>{
-    if(typeof openChartView==='function') openChartView('idx', h.dataset.code, h.dataset.name);
-  });
+   +`<div class="ixa-box"><iframe loading="lazy" title="${n} 그래프 — 끌면 지난 구간, 누르면 챠트로" data-code="${c}" data-name="${n}" src="kg-chart.html?code=${encodeURIComponent(c)}&name=${encodeURIComponent(n)}&mini=1"></iframe>`
+   +`</div></div>`).join('');
 }
+/* 작은 그래프는 마우스로 끌어 지난 구간을 볼 수 있다.
+   끌지 않고 누르면 그래프 안에서 알려 오고, 여기서 종목분석 챠트를 연다 */
+window.addEventListener('message', e=>{
+  const d=e.data; if(!d || d.type!=='kg-mini-open') return;
+  const fr=[...document.querySelectorAll('#ixaGrid iframe')].find(f=>f.contentWindow===e.source);
+  if(!fr) return;
+  if(typeof openChartView==='function') openChartView('idx', fr.dataset.code, fr.dataset.name);
+});
 function setTrendView(v){
   v=(v==='flow'||v==='idx')?v:'psy';
   try{ localStorage.setItem(TRD_KEY, v); }catch(e){}
@@ -15352,7 +15356,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.19.-v16';
+const KG_APP_VER = '10.19.-v17';
 const KG_APP_BUILD = KG_APP_VER + ' 해석 → STUDY 챠트 기본조합해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽

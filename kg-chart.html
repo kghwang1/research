@@ -4385,7 +4385,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.19.-v11';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.19.-v12';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5256,6 +5256,11 @@ function setupMouseEvent() {
 
     if (canceled) { lastTapAt = 0; saveViewNow(); return; }
 
+    /* 작은 그래프(추세 › 지수분석): 끌면 지난 구간으로 이동, 끌지 않고 누르면 종목분석 챠트로 */
+    if (!wasPan && KG_MINI) {
+      try { parent.postMessage({ type:'kg-mini-open', code: (state.stock && state.stock.code) || '' }, '*'); } catch(err) {}
+      return;
+    }
     if (!wasPan) {
       // 끌지 않고 톡 눌렀을 때만 '두 번 톡' 판정 → 이동 중 튕김 방지
       const now = Date.now();
@@ -5319,6 +5324,7 @@ function setupMouseEvent() {
 
   // ── 휠 줌 ──
   canvas.onwheel = (e) => {
+    if (KG_MINI) return;              // 작은 그래프에서는 휠로 바깥 화면이 내려가게 둔다
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     const cw = rect.width - PAD_L - PAD_R;
