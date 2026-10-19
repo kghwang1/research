@@ -2884,7 +2884,14 @@ function drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch) {
 }
 
 function drawSub(canvas, key) {
-  try { drawSubInner(canvas, key); }
+  try {
+    /* 우측 축 값 상자는 아래 axHoverVal 이 지표별 기준값으로 한 번에 그린다.
+       (자기만의 세로축을 쓰는 외국인·기관·공매도 칸만 그 칸 안에서 직접 그림) */
+    AXV_MUTE = !AXV_SELF.has(key);
+    canvas._ax = null;
+    try { drawSubInner(canvas, key); } finally { AXV_MUTE = false; }
+    axHoverVal(canvas, key);
+  }
   catch (e) {
     /* 한 칸이 실패해도 나머지 칸은 그린다.
        무엇이 잘못됐는지 그 칸에 적어 둔다. */
@@ -2955,6 +2962,7 @@ function drawSubInner(canvas, key) {
 
   const xOf = i => PAD.l + (i + 0.5) * (cw / n);
   const yOf = v => PAD.t + ch - ((v - minV) / (maxV - minV)) * ch;
+  canvas._ax = { yOf, PAD, W, ch, n, dpr, result };
 
   // 기준선 (라벨 우측)
   (cfg.lines || []).forEach(lv => {
@@ -3262,11 +3270,7 @@ function drawSubInner(canvas, key) {
       ctx.beginPath(); ctx.moveTo(xOf(state.hoverIdx), PAD.t); ctx.lineTo(xOf(state.hoverIdx), PAD.t + ch); ctx.stroke();
       const hv = inrRaw[state.hoverIdx];
       if (hv != null) {
-        const hy = yOf(Math.max(30, Math.min(80, hv)));
-        ctx.fillStyle = '#331a1a'; ctx.fillRect(W - PAD.r + 1, hy - 8, PAD.r - 2, 16);
-        ctx.strokeStyle = '#ffd54f'; ctx.lineWidth = 1; ctx.strokeRect(W - PAD.r + 1, hy - 8, PAD.r - 2, 16);
-        ctx.fillStyle = '#ffd54f'; ctx.font = '11px monospace'; ctx.textAlign = 'left';
-        ctx.fillText(hv.toFixed(1), W - PAD.r + 3, hy + 4);
+        /* 값 상자는 axHoverVal 이 그린다 (기준 60) */
       }
     }
 
@@ -4381,7 +4385,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.19.-v7';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.19.-v10';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4395,18 +4399,100 @@ const REF_LABEL_COLOR = '#f0a836';   // 보조선 숫자 라벨
      base : 어두운 바탕 · 흰 글자  (중간 구간)
      low  : 초록 바탕 · 흰 글자    (값이 낮음 · 과매도 · 순매도)
    한국 시장 관례(상승 빨강)를 따르며, 모든 보조지표가 같은 규칙을 쓴다. */
-const AXVAL = {
-  base: { bg:'#0d1117', line:'#e6edf3', text:'#e6edf3' },
-  high: { bg:'#8b1a1a', line:'#ef5350', text:'#ffd54f' },
-  low : { bg:'#14532d', line:'#3fb950', text:'#ffffff' }
+/* 보조지표 우측 축 값 표시 규칙 (모든 보조지표 공통)
+   기준값 이상 → 붉은 바탕 사각형 + 흰 숫자
+   기준값 미만 → 투명 바탕 (테두리 없이 숫자만, 그래프 위에서도 읽히게 어두운 외곽선) */
+var AXVAL = {
+  high: { bg:'#c62828', line:'#ff6b6b', text:'#ffffff' },
+  base: { bg:null, line:null, text:'#e6edf3' }
 };
+var AXV_MUTE = false;
 function drawAxisVal(ctx, W, PAD, y, text, state){
-  const c = AXVAL[state] || AXVAL.base;
-  /* 글자 크기 통일 — 매물대 비율 글자(11px)와 같게. 상자 높이 16 */
-  ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-8, PAD.r-2, 16);
-  ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-8, PAD.r-2, 16);
-  ctx.fillStyle = c.text; ctx.font = 'bold 11px monospace'; ctx.textAlign = 'left';
+  if (AXV_MUTE) return;
+  const c = state === 'high' ? AXVAL.high : AXVAL.base;
+  ctx.save();
+  ctx.font = 'bold 11px monospace'; ctx.textAlign = 'left';
+  if (c.bg) {
+    ctx.fillStyle = c.bg;   ctx.fillRect(W-PAD.r+1, y-8, PAD.r-2, 16);
+    ctx.strokeStyle = c.line; ctx.lineWidth = 1; ctx.strokeRect(W-PAD.r+1, y-8, PAD.r-2, 16);
+  } else {
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(13,17,23,0.9)'; ctx.lineJoin = 'round';
+    ctx.strokeText(text, W-PAD.r+3, y+4);
+  }
+  ctx.fillStyle = c.text;
   ctx.fillText(text, W-PAD.r+3, y+4);
+  ctx.restore();
+}
+/* 자기 세로축을 따로 쓰는 칸 — 값 상자를 칸 안에서 직접 그린다 */
+var AXV_SELF = new Set(['FRGN_NET', 'INST_NET', 'SHORT_SELL']);
+/* 이동평균 (기준값이 '자기 평균'인 지표용) */
+function axMA(arr, i, len){
+  let s = 0, c = 0;
+  for (let j = i; j >= 0 && c < len; j--) { if (arr[j] != null) { s += arr[j]; c++; } }
+  return c ? s / c : null;
+}
+/* 지표별 '주목해야 할 기준값'
+   s: 표시할 선 이름, th: 고정 기준값 또는 (선 배열, 위치) → 기준값 */
+var AXV_RULE = {
+  RSI:        { s:'rsi',   th:70 },                 // 과매수
+  MFI:        { s:'mfi',   th:80 },                 // 과매수
+  SLOWSTOCH:  { s:'k',     th:80 },
+  STOCH:      { s:'k',     th:80 },
+  STOCHRSI:   { s:'k',     th:80 },
+  SMI:        { s:'smi',   th:40 },
+  CCI:        { s:'cci',   th:100 },
+  WILLR:      { s:'wr',    th:-20 },
+  CMO:        { s:'cmo',   th:50 },
+  DMI_DYN:    { s:'dmi',   th:70 },
+  AROON:      { s:'up',    th:70 },
+  RVI:        { s:'rvi',   th:60 },
+  INERTIA:    { s:'inertia', th:60 },
+  ADX:        { s:'adx',   th:25 },                 // 추세 있음
+  ADXR:       { s:'adxr',  th:25 },
+  MASS:       { s:'mass',  th:27 },                 // 반전 신호(리버설 벌지)
+  DISPARITY:  { s:'disp',  th:105 },                // 20일선 위 5% 이상 과열
+  MACD:       { s:'macd',  th:0 },
+  ELDER:      { s:'bull',  th:0 },
+  FORCE:      { s:'force', th:0 },
+  CHAIKIN_OSC:{ s:'osc',   th:0 },
+  MOM:        { s:'mom',   th:0 },
+  CMF:        { s:'cmf',   th:0 },
+  CHAIKIN_VOL:{ s:'cv',    th:0 },
+  VOLUME:     { s:'vol',   th:(a,i)=>{ const m = axMA(a, i-1, 20); return m == null ? null : m * 2; } },  // 20일 평균의 2배
+  ATR:        { s:'atr',   th:(a,i)=>axMA(a, i, 20) },   // 20일 평균 위 = 변동성 확대
+  OBV:        { s:'obv',   th:(a,i)=>axMA(a, i, 20) },   // 20일 평균 위
+  WILLIAMS_AD:{ s:'wad',   th:(a,i)=>axMA(a, i, 20) },
+  PVT:        { s:'pvt',   th:(a,i,r)=>(r.sig && r.sig[i] != null) ? r.sig[i] : axMA(a, i, 20) }   // 시그널선 위
+};
+function axFmt(v){
+  const a = Math.abs(v);
+  if (a >= 1e8) return (v/1e8).toFixed(a >= 1e10 ? 0 : 1) + '억';
+  if (a >= 1e4) return (v/1e4).toFixed(a >= 1e6 ? 0 : 1) + '만';
+  if (a >= 1000) return v.toFixed(0);
+  if (a < 1)    return v.toFixed(2);
+  return v.toFixed(1);
+}
+/* 마우스가 가리키는 날짜의 값(짚지 않으면 최근 값)을 우측 축에 표시 */
+function axHoverVal(canvas, key){
+  const ax = canvas && canvas._ax; if (!ax) return;
+  const rule = AXV_RULE[key]; if (!rule) return;
+  const arr = ax.result && ax.result[rule.s]; if (!arr) return;
+  const r0 = state.range[0], end = Math.min(state.range[1], arr.length);
+  let gi = -1;
+  if (state.hoverIdx >= 0 && state.hoverIdx < ax.n) gi = r0 + state.hoverIdx;
+  if (gi < 0 || gi >= arr.length || arr[gi] == null) {
+    if (state.hoverIdx >= 0 && state.hoverIdx < ax.n) return;   // 짚은 날에 값이 없으면 표시 안 함
+    for (let j = end - 1; j >= r0; j--) if (arr[j] != null) { gi = j; break; }
+  }
+  if (gi < 0) return;
+  const v = arr[gi];
+  const th = typeof rule.th === 'function' ? rule.th(arr, gi, ax.result) : rule.th;
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.setTransform(ax.dpr, 0, 0, ax.dpr, 0, 0);
+  const y = Math.max(ax.PAD.t + 8, Math.min(ax.PAD.t + ax.ch - 8, ax.yOf(v)));
+  drawAxisVal(ctx, ax.W, ax.PAD, y, axFmt(v), (th != null && v >= th) ? 'high' : 'base');
+  ctx.restore();
 }
 
 let chartStep = null;
