@@ -973,6 +973,11 @@
     overflow:hidden;text-overflow:ellipsis;min-width:0}
   .stk-now .px{color:var(--ink);font-weight:700;margin-left:5px}
   .stk-now .rt{font-size:11.5px;font-weight:700;margin-left:3px}
+  /* 챠트 상단 — 그 종목의 장중 잠정 외국인 순매수 */
+  .live-flow{font-size:11.5px;font-weight:700;white-space:nowrap;margin-left:10px;color:#8b949e}
+  .live-flow .lf-up{color:#ef5350}
+  .live-flow .lf-dn{color:#4a90d9}
+  .live-flow .lf-t{color:#6e7681;font-weight:400;margin-left:4px}
   .anl-title{font-size:16px;font-weight:800;color:#f2c800;margin:0 0 8px;
     display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
   .anl-title .code{font-size:12px;font-weight:700;color:#8b949e}
@@ -1858,6 +1863,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
       </optgroup>
     </select>
       <span class="stk-now"></span>
+      <span class="live-flow" id="chartLiveFlow" title="외국인 장중 잠정 순매수"></span>
     </div>
   </div>
   <div class="anl-layout" style="height:auto;min-height:0;flex:1">
@@ -11608,7 +11614,8 @@ function anlRenderList(filter){
 /* 종목분석 세 화면이 함께 쓰는 좌측 상태 (포트 + 고른 종목) */
 window.STK = { port:'kr', code:'', name:'' };
 function stkSet(code, name){
-  if(code){ STK.code=String(code); STK.name=name||''; stkNowFill(); stkNowFetch(); }
+  if(code){ STK.code=String(code); STK.name=name||''; stkNowFill(); stkNowFetch();
+    if(typeof chartLiveFill==='function') chartLiveFill(); }
 }
 
 /* 하부메뉴 줄의 '종목명 현재가(변동율)' — 네 화면이 같은 내용을 쓴다 */
@@ -11645,6 +11652,73 @@ async function stkNowFetch(){
     }
   }catch(e){}
 }
+/* ───────── 챠트 상단 '장중 잠정 외국인 순매수' 한 줄 ─────────
+   worker ?liveflow= 가 네이버 순위 API(코스피·코스닥 매수/매도 상위 100)에서 찾아 준다.
+   · 외국인만 — 기관은 네이버가 장중 자료를 주지 않는다
+   · 상위 200 밖의 종목은 '순위 밖'으로 적는다 (0 이 아니라 '모른다'는 뜻)
+   · 장중 금액은 수량×현재가 어림값이라 '약' 을 붙인다 */
+const LIVEFLOW_CACHE = {};          // code -> {d, at}
+let liveFlowTimer = null;
+
+function lfQty(n){
+  const a = Math.abs(n);
+  if(a >= 10000) return (a/10000).toFixed(1).replace(/\.0$/,'') + '만주';
+  return Math.round(a).toLocaleString() + '주';
+}
+function lfWhen(d){
+  if(d.estimated && d.at){
+    const m = String(d.at).match(/T(\d{2}):(\d{2})/);
+    if(m) return m[1] + ':' + m[2] + ' 잠정';
+  }
+  const s = String(d.date||'');
+  if(/^\d{8}$/.test(s)) return s.slice(4,6) + '/' + s.slice(6,8) + ' 확정';
+  return '';
+}
+function chartLiveRender(code, d){
+  const el = document.getElementById('chartLiveFlow'); if(!el) return;
+  if(!d){ el.innerHTML = ''; return; }
+  const it = ((d.items||[]).find(x => String(x.code) === String(code))) || null;
+  const when = lfWhen(d);
+  if(!it || it.rank == null){
+    el.innerHTML = '<span style="color:#6e7681">외국인 순위 밖</span>'
+                 + (when ? '<span class="lf-t">' + escHtml(when) + '</span>' : '');
+    return;
+  }
+  const up = it.qty >= 0;
+  const amt = (it.amt != null && it.amt !== 0)
+    ? ' (' + (it.amtEst ? '약 ' : '') + Math.abs(it.amt).toLocaleString() + '억)' : '';
+  el.innerHTML = '외국인 <span class="' + (up ? 'lf-up' : 'lf-dn') + '">'
+               + (up ? '+' : '-') + lfQty(it.qty) + escHtml(amt) + '</span>'
+               + (when ? '<span class="lf-t">' + escHtml(when) + '</span>' : '');
+}
+async function chartLiveFill(){
+  const el = document.getElementById('chartLiveFlow'); if(!el) return;
+  const ov = document.getElementById('chartFullScreen');
+  const shown = ov && ov.style.display !== 'none';
+  const code = String(STK.code||'').trim();
+  // 국내 6자리 종목만 — 지수·해외는 해당 없음
+  if(!shown || !SRV_URL || !/^\d{6}$/.test(code)){ el.innerHTML = ''; return; }
+  const hit = LIVEFLOW_CACHE[code];
+  if(hit && Date.now() - hit.at < 60000){ chartLiveRender(code, hit.d); return; }
+  el.innerHTML = '<span style="color:#6e7681">외국인 …</span>';
+  try{
+    const r = await fetch(SRV_URL + '/?liveflow=' + encodeURIComponent(code));
+    const d = await r.json();
+    if(!d || !d.ok){ el.innerHTML = ''; return; }
+    LIVEFLOW_CACHE[code] = { d, at: Date.now() };
+    if(String(STK.code||'') === code) chartLiveRender(code, d);   // 그 사이 종목이 바뀌었으면 버린다
+  }catch(e){ el.innerHTML = ''; }
+}
+/* 챠트를 보고 있는 동안만 2분마다 새로 받는다 */
+function chartLiveTimer(on){
+  if(liveFlowTimer){ clearInterval(liveFlowTimer); liveFlowTimer = null; }
+  if(on) liveFlowTimer = setInterval(()=>{
+    const c = String(STK.code||'');
+    if(c) delete LIVEFLOW_CACHE[c];
+    chartLiveFill();
+  }, 120000);
+}
+
 function stkSetPort(p){ if(p && p!=='guide'){ STK.port=p; } }
 // 자식 창(kg-long.html)에서 고른 종목·바뀐 목록을 받는다
 window.addEventListener('message', e=>{
@@ -15737,8 +15811,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.20.-v3';
-const KG_APP_BUILD = KG_APP_VER + ' 케이아이엔엑스 신한증권 리포트 반영';
+const KG_APP_VER = '10.20.-v4';
+const KG_APP_BUILD = KG_APP_VER + ' 챠트 상단 장중 외국인 수급';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -18584,6 +18658,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
   // 표에서 넘어온 목록이 있으면 그 종목만, 없으면(홈→차트 등) 포트 전체
   chartRowsOverride = (rowsOverride && rowsOverride.length) ? { port: chartPort, rows: rowsOverride } : null;
   const ps=$('#chartPortSel'); if(ps) ps.value=chartPort;
+  if(typeof chartLiveTimer==='function'){ chartLiveTimer(true); chartLiveFill(); }
   buildChartStockList();
   setTimeout(()=>{
     const box=$('#chartStockItems');
@@ -18607,6 +18682,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
 }
 function closeChartView(keepTab){
   const ov=$('#chartFullScreen'); if(ov) ov.style.display='none';
+  if(typeof chartLiveTimer==='function') chartLiveTimer(false);   // 안 보는 동안은 받지 않는다
   document.body.style.overflow='';
   const ifr=$('#chartIframe'); if(ifr) ifr.src='about:blank';
   if(keepTab) return;            // 다른 탭으로 넘어가는 중이면 탭 선택을 건드리지 않는다
