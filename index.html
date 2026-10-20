@@ -602,6 +602,17 @@
     color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
   .trd-bar .tf.on{background:var(--accent);color:#0c0e14;border-color:var(--accent)}
   /* 지수분석 */
+  /* 지수분석 맨 위 — 코스피·코스닥 PBR·PER (2026-10-20) */
+  .ixv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 6px}
+  .ixv-card{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:8px 10px}
+  .ixv-card .nm{font-size:14px;font-weight:700;color:#f2c800;margin-bottom:6px}
+  .ixv-row{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+  .ixv-row .k{font-size:12px;color:var(--sub)}
+  .ixv-row .v{font-size:22px;font-weight:800;color:var(--ink,#e6e6e6);font-variant-numeric:tabular-nums}
+  .ixv-row .v small{font-size:12px;font-weight:600;color:var(--dim);margin-left:1px}
+  .ixv-sub{font-size:10.5px;color:var(--dim);margin-top:5px;line-height:1.5}
+  .ixv-note{font-size:11.5px;color:var(--dim);margin:0 2px 10px}
+  .ixv-note button{margin-left:6px;padding:2px 8px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--sub);font-size:11px;cursor:pointer}
   .ixa-note{font-size:11.5px;color:var(--dim);margin:0 2px 8px}
   .ixa-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:10px}
   @media(max-width:600px){ .ixa-grid{grid-template-columns:1fr} }
@@ -690,6 +701,8 @@
   .grade-sel{background:var(--accent);border:1px solid #30363d;color:#1257c2;padding:2px 4px;border-radius:4px;font-size:12px;font-weight:700;cursor:pointer}
   .grade-sel.neg{color:#ef5350}
   td.shortc{text-align:center;vertical-align:middle}
+  td.creditc{text-align:center;vertical-align:middle;white-space:nowrap}
+  td.creditc .creditp{font-size:12px;font-variant-numeric:tabular-nums}
   td.shortc .short-wrap{display:inline-flex;flex-direction:column;align-items:center;gap:1px}
   td.shortc .short-svg{display:block}
   td.shortc .short-lbl{font-size:10px;white-space:nowrap}
@@ -1808,6 +1821,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
   <!-- 지수분석 — 챠트 화면의 주가차트를 작게(kg-chart.html?mini=1) 붙인다. 누르면 종목분석 › 챠트로 -->
   <div id="trdIdx" class="trd-pane" style="display:none">
+   <div class="ixv-grid" id="ixaVal"></div>
+   <div class="ixv-note" id="ixaValNote">코스피·코스닥 PBR·PER 불러오는 중…</div>
    <div class="ixa-note">최근 3개월 일봉 · 고점저점 탐색 다이버전스 표시 · 그래프를 누르면 종목분석 › 챠트로 갑니다</div>
    <div class="ixa-grid" id="ixaGrid"></div>
   </div>
@@ -4113,10 +4128,10 @@ function bindPfTopBar(rerender){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[76,60,46,92,92,76,90,90,90,82,100,84,200];
+  const W=[76,60,46,92,92,76,90,90,64,90,82,100,84,200];
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   // 재무(미니그래프) 열은 뺐다 — 같은 내용을 종목분석에서 크게 볼 수 있어 표에서는 자리만 차지했다
-  const H=["종목","분류","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+  const H=["종목","분류","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),hdrCredit(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+pfMenuHtml({save:'valSave', load:'valReset'})+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
@@ -4173,13 +4188,14 @@ function renderKrTable(){
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
     h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
     h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
+    h+=`<td class="creditc">${code?creditCell(code):''}</td>`;
     h+=`<td class="mp-r">${hiStr}${hdHtml}</td>`;
     h+=`<td class="mp-r">${tgtStr}${upHtml}</td>`;
     h+=`<td>${divCell(code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
-  h+=`<tr class="add-row"><td colspan="12"><button class="add-row-btn" onclick="addKrRow()">＋ 종목 추가</button></td></tr>`;
+  h+=`<tr class="add-row"><td colspan="13"><button class="add-row-btn" onclick="addKrRow()">＋ 종목 추가</button></td></tr>`;
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h; bindPinEvents(t, renderKrTable, 'kr'); bindPfTopBar(renderKrTable);
   // 한국 종목명 클릭 → 네이버 국내 종목 페이지
@@ -4207,7 +4223,7 @@ function renderKrTable(){
     if(c) openChart(c, nm, domVisRows(t,'td.krlive','code','name'));
   }; });
   const krCodes=VAL.map(r=>krDigits(String(r[0]||''))).filter(Boolean);
-  ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes);
+  ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes); ensureCredit(krCodes);
 }
 
 /* =====================================================
@@ -8021,6 +8037,52 @@ const TRD_KEY='kg_trend_view';
 const IXA_LIST=[
   ['KOSPI','코스피'], ['KOSDAQ','코스닥'], ['^GSPC','S&P500'], ['^IXIC','나스닥'], ['^DJI','다우'],
 ];
+/* 코스피·코스닥 PBR·PER — 워커(?idxval=1)가 KRX 전종목 PER/PBR·시가총액을 합산해 준다 (2026-10-20) */
+const IXV_KEY='ixv_v1';
+let ixvBusy=false;
+function ixvFmt(x){ return (x==null||!isFinite(x))?'-':Number(x).toFixed(2); }
+function ixvRender(d){
+  const g=$('#ixaVal'), nt=$('#ixaValNote'); if(!g||!nt) return;
+  if(!d||!d.ok){
+    g.innerHTML='';
+    nt.innerHTML='PBR·PER 자료를 받지 못했습니다 (KRX 응답 없음).<button type="button" id="ixvReload">다시</button>';
+    const b=$('#ixvReload'); if(b) b.onclick=()=>ixaValLoad(true);
+    return;
+  }
+  const card=(nm,m,pub)=>{
+    if(!m) return `<div class="ixv-card"><div class="nm">${nm}</div><div class="ixv-sub">자료 없음</div></div>`;
+    const pb=pub&&pub.pbr!=null?`KRX공표 PBR ${ixvFmt(pub.pbr)}`:'';
+    const pe=pub&&pub.per!=null?`PER ${ixvFmt(pub.per)}`:'';
+    const ref=(pb||pe)?`<div class="ixv-sub">${[pb,pe].filter(Boolean).join(' · ')}</div>`:'';
+    const all=m.perAll!=null?`적자 포함 PER ${ixvFmt(m.perAll)}`:'';
+    const cov=m.covPer!=null?`흑자기업 시총 ${m.covPer.toFixed(0)}%`:'';
+    return `<div class="ixv-card"><div class="nm">${nm}</div>`
+      +`<div class="ixv-row"><span class="k">PBR</span><span class="v">${ixvFmt(m.pbr)}<small>배</small></span></div>`
+      +`<div class="ixv-row"><span class="k">PER</span><span class="v">${ixvFmt(m.per)}<small>배</small></span></div>`
+      +`<div class="ixv-sub">${[cov,all].filter(Boolean).join(' · ')}</div>${ref}</div>`;
+  };
+  g.innerHTML=card('코스피',d.kospi,d.krx&&d.krx.kospi)+card('코스닥',d.kosdaq,d.krx&&d.krx.kosdaq);
+  const ds=String(d.date||''); const dt=ds.length===8?`${ds.slice(0,4)}.${ds.slice(4,6)}.${ds.slice(6,8)}`:ds;
+  nt.innerHTML=`${dt} 기준 · 전종목 시가총액 가중 합산(PBR=전체 시총÷전체 자본, PER=흑자기업 기준)<button type="button" id="ixvReload">↻</button>`;
+  const b=$('#ixvReload'); if(b) b.onclick=()=>ixaValLoad(true);
+}
+async function ixaValLoad(force){
+  if(ixvBusy) return;
+  let d=null;
+  if(!force){
+    try{ const o=JSON.parse(localStorage.getItem(IXV_KEY)||'null'); if(o&&o.data&&o.data.ok&&(Date.now()-(o.ts||0)<30*60*1000)) d=o.data; }catch(e){}
+  }
+  if(d){ ixvRender(d); return; }
+  ixvBusy=true;
+  const nt=$('#ixaValNote'); if(nt) nt.textContent='코스피·코스닥 PBR·PER 불러오는 중…';
+  try{
+    const r=await fetch(SRV_URL+'/?idxval=1',{cache:'no-store'});
+    d=await r.json();
+    if(d&&d.ok){ try{ localStorage.setItem(IXV_KEY, JSON.stringify({ts:Date.now(), data:d})); }catch(e){} }
+  }catch(e){ d=null; }
+  ixvBusy=false;
+  ixvRender(d);
+}
 function ixaBuild(){
   const g=$('#ixaGrid'); if(!g || g.dataset.built) return;
   g.dataset.built='1';
@@ -8045,7 +8107,7 @@ function setTrendView(v){
   show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx', v==='idx');
   /* 그래프 5개는 추세 화면이 실제로 열려 있을 때만 불러온다 (시황만 볼 때 미리 받지 않게) */
   const sec=$('#valuation');
-  if(v==='idx' && sec && sec.classList.contains('on')) ixaBuild();
+  if(v==='idx' && sec && sec.classList.contains('on')){ ixaBuild(); ixaValLoad(); }
   /* 감춰져 있던 동안 폭이 0 이라 그래프가 비어 있을 수 있다 — 보일 때 다시 그린다 */
   if(v==='psy') setTimeout(()=>{
     try{ if(typeof drawFtrendAll==='function') drawFtrendAll(); }catch(e){}
@@ -15678,7 +15740,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.19.-v21';
+const KG_APP_VER = '10.20.-v2';
 const KG_APP_BUILD = KG_APP_VER + ' 케이아이엔엑스 신한증권 리포트 반영';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -17537,6 +17599,36 @@ function frgnAmtCell(code){
   const subCls  = sum2>=0 ? '' : ' neg';
   return `<span class="famt${mainCls}">${mainTxt}<span class="diffp${subCls}">(${subTxt})</span></span>`;
 }
+// ═══ 신용잔고율 (종목별 현재 신용잔고 %) — 한국(체)·코스피200·코스닥100 표의 공매도 열 다음 ═══
+//  워커 ?credit=코드,코드 → {items:[{code, ok, pct, date}]} ; 출처가 없으면 ok:false → 표에는 '—'
+let CREDIT={}, creditLoading=false;
+function loadCreditCache(){ try{ const r=sessionStorage.getItem('kg_credit'); if(r) CREDIT=JSON.parse(r); }catch(e){} }
+function saveCreditCache(){ try{ sessionStorage.setItem('kg_credit', JSON.stringify(CREDIT)); }catch(e){} }
+async function ensureCredit(codes){
+  loadCreditCache();
+  const need=(codes||[]).filter(c=>c&&!(c in CREDIT));
+  if(!need.length||creditLoading||!SRV_URL) return;
+  creditLoading=true;
+  try{
+    const r=await fetch(SRV_URL+'/?credit='+encodeURIComponent(need.join(',')));
+    const d=await r.json();
+    ((d&&d.items)||[]).forEach(q=>{ if(q&&q.code) CREDIT[q.code]=(q.ok&&q.pct!=null)?{pct:q.pct, date:q.date||''}:null; });
+  }catch(e){}
+  /* 응답에서 빠진 코드에도 null 을 남긴다 — 안 남기면 표 그리기 → ensureCredit → 표 그리기가 반복된다 (ensureShort 와 같은 이유) */
+  need.forEach(c=>{ if(!(c in CREDIT)) CREDIT[c]=null; });
+  saveCreditCache();
+  creditLoading=false;
+  if(valMarket==='kr') renderKrTable();
+  else if(valMarket==='invest') renderInvest();
+  else if(valMarket==='investkq') renderInvestKq();
+}
+function hdrCredit(){ return '신용잔고<br>(현재 %)'; }
+function creditCell(code){
+  const d=CREDIT[code];
+  if(d===undefined) return '<span class="rsub">…</span>';
+  if(!d||d.pct==null||!isFinite(d.pct)) return '<span class="rsub">—</span>';
+  return `<span class="creditp">${Number(d.pct).toFixed(2)}%</span>`;
+}
 // ═══ 공매도 데이터 (KRX) ═══
 let SHORT={}, shortLoading=false;
 function loadShortCache(){ try{ const r=sessionStorage.getItem('kg_short'); if(r) SHORT=JSON.parse(r); }catch(e){} }
@@ -18089,15 +18181,15 @@ function renderInvestKq(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_KQ_ROWS = withKept(rows, INVEST_KQ_POOL, 30);
-  const W=[96,60,92,92,76,90,90,82,100,100,84,210];
+  const W=[96,60,92,92,76,90,90,64,82,100,100,84,210];
   const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   // 재무(미니그래프) 열 제거 — 한국(체)와 동일
-  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),hdrCredit(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invKqRefresh'})}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
-  if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="11" style="padding:16px">데이터를 불러오지 못했습니다. ↻ 새로고침 해주세요.</td></tr>`; }
+  if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="12" style="padding:16px">데이터를 불러오지 못했습니다. ↻ 새로고침 해주세요.</td></tr>`; }
   else if(!INVEST_KQ_ROWS.length){ const lbl=(roeMinKq==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMinKq+'% 이상인'); h+=`<tr><td colspan="8" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
   curPort='investkq';
   const invKqDisp = (()=>{
@@ -18132,6 +18224,7 @@ function renderInvestKq(){
     h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
     h+=`<td class="famtc">${frgnAmtCell(r.code)}</td>`;
     h+=`<td class="shortc">${shortSvgCell(r.code)}</td>`;
+    h+=`<td class="creditc">${creditCell(r.code)}</td>`;
     h+=`<td class="mp-r">${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${divCell(r.code)}</td>`;
@@ -18147,7 +18240,7 @@ function renderInvestKq(){
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMinKq(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('#invKqRefresh'); if(rfb) rfb.onclick=refreshInvestKq;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
-  if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); ensureShort(INVEST_KQ_ROWS.map(r=>r.code)); }
+  if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); ensureShort(INVEST_KQ_ROWS.map(r=>r.code)); ensureCredit(INVEST_KQ_ROWS.map(r=>r.code)); }
 }
 function setRoeMin(v){ roeMin=v; renderInvest(); }
 /* 담은 종목(관심·보유·직접 추가)은 순위 30위 밖이어도 표에 남긴다.
@@ -18195,15 +18288,15 @@ function renderInvest(){
     rows.sort((a,b)=>a.drop-b.drop);
   }
   INVEST_ROWS=withKept(rows, INVEST_POOL, 30);
-  const W=[96,60,92,92,76,90,90,82,100,100,84,210];
+  const W=[96,60,92,92,76,90,90,64,82,100,100,84,210];
   const hp=INVEST_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   // 재무(미니그래프) 열 제거 — 한국(체)와 동일
-  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),hdrCredit(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
   const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
   const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invRefresh'})}</caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
-  if(!INVEST_POOL.length){ h+=`<tr><td colspan="8" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
+  if(!INVEST_POOL.length){ h+=`<tr><td colspan="12" style="padding:16px">데이터를 불러오지 못했습니다. 서브탭을 다시 누르거나 잠시 후 시도해 주세요.</td></tr>`; }
   else if(!INVEST_ROWS.length){ const lbl=(roeMin==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMin+'% 이상인'); h+=`<tr><td colspan="8" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
   curPort='invest';
   const invDisp = (()=>{
@@ -18238,6 +18331,7 @@ function renderInvest(){
     h+=`<td class="frgnc">${frgnCell(r.code)}</td>`;
     h+=`<td class="famtc">${frgnAmtCell(r.code)}</td>`;
     h+=`<td class="shortc">${shortSvgCell(r.code)}</td>`;
+    h+=`<td class="creditc">${creditCell(r.code)}</td>`;
     h+=`<td class="mp-r">${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${divCell(r.code)}</td>`;
@@ -18258,7 +18352,7 @@ function renderInvest(){
   t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMin(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
   const rfb=t.querySelector('#invRefresh'); if(rfb) rfb.onclick=refreshInvest;
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
-  if(INVEST_ROWS.length){ ensureReports(INVEST_ROWS.map(r=>r.code)); ensureForeign(INVEST_ROWS.map(r=>r.code)); ensureShort(INVEST_ROWS.map(r=>r.code)); }
+  if(INVEST_ROWS.length){ ensureReports(INVEST_ROWS.map(r=>r.code)); ensureForeign(INVEST_ROWS.map(r=>r.code)); ensureShort(INVEST_ROWS.map(r=>r.code)); ensureCredit(INVEST_ROWS.map(r=>r.code)); }
 }
 /* 매매동향: 네이버 페이지를 앱 안에서 (윗부분 잘라) 표시 */
 const FLOW_URL='https://finance.naver.com/sise/sise_trans_style.naver?sosok=03';
