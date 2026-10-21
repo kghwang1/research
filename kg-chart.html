@@ -3832,28 +3832,26 @@ function drawSubInner(canvas, key) {
     ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(PAD.l, ch/2+PAD.t); ctx.lineTo(W-PAD.r, ch/2+PAD.t); ctx.stroke();
 
-    /* 보유비중 곡선 (녹색) — 10%p 칸으로 잣대를 나눈다.
-         0~10 · 10~20 · 20~30 · 30~40 …  (지금 값이 든 칸을 쓴다)
-       칸 폭이 늘 10%p 라 기울기를 종목끼리 그대로 견줄 수 있고,
-       칸의 한가운데(5·15·25·35…%)를 순매수 막대의 0선에 맞춰 그린다.
-       → 선이 0선 위에 있으면 그 칸에서 높은 쪽, 아래면 낮은 쪽. */
+    /* 보유비중 곡선 (2026-10-21 기준 바꿈) — 비중의 높낮이가 아니라 '얼마나 움직였나'를 그린다.
+       화면에 보이는 첫 날(맨 왼쪽)의 비중을 0 으로 잡고 거기서의 변화만 그린다.
+         위 끝 = 기준 +2%p · 가운데(순매수 0선) = 기준 · 아래 끝 = 기준 -2%p
+       기간을 바꾸면 기준도 그 기간의 첫 날로 다시 잡힌다.
+       ±2%p 를 넘으면 끝에 붙여 그린다(잘린다). */
     const validRatio = ratioArr.map((v,i) => v != null && v > 0 ? {x:xOf(i), v, i} : null).filter(Boolean);
+    const rBase = validRatio.length ? validRatio[0].v : null;   // 화면 첫 날의 비중
+    const R_SPAN = 2;                                           // 위아래 각각 2%p
     if (validRatio.length >= 2) {
       const cur = validRatio[validRatio.length-1].v;
-      const BAND = 10;                            // 0~10 · 10~20 · 20~30 …
-      const lo = Math.floor(cur / BAND) * BAND;
-      const mid = lo + BAND/2;                    // 5 · 15 · 25 · 35 …
       /* 순매수 막대와 같은 0선·같은 높이를 쓴다.
-         막대는 0선에서 위아래로 (ch/2 - 2)px 씩 뻗으므로 그 폭에 10%p 를 담는다. */
+         막대는 0선에서 위아래로 (ch/2 - 2)px 씩 뻗으므로 그 폭에 2%p 를 담는다. */
       const zeroY = ch/2 + PAD.t;                 // 순매수 막대의 0선과 같은 식
       const half  = ch/2 - 2;                     // 막대가 뻗는 높이
-      const perPt = half / (BAND/2);              // 1%p 당 높이
-      const yOfR = v => zeroY - (Math.max(lo, Math.min(lo+BAND, v)) - mid) * perPt;
+      const perPt = half / R_SPAN;                // 1%p 당 높이
+      const yOfR = v => zeroY - Math.max(-R_SPAN, Math.min(R_SPAN, v - rBase)) * perPt;
 
-      /* 0선이 보유비중으로는 몇 %인지 함께 적는다.
-         같은 선이 '순매수 0' 이자 '보유비중 10%(또는 30·50·70%)' 임을 드러낸다. */
+      /* 0선이 보유비중으로는 몇 %인지 함께 적는다 — 그 기간 첫 날의 비중이다. */
       ctx.fillStyle = frgnRatioColor(cur); ctx.font = '9px monospace'; ctx.textAlign = 'left';
-      ctx.fillText(mid + '%', PAD.l + 3, zeroY - 3);
+      ctx.fillText(rBase.toFixed(1) + '%', PAD.l + 3, zeroY - 3);
 
       ctx.strokeStyle = frgnRatioColor(cur); ctx.lineWidth = 1.2; ctx.setLineDash([3,2]);
       ctx.beginPath();
@@ -3872,14 +3870,12 @@ function drawSubInner(canvas, key) {
       /* 짚은 자리의 보유비율을 y축에 표시한다 (순매수 금액은 위 범례에 적힌다).
          선이 그려진 자리와 같은 높이에 두어야 어느 값인지 헷갈리지 않는다. */
       const hr = ratioArr[state.hoverIdx];
-      if (hr != null && hr > 0) {
-        const BAND = 10;
-        const rlo = Math.floor(hr / BAND) * BAND;
-        const rmid = rlo + BAND/2;
-        // 선을 그린 식과 똑같이 (0선 기준 · 막대와 같은 높이)
-        const hy = (ch/2 + PAD.t) - (Math.max(rlo, Math.min(rlo+BAND, hr)) - rmid) * ((ch/2 - 2)/(BAND/2));
+      if (hr != null && hr > 0 && rBase != null) {
+        // 선을 그린 식과 똑같이 (첫 날 비중이 0선 · 막대와 같은 높이)
+        const hy = (ch/2 + PAD.t)
+                 - Math.max(-R_SPAN, Math.min(R_SPAN, hr - rBase)) * ((ch/2 - 2)/R_SPAN);
         drawAxisVal(ctx, W, PAD, hy, hr.toFixed(1),
-          hr > rmid ? 'high' : hr < rmid ? 'low' : 'base');
+          hr > rBase ? 'high' : hr < rBase ? 'low' : 'base');
       }
     }
 
@@ -3897,13 +3893,12 @@ function drawSubInner(canvas, key) {
     lx += ctx.measureText(t1).width + 10;
 
     ctx.fillStyle = '#6e7681'; ctx.fillText(',', lx - 6, PAD.t + 11);
-    /* 보유비중 — 지금 값과 그 값이 든 칸의 기준선(0선) 값.
-       기준선이 40% 이상이면 외국인 비중이 높은 종목이므로 붉게 적는다. */
+    /* 보유비중 — 지금 값과, 0선이 뜻하는 '기간 첫 날' 비중.
+       괄호 안은 첫 날 대비 변화폭이다. */
     let t2 = '보유비중 ' + (lastR != null ? lastR.toFixed(1) + '%' : '—');
-    let base = null;
-    if (lastR != null) {
-      base = Math.floor(lastR / 10) * 10 + 5;     // 5 · 15 · 25 · 35 …
-      t2 += ' (기준선 ' + base + '%)';
+    if (lastR != null && rBase != null) {
+      const dr = lastR - rBase;
+      t2 += ' (첫날 ' + rBase.toFixed(1) + '% · ' + (dr >= 0 ? '+' : '') + dr.toFixed(2) + '%p)';
     }
     ctx.fillStyle = frgnRatioColor(lastR);
     ctx.fillText(t2, lx, PAD.t + 11);
@@ -4396,7 +4391,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.21.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.21.-v3';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
