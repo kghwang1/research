@@ -8723,17 +8723,81 @@ const FT_BAR_DN = '#5a9bff';   // 순매도(−)
    미리 섞어 두면 옅은 느낌은 그대로면서 뒤의 선은 확실히 가린다. */
 const FT_FILL_UP = '#54282d';   // 순매수 막대 속 (옅은 붉은색)
 const FT_FILL_DN = '#263b5c';   // 순매도 막대 속 (옅은 푸른색)
+/* ───── 외국인 투자심리 페이지: 매매추이 · 증시자금동향 공통 축 (2026-10-21) ─────
+   ① 두 그래프가 같은 기간(매매추이의 기간 선택을 따른다)을 같은 폭(좌 40 · 우 44)으로 그린다.
+   ② x 위치는 '날짜(달력)' 기준이라 같은 날짜는 두 그래프에서 같은 세로 위치에 놓인다.
+   ③ 어느 한쪽을 마우스·손가락으로 짚으면 날짜를 공유해 두 그래프의 날짜선이 함께 움직인다. */
+const TRD_PAD = { l:40, r:44 };
+let trdHoverDate = null;                  // 지금 짚고 있는 날짜 'YYYY-MM-DD' (없으면 null)
+const trdMs = d => Date.parse(String(d).slice(0,10) + 'T00:00:00Z');
+function trdAxis(){
+  const fr  = FTREND_DATA ? FTREND_DATA.slice(-ftrendPeriod) : [];
+  const dep = (typeof DEP_ROWS !== 'undefined' && DEP_ROWS) ? DEP_ROWS : [];
+  let t0 = null, t1 = null;
+  if(fr.length){ t0 = fr[0].date; t1 = fr[fr.length-1].date; }
+  if(dep.length){
+    const dl = dep[dep.length-1].date;
+    if(!t1 || dl > t1) t1 = dl;                                  // 끝은 두 자료 중 더 늦은 날
+    if(!t0) t0 = dep[Math.max(0, dep.length - ftrendPeriod)].date;
+  }
+  if(!t0 || !t1) return null;
+  t0 = String(t0).slice(0,10); t1 = String(t1).slice(0,10);
+  const a = trdMs(t0); let b = trdMs(t1); if(!(b > a)) b = a + 86400000;
+  return { t0, t1, a, b };
+}
+function trdX(ax, date, W){
+  const cw = W - TRD_PAD.l - TRD_PAD.r;
+  return TRD_PAD.l + Math.max(0, Math.min(1, (trdMs(date) - ax.a) / (ax.b - ax.a))) * cw;
+}
+/* rows 중 date 와 가장 가까운 줄 번호 — maxDays 보다 멀면 -1 (maxDays 를 안 주면 무조건 가장 가까운 것) */
+function trdNearest(rows, date, maxDays){
+  if(!rows || !rows.length || !date) return -1;
+  const t = trdMs(date); let bi = -1, bd = Infinity;
+  for(let i = 0; i < rows.length; i++){
+    const d = Math.abs(trdMs(rows[i].date) - t);
+    if(d < bd){ bd = d; bi = i; }
+  }
+  if(maxDays != null && bd > maxDays * 86400000) return -1;
+  return bi;
+}
+/* 화면 x → 그 자리에서 가장 가까운 자료의 날짜 */
+function trdSnap(rows, ax, cx, W){
+  if(!ax || !rows || !rows.length) return null;
+  const cw = W - TRD_PAD.l - TRD_PAD.r;
+  const ms = ax.a + ((cx - TRD_PAD.l) / cw) * (ax.b - ax.a);
+  let bi = 0, bd = Infinity;
+  rows.forEach((r, i) => { const d = Math.abs(trdMs(r.date) - ms); if(d < bd){ bd = d; bi = i; } });
+  return String(rows[bi].date).slice(0,10);
+}
+/* 아래 날짜 눈금 — 처음 · 가운데 · 끝 (두 그래프가 똑같이) */
+function trdDateLabels(ctx, W, H, ax){
+  const cw = W - TRD_PAD.l - TRD_PAD.r;
+  const lab = d => String(d).slice(5).replace('-','/');
+  const mid = new Date((ax.a + ax.b) / 2).toISOString().slice(0,10);
+  ctx.fillStyle = '#6e7681'; ctx.font = '9.5px monospace';
+  ctx.textAlign = 'left';   ctx.fillText(lab(ax.t0), TRD_PAD.l, H-5);
+  ctx.textAlign = 'center'; ctx.fillText(lab(mid), TRD_PAD.l + cw/2, H-5);
+  ctx.textAlign = 'right';  ctx.fillText(lab(ax.t1), W - TRD_PAD.r, H-5);
+}
+/* 날짜 하나를 두 그래프에 함께 알린다 (null 이면 날짜선을 지운다) */
+function trdSetHover(date){
+  trdHoverDate = date || null;
+  try{ depRenderTip(depRowFor(trdHoverDate)); }catch(e){}
+  try{ drawFtrend('ftrendCanvas'); }catch(e){}
+  try{ drawDeposit(); }catch(e){}
+}
+
 let ftHover = -1;
 function ftrendBind(){
   const cv=document.getElementById('ftrendCanvas'); if(!cv||cv._bound) return; cv._bound=true;
-  const idxFrom=ev=>{
+  /* 짚은 자리를 날짜로 바꿔 두 그래프에 함께 알린다 */
+  const on=ev=>{
+    if(!FTREND_DATA) return;
     const rc=cv.getBoundingClientRect();
     const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
-    const n=(FTREND_DATA||[]).slice(-ftrendPeriod).length; if(n<=1) return 0;
-    const PADl=40, PADr=44, cw=rc.width-PADl-PADr;
-    return Math.max(0, Math.min(n-1, Math.round(((cx-PADl)/cw)*(n-1))));
+    const d=trdSnap(FTREND_DATA.slice(-ftrendPeriod), trdAxis(), cx, rc.width);
+    if(d) trdSetHover(d);
   };
-  const on=ev=>{ if(!FTREND_DATA) return; ftHover=idxFrom(ev); drawFtrend('ftrendCanvas'); };
   /* 자료가 없을 때 그래프를 누르면 다시 받아온다 */
   cv.addEventListener('click', ()=>{
     if(FTREND_DATA && FTREND_DATA.length) return;
@@ -8745,7 +8809,7 @@ function ftrendBind(){
   /* 화면 폭이 바뀌면(가로세로 돌리기 등) 다시 그린다 */
   window.addEventListener('resize', ()=>{ clearTimeout(cv._rsz); cv._rsz=setTimeout(()=>drawFtrend('ftrendCanvas'), 200); });
   cv.addEventListener('mousemove', on);
-  cv.addEventListener('mouseleave', ()=>{ ftHover=-1; drawFtrend('ftrendCanvas'); });
+  cv.addEventListener('mouseleave', ()=>{ trdSetHover(null); });
   cv.addEventListener('touchstart', on, {passive:true});
   cv.addEventListener('touchmove',  on, {passive:true});
 }
@@ -8754,6 +8818,7 @@ function drawFtrendAll(){
   updateFtrendNote();
   renderFtrendLegend();
   drawFtrend('ftrendCanvas');
+  try{ if(typeof DEP_ROWS !== 'undefined' && DEP_ROWS.length) drawDeposit(); }catch(e){}   // 기간·폭을 맞춰 함께 갱신
 }
 function renderFtrendLegend(){
   const el=document.getElementById('ftrendLegend'); if(!el) return;
@@ -8857,7 +8922,8 @@ function drawFtrend(canvasId){
     return PAD.t + ch - ((t-lo)/span)*ch;
   };
   const y0 = yAmt(0);
-  const xOf  = i => PAD.l + (n<=1 ? cw/2 : (i/(n-1))*cw);
+  const AX = trdAxis();                                   // 증시자금동향과 같은 날짜 축
+  const xOf  = i => AX ? trdX(AX, rows[i].date, W) : PAD.l + (n<=1 ? cw/2 : (i/(n-1))*cw);
 
   // 우축(지수) 범위
   const idxVals = rows.map(r => ftrendIdx==='kosdaq' ? r.kosdaq : r.kospi).map(v => (v!=null?v:null));
@@ -8892,8 +8958,8 @@ function drawFtrend(canvasId){
   const ftDrawOrder = ftBars ? FT_LINES.slice().reverse() : FT_LINES;
   ftDrawOrder.forEach(l=>{
     if(ftBars && l.k==='foreign'){
-      const step = (n>1) ? cw/(n-1) : cw;
-      const bw = Math.max(2, Math.min(14, step*0.62));
+      const dayPx = AX ? cw / Math.max(1, (AX.b - AX.a) / 86400000) : (n>1 ? cw/(n-1) : cw);   // 하루 폭
+      const bw = Math.max(2, Math.min(14, dayPx*0.8));
       ctx.lineWidth = 1.2; ctx.setLineDash([]); ctx.lineJoin='miter'; ctx.lineCap='butt';
       series[l.k].forEach((v,i)=>{
         if(!v) return;
@@ -8935,21 +9001,28 @@ function drawFtrend(canvasId){
     ctx.fillText(Math.round(iMax).toLocaleString(), W-PAD.r+3, yIdx(iMax)+3);
     ctx.fillText(Math.round(iMin).toLocaleString(), W-PAD.r+3, yIdx(iMin)+3);
   }
-  // 날짜
-  ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace';
-  const lab=i=>String(rows[i].date||'').slice(5).replace('-','/');
-  ctx.textAlign='left';   ctx.fillText(lab(0), PAD.l, H-5);
-  ctx.textAlign='right';  ctx.fillText(lab(n-1), W-PAD.r, H-5);
-  // 선택 지점 세로선 + 날짜
-  if(ftHover>=0 && ftHover<n){
-    const hx=xOf(ftHover);
+  // 날짜 (처음 · 가운데 · 끝 — 증시자금동향과 같게)
+  if(AX) trdDateLabels(ctx, W, H, AX);
+  else {
+    ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace';
+    const lab=i=>String(rows[i].date||'').slice(5).replace('-','/');
+    ctx.textAlign='left';   ctx.fillText(lab(0), PAD.l, H-5);
+    ctx.textAlign='right';  ctx.fillText(lab(n-1), W-PAD.r, H-5);
+  }
+  // 선택 지점 세로선 + 날짜 — 날짜는 증시자금동향과 공유한다
+  if(trdHoverDate && AX){
+    const hx=trdX(AX, trdHoverDate, W);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(hx,PAD.t); ctx.lineTo(hx,PAD.t+ch); ctx.stroke();
-    ftDrawOrder.forEach(l=>{
-      const hv=series[l.k][ftHover];
-      ctx.fillStyle = (ftBars && l.k==='foreign') ? (hv>0?FT_BAR_UP:(hv<0?FT_BAR_DN:l.c)) : l.c;
-      ctx.beginPath(); ctx.arc(hx,yAmt(hv),2.8,0,Math.PI*2); ctx.fill(); });
-    const dtxt=String(rows[ftHover].date||'').slice(2);   // 26-08-06
+    const hI=trdNearest(rows, trdHoverDate, 4);            // 그 날(또는 가장 가까운 날)의 자료
+    if(hI>=0){
+      const dx=xOf(hI);
+      ftDrawOrder.forEach(l=>{
+        const hv=series[l.k][hI];
+        ctx.fillStyle = (ftBars && l.k==='foreign') ? (hv>0?FT_BAR_UP:(hv<0?FT_BAR_DN:l.c)) : l.c;
+        ctx.beginPath(); ctx.arc(dx,yAmt(hv),2.8,0,Math.PI*2); ctx.fill(); });
+    }
+    const dtxt=String(trdHoverDate).slice(2);   // 26-08-06
     ctx.font='bold 9.5px monospace';
     const tw=ctx.measureText(dtxt).width+8;
     let bx=Math.min(Math.max(hx-tw/2, PAD.l), W-PAD.r-tw);
@@ -9667,28 +9740,37 @@ async function loadDeposit(){
   }catch(e){ if(note) note.textContent='불러오기 실패: '+(e.message||e); }
 }
 
+/* 그릴 줄 — 매매추이와 같은 기간(시작 날짜 이후) */
+function depDrawRows(ax){
+  if(!DEP_ROWS.length) return [];
+  const v = ax ? DEP_ROWS.filter(x=>x.date>=ax.t0) : DEP_VIEW;
+  return v.length>=2 ? v : DEP_ROWS.slice(-2);
+}
 function drawDeposit(){
   /* 기준은 하나 — 52주 최고값 대비 %. 세로축 눈금도 %로 적는다.
-     세로 범위는 보이는 구간의 최저~최고에 맞춰 잡아 변화가 눌리지 않게 한다. */
-  const cv=$('#depCanvas'); if(!cv||!DEP_VIEW.length) return;
+     세로 범위는 보이는 구간의 최저~최고에 맞춰 잡아 변화가 눌리지 않게 한다.
+     기간·폭·날짜 축은 위 '외국인 기관 매매추이' 와 같다 (2026-10-21). */
+  const cv=$('#depCanvas'); if(!cv||!DEP_ROWS.length) return;
+  const ax=trdAxis();
+  const V=depDrawRows(ax); if(!V.length) return;
   const dpr=window.devicePixelRatio||1;
   const W=cv.clientWidth, H=cv.clientHeight;
   cv.width=W*dpr; cv.height=H*dpr;
   const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,W,H);
-  const PAD={l:8,r:40,t:10,b:18};
+  const PAD={l:TRD_PAD.l,r:TRD_PAD.r,t:10,b:18};
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b;
-  const n=DEP_VIEW.length;
+  const n=V.length;
   const pct=(v,k)=> (v==null||!DEP_MAX[k])?null:(v/DEP_MAX[k])*100;
 
   // 세로 범위 — 보이는 구간의 최저~최고 (여유 1%)
   let mn=Infinity, mx=-Infinity;
-  DEP_VIEW.forEach(x=>DEP_SERIES.forEach(se=>{const p=pct(x[se.k],se.k); if(p!=null){ if(p<mn)mn=p; if(p>mx)mx=p; }}));
+  V.forEach(x=>DEP_SERIES.forEach(se=>{const p=pct(x[se.k],se.k); if(p!=null){ if(p<mn)mn=p; if(p>mx)mx=p; }}));
   if(!isFinite(mn)) return;
   mn=Math.floor(mn-1); mx=Math.ceil(mx+1);
   if(mx-mn<4){ const c=(mx+mn)/2; mn=c-2; mx=c+2; }
   const yOf=p=>PAD.t+ch-((p-mn)/(mx-mn))*ch;
-  const xOf=i=>PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
+  const xOf=i=> ax ? trdX(ax,V[i].date,W) : PAD.l+(n<=1?cw/2:(i/(n-1))*cw);
 
   ctx.fillStyle='#8b949e'; ctx.font='10px monospace'; ctx.textAlign='right';
   ctx.fillText('단위: 천 억원', W-PAD.r-3, PAD.t+10);
@@ -9713,7 +9795,7 @@ function drawDeposit(){
     ctx.strokeStyle=se.c; ctx.lineWidth=se.w || (se.dash?1.3:1.8); ctx.lineJoin='round';
     ctx.setLineDash(se.dash?[4,3]:[]);
     ctx.beginPath(); let started=false;
-    DEP_VIEW.forEach((x,i)=>{
+    V.forEach((x,i)=>{
       const p=pct(x[se.k],se.k);
       if(p==null){ started=false; return; }
       const px=xOf(i), py=yOf(p);
@@ -9722,23 +9804,30 @@ function drawDeposit(){
     ctx.stroke(); ctx.setLineDash([]);
   });
 
-  // 날짜 라벨 (양끝 + 가운데)
-  ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace';
-  const lab=i=>DEP_VIEW[i].date.slice(5).replace('-','/');
-  ctx.textAlign='left';   ctx.fillText(lab(0), PAD.l, H-5);
-  ctx.textAlign='center'; ctx.fillText(lab(Math.floor(n/2)), PAD.l+cw/2, H-5);
-  ctx.textAlign='right';  ctx.fillText(lab(n-1), W-PAD.r, H-5);
+  // 날짜 라벨 (처음 · 가운데 · 끝 — 매매추이와 같게)
+  if(ax) trdDateLabels(ctx, W, H, ax);
+  else {
+    ctx.fillStyle='#6e7681'; ctx.font='9.5px monospace';
+    const lab=i=>V[i].date.slice(5).replace('-','/');
+    ctx.textAlign='left';   ctx.fillText(lab(0), PAD.l, H-5);
+    ctx.textAlign='center'; ctx.fillText(lab(Math.floor(n/2)), PAD.l+cw/2, H-5);
+    ctx.textAlign='right';  ctx.fillText(lab(n-1), W-PAD.r, H-5);
+  }
 
-  // 선택 지점 세로선
-  if(depHover>=0 && depHover<n){
-    const x=xOf(depHover);
+  // 선택 지점 세로선 — 날짜는 매매추이와 공유한다
+  if(trdHoverDate && ax){
+    const x=trdX(ax, trdHoverDate, W);
     ctx.strokeStyle='#ffffff55'; ctx.lineWidth=1; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(x,PAD.t); ctx.lineTo(x,PAD.t+ch); ctx.stroke();
-    DEP_SERIES.forEach(se=>{
-      const p=pct(DEP_VIEW[depHover][se.k],se.k); if(p==null) return;
-      ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(x,yOf(p),2.6,0,Math.PI*2); ctx.fill();
-    });
-    const dtxt=String(DEP_VIEW[depHover].date||'').slice(2);
+    const hI=trdNearest(V, trdHoverDate, 4);
+    if(hI>=0){
+      const dx=xOf(hI);
+      DEP_SERIES.forEach(se=>{
+        const p=pct(V[hI][se.k],se.k); if(p==null) return;
+        ctx.fillStyle=se.c; ctx.beginPath(); ctx.arc(dx,yOf(p),2.6,0,Math.PI*2); ctx.fill();
+      });
+    }
+    const dtxt=String(trdHoverDate).slice(2);
     ctx.font='bold 9.5px monospace'; ctx.textAlign='center';
     const tw=ctx.measureText(dtxt).width+8;
     let bx=Math.min(Math.max(x-tw/2, PAD.l), W-PAD.r-tw);
@@ -9966,33 +10055,44 @@ function depFlowVerdict(){
   return h;
 }
 
-function depShowTip(i){
-  const el=$('#depTip'); if(!el||!DEP_VIEW.length) return;
-  depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
-  const r=DEP_VIEW[depHover];
+/* 값 상자 — 짚은 날짜의 자료(없으면 그 날 이전 가장 가까운 자료, 날짜가 없으면 가장 최근 자료) */
+function depRowFor(date){
+  if(!DEP_ROWS.length) return null;
+  if(!date) return DEP_ROWS[DEP_ROWS.length-1];
+  const i=trdNearest(DEP_ROWS, date);
+  return DEP_ROWS[i>=0?i:DEP_ROWS.length-1];
+}
+function depRenderTip(r){
+  const el=$('#depTip'); if(!el||!r) return;
   // 억원 → 천억원 (자릿수가 길어 읽기 어려워 단위를 올린다)
   const num=v=> v==null?'—':(v/1000).toFixed(1);
   const rate=(v,k)=> v==null?'':' ('+Math.round((v/DEP_MAX[k])*100)+'%)';
   el.innerHTML = DEP_SERIES.map(se=>
     `<div class="tipline"><i style="border-top-color:${se.c};border-top-style:${se.dash?'dashed':'solid'}"></i>`
     + `<b>${se.n}</b>: ${num(r[se.k])}${rate(r[se.k],se.k)}</div>`).join('');
+}
+function depShowTip(i){
+  if(!DEP_VIEW.length) return;
+  depHover=Math.max(0,Math.min(DEP_VIEW.length-1,i));
+  depRenderTip(DEP_VIEW[depHover]);
   drawDeposit();
 }
 function depBind(){
   const cv=$('#depCanvas'); if(!cv||cv._bound) return; cv._bound=true;
-  const idxFrom=ev=>{
+  const on=ev=>{
+    if(!DEP_ROWS.length) return;
+    const ax=trdAxis(); if(!ax) return;
     const rc=cv.getBoundingClientRect();
     const cx=(ev.touches&&ev.touches[0]?ev.touches[0].clientX:ev.clientX)-rc.left;
-    const PADl=8, PADr=40, cw=rc.width-PADl-PADr;
-    const n=DEP_VIEW.length; if(n<=1) return 0;
-    return Math.round(((cx-PADl)/cw)*(n-1));
+    const d=trdSnap(depDrawRows(ax), ax, cx, rc.width);
+    if(d) trdSetHover(d);                    // 매매추이 그래프에도 같은 날짜선이 나타난다
   };
-  const on=ev=>{ if(!DEP_VIEW.length) return; depShowTip(idxFrom(ev)); };
   cv.addEventListener('mousemove', on);
+  cv.addEventListener('mouseleave', ()=>{ trdSetHover(null); });
   cv.addEventListener('touchstart', e=>{ on(e); }, {passive:true});
   cv.addEventListener('touchmove',  e=>{ on(e); }, {passive:true});
 }
-window.addEventListener('resize', ()=>{ if(DEP_VIEW.length) drawDeposit(); });
+window.addEventListener('resize', ()=>{ if(DEP_ROWS.length) drawDeposit(); });
 
 function loadDeposit_init(){ depBind(); loadDeposit(); }
 
@@ -15821,7 +15921,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.21.-v4';
+const KG_APP_VER = '10.21.-v5';
 const KG_APP_BUILD = KG_APP_VER + ' 고점저점 차례 · 외국인 비중변화 잣대';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
