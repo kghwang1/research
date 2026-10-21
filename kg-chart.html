@@ -237,9 +237,13 @@ body.sp-flow #flow-box{ display:flex;flex-direction:column;flex:1 1 auto;min-hei
 #flow-tbl td:first-child{ text-align:left;color:#8b949e }
 #flow-tbl .up{ color:#ef5350 } #flow-tbl .dn{ color:#58a6ff }
 #flow-tbl{ position:relative;flex:1 1 auto;min-height:0;overflow-y:auto }
-#flow-lg{ display:flex;gap:10px;align-items:center;font-size:11px;font-family:monospace;
-  position:sticky;top:0;z-index:2;background:var(--bg);padding:3px 2px;border-bottom:1px solid #30363d }
-#flow-lg i{ display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:3px;vertical-align:middle }
+#flow-leg,#flow-ar-l,#flow-ar-r{ position:absolute;z-index:3;pointer-events:none;
+  white-space:pre;border-radius:4px;background:rgba(13,17,23,.72);padding:3px 5px }
+#flow-leg{ left:36px;top:50%;transform:translateY(-50%);font:bold 12px/1.35 monospace }
+#flow-leg div{ display:flex;align-items:center;gap:5px }
+#flow-leg i{ display:inline-block;width:18px }
+#flow-ar-l,#flow-ar-r{ top:0;font:bold 11px/1.2 monospace;color:#c9d1d9;padding:2px 5px }
+#flow-ar-l{ left:36px }
 #flow-vals{ position:absolute;right:14px;top:50%;transform:translateY(-50%);z-index:3;
   pointer-events:none;display:none;text-align:right;white-space:pre;
   font:bold 12px/1.35 monospace;padding:3px 5px;border-radius:4px;
@@ -432,6 +436,8 @@ body.stock-closed #step-pad { display: flex; }
     <div id="flow-box">
       <div class="sp-h">투자자별 매매동향 <span class="sp-k">(주)</span></div>
       <div id="flow-tbl"></div>
+      <div id="flow-leg"></div>
+      <div id="flow-ar-l">◀ 매도</div><div id="flow-ar-r">매수 ▶</div>
       <div id="flow-vals"></div>
     </div>
   </div>
@@ -4791,7 +4797,7 @@ const FLOW_NM  = { net:'외국인', inst:'기관', indiv:'개인' };
 const FLOW_LW  = { net:2.25, inst:2.25, indiv:1.5 };     // 외국인·기관 = 개인(1.5)의 1.5배
 const FLOW_MONTHS = 2;
 const FLOW_RH = 16;                       // 날짜 한 줄 높이
-const FLOW_PAD = { t:26, b:4, l:34, r:6 };   // 위 12px 은 매도·매수 안내 줄
+const FLOW_PAD = { t:26, b:4, l:34, r:6 };   // 위 12px 은 매도·매수 화살표 자리
 let flowHover = -1, flowRows = [], flowDrives = false;
 function flowNum(v){
   if(v==null) return '—';
@@ -4824,7 +4830,7 @@ function renderFlowTable(){
   const box=document.getElementById('flow-tbl'); if(!box) return;
   const d=(state.dailyData && state.dailyData.length) ? state.dailyData : (state.data||[]);
   const fd=state.frgnData;
-  const msg=t=>{ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">'+t+'</div>'; const v=document.getElementById('flow-vals'); if(v) v.style.display='none'; };
+  const msg=t=>{ box.innerHTML='<div style="color:#6e7681;font-size:11px;padding:6px 2px">'+t+'</div>'; const v=document.getElementById('flow-vals'); if(v) v.style.display='none'; ['flow-leg','flow-ar-l','flow-ar-r'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display='none'; }); };
   if(!fd || !d.length){ msg('한국 종목·일봉에서만 나옵니다.'); return; }
   const all=d.filter(x=>fd[String(x.date).slice(0,10)] || fd[x.date]);
   if(!all.length){ msg('매매동향 자료가 없습니다.'); return; }
@@ -4839,9 +4845,7 @@ function renderFlowTable(){
   if(kEl) kEl.textContent='(주) · '+FLOW_MONTHS+'개월 '+rows.length+'일';
 
   if(!document.getElementById('flow-cv')){
-    box.innerHTML='<div id="flow-lg">'
-      + ['net','inst','indiv'].map(k=>'<span><i style="background:'+(k==='indiv'?'repeating-linear-gradient(90deg,'+FLOW_COL[k]+' 0 4px,transparent 4px 7px)':FLOW_COL[k])+';height:'+Math.round(FLOW_LW[k]+1)+'px"></i>'+FLOW_NM[k]+'</span>').join('')
-      + '</div><canvas id="flow-cv"></canvas>';
+    box.innerHTML='<canvas id="flow-cv"></canvas>';
     const cv=document.getElementById('flow-cv');
     const pick=ev=>{
       const r=cv.getBoundingClientRect();
@@ -4866,6 +4870,7 @@ function renderFlowTable(){
     });
   }
   flowHover=-1; flowDrives=false;
+  ['flow-leg','flow-ar-l','flow-ar-r'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display=''; });
   drawFlowChart();
 }
 function drawFlowChart(){
@@ -4897,11 +4902,6 @@ function drawFlowChart(){
     ctx.beginPath(); ctx.moveTo(x,FLOW_PAD.t); ctx.lineTo(x,H-FLOW_PAD.b); ctx.stroke();
     if(t===-1||t===0||t===1) ctx.fillText(t===0?'0':flowNum(t*mx), Math.min(Math.max(x,FLOW_PAD.l),W-14), 22);
   });
-  // 방향 안내 — 왼쪽 매도, 오른쪽 매수
-  ctx.font='bold 10px monospace'; ctx.fillStyle='#c9d1d9'; ctx.textAlign='center';
-  ctx.fillText('◀ 매도', x0-cw/4, 10);
-  ctx.fillText('매수 ▶', x0+cw/4, 10);
-  ctx.font='9px monospace';
 
   // 짚은 날 — 주가차트에서 짚었으면 그 날짜, 매매동향에서 짚었으면 그 줄
   let hr = flowDrives ? flowHover : flowRowOfHover();
@@ -4944,6 +4944,7 @@ function drawFlowChart(){
       ctx.fillStyle=FLOW_COL[k]; ctx.beginPath(); ctx.arc(xOf(r[k]),y,3,0,6.283); ctx.fill();
     });
   }
+  flowPlace();
   flowShowVals(hr>=0 ? flowRows[hr] : null);
 }
 /* 짚은 날의 매매 숫자 — 선그래프 오른쪽 가운데에 세로로 (외국인·기관·개인 순).
@@ -4959,6 +4960,24 @@ function flowShowVals(r){
     el.style.top=(t.offsetTop + t.clientHeight/2)+'px';
     el.style.right=((t.offsetWidth - t.clientWidth) + 8)+'px';
   }
+}
+/* 범례(왼쪽 가운데)·매도/매수 화살표(위 좌우) — 그래프 칸 위에 겹쳐 두어 스크롤해도 제자리.
+   범례는 오른쪽 숫자와 같은 높이·같은 줄 간격이라 서로 마주 본다. */
+function flowPlace(){
+  const t=document.getElementById('flow-tbl'), leg=document.getElementById('flow-leg');
+  if(!t || !leg) return;
+  const keys=['net','inst','indiv'];
+  if(!leg._ok){
+    leg.innerHTML=keys.map(k=>'<div style="color:'+FLOW_COL[k]+'"><i style="height:'+Math.round(FLOW_LW[k]+1)+'px;background:'
+      + (k==='indiv'?'repeating-linear-gradient(90deg,'+FLOW_COL[k]+' 0 4px,transparent 4px 7px)':FLOW_COL[k])
+      + '"></i>'+FLOW_NM[k]+'</div>').join('');
+    leg._ok=true;
+  }
+  const sb=(t.offsetWidth - t.clientWidth) + 8;           // 스크롤바 폭만큼 안쪽
+  leg.style.top=(t.offsetTop + t.clientHeight/2)+'px';
+  const al=document.getElementById('flow-ar-l'), ar=document.getElementById('flow-ar-r');
+  if(al) al.style.top=(t.offsetTop+2)+'px';
+  if(ar){ ar.style.top=(t.offsetTop+2)+'px'; ar.style.right=sb+'px'; }
 }
 window.addEventListener('resize', ()=>{ if(document.getElementById('flow-cv')) drawFlowChart(); });
 
