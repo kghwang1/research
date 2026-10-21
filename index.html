@@ -15811,8 +15811,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.21.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 고점저점 차례 변경';
+const KG_APP_VER = '10.21.-v2';
+const KG_APP_BUILD = KG_APP_VER + ' 고점저점 차례 · 외국인 비율변화 잣대';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -17592,18 +17592,19 @@ function frgnCell(code){
       const col = v>=0 ? '#ef5350' : '#4a90d9';
       bars+=`<rect x="${cx-2.5}" y="${y}" width="5" height="${bh}" fill="${col}" rx="0.5"/>`;
     });
-    /* 보유비율 선그래프 (녹색) — 20%p 칸으로 잣대를 나눈다.
-         0~20 · 20~40 · 40~60 · 60~80 …  (지금 값이 든 칸)
-       칸 한가운데를 순매수 막대의 0선에 맞춰, 0선 위면 그 칸에서 높은 쪽이다. */
+    /* 보유비율 선그래프 (2026-10-21 기준 바꿈) — 비율의 높낮이가 아니라 '얼마나 움직였나'를 그린다.
+       10일 전(가장 오래된) 값을 0 으로 잡고 거기서의 변화만 본다.
+         위 끝 = +0.5%p · 가운데(막대 0선) = 변화 없음 · 아래 끝 = -0.5%p
+       ±0.5%p 를 넘으면 끝에 붙여 그린다(잘린다). 종목마다 잣대가 같아 서로 견줄 수 있다. */
     let ratioLine='', ratioMid='';
     if(r){
       const vr=r.map((v,i)=>v>0?{x:i*CW+CW/2,v}:null).filter(Boolean);
       if(vr.length>=2){
         const cur=vr[vr.length-1].v;
-        const BAND=20;
-        const lo=Math.floor(cur/BAND)*BAND, mid=lo+BAND/2;
-        const perPt=(H-4)/BAND;
-        const yOfR=v=>zero-(Math.max(lo,Math.min(lo+BAND,v))-mid)*perPt;
+        const base=vr[0].v;                 // 10일 전 값이 0선
+        const SPAN=0.5;                     // 위아래 각각 0.5%p
+        const perPt=(H/2-2)/SPAN;
+        const yOfR=v=>zero-Math.max(-SPAN,Math.min(SPAN,v-base))*perPt;
         const pts=vr.map(p=>({x:p.x, y:yOfR(p.v)}));
         ratioLine=`<polyline points="${pts.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ')}" fill="none" stroke="${frgnRatioColor(cur)}" stroke-width="1.2" stroke-dasharray="2,1.5"/>`;
       }
@@ -17611,7 +17612,10 @@ function frgnCell(code){
     // 툴팁
     const fmtAmt = v => { if(v==null) return ''; const a2=Math.abs(v); return (v>=0?'+':'')+(a2>=1e8?(v/1e8).toFixed(1)+'억':a2>=1e4?(v/1e4).toFixed(0)+'만':String(v)); };
     const lastR = r ? r.filter(v=>v>0).slice(-1)[0] : null;
-    const title = (lastR ? '보유율 '+lastR.toFixed(2)+'%' : '');
+    const firstR = r ? r.filter(v=>v>0)[0] : null;
+    const dR = (lastR!=null && firstR!=null) ? lastR-firstR : null;
+    const title = (lastR ? '보유율 '+lastR.toFixed(2)+'%'
+                   + (dR!=null ? ' · 10일 '+(dR>=0?'+':'')+dR.toFixed(2)+'%p' : '') : '');
     // 그래프 아래에 현재 외국인 보유비율을 적는다 (선그래프와 같은 초록색)
     const ratioTxt = lastR!=null
       ? `<div style="font-size:10px;color:${frgnRatioColor(lastR)};line-height:1.1;margin-top:1px">${lastR.toFixed(1)}%</div>`
@@ -17652,7 +17656,7 @@ function shortLastDate(){
   return fmtMD(best);
 }
 // 헤더 문자열에 날짜 덧붙이기
-function hdrFrgn(){ const dt=frgnLastDate(); return '외국인<br>(10일'+(dt?', ~'+dt:'')+')<br><span class="hdr-sub">선: 보유비율</span>'; }
+function hdrFrgn(){ const dt=frgnLastDate(); return '외국인<br>(10일'+(dt?', ~'+dt:'')+')<br><span class="hdr-sub">선: 비율변화(±0.5%p)</span>'; }
 function hdrShort(){ const dt=shortLastDate(); return '공매도<br>(10일'+(dt?', ~'+dt:'')+')<br><span class="hdr-sub">선: 공매도 잔고</span>'; }
 
 function frgnAmtCell(code){
