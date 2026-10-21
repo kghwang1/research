@@ -242,8 +242,9 @@ body.sp-flow #flow-box{ display:flex;flex-direction:column;flex:1 1 auto;min-hei
 #flow-leg{ left:36px;top:50%;transform:translateY(-50%);font:bold 12px/1.35 monospace }
 #flow-leg div{ display:flex;align-items:center;gap:5px }
 #flow-leg i{ display:inline-block;width:18px }
-#flow-ar-l,#flow-ar-r{ top:0;font:bold 11px/1.2 monospace;color:#c9d1d9;padding:2px 5px }
-#flow-ar-l{ left:36px }
+#flow-ar-l,#flow-ar-r{ top:0;font:bold 11px/1.2 monospace;padding:2px 5px }
+#flow-ar-l{ left:36px;color:#58a6ff }   /* 매도 = 파랑 */
+#flow-ar-r{ color:#ef5350 }              /* 매수 = 빨강 */
 #flow-vals{ position:absolute;right:14px;top:50%;transform:translateY(-50%);z-index:3;
   pointer-events:none;display:none;text-align:right;white-space:pre;
   font:bold 12px/1.35 monospace;padding:3px 5px;border-radius:4px;
@@ -4976,8 +4977,9 @@ function flowPlace(){
   const sb=(t.offsetWidth - t.clientWidth) + 8;           // 스크롤바 폭만큼 안쪽
   leg.style.top=(t.offsetTop + t.clientHeight/2)+'px';
   const al=document.getElementById('flow-ar-l'), ar=document.getElementById('flow-ar-r');
-  if(al) al.style.top=(t.offsetTop+2)+'px';
-  if(ar){ ar.style.top=(t.offsetTop+2)+'px'; ar.style.right=sb+'px'; }
+  const ay=t.offsetTop + 2*FLOW_RH + 2;                    // 눈금 숫자와 겹치지 않게 두 줄 아래
+  if(al) al.style.top=ay+'px';
+  if(ar){ ar.style.top=ay+'px'; ar.style.right=sb+'px'; }
 }
 window.addEventListener('resize', ()=>{ if(document.getElementById('flow-cv')) drawFlowChart(); });
 
