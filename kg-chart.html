@@ -205,6 +205,9 @@ body.mini-mode #candle-wrap { position: relative; border: none; border-radius: 0
   padding: 0 8px; background: #0d1117; border-top: 1px solid #21262d;
   font: 11px monospace; color: #8b949e; white-space: nowrap; overflow: hidden; }
 #main-info .hot { color: #ffd54f; font-weight: 700; }
+/* 거래량 막대를 주가차트 밑 따로 칸으로 뺄 때(2026-10-22) — 정보 줄이 주가 칸과 거래량 칸 사이에 놓인다 */
+#candle-wrap.vol-sep { flex-basis: 462px; height: 462px; }
+#candle-wrap.vol-sep #main-info { position: absolute; left: 0; right: 0; z-index: 2; border-bottom: 1px solid #21262d; }
 #mi-low { color: #3fb950; font-weight: 700; }
 /* touch-action:pan-y → 위아래 넘김은 브라우저에게, 좌우 이동은 차트가 직접 처리.
    이것이 없으면 손가락 좌우 이동을 브라우저가 스크롤로 가로채 차트가 멈춘다. */
@@ -2176,6 +2179,10 @@ function drawCandle() {
   const canvas = document.getElementById('candle-canvas');
   const wrap = document.getElementById('candle-box') || document.getElementById('candle-wrap');
   canvas.style.width = '100%'; canvas.style.height = '100%';
+  /* 거래량 막대는 주가차트와 겹치지 않게 아래 따로 칸에 그린다 (작은 그래프 제외) — 높이를 재기 전에 모드를 정한다 */
+  const sepVol = !!state.overlays.VOL_OV && !KG_MINI;
+  const cwEl = document.getElementById('candle-wrap');
+  if (cwEl) cwEl.classList.toggle('vol-sep', sepVol);
   const dpr = window.devicePixelRatio || 1;
   const W = wrap.clientWidth, H = wrap.clientHeight;
   canvas.width = W * dpr; canvas.height = H * dpr;
@@ -2190,8 +2197,12 @@ function drawCandle() {
   const ICHI_SHIFT = 26;
   // 화면 전체 슬롯 = range 폭 (미래 여백이 range에 포함됨)
   const slotCount = range[1] - range[0];
-  const PAD = {l:8, r:62, t:10, b:24};  // 세로축 우측
+  const VOL_BAND = sepVol ? 52 : 0, INFO_BAND = sepVol ? 20 : 0;   // 거래량 칸 · 그 위 정보 줄 자리
+  const PAD = {l:8, r:62, t:10, b:24 + VOL_BAND + INFO_BAND};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const volBot = PAD.t + ch + INFO_BAND + VOL_BAND;             // 거래량 칸 바닥
+  if (sepVol) { const mi = document.getElementById('main-info'); if (mi) mi.style.top = (PAD.t + ch) + 'px'; }
+  else { const mi = document.getElementById('main-info'); if (mi) mi.style.top = ''; }
 
   let maxP = Math.max(...slice.map(d => d.high));
   let minP = Math.min(...slice.map(d => d.low));
@@ -2501,8 +2512,8 @@ function drawCandle() {
      캔들보다 먼저 그려 캔들·매물대가 가려지지 않게 한다.
      노란 점선은 20일 평균 거래량 — 막대가 이 선을 크게 넘으면 거래가 터진 날이다 */
   if (overlays.VOL_OV) {
-    const volH = Math.min(ch * 0.4, Math.max(30, ch * 0.22));
-    const base = PAD.t + ch;
+    const volH = sepVol ? VOL_BAND - 6 : Math.min(ch * 0.4, Math.max(30, ch * 0.22));
+    const base = sepVol ? volBot : PAD.t + ch;
     const vols = slice.map(d => d.volume || 0);
     const maxV = Math.max(...vols);
     if (maxV > 0) {
@@ -2670,7 +2681,7 @@ function drawCandle() {
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
     const hx = xOf(state.hoverIdx);
     ctx.strokeStyle = '#ffffff77'; ctx.lineWidth = 1.3;
-    ctx.beginPath(); ctx.moveTo(hx, PAD.t); ctx.lineTo(hx, PAD.t + ch); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx, PAD.t); ctx.lineTo(hx, sepVol ? volBot : PAD.t + ch); ctx.stroke();
     // 날짜 라벨 (하단)
     const hd = slice[state.hoverIdx];
     if (hd && hd.date) {
@@ -4422,7 +4433,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.22.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.22.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
