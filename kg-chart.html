@@ -200,15 +200,8 @@ body.mini-mode #candle-wrap { position: relative; border: none; border-radius: 0
   display: flex; flex-direction: column;
 }
 #candle-box { flex: 1 1 auto; min-height: 0; position: relative; }
-/* 주가차트 아래 정보 줄 — 거래량 · 최저가 대비 상승률 */
-#main-info { flex: 0 0 20px; height: 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 0 8px; background: #0d1117; border-top: 1px solid #21262d;
-  font: 11px monospace; color: #8b949e; white-space: nowrap; overflow: hidden; }
-#main-info .hot { color: #ffd54f; font-weight: 700; }
-/* 거래량 막대를 주가차트 밑 따로 칸으로 뺄 때(2026-10-22) — 정보 줄이 주가 칸과 거래량 칸 사이에 놓인다 */
-#candle-wrap.vol-sep { flex-basis: 462px; height: 462px; }
-#candle-wrap.vol-sep #main-info { position: absolute; left: 0; right: 0; z-index: 2; border-bottom: 1px solid #21262d; }
-#mi-low { color: #3fb950; font-weight: 700; }
+/* 거래량 막대를 주가차트 밑 따로 칸으로 뺄 때(2026-10-22) — 칸 높이 = 주가 칸 + 거래량 칸 */
+#candle-wrap.vol-sep { flex-basis: 442px; height: 442px; }
 /* touch-action:pan-y → 위아래 넘김은 브라우저에게, 좌우 이동은 차트가 직접 처리.
    이것이 없으면 손가락 좌우 이동을 브라우저가 스크롤로 가로채 차트가 멈춘다. */
 #candle-canvas { width: 100%; height: 100%; display: block; cursor: crosshair;
@@ -436,8 +429,6 @@ body.mini-mode .stk-nav { display: none !important; }
   <div id="chart-area">
     <div id="candle-wrap">
       <div id="candle-box"><canvas id="candle-canvas"></canvas></div>
-      <!-- 주가차트와 보조차트 사이 정보 줄 (2026-10-17) — 거래량 · 최저가 대비 상승률 -->
-      <div id="main-info"><span id="mi-vol"></span><span id="mi-low"></span></div>
     </div>
   </div>
   <!-- 우측 패널: 월봉 · 투자자별 매매동향 -->
@@ -1895,21 +1886,6 @@ function divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W){
   });
   ctx.restore();
 }
-/* 정보 줄 — 짚은 날(없으면 마지막 날)의 거래량과 20일 평균 대비 배수. 거래량 겹쳐보기를 꺼도 나온다 */
-function mainInfoVol(data, range, slice){
-  const mv = document.getElementById('mi-vol'); if (!mv) return;
-  const li = (state.hoverIdx >= 0 && state.hoverIdx < slice.length) ? state.hoverIdx : slice.length - 1;
-  const gi = range[0] + li, row = data[gi];
-  if (!row || !(row.volume > 0)) { mv.textContent = ''; return; }
-  let sum = 0, cnt = 0;
-  for (let j = Math.max(0, gi - 19); j <= gi; j++) { sum += data[j].volume || 0; cnt++; }
-  const lv = row.volume, la = cnt === 20 ? sum / 20 : 0;
-  const volTxt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억주' : n >= 1e4 ? Math.round(n / 1e4).toLocaleString() + '만주' : Math.round(n).toLocaleString() + '주';
-  const dt = String(row.date || '').slice(2, 10).replace(/-/g, '.');
-  const hot = la > 0 && lv / la >= 2;
-  mv.innerHTML = '거래량 ' + volTxt(lv) + (la > 0 ? ' · 20일평균비 <span' + (hot ? ' class="hot"' : '') + '>' + (lv / la).toFixed(1) + '배</span>' : '')
-               + (dt ? ' <span style="color:#6e7681">(' + dt + ')</span>' : '');
-}
 /* 주가차트에 이미 적힌 글자 자리 (최고가·최저가) — 다이버전스 글자가 피해 간다 */
 let MAIN_TXT_BOXES = [];
 function loadDefaults() {
@@ -2197,12 +2173,10 @@ function drawCandle() {
   const ICHI_SHIFT = 26;
   // 화면 전체 슬롯 = range 폭 (미래 여백이 range에 포함됨)
   const slotCount = range[1] - range[0];
-  const VOL_BAND = sepVol ? 52 : 0, INFO_BAND = sepVol ? 20 : 0;   // 거래량 칸 · 그 위 정보 줄 자리
+  const VOL_BAND = sepVol ? 56 : 0, INFO_BAND = 0;   // 거래량 칸 (정보 줄은 없앴다 — 숫자는 거래량 칸 안 왼쪽 위)
   const PAD = {l:8, r:62, t:10, b:24 + VOL_BAND + INFO_BAND};  // 세로축 우측
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
   const volBot = PAD.t + ch + INFO_BAND + VOL_BAND;             // 거래량 칸 바닥
-  if (sepVol) { const mi = document.getElementById('main-info'); if (mi) mi.style.top = (PAD.t + ch) + 'px'; }
-  else { const mi = document.getElementById('main-info'); if (mi) mi.style.top = ''; }
 
   let maxP = Math.max(...slice.map(d => d.high));
   let minP = Math.min(...slice.map(d => d.low));
@@ -2510,7 +2484,7 @@ function drawCandle() {
      주가차트 아래쪽 22%(최소 30px)에 반투명 막대로 겹쳐 그린다.
      세로 눈금은 주가와 따로(화면에 보이는 구간의 최대 거래량 = 칸 높이)이고,
      캔들보다 먼저 그려 캔들·매물대가 가려지지 않게 한다.
-     노란 점선은 20일 평균 거래량 — 막대가 이 선을 크게 넘으면 거래가 터진 날이다 */
+     노란 점선은 60일 평균 거래량 — 막대가 이 선을 크게 넘으면 거래가 터진 날이다 */
   if (overlays.VOL_OV) {
     const volH = sepVol ? VOL_BAND - 6 : Math.min(ch * 0.4, Math.max(30, ch * 0.22));
     const base = sepVol ? volBot : PAD.t + ch;
@@ -2530,8 +2504,8 @@ function drawCandle() {
         ctx.strokeStyle = (d.close >= d.open ? C.up : C.down) + 'cc';
         ctx.strokeRect(xOf(i) - w/2, top, w, base - 0.75 - top);
       });
-      /* 20일 평균 거래량 — 화면 왼쪽 끝에서 끊기지 않게 화면 밖 자료까지 써서 계산한다 */
-      const AVG_N = 20;
+      /* 60일 평균 거래량 — 화면 왼쪽 끝에서 끊기지 않게 화면 밖 자료까지 써서 계산한다 */
+      const AVG_N = 60;
       const allV = data.map(d => d.volume || 0);
       const avgAt = i => {
         if (i < AVG_N - 1) return null;
@@ -2563,7 +2537,22 @@ function drawCandle() {
       const volTxt = n => n >= 1e8 ? (n / 1e8).toFixed(1) + '억주'
                         : n >= 1e4 ? Math.round(n / 1e4).toLocaleString() + '만주'
                         : Math.round(n).toLocaleString() + '주';
-      /* 글자는 차트 아래 정보 줄에 적는다 (차트 안에 두면 캔들·다이버전스 글자와 겹친다) — 아래 mainInfoVol */
+      /* 글자 — 거래량 칸 왼쪽 위에 막대와 겹쳐 적는다 (2026-10-22). 거래량 칸이 주가 칸과 따로라 캔들과는 겹치지 않는다.
+         '현재 거래량 · 60일 평균 대비 %'. 막대 위에서도 읽히게 어두운 테두리를 두른다 */
+      if (sepVol && lv > 0) {
+        const dt = String((slice[li] && slice[li].date) || '').slice(2, 10).replace(/-/g, '.');
+        const pct = la > 0 ? Math.round(lv / la * 100) : null;
+        const hot = pct != null && pct >= 200;
+        ctx.save();
+        ctx.font = 'bold 11.5px monospace'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.lineJoin = 'round'; ctx.lineWidth = 3; ctx.strokeStyle = '#0d1117cc';
+        let tx = PAD.l + 6; const ty = base - VOL_BAND + 14;
+        const parts = [['거래량 ' + volTxt(lv), '#c9d1d9']];
+        if (pct != null) parts.push([' · 60일평균 대비 ' + pct.toLocaleString() + '%', hot ? '#ffd54f' : '#c9d1d9']);
+        if (dt) parts.push([' (' + dt + ')', '#8b949e']);
+        parts.forEach(([t, c]) => { ctx.strokeText(t, tx, ty); ctx.fillStyle = c; ctx.fillText(t, tx, ty); tx += ctx.measureText(t).width; });
+        ctx.restore();
+      }
     }
   }
 
@@ -2617,9 +2606,6 @@ function drawCandle() {
   {
     const lx = xOf(loIdx), ly = yOf(loVal);
     const loTxt = Math.round(loVal).toLocaleString();   // 상승률은 아래 정보 줄에 적는다
-    mainInfoVol(data, range, slice);
-    const ml = document.getElementById('mi-low');
-    if (ml) ml.textContent = '최저 ' + Math.round(loVal).toLocaleString() + (loDate ? ' (' + loDate + ')' : '') + ' 대비 ' + (loPct >= 0 ? '+' : '') + loPct + '%';
     ctx.font = 'bold 11.5px monospace';
     const tw = ctx.measureText(loTxt).width;
     if (lx - tw - 20 > PAD.l) {
@@ -2744,7 +2730,7 @@ function drawCandle() {
     legends.push({t:'EMA9 (Mass 판단선)', c:'#4ecdc4'});
   if (overlays.VPROFILE) legends.push({t:'매물대', c:'#aed581', sub:[{t:'현재가대', c:'#f48fb1'}, {t:'최대', c:'#64b5f6'}]});
   if (overlays.VOL_OV)   legends.push({t:'거래량 겹쳐보기', c:'#8b949e',
-    sub:[{t:'20일평균(점선)', c:'#ffd54f'}]});
+    sub:[{t:'60일평균(점선)', c:'#ffd54f'}]});
 
   if (legends.length && lgOn()) {
     ctx.textAlign = 'left';
@@ -4433,7 +4419,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.22.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.22.-v4';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
