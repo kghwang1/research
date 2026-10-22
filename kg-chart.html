@@ -265,6 +265,15 @@ body.stock-closed #step-pad { display: flex; }
 }
 #step-pad button:active { background: #58a6ff; color: #0d1117; }
 #step-pad button:disabled { opacity: .3; border-color: #30363d; color: #6e7681; background: rgba(33,38,45,.6); }
+/* 종목 이동 단추 (2026-10-21) — 종목창을 닫았을 때만, 첫 보조차트의 양쪽에.
+   왼쪽 ▼ = 목록의 아래 종목으로, 오른쪽 ▲ = 위쪽 종목으로 */
+.stk-nav { position: fixed; z-index: 55; display: none; width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(33,38,45,.78); border: 1px solid #58a6ff; color: #58a6ff; font-size: 17px; font-weight: 700; line-height: 1;
+  align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,.45);
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none; padding: 0; }
+body.stock-closed .stk-nav { display: flex; }
+body.mini-mode .stk-nav { display: none !important; }
+.stk-nav:active { background: #58a6ff; color: #0d1117; }
 
 /* 보조지표 패널 - 각각 고정 높이 */
 .sub-wrap {
@@ -446,6 +455,9 @@ body.stock-closed #step-pad { display: flex; }
   <div id="step-pad">
     <button id="step-back" title="캔들 1개 앞으로 (누르고 있으면 연속)">‹</button>
   </div>
+  <!-- 종목 이동 (종목창을 닫았을 때만) — 첫 보조차트 양쪽 -->
+  <button id="stk-dn" class="stk-nav" title="아래 종목으로">▼</button>
+  <button id="stk-up" class="stk-nav" title="위쪽 종목으로">▲</button>
 </div>
 
 <script>
@@ -992,6 +1004,7 @@ window.addEventListener('message', e => {
   const d = e.data;
   if (!d || d.kg !== 'stockPane') return;
   document.body.classList.toggle('stock-closed', !d.open);
+  stkNavPlace();
 });
 
 function init() {
@@ -1012,6 +1025,7 @@ function init() {
   if (KG_MINI) { Object.keys(state.selected).forEach(k => state.selected[k] = false); state.selectedOrder = []; }
   setupHeader();
   setupSearch();
+  stkNavInit();
 
   // 차트 영역(캔들+보조차트) 터치/클릭 시 사이드바 닫기
   const chartArea = document.getElementById('chart-area');
@@ -1692,6 +1706,7 @@ SUB_SWAP = (comboMode() === 'peak') ? SUB_SWAP_PEAK : SUB_SWAP_BASE;
       주가 저점↓·지표 저점↑ = 상승 다이버전스(붉은 선 ▲)
    ⑤ 첫 번째 꼭지가 과열·침체 쪽에 있을 때만 (RSI 60/40, SlowStoch 70/30, MFI 60/40,
       MACD 히스토그램·Elder Ray 는 0 위/아래)
+   ⑥ 엘더레이만: 주가가 3% 이상 더 나갔는데 지표가 거의 같거나 뒤처지면 신호 (값 차이 5% 잡음 기준 없음) — 2026-10-22
    고점은 오른쪽 DIV_L 봉이 지나야 확정되므로, 신호는 그만큼 늦게 나온다 */
 const DIV_L = 5, DIV_MIN = 5, DIV_MAX = 60;
 const DIV_UP = '#ff5252', DIV_DN = '#4da3ff';
@@ -1757,8 +1772,17 @@ function divFindRaw(key, dd){
       if (!ok(va)) continue;
       /* 차이가 너무 작으면 잡음으로 본다 — 0~100 지표는 2 이상, 나머지는 첫 값의 5% 이상 */
       const gapMin = (key === 'MACD' || key === 'ELDER') ? Math.abs(va) * 0.05 : 2;
-      if (Math.abs(va - vb) < gapMin) continue;
+      const elder = key === 'ELDER';
+      if (!elder && Math.abs(va - vb) < gapMin) continue;
       const forming = b + DIV_L > N - 1, held = N - 1 - b;     // 형성 중: 두 번째 꼭지 뒤 held 봉째 지켜지는 중
+      if (elder) {
+        /* 엘더레이 (2026-10-22) — 주가가 3% 이상 더 나갔는데 지표가 따라가지 못하면(거의 같거나 낮아짐) 다이버전스.
+           값이 거의 같은 것도 '차이 없음'이 아니라 '확인 못 받음'이므로 잡음으로 버리지 않는다 */
+        const tol = Math.abs(va) * 0.05;
+        if (hi  && d[b].high > d[a].high * 1.03 && vb <= va + tol) out.push({ type:'bear', a, b, oa, ob, va, vb, forming, held });
+        if (!hi && d[b].low  < d[a].low  * 0.97 && vb >= va - tol) out.push({ type:'bull', a, b, oa, ob, va, vb, forming, held });
+        continue;
+      }
       if (hi  && d[b].high > d[a].high && vb < va) out.push({ type:'bear', a, b, oa, ob, va, vb, forming, held });
       if (!hi && d[b].low  < d[a].low  && vb > va) out.push({ type:'bull', a, b, oa, ob, va, vb, forming, held });
     }
@@ -4398,7 +4422,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.21.-v3';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.22.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4983,6 +5007,39 @@ function flowPlace(){
 }
 window.addEventListener('resize', ()=>{ if(document.getElementById('flow-cv')) drawFlowChart(); });
 
+/* ───── 종목 이동 단추 (2026-10-21) ─────
+   종목창(좌측 목록)을 닫았을 때만 보인다. 누르면 부모(종목분석)에게 알려서
+   목록의 다음(아래) · 이전(위) 종목을 열게 한다. 위치는 첫 번째 보조차트의 왼쪽·오른쪽 가운데 —
+   보조차트가 없으면 주가차트를 기준으로 한다. */
+function stkNavPlace(){
+  const dn = document.getElementById('stk-dn'), up = document.getElementById('stk-up');
+  if (!dn || !up || KG_MINI) return;
+  const base = document.querySelector('#chart-area .sub-wrap') || document.getElementById('candle-wrap');
+  if (!base) return;
+  const r = base.getBoundingClientRect();
+  if (!r.width) return;
+  const sz = 40;
+  const y = Math.max(0, Math.min(window.innerHeight - sz, r.top + r.height/2 - sz/2));
+  dn.style.top = up.style.top = y + 'px';
+  dn.style.left = (r.left + 6) + 'px';
+  up.style.left = (r.right - sz - 6) + 'px';
+}
+function stkNavInit(){
+  const dn = document.getElementById('stk-dn'), up = document.getElementById('stk-up');
+  if (!dn || !up || dn._bound) return; dn._bound = true;
+  const go = dir => { try { if (window.parent && window.parent !== window) window.parent.postMessage({ kg:'stockMove', dir }, '*'); } catch(e) {} };
+  dn.addEventListener('click', () => go('down'));   // 왼쪽: 아래 종목
+  up.addEventListener('click', () => go('up'));      // 오른쪽: 위쪽 종목
+  window.addEventListener('resize', stkNavPlace);
+  const area = document.getElementById('chart-area');
+  if (area) {
+    area.addEventListener('scroll', stkNavPlace, { passive: true });
+    try { new MutationObserver(stkNavPlace).observe(area, { childList: true }); } catch(e) {}   // 보조차트가 바뀔 때
+    try { new ResizeObserver(stkNavPlace).observe(area); } catch(e) {}
+  }
+  stkNavPlace();
+}
+
 function bindStepBtn(){
   const setup = (id, dir, endMsg) => {
     const b = document.getElementById(id);
@@ -5063,6 +5120,7 @@ function fitPanels() {
     w.style.flex = '0 0 ' + h + 'px';
     w.style.height = h + 'px';
   });
+  stkNavPlace();                        // 보조차트 높이가 정해졌으니 종목 이동 단추 자리를 맞춘다
 }
 
 function renderAll() {

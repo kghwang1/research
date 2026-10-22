@@ -15932,7 +15932,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.21.-v7';
+const KG_APP_VER = '10.22.-v1';
 const KG_APP_BUILD = KG_APP_VER + ' 고점저점 차례 · 외국인 비중변화 잣대';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -19282,6 +19282,18 @@ function showChartGuide(on){
   }
 }
 
+/* 종목 이동 — 좌측 목록에서 지금 종목의 아래(step=+1)·위(step=-1) 종목을 연다 (2026-10-21).
+   목록이 닫혀 있어도 DOM 은 그대로 있으므로 그 순서를 따른다. 제목 줄·결과표 줄은 건너뛴다. */
+function chartMoveStock(step){
+  const box=$('#chartStockItems'); if(!box) return;
+  const items=[...box.querySelectorAll('.cs-item[data-code]')].filter(x=>!x.classList.contains('cs-divres') && x.style.display!=='none');
+  if(!items.length){ toast('목록에 종목이 없습니다'); return; }
+  const cur=items.findIndex(x=>x.classList.contains('on'));
+  const next=cur<0 ? (step>0 ? 0 : items.length-1) : cur+step;
+  if(next<0 || next>=items.length){ toast(step>0 ? '맨 아래 종목입니다' : '맨 위 종목입니다'); return; }
+  items[next].click();
+  if(items[next].scrollIntoView) items[next].scrollIntoView({block:'nearest'});
+}
 /* 챠트 좌측 목록 한 줄을 누르면 — 챠트를 열고, 분석·장기투자·보고서가 같은 종목을 이어받게 한다 */
 function chartBindItem(el){
   el.onclick=(ev)=>{
@@ -19510,6 +19522,13 @@ document.addEventListener('DOMContentLoaded',()=>{
     st.style.color=open?'#0c0e14':'var(--ink)';
     chartPaneMsg(open);
   };
+  /* 챠트의 종목 이동 단추(첫 보조차트 양쪽)가 보내는 요청 — 목록의 아래(▼)·위(▲) 종목을 연다.
+     챠트 칸에서 온 것만 받는다. */
+  window.addEventListener('message', e=>{
+    const d=e.data; if(!d || d.kg!=='stockMove') return;
+    const f=$('#chartIframe'); if(!f || e.source!==f.contentWindow) return;
+    chartMoveStock(d.dir==='up' ? -1 : 1);
+  });
   // 챠트를 새로 띄울 때도 지금 상태를 알려 준다
   const cif=$('#chartIframe');
   if(cif && !cif._paneMsg){
