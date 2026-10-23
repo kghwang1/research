@@ -371,7 +371,7 @@ body.mini-mode .stk-nav { display: none !important; }
       아래 <b>기본챠트</b>·<b>고점저점 탐색</b> 버튼으로 한 번에 표시<br>
     </div>
     <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:6px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 기본챠트</button>
-    <button id="peakComboBtn" title="RSI⇄SlowStoch · MACD · Elder Ray · MFI⇄외국인순매수 — 주가와 엇갈리는 다이버전스를 선과 ▲▼로 표시" style="width:calc(100% - 12px);margin:0 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#8957e5;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🎯 고점저점 탐색</button>
+    <button id="peakComboBtn" title="RSI⇄CCI · MACD⇄관성지수 · Elder Ray · MFI⇄외국인순매수 — 주가와 엇갈리는 다이버전스를 선과 ▲▼로 표시" style="width:calc(100% - 12px);margin:0 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#8957e5;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🎯 고점저점 탐색</button>
     <div class="group-title">▶ 오버레이</div>
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
@@ -399,7 +399,6 @@ body.mini-mode .stk-nav { display: none !important; }
     <label class="ind-label" data-key="SMI" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">SMI 스토캐스틱모멘텀지수</span></label>
     <label class="ind-label" data-key="STOCHRSI" style="--col:#bc8cff"><input type="checkbox" class="cb-show"> <span class="nm">StochRSI 상대강도스토캐스틱</span></label>
     <label class="ind-label" data-key="STOCH" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">Stoch 스토캐스틱</span></label>
-    <label class="ind-label" data-mark5 data-key="SLOWSTOCH" style="--col:#ff7eb6"><input type="checkbox" class="cb-show"> <span class="nm">SlowStoch 완만한스토캐스틱</span></label>
     <label class="ind-label" data-key="CMO" style="--col:#f78166"><input type="checkbox" class="cb-show"> <span class="nm">CMO 샨드모멘텀오실레이터</span></label>
     <label class="ind-label" data-key="DMI_DYN" style="--col:#a8ff78"><input type="checkbox" class="cb-show"> <span class="nm">Dyn.MI 다이나믹모멘텀지수</span></label>
     <label class="ind-label" data-key="MASS" style="--col:#4ecdc4"><input type="checkbox" class="cb-show"> <span class="nm">Mass 대중심리지수</span></label>
@@ -1038,12 +1037,12 @@ function init() {
   const params = new URLSearchParams(location.search);
   if (params.get('divscan')) { divScanPage(); return; }   // 다이버전스 종목 찾기 화면
   /* 다이버전스 목록에서 열면 ▲▼ 가 보이도록 고점저점 탐색 조합으로 */
-  if (params.get('div') && comboMode() !== 'peak') applyCombo(PEAK_COMBO.slice(), 'peak');
-  /* 신호 난 지표가 보이게 ⇄ 칸을 맞춘다 — S 만 났으면 SlowStoch, F 가 났으면 MFI (외국인 순매수 대신) */
+  if ((params.get('div') || params.get('combo') === 'peak') && comboMode() !== 'peak') applyCombo(PEAK_COMBO.slice(), 'peak');   // combo=peak: 표에서 눌러 올 때 (2026-10-23)
+  /* 신호 난 지표가 보이게 ⇄ 칸을 맞춘다 — C 만 났으면 CCI, F 가 났으면 MFI (외국인 순매수 대신) */
   if (params.get('div') && params.get('tags')) {
     const tg = params.get('tags'), m = swapMapGet();
-    if (/S/.test(tg) && !/R/.test(tg)) m.RSI = 'SLOWSTOCH';
-    else if (/R/.test(tg) && !/S/.test(tg)) delete m.RSI;
+    if (/C/.test(tg) && !/R/.test(tg)) m.RSI = 'CCI';
+    else if (/R/.test(tg) && !/C/.test(tg)) delete m.RSI;
     if (/F/.test(tg)) delete m.MFI;
     try { localStorage.setItem(SWAP_KEY, JSON.stringify(m)); } catch(e) {}
   }
@@ -1619,17 +1618,18 @@ const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
 const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'MACD', 'FRGN_NET'];
 
 /* 고점저점 탐색 (2026-10-05, 차례 바꿈 2026-10-21) — 다이버전스로 고점·저점을 찾는 조합.
-   RSI⇄SlowStoch(단기 모멘텀) → MACD(중기 힘) → Elder Ray(추세+매수·매도세) → MFI⇄외국인순매수(돈의 흐름)
+   RSI⇄CCI(단기 모멘텀) → MACD⇄관성지수(중기 힘·추세 확인) → Elder Ray(추세+매수·매도세) → MFI⇄외국인순매수(돈의 흐름)
    주가 창은 이동평균 — 다이버전스 뒤 이평 이탈로 확인한다 */
 const PEAK_COMBO = ['MA', 'RSI', 'MACD', 'ELDER', 'MFI'];
 
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
-/* 교대 짝은 조합마다 다르다 — 기본챠트는 RSI⇄RVI·MACD⇄SlowStoch,
-   고점저점 탐색은 RSI⇄SlowStoch·MFI⇄외국인순매수 (MACD·Elder Ray 는 짝 없음).
+/* 교대 짝은 조합마다 다르다 — 기본챠트는 RSI⇄RVI·MACD⇄관성지수,
+   고점저점 탐색은 RSI⇄CCI·MACD⇄관성지수·MFI⇄외국인순매수 (Elder Ray 는 짝 없음).
    지금 어느 조합인지는 교대 상태(kg_sub_swap)의 _mode 칸에 적어 둔다 — 서버 동기화도 함께 된다 */
 const SUB_SWAP_PEAK = {
-  RSI:'SLOWSTOCH', SLOWSTOCH:'RSI',
+  RSI:'CCI',  CCI:'RSI',                       // RSI ⇄ CCI (2026-10-23, 예전 RSI⇄SlowStoch)
+  MACD:'INERTIA', INERTIA:'MACD',              // MACD ⇄ 관성지수 (추세 확인용)
   MFI:'FRGN_NET',  FRGN_NET:'MFI',              // MFI ⇄ 외국인 순매수 (2026-10-15, 예전 MFI⇄PVT)
 };
 const SUB_SWAP_BASE = {
@@ -1637,7 +1637,7 @@ const SUB_SWAP_BASE = {
   INST_NET:'OBV',        OBV:'INST_NET',          // 기관 순매수 ⇄ OBV
   ADXR:'ADX',            ADX:'ADXR',          // ADXR ⇄ DMI
   RSI:'RVI',             RVI:'RSI',
-  MACD:'SLOWSTOCH',      SLOWSTOCH:'MACD',
+  MACD:'INERTIA',        INERTIA:'MACD',      // MACD ⇄ 관성지수 (예전 MACD⇄SlowStoch)
 };
 let SUB_SWAP = SUB_SWAP_BASE;
 
@@ -1698,13 +1698,13 @@ SUB_SWAP = (comboMode() === 'peak') ? SUB_SWAP_PEAK : SUB_SWAP_BASE;
    ③ 지표 값은 그 봉 앞뒤 2봉 안의 최고(최저)
    ④ 주가 고점↑·지표 고점↓ = 하락 다이버전스(푸른 선 ▼)
       주가 저점↓·지표 저점↑ = 상승 다이버전스(붉은 선 ▲)
-   ⑤ 첫 번째 꼭지가 과열·침체 쪽에 있을 때만 (RSI 60/40, SlowStoch 70/30, MFI 60/40,
+   ⑤ 첫 번째 꼭지가 과열·침체 쪽에 있을 때만 (RSI 60/40, CCI ±100, MFI 60/40,
       MACD 히스토그램·Elder Ray 는 0 위/아래)
-   ⑥ 엘더레이만: 주가가 3% 이상 더 나갔는데 지표가 거의 같거나 뒤처지면 신호 (값 차이 5% 잡음 기준 없음) — 2026-10-22
+   ⑥ 엘더레이·CCI: 주가가 3% 이상 더 나갔는데 지표가 거의 같거나 뒤처지면 신호 (값 차이 5% 잡음 기준 없음) — 2026-10-22
    고점은 오른쪽 DIV_L 봉이 지나야 확정되므로, 신호는 그만큼 늦게 나온다 */
 const DIV_L = 5, DIV_MIN = 5, DIV_MAX = 60;
 const DIV_UP = '#ff5252', DIV_DN = '#4da3ff';
-const DIV_TAG = { RSI:'R', SLOWSTOCH:'S', MACD:'M', ELDER:'E', MFI:'F' };
+const DIV_TAG = { RSI:'R', CCI:'C', MACD:'M', ELDER:'E', MFI:'F' };   // SlowStoch(S)는 2026-10-23에 빼고 CCI(C)를 넣었다
 /* 추세 › 지수분석의 작은 그래프 (kg-chart.html?mini=1, 2026-10-19)
    주가차트만 그리고 보조차트는 없이, 다이버전스는 늘 표시한다. 3개월만 보여 주고,
    이 화면에서는 설정(조합·보기 구간 등)을 저장하지 않는다 — 원래 챠트 화면 설정을 건드리지 않게 */
@@ -1727,7 +1727,7 @@ function divFindRaw(key, dd){
   const r = CALC[key](d);
   let hiA, loA, hiOk, loOk;
   if (key === 'RSI')            { hiA = loA = r.rsi;  hiOk = v => v >= 60; loOk = v => v <= 40; }
-  else if (key === 'SLOWSTOCH') { hiA = loA = r.k;    hiOk = v => v >= 70; loOk = v => v <= 30; }
+  else if (key === 'CCI')       { hiA = loA = r.cci;  hiOk = v => v >= 100; loOk = v => v <= -100; }
   else if (key === 'MFI')       { hiA = loA = r.mfi;  hiOk = v => v >= 60; loOk = v => v <= 40; }
   else if (key === 'MACD')      { hiA = loA = r.hist; hiOk = v => v > 0;   loOk = v => v < 0; }
   else if (key === 'ELDER')     { hiA = r.bull; loA = r.bear; hiOk = v => v > 0; loOk = v => v < 0; }
@@ -1766,7 +1766,7 @@ function divFindRaw(key, dd){
       if (!ok(va)) continue;
       /* 차이가 너무 작으면 잡음으로 본다 — 0~100 지표는 2 이상, 나머지는 첫 값의 5% 이상 */
       const gapMin = (key === 'MACD' || key === 'ELDER') ? Math.abs(va) * 0.05 : 2;
-      const elder = key === 'ELDER';
+      const elder = key === 'ELDER' || key === 'CCI';   // 값이 눌리지 않는 지표 — 주가 대비 방식으로 판정
       if (!elder && Math.abs(va - vb) < gapMin) continue;
       const forming = b + DIV_L > N - 1, held = N - 1 - b;     // 형성 중: 두 번째 꼭지 뒤 held 봉째 지켜지는 중
       if (elder) {
@@ -3016,9 +3016,11 @@ function drawSubInner(canvas, key) {
   (cfg.lines || []).forEach(lv => {
     if (lv < minV || lv > maxV) return;
     // 보조선은 RSI 70선 기준으로 통일 (주황 실선, 굵기 1)
-    ctx.strokeStyle = REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
+    /* SlowStoch 의 20·80 선은 붉은 실선 (2026-10-23) — 50 선은 그대로 */
+    const redLn = key === 'SLOWSTOCH' && (lv === 20 || lv === 80);
+    ctx.strokeStyle = redLn ? '#ff4444' : REF_LINE_COLOR; ctx.lineWidth = REF_LINE_WIDTH; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(PAD.l, yOf(lv)); ctx.lineTo(W - PAD.r, yOf(lv)); ctx.stroke();
-    ctx.fillStyle = REF_LABEL_COLOR; ctx.font = '10px monospace'; ctx.textAlign = 'left';
+    ctx.fillStyle = redLn ? '#ff4444' : REF_LABEL_COLOR; ctx.font = '10px monospace'; ctx.textAlign = 'left';
     ctx.fillText(lv, W - PAD.r + 3, yOf(lv) + 3);
   });
 
@@ -3291,20 +3293,20 @@ function drawSubInner(canvas, key) {
         const a0 = inrRaw[i - 1], a1 = inrRaw[i], b0 = sigRaw[i - 1], b1 = sigRaw[i];
         if (a0 == null || a1 == null || b0 == null || b1 == null) continue;
         const ay = Math.max(30, Math.min(80, a1));   // 표시 위치만 범위 안으로
-        if (a0 <= b0 && a1 > b1 && isReal(i, true)) {          // 매입
-          const x = xOf(i), y = yOf(ay);
-          ctx.strokeStyle = '#2979ff66'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
-          ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch); ctx.stroke(); ctx.setLineDash([]);
-          ctx.fillStyle = '#2979ff';
-          ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
-          ctx.beginPath(); ctx.moveTo(x, y + 9); ctx.lineTo(x - 5, y + 18); ctx.lineTo(x + 5, y + 18); ctx.closePath(); ctx.fill();
-          ctx.fillText('매입', x, y + 29);
-        }
-        if (a0 >= b0 && a1 < b1 && isReal(i, false)) {          // 매도
+        if (a0 <= b0 && a1 > b1 && isReal(i, true)) {          // 매입 — 붉은색 (2026-10-23: 매입 붉은색·매도 푸른색)
           const x = xOf(i), y = yOf(ay);
           ctx.strokeStyle = '#ef535066'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
           ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch); ctx.stroke(); ctx.setLineDash([]);
           ctx.fillStyle = '#ef5350';
+          ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.moveTo(x, y + 9); ctx.lineTo(x - 5, y + 18); ctx.lineTo(x + 5, y + 18); ctx.closePath(); ctx.fill();
+          ctx.fillText('매입', x, y + 29);
+        }
+        if (a0 >= b0 && a1 < b1 && isReal(i, false)) {          // 매도 — 푸른색
+          const x = xOf(i), y = yOf(ay);
+          ctx.strokeStyle = '#2979ff66'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ch); ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = '#2979ff';
           ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
           ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x - 5, y - 18); ctx.lineTo(x + 5, y - 18); ctx.closePath(); ctx.fill();
           ctx.fillText('매도', x, y - 22);
@@ -4364,7 +4366,7 @@ function drawSubInner(canvas, key) {
 
   // ── 매매 시점 화살표 (오버레이 제외 보조지표) ──
   drawSubSignals(ctx, key, vals, n, xOf, yOf, minV, maxV, PAD, ch);
-  divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W);   // MACD·SlowStoch 다이버전스
+  divDrawSub(ctx, key, n, xOf, yOf, PAD, ch, W);   // MACD·CCI 등 다이버전스
 
   // 호버 수직선
   if (state.hoverIdx >= 0 && state.hoverIdx < n) {
@@ -4428,7 +4430,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.23.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.23.-v5';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5600,7 +5602,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
 function divKeepSig(x){ const t=String((x&&x.tags)||''); return t.length>=2 || t.indexOf('R')>=0; }
 const DIVSCAN_KEY = 'kg_div_scan';
 const DIVSCAN_OPT = 'kg_div_scan_opt';
-const DIVSCAN_KEYS = ['RSI', 'SLOWSTOCH', 'MACD', 'ELDER', 'MFI'];
+const DIVSCAN_KEYS = ['RSI', 'CCI', 'MACD', 'ELDER', 'MFI'];
 const DIVSCAN_RECENT = 10;                 // 최근 10거래일(2주) 안에 확정된 신호
 const DIVSCAN_HZ = [1, 3, 5, 10, 15, 20];  // 신호 뒤 며칠째 등락을 볼지
 /* 개인이 국내 ETF·해외선물 등으로 투자하기 쉬운 주요 원자재 (야후 선물 연결 시세) */
@@ -5615,7 +5617,7 @@ const DIVSCAN_FIXED = [
   ['KOSPI', '코스피', 'naver:KOSPI'], ['KOSDAQ', '코스닥', 'naver:KOSDAQ'], ['^KS200', '코스피200', 'naver:KPI200'],
   ['EWY', 'MSCI 코리아', 'yahoo'], ['GC=F', '금', 'yahoo'], ['SI=F', '은', 'yahoo'], ['CL=F', 'WTI 원유', 'yahoo'],
 ];
-const DIVSCAN_TAGNAME = { R:'RSI', S:'SlowStoch', M:'MACD', E:'Elder Ray', F:'MFI' };
+const DIVSCAN_TAGNAME = { R:'RSI', C:'CCI', S:'SlowStoch(옛)', M:'MACD', E:'Elder Ray', F:'MFI' };
 
 function divScanSleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 function divScanYmd(){ const n = new Date(); return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0') + '-' + String(n.getDate()).padStart(2,'0'); }
@@ -5758,7 +5760,7 @@ function divScanOne(d, idx, fmap, rmap){
       if (!g.tags.includes(DIV_TAG[k])) g.tags.push(DIV_TAG[k]);
     });
   });
-  const order = 'RSMEF';
+  const order = 'RCMEF';
   const allG = [...groups.values()]
     .map(g => ({ type:g.type, b:g.b, t:g.b + DIV_L, forming:g.forming, tags:g.tags.sort((x, y) => order.indexOf(x) - order.indexOf(y)).join('') }));
   const sigs = allG.filter(g => g.t < N);                 // 완성된 신호 (통계·최근 목록)
@@ -6134,7 +6136,7 @@ function divScanRender(res){
     + '<h3 class="dn">▼ 고점 다이버전스 — 하락 경계</h3>' + sigTable('bear')
     + '<h3>신호 효과는 며칠 가나 — 코스피·코스닥 지수와 비교</h3>' + (stH || '<div class="ds-empty">통계가 없습니다.</div>')
     + missH + idxH + failH
-    + '<div class="ds-note">· 지표 글자: R=RSI · S=SlowStoch · M=MACD · E=Elder Ray · F=MFI. 글자가 많을수록 여러 지표가 같은 꼭지에서 엇갈린 것입니다.<br>'
+    + '<div class="ds-note">· 지표 글자: R=RSI · C=CCI · M=MACD · E=Elder Ray · F=MFI. 글자가 많을수록 여러 지표가 같은 꼭지에서 엇갈린 것입니다.<br>'
     + '· 확정일 = 두 번째 꼭지 뒤 ' + DIV_L + '거래일 — 그날이 지나야 꼭지인 줄 알 수 있어 차트의 ▲▼ 보다 늦게 잡힙니다.<br>'
     + '· 지표 옆 <b>외+</b>/<b>외−</b> = 최근 5일 외국인 순매수/순매도 (신호와 같은 방향이면 초록).<br>'
     + '· <b style="color:#f0a836">형성 중</b> = 두 번째 꼭지 뒤 아직 ' + DIV_L + '거래일이 안 찼지만 지금까지 꼭지가 지켜지는 신호 (3/5 = 3일째). 그 사이 더 낮은 저가(▼ 은 더 높은 고가)가 나오면 사라지며, 신호 효과 통계에는 넣지 않습니다. 차트에는 흐린 점선과 ▲SE… 처럼 표시됩니다.<br>'

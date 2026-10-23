@@ -1663,8 +1663,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <p>차트의 지표 메뉴에서 <b>🎯 고점저점 탐색</b>을 누릅니다. 주가 창에 이동평균이 켜지고, 아래에 보조차트가 다음 순서로 나옵니다. 일봉을 기본으로 보세요.</p>
 <table>
 <tr><th>자리</th><th>지표</th><th>⇄ 교대</th><th>역할</th></tr>
-<tr><td>1</td><td>RSI</td><td>SlowStoch</td><td>단기 모멘텀 — 확인과 진입 시점</td></tr>
-<tr><td>2</td><td>MACD</td><td>—</td><td>중기 추세의 힘 — 큰 고점·저점</td></tr>
+<tr><td>1</td><td>RSI</td><td>CCI</td><td>단기 모멘텀 — 확인과 진입 시점</td></tr>
+<tr><td>2</td><td>MACD</td><td>관성지수</td><td>중기 추세의 힘 — 큰 고점·저점 (관성지수는 추세가 이어지는지 확인용)</td></tr>
 <tr><td>3</td><td>Elder Ray</td><td>—</td><td>추세 방향 + 매수·매도세의 힘</td></tr>
 <tr><td>4</td><td>MFI</td><td>외국인 순매수</td><td>거래량(돈의 흐름)으로 검증</td></tr>
 </table>
@@ -1679,7 +1679,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <table>
 <tr><th>글자</th><th>지표</th></tr>
 <tr><td>R</td><td>RSI</td></tr>
-<tr><td>S</td><td>SlowStoch</td></tr>
+<tr><td>C</td><td>CCI</td></tr>
 <tr><td>M</td><td>MACD</td></tr>
 <tr><td>E</td><td>Elder Ray</td></tr>
 <tr><td>F</td><td>MFI</td></tr>
@@ -1706,7 +1706,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
 <h3>5단계 — ⇄ 로 교대 지표까지 확인</h3>
 <ul>
-<li>RSI 칸의 <b>⇄</b>를 눌러 <b>SlowStoch</b>로 바꿔 봅니다. 같은 자리에 신호가 나오면 단기 시점이 더 분명해집니다.</li>
+<li>RSI 칸의 <b>⇄</b>를 눌러 <b>CCI</b>로 바꿔 봅니다. CCI는 0~100 천장·바닥에 붙지 않아 극단에서도 저점·고점 차이가 잘 드러납니다. 같은 자리에 신호가 나오면 단기 시점이 더 분명해집니다.</li>
+<li>MACD 칸의 <b>⇄</b>로 <b>관성지수</b>를 보면 추세가 이어지는지 확인할 수 있습니다. 50 위면 상승 관성, 아래면 하락 관성입니다. (관성지수는 신호용이 아니라 확인용입니다.)</li>
 <li>MFI 칸의 <b>⇄</b>로 <b>PVT</b>로 바꾸면, 거래량 기준의 다이버전스와 전고점·전저점 돌파 신호를 함께 볼 수 있습니다.</li>
 </ul>
 
@@ -1742,8 +1743,9 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <ul>
 <li>고점·저점 = 좌우 5봉보다 높거나 낮은 봉 (같은 가격이 이어지면 앞쪽 봉)</li>
 <li>두 꼭지 사이가 5~60봉일 때만 비교</li>
-<li>첫 꼭지가 과열·침체 쪽일 때만 — RSI·MFI 60/40, SlowStoch 70/30, MACD·Elder Ray 0 위/아래</li>
-<li>지표 차이가 작으면 잡음으로 버림 — 0~100 지표는 2 미만, MACD·Elder Ray는 첫 값의 5% 미만</li>
+<li>첫 꼭지가 과열·침체 쪽일 때만 — RSI·MFI 60/40, CCI ±100, MACD·Elder Ray 0 위/아래</li>
+<li>지표 차이가 작으면 잡음으로 버림 — RSI·MFI는 2 미만, MACD는 첫 값의 5% 미만</li>
+<li>Elder Ray·CCI는 값이 눌리지 않으므로 다르게 봅니다 — 주가가 3% 이상 더 나갔는데 지표가 거의 같거나(5% 안쪽) 뒤처지면 신호</li>
 </ul>
 <p class="foot">고점저점 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
   </div>
@@ -5311,7 +5313,7 @@ function renderWatchTable(){
     const stale = dr && dr.ymd && dr.ymd!==kgYmdLocal();
     h+=`<tr class="add-row"><td colspan="9" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left;white-space:normal;line-height:1.6">
       ${dr ? `기준 ${escHtml(dr.atStr||dr.ymd||'')}${stale?' <b style="color:#f0a836">(오늘 것이 아님)</b>':''} · 최근 10거래일 안에 확정된 신호 · 국내 종목만 (원자재는 챠트 › 🎯 다이버전스 목록에서)` : '아직 찾은 결과가 없습니다.'}<br>
-      ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI S=SlowStoch M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다<br>
+      ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI C=CCI M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다<br>
       <b style="color:#d29922">형성 중 3/5</b> = 두 번째 꼭지 뒤 3일째 지켜지는 중 — 5일이 차면 완성, 그 전에 꼭지가 깨지면 사라집니다 (괄호는 꼭지 날 종가 대비)<br>
       추가신호(찾은 때 마지막 봉 기준): <b style="color:#e53935">20▲</b>/<b style="color:#1e88e5">20▼</b> 종가가 20일선 위/아래 · <b style="color:#e53935">120▲</b>/<b style="color:#1e88e5">120▼</b> 120일선 위/아래 · RSI <b style="color:#1e88e5">30 이하 과매도</b> · <b style="color:#e53935">70 이상 과매수</b> · 그 사이는 보통<br>
       ↓ 아래에 찾은 전체 목록(원자재 포함)과 신호 효과 표가 있습니다 — 새로 찾으려면 아래 [찾기]</td></tr>`;
@@ -9323,12 +9325,12 @@ let idx3Hover = -1;
 
 /* ───── 시황 그래프 다이버전스 (2026-10-17) ─────
    챠트 › 🎯 고점저점 탐색과 똑같은 규칙(kg-chart.html 의 divFindRaw)으로
-   RSI·SlowStoch·MACD·Elder Ray·MFI 의 다이버전스를 찾아 시황 그래프에 같은 모양으로 그린다.
+   RSI·CCI·MACD·Elder Ray·MFI 의 다이버전스를 찾아 시황 그래프에 같은 모양으로 그린다.
    형성 중(두 번째 꼭지 뒤 5봉이 덜 찬 것)도 흐린 점선과 '…' 로 보인다.
    지표 기간은 챠트 설정(kgchart_params)을 그대로 따른다 */
 const MD_L = 5, MD_MIN = 5, MD_MAX = 60;
 const MD_UP = '#ff5252', MD_DN = '#4da3ff';
-const MD_TAG = { RSI:'R', SLOWSTOCH:'S', MACD:'M', ELDER:'E', MFI:'F' };
+const MD_TAG = { RSI:'R', CCI:'C', MACD:'M', ELDER:'E', MFI:'F' };
 function mdP(key, idx, def){
   try{ const all=JSON.parse(localStorage.getItem('kgchart_params')||'{}'); const v=all[key]?all[key][idx]:null; if(v!=null && v>=2) return v; }catch(e){}
   return def;
@@ -9353,8 +9355,8 @@ const MD_CALC = {
     rsi.push(...new Array(rp-1).fill(null)); rsi.push(100-100/(1+ag/(al||1e-10)));
     for(let i=rp;i<g.length;i++){ ag=(ag*(rp-1)+g[i])/rp; al=(al*(rp-1)+l[i])/rp; rsi.push(100-100/(1+ag/(al||1e-10))); }
     return { rsi }; },
-  SLOWSTOCH:d=>{ const K=d.map((_,i)=>{ if(i<13) return null; const sl=d.slice(i-13,i+1), hh=Math.max(...sl.map(x=>x.high)), ll=Math.min(...sl.map(x=>x.low)); return hh===ll?50:((d[i].close-ll)/(hh-ll))*100; });
-    return { k:mdSma(K,3) }; },
+  CCI:d=>{ const cp=mdP('CCI',0,20), tp=d.map(x=>(x.high+x.low+x.close)/3);
+    return { cci:tp.map((_,i)=>{ if(i<cp-1) return null; const sl=tp.slice(i-cp+1,i+1), m=sl.reduce((a,b)=>a+b)/cp, md=sl.reduce((a,b)=>a+Math.abs(b-m),0)/cp; return (tp[i]-m)/(0.015*(md||1e-10)); }) }; },
   MFI:d=>{ if(!d.some(x=>x.volume>0)) return { mfi:[] };          // 거래량이 없는 자료는 건너뛴다
     const tp=d.map(x=>(x.high+x.low+x.close)/3);
     return { mfi:tp.map((_,i)=>{ if(i<14) return null; let pos=0,neg=0; for(let j=i-13;j<=i;j++){ const mf=tp[j]*(d[j].volume||0); if(j>0&&tp[j]>tp[j-1]) pos+=mf; else neg+=mf; } return 100-100/(1+pos/(neg||1e-10)); }) }; },
@@ -9364,7 +9366,7 @@ function mdFind(key, d){
   const r=MD_CALC[key](d);
   let hiA, loA, hiOk, loOk;
   if(key==='RSI')            { hiA=loA=r.rsi;  hiOk=v=>v>=60; loOk=v=>v<=40; }
-  else if(key==='SLOWSTOCH') { hiA=loA=r.k;    hiOk=v=>v>=70; loOk=v=>v<=30; }
+  else if(key==='CCI')       { hiA=loA=r.cci;  hiOk=v=>v>=100; loOk=v=>v<=-100; }
   else if(key==='MFI')       { hiA=loA=r.mfi;  hiOk=v=>v>=60; loOk=v=>v<=40; }
   else if(key==='MACD')      { hiA=loA=r.hist; hiOk=v=>v>0;   loOk=v=>v<0; }
   else                       { hiA=r.bull; loA=r.bear; hiOk=v=>v>0; loOk=v=>v<0; }
@@ -9388,8 +9390,15 @@ function mdFind(key, d){
       const oa=ext(arr,a,hi), ob=ext(arr,b,hi); if(oa<0||ob<0) continue;
       const va=arr[oa], vb=arr[ob]; if(!ok(va)) continue;
       const gapMin=(key==='MACD'||key==='ELDER') ? Math.abs(va)*0.05 : 2;
-      if(Math.abs(va-vb)<gapMin) continue;
+      const lax=(key==='ELDER'||key==='CCI');          // 값이 눌리지 않는 지표 — 챠트와 같은 방식 (2026-10-23)
+      if(!lax && Math.abs(va-vb)<gapMin) continue;
       const forming=b+MD_L>N-1;
+      if(lax){
+        const tol=Math.abs(va)*0.05;
+        if(hi  && d[b].high>d[a].high*1.03 && vb<=va+tol) out.push({type:'bear', a, b, forming});
+        if(!hi && d[b].low <d[a].low*0.97  && vb>=va-tol) out.push({type:'bull', a, b, forming});
+        continue;
+      }
       if(hi  && d[b].high>d[a].high && vb<va) out.push({type:'bear', a, b, forming});
       if(!hi && d[b].low <d[a].low  && vb>va) out.push({type:'bull', a, b, forming});
     }
@@ -9410,7 +9419,7 @@ function mdGroups(rows){
       grp.get(id).tags.push(MD_TAG[k]);
     });
   });
-  const order='RSMEF';
+  const order='RCMEF';
   return [...grp.values()].map(g=>({...g, tags:g.tags.sort((x,y)=>order.indexOf(x)-order.indexOf(y)).join('')}));
 }
 let IDX3_DIV = {};   // 계열별 다이버전스 묶음 (날짜로 적는다)
@@ -15962,7 +15971,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.22.-v5';
+const KG_APP_VER = '10.23.-v5';
 const KG_APP_BUILD = KG_APP_VER + ' 고점저점 차례 · 외국인 비중변화 잣대';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -18608,6 +18617,8 @@ function openChart(code, name, rowsOverride) {
   }
   if(typeof stkSetPort==='function') stkSetPort(port);
   if(typeof stkSet==='function' && code) stkSet(code, name);
+  /* 표에서 현재주가·종목을 눌러 챠트로 올 때는 고점저점 탐색 조합으로 연다 (2026-10-23) */
+  window._chartComboPeak = true;
   openChartView(port, code, name, rowsOverride);
 }
 
@@ -18832,6 +18843,7 @@ function openChartView(initPort, initCode, initName, rowsOverride){
       }
     }
     (target || box.querySelector('.cs-item'))?.click();
+    window._chartComboPeak = false;          // 한 번 쓰면 거둔다 (다른 길로 챠트를 열 때 남지 않게)
     if(target) target.scrollIntoView({block:'nearest'});
   }, 120);
 }
@@ -19335,7 +19347,8 @@ function chartBindItem(el){
     stkSet(el.dataset.code, el.dataset.name);
     const ifr=$('#chartIframe');
     if(ifr) ifr.src='kg-chart.html?code='+encodeURIComponent(el.dataset.code)+'&name='+encodeURIComponent(el.dataset.name)
-      +(chartPort==='div'?'&div=1&tags='+encodeURIComponent(divTagsOf(el.dataset.code)):'');
+      +(chartPort==='div'?'&div=1&tags='+encodeURIComponent(divTagsOf(el.dataset.code)):'')
+      +(window._chartComboPeak?'&combo=peak':'');
   };
 }
 /* ── 다이버전스 종목 찾기 (2026-10-15) ──
