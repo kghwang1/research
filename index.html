@@ -1336,9 +1336,10 @@ function krDigits(x){
  <section id="study">
   <div class="stu-bar">
    <button class="sf on" data-s="ind">투자지표</button>
-   <button class="sf" data-s="peak">고점과 저점탐색</button>
-   <button class="sf" data-s="div">다이버전스</button>
+   <button class="sf" data-s="peak">다이버전스 탐색</button>
+   <button class="sf" data-s="div">다이버전스 종목찾기</button>
    <button class="sf" data-s="chart">챠트 기본조합해석</button>
+   <button class="sf" data-s="desc">지표설명</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -1650,8 +1651,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <p class="foot">작성 기준: 국내 증권사 기업분석 리포트의 일반적인 재무제표·투자지표 표 형식</p>
   </div>
   <div id="stuPeak" class="stu-doc" style="display:none">
-   <h2>고점저점 탐색으로 고점·저점 찾는 법</h2>
-<p class="lead">차트 화면의 <b>🎯 고점저점 탐색</b> 조합은 주가와 보조지표가 서로 반대로 움직이는 <b>다이버전스</b>를 찾아 선과 ▲▼로 보여 줍니다. 아래 순서대로 보시면 됩니다.</p>
+   <h2>다이버전스 탐색으로 고점·저점 찾는 법</h2>
+<p class="lead">차트 화면의 <b>🎯 다이버전스 탐색</b> 조합은 주가와 보조지표가 서로 반대로 움직이는 <b>다이버전스</b>를 찾아 선과 ▲▼로 보여 줍니다. 아래 순서대로 보시면 됩니다.</p>
 
 <div class="note">
 <p><b>다이버전스란</b></p>
@@ -1660,7 +1661,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 </div>
 
 <h3>1단계 — 조합 켜기</h3>
-<p>차트의 지표 메뉴에서 <b>🎯 고점저점 탐색</b>을 누릅니다. 주가 창에 이동평균이 켜지고, 아래에 보조차트가 다음 순서로 나옵니다. 일봉을 기본으로 보세요.</p>
+<p>차트의 지표 메뉴에서 <b>🎯 다이버전스 탐색</b>을 누릅니다. 주가 창에 이동평균이 켜지고, 아래에 보조차트가 다음 순서로 나옵니다. 일봉을 기본으로 보세요.</p>
 <table>
 <tr><th>자리</th><th>지표</th><th>⇄ 교대</th><th>역할</th></tr>
 <tr><td>1</td><td>RSI</td><td>CCI</td><td>단기 모멘텀 — 확인과 진입 시점</td></tr>
@@ -1747,13 +1748,208 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <li>지표 차이가 작으면 잡음으로 버림 — RSI·MFI는 2 미만, MACD는 첫 값의 5% 미만</li>
 <li>Elder Ray·CCI는 값이 눌리지 않으므로 다르게 봅니다 — 주가가 3% 이상 더 나갔는데 지표가 거의 같거나(5% 안쪽) 뒤처지면 신호</li>
 </ul>
-<p class="foot">고점저점 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
+<p class="foot">다이버전스 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
   </div>
   <!-- 챠트에 있던 '📖 해석' 을 STUDY 로 옮겼다 (2026-10-16). 내용은 CHART_GUIDE_HTML 에서 채운다 -->
   <!-- STUDY › 다이버전스 (2026-10-17) — 챠트의 '다이버전스 종목 찾기' 화면을 그대로 붙인다.
        결과는 kg_div_scan 하나를 함께 쓰므로 어디서 찾든 양쪽에 동시에 반영된다 -->
   <div id="stuDiv" class="stu-doc" style="display:none;padding:0"><iframe id="stuDivEmbed" title="다이버전스 종목 찾기" style="width:100%;height:600px;border:0;display:block;background:#0d1117"></iframe></div>
   <div id="stuChart" class="stu-doc" style="display:none"></div>
+  <div id="stuDesc" class="stu-doc" style="display:none">
+   <h2>지표설명 — 기본챠트와 다이버전스 탐색에 쓰는 보조지표</h2>
+<p class="lead">차트의 <b>기본챠트</b>와 <b>🎯 다이버전스 탐색</b> 조합에 쓰이는 지표를 한곳에 모았습니다. 각 지표마다 ① 무엇을 보여 주는지 ② 값을 어떻게 구하는지(개략) ③ 매매 타이밍을 적었습니다. 지표 하나만으로 매매하지 말고, 다른 지표·주가 모양과 겹쳐 확인하는 보조 도구로 쓰세요.</p>
+
+<div class="note">
+<p><b>조합별 지표</b></p>
+<table>
+<tr><th>조합</th><th>주가 창</th><th>보조차트 (⇄ 는 눌러서 바꿔 보는 짝)</th></tr>
+<tr><td>기본챠트</td><td>일목균형표 · 매물대 · 거래량</td><td>ADXR · DMI · RSI⇄RVI · 외국인 순매수⇄공매도</td></tr>
+<tr><td>다이버전스 탐색</td><td>이동평균 · 매물대 · 거래량</td><td>RSI⇄CCI · MACD⇄관성지수 · Elder Ray · MFI⇄외국인 순매수</td></tr>
+</table>
+</div>
+
+<h2>주가 창</h2>
+
+<h3>이동평균 (MA 5·20·60)</h3>
+<ul>
+<li><b>의미</b> — 일정 기간 종가의 평균으로 추세의 방향과 지지·저항을 봅니다. 5일선은 단기, 20일선은 한 달, 60일선은 한 분기의 흐름입니다.</li>
+<li><b>값 구하기</b> — 최근 N일 종가를 더해 N으로 나눕니다. 매일 가장 오래된 날을 빼고 새 날을 넣으며 이어 그립니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매수: 주가가 20일선 위로 올라서고 20일선도 위로 향할 때, 5일선이 20일선을 상향 돌파할 때</li>
+<li>매도: 주가가 20일선 아래로 내려가고 20일선이 꺾일 때, 5일선이 20일선을 하향 돌파할 때</li>
+<li>다이버전스 신호가 나온 뒤에는 주가가 20일선을 넘는지(저점) · 이탈하는지(고점)로 확인합니다.</li>
+</ul></li>
+</ul>
+
+<h3>일목균형표</h3>
+<ul>
+<li><b>의미</b> — 추세·지지와 저항·시간을 한 화면에서 봅니다. 선행스팬 A·B 사이의 <b>구름대</b>가 두꺼운 지지·저항 역할을 합니다.</li>
+<li><b>값 구하기</b> — 전환선 = (9일 최고가+최저가)÷2, 기준선 = (26일 최고가+최저가)÷2, 선행스팬 A = (전환선+기준선)÷2, 선행스팬 B = (52일 최고가+최저가)÷2 (A·B는 26일 앞으로 그림), 후행스팬 = 종가를 26일 뒤로 그린 선</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매수: 주가가 구름 위 + 전환선이 기준선을 상향 돌파</li>
+<li>매도: 주가가 구름 아래 + 전환선이 기준선을 하향 돌파</li>
+<li>구름 안에 있으면 방향이 없는 구간이므로 관망합니다.</li>
+</ul></li>
+</ul>
+
+<h3>매물대와 거래량</h3>
+<ul>
+<li><b>의미</b> — 어느 가격대에서 거래가 많이 쌓였는지 보여 줍니다. 쌓인 곳은 주가가 멈추기 쉬운 지지·저항입니다. 아래 막대는 일별 거래량이고 노란 점선은 60일 평균 거래량입니다.</li>
+<li><b>값 구하기</b> — 보이는 기간의 거래량을 가격 구간별로 합산해 가로 막대로 그리고, 구간별 비중(%)을 적습니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>현재가 위의 두꺼운 매물대는 저항입니다. 거래량을 싣고 넘어서면 강한 상승 신호입니다.</li>
+<li>현재가 아래의 두꺼운 매물대는 지지입니다. 거래량이 늘며 이탈하면 약세 신호입니다.</li>
+<li>거래량이 60일 평균의 2배를 넘으면 '터진 날'로 보고 방향을 확인합니다.</li>
+</ul></li>
+</ul>
+
+<h2>추세의 세기와 방향</h2>
+
+<h3>ADXR (평균방향성지표순위)</h3>
+<ul>
+<li><b>의미</b> — 추세가 <b>얼마나 강한지</b>를 보여 줍니다. 오르는지 내리는지 방향은 알려 주지 않습니다.</li>
+<li><b>값 구하기</b> — ADX(방향성 움직임의 14일 평활값)와 14일 전 ADX의 평균입니다. 0~100 사이이며 클수록 추세가 강합니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>20 아래 = 횡보장: RSI·RVI 같은 과열·침체 지표로 사고팝니다.</li>
+<li>25 위 = 추세장: 과열·침체 신호는 접고 DMI 교차와 다이버전스를 따릅니다.</li>
+<li>40 위에서 꺾이면 추세가 끝나 가는 고점·저점 경계입니다.</li>
+</ul></li>
+</ul>
+
+<h3>DMI (방향성지수, +DI · −DI)</h3>
+<ul>
+<li><b>의미</b> — 오르는 힘(+DI)과 내리는 힘(−DI) 중 어느 쪽이 센지 보여 줍니다.</li>
+<li><b>값 구하기</b> — 오늘 고가가 어제보다 오른 폭(+DM)과 저가가 내린 폭(−DM)을 14일 평균 진폭(TR)으로 나눠 %로 나타냅니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매수: +DI가 −DI를 상향 돌파 (ADXR 25 위일 때 믿을 만함)</li>
+<li>매도: +DI가 −DI를 하향 돌파</li>
+<li>횡보장(ADXR 20 아래)의 교차는 가짜 신호가 많아 무시합니다.</li>
+</ul></li>
+</ul>
+
+<h2>모멘텀 (과열·침체와 다이버전스)</h2>
+
+<h3>RSI (상대강도지수, 14일)</h3>
+<ul>
+<li><b>의미</b> — 최근 상승폭과 하락폭의 비율로 과열·침체를 봅니다. 0~100 사이입니다.</li>
+<li><b>값 구하기</b> — RSI = 100 − 100÷(1+RS), RS = 14일 평균 상승폭 ÷ 14일 평균 하락폭. 초록 점선은 6일 시그널입니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매수: 30 아래로 갔다가 위로 올라올 때</li>
+<li>매도: 70 위로 갔다가 아래로 내려올 때</li>
+<li>추세장(ADXR 25 위)에서는 70·30에 오래 머물기 때문에 단독 신호로 쓰지 않습니다.</li>
+<li>0~100 범위의 바닥·천장에 붙으면 저점·고점 차이를 가리기 어려워 CCI로 바꿔 확인합니다.</li>
+</ul></li>
+</ul>
+
+<h3>RVI (상대변동성지수, 14일)</h3>
+<ul>
+<li><b>의미</b> — RSI가 '가격 변화폭'을 본다면 RVI는 <b>변동성</b>이 오르는 날에 실렸는지 내리는 날에 실렸는지를 봅니다. 0~100 사이입니다.</li>
+<li><b>값 구하기</b> — 9일 표준편차를 종가가 오른 날은 상승 쪽, 내린 날은 하락 쪽에 넣어 각각 14일 평활한 뒤, RVI = 상승 ÷ (상승+하락) × 100</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매도: 60 위(과열)에서 60 아래로 이탈할 때</li>
+<li>매수: 40 아래(침체)에서 40 위로 돌파할 때</li>
+<li>RSI와 같은 방향의 신호가 겹치면 신뢰도가 올라갑니다.</li>
+</ul></li>
+</ul>
+
+<h3>CCI (추세채널지수, 20일)</h3>
+<ul>
+<li><b>의미</b> — 평소 가격 수준에서 얼마나 멀어졌는지 보여 줍니다. 상·하한이 없어 극단에서도 값이 계속 움직이므로 저점·고점 비교(다이버전스)에 유리합니다.</li>
+<li><b>값 구하기</b> — 대표가격 = (고가+저가+종가)÷3, CCI = (대표가격 − 20일 평균) ÷ (0.015 × 평균편차)</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>+100 위는 강한 상승세, −100 아래는 강한 하락세입니다.</li>
+<li>매수: −100 아래에 있다가 −100 위로 올라올 때</li>
+<li>매도: +100 위에 있다가 +100 아래로 내려올 때</li>
+<li>다이버전스 탐색에서는 첫 꼭지가 ±100 바깥일 때만 비교합니다.</li>
+</ul></li>
+</ul>
+
+<h3>MACD (이동평균수렴확산, 12·26·9)</h3>
+<ul>
+<li><b>의미</b> — 이동평균(EMA) 두 선(12일-26일 EMA)이 수렴·확산하는 현상으로 모멘텀을 파악합니다.</li>
+<li><b>값 구하기</b> — 단순이동평균이 아닌 지수이동평균을 사용해 이동평균보다 더 민감하게 반응합니다. MACD = 12일 EMA − 26일 EMA, 시그널 = MACD의 9일 EMA, 히스토그램 = MACD − 시그널</li>
+<li>바닥·꼭지는 두 이동평균 간격이 가장 멀어질 때입니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>강한 매수: 주가가 20일선 위 + MACD 0선 위에서 시그널선 상향 돌파</li>
+<li>강한 매도: 주가가 20일선 아래 + MACD 0선 아래에서 시그널선 하향 돌파</li>
+</ul></li>
+</ul>
+
+<h3>관성지수 (Inertia)</h3>
+<ul>
+<li><b>의미</b> — 추세가 방향을 이어 가려는 힘(관성)을 보여 줍니다. 신호용보다 <b>추세 확인용</b>입니다.</li>
+<li><b>값 구하기</b> — RVI(14일)를 20일 최소자승(회귀선) 이동평균으로 부드럽게 만든 값이고, 시그널은 이를 9일로 한 번 더 부드럽게 한 선입니다. 값이 두 번 부드러워져 움직임이 둔합니다.</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>50 위(특히 60 위)는 상승 관성이 센 구간, 50 아래(특히 40 아래)는 하락 관성이 센 구간입니다.</li>
+<li>관성지수가 시그널을 위로 돌파하면 매입(붉은 ▲), 아래로 돌파하면 매도(푸른 ▼)로 표시합니다.</li>
+<li>다이버전스 신호가 나와도 관성지수가 아직 50 아래면 서두르지 말고, 50을 넘어서면 확인으로 삼습니다.</li>
+</ul></li>
+</ul>
+
+<h2>추세 + 힘</h2>
+
+<h3>Elder Ray (엘더레이, 13일)</h3>
+<ul>
+<li><b>의미</b> — 매수세(Bull Power)와 매도세(Bear Power)의 힘을 따로 보여 줍니다. 값이 눌리지 않아 극단에서도 저점·고점 비교가 잘 됩니다.</li>
+<li><b>값 구하기</b> — Bull Power = 고가 − 13일 EMA, Bear Power = 저가 − 13일 EMA</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매수: 13일 EMA가 오르는 중 + Bear Power가 0 아래에서 올라서기 시작할 때 (매도세가 약해짐)</li>
+<li>매도: 13일 EMA가 내리는 중 + Bull Power가 0 위에서 내려서기 시작할 때 (매수세가 약해짐)</li>
+<li>주가는 저점을 낮추는데 Bear Power 저점이 같거나 높으면 상승 다이버전스입니다.</li>
+</ul></li>
+</ul>
+
+<h2>돈의 흐름 (거래·수급)</h2>
+
+<h3>MFI (자금수급지수, 14일)</h3>
+<ul>
+<li><b>의미</b> — 거래량(거래대금)까지 반영한 RSI입니다. 돈이 들어오는지 빠져나가는지 봅니다. 0~100 사이입니다.</li>
+<li><b>값 구하기</b> — 자금흐름 = 대표가격 × 거래량. 대표가격이 오른 날의 자금흐름 합(양)과 내린 날의 합(음)을 14일간 구해, MFI = 100 − 100÷(1+양÷음)</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>매수: 20 아래(자금 이탈 극심)에서 위로 올라올 때</li>
+<li>매도: 80 위(자금 쏠림)에서 아래로 내려올 때</li>
+<li>주가는 고점을 높이는데 MFI가 낮아지면 거래량이 뒷받침하지 못하는 상승이라 고점 경계입니다.</li>
+</ul></li>
+</ul>
+
+<h3>외국인 순매수</h3>
+<ul>
+<li><b>의미</b> — 외국인이 하루 동안 산 금액에서 판 금액을 뺀 값입니다. 플러스면 순매수, 마이너스면 순매도입니다. 큰손의 수급을 봅니다. 함께 그리는 선은 외국인 <b>보유비중(%)</b>입니다.</li>
+<li><b>값 구하기</b> — 거래소의 투자자별 매매동향 자료를 그대로 쓰며 계산하지 않습니다. 보유비중은 색으로 구분합니다 (0~20% 파랑 · 21~40% 초록 · 41% 이상 빨강).</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>주가가 내리는데 순매수가 며칠 이어지면 바닥 신호입니다.</li>
+<li>주가가 오르는데 순매도가 이어지면 오르는 힘이 약한 것으로 봅니다.</li>
+<li>보유비중이 늘어나는 추세면 우호적입니다.</li>
+</ul></li>
+</ul>
+
+<h3>공매도 (한국 종목 전용)</h3>
+<ul>
+<li><b>의미</b> — 주식을 빌려 먼저 판 물량으로 하락에 건 돈입니다.</li>
+<li><b>값 구하기</b> — 공매도 비중(%) = 그날 공매도 거래량 ÷ 그날 전체 거래량, 잔고비율(%) = 순보유잔고 ÷ 상장주식수</li>
+<li>💡 <b>매매 타이밍</b>
+<ul>
+<li>비중이 급증하며 주가가 내리면 하락 압력이 커지는 신호입니다.</li>
+<li>비중이 높았다가 줄며 주가가 오르면 되사기(숏커버링) 반등이 나올 수 있습니다.</li>
+<li>잔고비율이 높은 종목은 급등할 때 되사기가 몰려 더 크게 튈 수 있습니다.</li>
+</ul></li>
+</ul>
+
+<p class="foot">지표의 기간·기준값은 차트의 설정을 따릅니다. 위 설명은 앱 기본값(MACD 12·26·9, RSI 14, 엘더레이 13 등) 기준입니다.</p>
+  </div>
  </section>
 
  <!-- ===== VALUATION (적정주가) ===== -->
@@ -1838,7 +2034,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div id="trdIdx" class="trd-pane" style="display:none">
    <div class="ixv-grid" id="ixaVal"></div>
    <div class="ixv-note" id="ixaValNote">코스피·코스닥 PBR·PER 불러오는 중…</div>
-   <div class="ixa-note">최근 3개월 일봉 · 고점저점 탐색 다이버전스 표시 · 그래프를 누르면 종목분석 › 챠트로 갑니다</div>
+   <div class="ixa-note">최근 3개월 일봉 · 다이버전스 탐색 다이버전스 표시 · 그래프를 누르면 종목분석 › 챠트로 갑니다</div>
    <div class="ixa-grid" id="ixaGrid"></div>
   </div>
  </div>
@@ -2530,8 +2726,8 @@ function renderWatch(){
 let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
-/* ---------- STUDY 하부메뉴 (투자지표 / 고점과 저점탐색 / 챠트 기본조합해석) ---------- */
-const STU_DOCS={ ind:'#stuInd', peak:'#stuPeak', div:'#stuDiv', chart:'#stuChart' };
+/* ---------- STUDY 하부메뉴 (투자지표 / 다이버전스 탐색 / 다이버전스 종목찾기 / 챠트 기본조합해석 / 지표설명) ---------- */
+const STU_DOCS={ ind:'#stuInd', peak:'#stuPeak', div:'#stuDiv', chart:'#stuChart', desc:'#stuDesc' };
 /* 챠트 기본조합해석 — 챠트 화면에 있던 해석 내용을 처음 열 때 채운다 */
 function stuChartFill(){
   const el=$('#stuChart');
@@ -5313,7 +5509,7 @@ function renderWatchTable(){
     const stale = dr && dr.ymd && dr.ymd!==kgYmdLocal();
     h+=`<tr class="add-row"><td colspan="9" style="padding:8px 6px;font-size:10.5px;color:#6e7681;text-align:left;white-space:normal;line-height:1.6">
       ${dr ? `기준 ${escHtml(dr.atStr||dr.ymd||'')}${stale?' <b style="color:#f0a836">(오늘 것이 아님)</b>':''} · 최근 10거래일 안에 확정된 신호 · 국내 종목만 (원자재는 챠트 › 🎯 다이버전스 목록에서)` : '아직 찾은 결과가 없습니다.'}<br>
-      ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI C=CCI M=MACD E=Elder Ray F=MFI · 현재가를 누르면 고점저점 탐색 조합으로 챠트가 열립니다<br>
+      ▲ 저점(반등 후보) · ▼ 고점(하락 경계) · 글자 R=RSI C=CCI M=MACD E=Elder Ray F=MFI · 현재가를 누르면 다이버전스 탐색 조합으로 챠트가 열립니다<br>
       <b style="color:#d29922">형성 중 3/5</b> = 두 번째 꼭지 뒤 3일째 지켜지는 중 — 5일이 차면 완성, 그 전에 꼭지가 깨지면 사라집니다 (괄호는 꼭지 날 종가 대비)<br>
       추가신호(찾은 때 마지막 봉 기준): <b style="color:#e53935">20▲</b>/<b style="color:#1e88e5">20▼</b> 종가가 20일선 위/아래 · <b style="color:#e53935">120▲</b>/<b style="color:#1e88e5">120▼</b> 120일선 위/아래 · RSI <b style="color:#1e88e5">30 이하 과매도</b> · <b style="color:#e53935">70 이상 과매수</b> · 그 사이는 보통<br>
       ↓ 아래에 찾은 전체 목록(원자재 포함)과 신호 효과 표가 있습니다 — 새로 찾으려면 아래 [찾기]</td></tr>`;
@@ -5534,7 +5730,7 @@ function renderWatchTable(){
       .map(r=>[String((r&&r[0])||'').trim(), String((r&&r[1])||'').trim()])
       .filter(r=>r[0]);
   t.querySelectorAll('td.wlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name; if(!c) return; refreshOneStock(c);
-    /* 다이버전스 탭에서는 챠트 목록도 🎯 다이버전스 로 — 고점저점 탐색 조합으로 열려 ▲▼ 가 보인다 */
+    /* 다이버전스 탭에서는 챠트 목록도 🎯 다이버전스 로 — 다이버전스 탐색 조합으로 열려 ▲▼ 가 보인다 */
     if(valMarket==='invpf' && selSub==='div') openChartView('div', c, nm); else openChart(c, nm, visRows()); }; });
   // 다이버전스 탭 — 지금 찾기 · 결과표 보기
   const dRun=t.querySelector('#selDivRun'); if(dRun) dRun.onclick=()=>selDivScan();
@@ -9324,7 +9520,7 @@ function idx3CalcMax(data){
 let idx3Hover = -1;
 
 /* ───── 시황 그래프 다이버전스 (2026-10-17) ─────
-   챠트 › 🎯 고점저점 탐색과 똑같은 규칙(kg-chart.html 의 divFindRaw)으로
+   챠트 › 🎯 다이버전스 탐색과 똑같은 규칙(kg-chart.html 의 divFindRaw)으로
    RSI·CCI·MACD·Elder Ray·MFI 의 다이버전스를 찾아 시황 그래프에 같은 모양으로 그린다.
    형성 중(두 번째 꼭지 뒤 5봉이 덜 찬 것)도 흐린 점선과 '…' 로 보인다.
    지표 기간은 챠트 설정(kgchart_params)을 그대로 따른다 */
@@ -9595,7 +9791,7 @@ function drawIdx3One(sel, mkt){
     ctx.stroke(); ctx.setLineDash([]);
   });
 
-  // 다이버전스 (고점저점 탐색과 같은 규칙·모양)
+  // 다이버전스 (다이버전스 탐색과 같은 규칙·모양)
   try{ idx3DrawDiv(ctx, SER, d, from, to, xOf, yOf, pct, PAD, W, ch); }catch(e){ console.warn('시황 다이버전스', e); }
   // 기간 안내는 범례 줄에 적는다 (그래프 안에 두면 다이버전스 글자와 겹친다)
   // 날짜 (양끝)
@@ -15971,8 +16167,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.23.-v5';
-const KG_APP_BUILD = KG_APP_VER + ' 고점저점 차례 · 외국인 비중변화 잣대';
+const KG_APP_VER = '10.24.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 다이버전스 탐색 · 지표설명';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -18617,7 +18813,7 @@ function openChart(code, name, rowsOverride) {
   }
   if(typeof stkSetPort==='function') stkSetPort(port);
   if(typeof stkSet==='function' && code) stkSet(code, name);
-  /* 표에서 현재주가·종목을 눌러 챠트로 올 때는 고점저점 탐색 조합으로 연다 (2026-10-23) */
+  /* 표에서 현재주가·종목을 눌러 챠트로 올 때는 다이버전스 탐색 조합으로 연다 (2026-10-23) */
   window._chartComboPeak = true;
   openChartView(port, code, name, rowsOverride);
 }

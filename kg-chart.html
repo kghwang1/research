@@ -368,10 +368,10 @@ body.mini-mode .stk-nav { display: none !important; }
   <div id="sidebar">
     <div class="sidebar-help">
       <span class="c2">☑</span> 지표를 클릭해 차트에 표시/숨김<br>
-      아래 <b>기본챠트</b>·<b>고점저점 탐색</b> 버튼으로 한 번에 표시<br>
+      아래 <b>기본챠트</b>·<b>다이버전스 탐색</b> 버튼으로 한 번에 표시<br>
     </div>
     <button id="simpleComboBtn" style="width:calc(100% - 12px);margin:6px 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#2ea043;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🧩 기본챠트</button>
-    <button id="peakComboBtn" title="RSI⇄CCI · MACD⇄관성지수 · Elder Ray · MFI⇄외국인순매수 — 주가와 엇갈리는 다이버전스를 선과 ▲▼로 표시" style="width:calc(100% - 12px);margin:0 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#8957e5;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🎯 고점저점 탐색</button>
+    <button id="peakComboBtn" title="RSI⇄CCI · MACD⇄관성지수 · Elder Ray · MFI⇄외국인순매수 — 주가와 엇갈리는 다이버전스를 선과 ▲▼로 표시" style="width:calc(100% - 12px);margin:0 6px 6px;padding:7px;border-radius:6px;border:1px solid #30363d;background:#8957e5;color:#fff;font-weight:700;font-size:12px;cursor:pointer">🎯 다이버전스 탐색</button>
     <div class="group-title">▶ 오버레이</div>
     <label class="ind-label" data-key="MA" style="--col:#f0a836"><input type="checkbox" class="cb-show"> <span class="nm">MA 이동평균</span></label>
     <label class="ind-label" data-key="BB" style="--col:#39d353"><input type="checkbox" class="cb-show"> <span class="nm">BB 볼린저밴드</span></label>
@@ -1036,7 +1036,7 @@ function init() {
   // URL 파라미터로 종목 자동 로드
   const params = new URLSearchParams(location.search);
   if (params.get('divscan')) { divScanPage(); return; }   // 다이버전스 종목 찾기 화면
-  /* 다이버전스 목록에서 열면 ▲▼ 가 보이도록 고점저점 탐색 조합으로 */
+  /* 다이버전스 목록에서 열면 ▲▼ 가 보이도록 다이버전스 탐색 조합으로 */
   if ((params.get('div') || params.get('combo') === 'peak') && comboMode() !== 'peak') applyCombo(PEAK_COMBO.slice(), 'peak');   // combo=peak: 표에서 눌러 올 때 (2026-10-23)
   /* 신호 난 지표가 보이게 ⇄ 칸을 맞춘다 — C 만 났으면 CCI, F 가 났으면 MFI (외국인 순매수 대신) */
   if (params.get('div') && params.get('tags')) {
@@ -1617,7 +1617,7 @@ const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
    4조 MACD ⇄ SlowStoch 5조 외국인순매수 ⇄ OBV */
 const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'MACD', 'FRGN_NET'];
 
-/* 고점저점 탐색 (2026-10-05, 차례 바꿈 2026-10-21) — 다이버전스로 고점·저점을 찾는 조합.
+/* 다이버전스 탐색 (2026-10-05, 차례 바꿈 2026-10-21) — 다이버전스로 고점·저점을 찾는 조합.
    RSI⇄CCI(단기 모멘텀) → MACD⇄관성지수(중기 힘·추세 확인) → Elder Ray(추세+매수·매도세) → MFI⇄외국인순매수(돈의 흐름)
    주가 창은 이동평균 — 다이버전스 뒤 이평 이탈로 확인한다 */
 const PEAK_COMBO = ['MA', 'RSI', 'MACD', 'ELDER', 'MFI'];
@@ -1625,7 +1625,7 @@ const PEAK_COMBO = ['MA', 'RSI', 'MACD', 'ELDER', 'MFI'];
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
 /* 교대 짝은 조합마다 다르다 — 기본챠트는 RSI⇄RVI·MACD⇄관성지수,
-   고점저점 탐색은 RSI⇄CCI·MACD⇄관성지수·MFI⇄외국인순매수 (Elder Ray 는 짝 없음).
+   다이버전스 탐색은 RSI⇄CCI·MACD⇄관성지수·MFI⇄외국인순매수 (Elder Ray 는 짝 없음).
    지금 어느 조합인지는 교대 상태(kg_sub_swap)의 _mode 칸에 적어 둔다 — 서버 동기화도 함께 된다 */
 const SUB_SWAP_PEAK = {
   RSI:'CCI',  CCI:'RSI',                       // RSI ⇄ CCI (2026-10-23, 예전 RSI⇄SlowStoch)
@@ -1692,7 +1692,7 @@ function setComboMode(mode){
 }
 SUB_SWAP = (comboMode() === 'peak') ? SUB_SWAP_PEAK : SUB_SWAP_BASE;
 
-/* ───── 다이버전스 (고점저점 탐색 조합에서만 그린다) ─────
+/* ───── 다이버전스 (다이버전스 탐색 조합에서만 그린다) ─────
    ① 주가의 고점·저점 = 좌우 DIV_L 봉보다 높은(낮은) 봉
    ② 이웃한 두 고점(저점) 사이가 DIV_MIN~DIV_MAX 봉일 때만 비교
    ③ 지표 값은 그 봉 앞뒤 2봉 안의 최고(최저)
@@ -2231,7 +2231,7 @@ function drawCandle() {
   }
 
   const pad = (maxP - minP) * 0.04;
-  /* 고점저점 탐색 조합이면 위쪽 여백을 넓힌다 — 꼭대기 캔들과 ▼ 글자가 위쪽 단추에 가리지 않게 (2026-10-17) */
+  /* 다이버전스 탐색 조합이면 위쪽 여백을 넓힌다 — 꼭대기 캔들과 ▼ 글자가 위쪽 단추에 가리지 않게 (2026-10-17) */
   maxP += (typeof divOn === 'function' && divOn()) ? (maxP - minP) * 0.08 : pad; minP -= pad;
   const xOf = i => PAD.l + (i + 0.5) * (cw / slotCount);
   const yOf = v => PAD.t + ch - ((v - minP) / (maxP - minP)) * ch;
@@ -2670,7 +2670,7 @@ function drawCandle() {
     ctx.fillText(cpTxt, cpbx + 3, cpY + 3);
   }
 
-  divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W);   // 고점저점 탐색 — 주가 쪽 다이버전스 선
+  divDrawMain(ctx, slotCount, xOf, yOf, PAD, ch, W);   // 다이버전스 탐색 — 주가 쪽 다이버전스 선
 
   // 호버 수직선 + 날짜 라벨 (26-06-03 형식)
   if (state.hoverIdx >= 0 && state.hoverIdx < slice.length) {
@@ -4430,7 +4430,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.23.-v5';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.24.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5591,7 +5591,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && st
 /* ═══════════════════════════════════════════════════════════════
    다이버전스 종목 찾기 (kg-chart.html?divscan=1) — 2026-10-15
    · 코스피200 · 코스닥100 · 주요 원자재의 일봉을 받아,
-     차트의 고점저점 탐색과 똑같은 divFind 로 다이버전스를 찾는다
+     차트의 다이버전스 탐색과 똑같은 divFind 로 다이버전스를 찾는다
    · 신호가 '확정'되는 날 = 두 번째 꼭지 뒤 DIV_L 봉 (그래야 꼭지인 줄 안다)
    · 최근 DIVSCAN_RECENT 거래일 안에 확정된 신호를 목록으로 보이고,
      지난 자료 전체의 신호마다 1~20일 뒤 등락을 재어 '아무 날 산 경우'와 비교한다
@@ -6140,7 +6140,7 @@ function divScanRender(res){
     + '· 확정일 = 두 번째 꼭지 뒤 ' + DIV_L + '거래일 — 그날이 지나야 꼭지인 줄 알 수 있어 차트의 ▲▼ 보다 늦게 잡힙니다.<br>'
     + '· 지표 옆 <b>외+</b>/<b>외−</b> = 최근 5일 외국인 순매수/순매도 (신호와 같은 방향이면 초록).<br>'
     + '· <b style="color:#f0a836">형성 중</b> = 두 번째 꼭지 뒤 아직 ' + DIV_L + '거래일이 안 찼지만 지금까지 꼭지가 지켜지는 신호 (3/5 = 3일째). 그 사이 더 낮은 저가(▼ 은 더 높은 고가)가 나오면 사라지며, 신호 효과 통계에는 넣지 않습니다. 차트에는 흐린 점선과 ▲SE… 처럼 표시됩니다.<br>'
-    + '· 장중에는 오늘 봉이 아직 움직이므로 결과가 바뀔 수 있습니다. 종목을 누르면 고점저점 탐색 조합으로 차트가 열립니다.</div>';
+    + '· 장중에는 오늘 봉이 아직 움직이므로 결과가 바뀔 수 있습니다. 종목을 누르면 다이버전스 탐색 조합으로 차트가 열립니다.</div>';
   box.querySelectorAll('tr.ds-row').forEach(tr => tr.onclick = () => divScanOpen(tr.dataset.code, tr.dataset.name));
   divScanFit();
 }
