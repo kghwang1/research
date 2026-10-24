@@ -4430,7 +4430,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.24.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.24.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4939,6 +4939,26 @@ function drawFlowChart(){
   // 짚은 날 — 주가차트에서 짚었으면 그 날짜, 매매동향에서 짚었으면 그 줄
   let hr = flowDrives ? flowHover : flowRowOfHover();
   if(hr<0 && flowHover>=0) hr=flowHover;
+  /* 주가차트에서 짚은 날이 매매동향 그래프(최근 2개월) 밖이면 — 숫자는 그 날 것을 그대로 보이고,
+     그래프에는 맨 아래에 점선으로 '이 날짜는 더 아래(옛날)'임을 표시한다 (2026-10-24) */
+  let ext = null;
+  if(hr<0 && !flowDrives && state.hoverIdx>=0 && state.data){
+    const b = state.data[state.range[0]+state.hoverIdx];
+    if(b && b.date){
+      const dk = String(b.date).slice(0,10), fdat = state.frgnData && (state.frgnData[b.date] || state.frgnData[dk]);
+      if(fdat) ext = { date:dk, net:fdat.net, inst:fdat.inst, indiv:fdat.indiv };
+    }
+  }
+  /* 주가차트에서 짚은 날의 줄이 스크롤 때문에 화면 밖이면 보이는 곳으로 올린다 */
+  {
+    const tb = document.getElementById('flow-tbl');
+    const tr = hr>=0 ? hr : (ext ? flowRows.length-1 : -1);
+    if(tb && !flowDrives && state.hoverIdx>=0 && tr>=0 && tb.clientHeight>0){
+      const top = FLOW_PAD.t + tr*FLOW_RH, bot = top + FLOW_RH + FLOW_PAD.b;
+      if(top < tb.scrollTop + FLOW_PAD.t) tb.scrollTop = Math.max(0, top - FLOW_PAD.t - FLOW_RH*2);
+      else if(bot > tb.scrollTop + tb.clientHeight - 2) tb.scrollTop = bot - tb.clientHeight + FLOW_RH*2;
+    }
+  }
   if(hr>=0){
     ctx.fillStyle='rgba(139,148,158,.15)';
     ctx.fillRect(FLOW_PAD.l, yOf(hr)-FLOW_RH/2, cw, FLOW_RH);
@@ -4977,8 +4997,16 @@ function drawFlowChart(){
       ctx.fillStyle=FLOW_COL[k]; ctx.beginPath(); ctx.arc(xOf(r[k]),y,3,0,6.283); ctx.fill();
     });
   }
+  /* 매매동향 범위 밖 날짜 — 맨 아래 점선과 날짜 */
+  if(ext){
+    const y=H-FLOW_PAD.b-1;
+    ctx.strokeStyle='#ffffff88'; ctx.lineWidth=1.3; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(FLOW_PAD.l,y); ctx.lineTo(W-FLOW_PAD.r,y); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font='bold 10px monospace'; ctx.textAlign='left'; ctx.fillStyle='#e6edf3';
+    ctx.fillText(ext.date.slice(5).replace('-','/')+' ▼ 더 이전', FLOW_PAD.l+4, y-4);
+  }
   flowPlace();
-  flowShowVals(hr>=0 ? flowRows[hr] : null);
+  flowShowVals(hr>=0 ? flowRows[hr] : ext);
 }
 /* 짚은 날의 매매 숫자 — 선그래프 오른쪽 가운데에 세로로 (외국인·기관·개인 순).
    주체 이름 없이 숫자 색으로만 구분한다. 패널 안에서 스크롤해도 그 자리에 머문다. */
