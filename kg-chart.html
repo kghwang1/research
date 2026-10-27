@@ -2036,7 +2036,21 @@ function applyCombo(list, mode) {
   renderAll();
 }
 
+/* 조합의 차례를 바꾸면 저장된 옛 차례를 버린다.
+   그러지 않으면 새 차례가 적용되지 않는다. (직접 끌어 바꾼 차례는 그 뒤부터 다시 쌓인다)
+   loadDefaults 보다 반드시 먼저 불러야 한다 — 거기서 새로 맞춰 둔 차례를 이 검사가 지우면 안 된다 */
+function orderStampCheck() {
+  try {
+    const stamp = DEFAULT_COMBO.join(',') + '|' + PEAK_COMBO.join(',');
+    if (localStorage.getItem('kgchart_order_base') !== stamp) {
+      localStorage.removeItem('kgchart_order');
+      localStorage.setItem('kgchart_order_base', stamp);
+    }
+  } catch(e) {}
+}
+
 function setupSidebar() {
+  orderStampCheck();
   const defaults = loadDefaults();
 
   document.querySelectorAll('.ind-label').forEach(label => {
@@ -2103,30 +2117,27 @@ function setupSidebar() {
     });
   });
 
-  // 초기 표시된 보조차트 순서를 기본 조합 순서에 맞춤 (DOM 순서 대신)
+  // 초기 표시된 보조차트 순서를 조합에 적힌 순서에 맞춘다 (DOM 순서 대신)
   // 저장된 순서(kgchart_order)가 있으면 그것을 우선하되,
-  // 새로 추가된 지표(저장 순서에 없는 것)는 DEFAULT_COMBO 의 제자리에 끼워 넣는다.
+  // 새로 추가된 지표(저장 순서에 없는 것)는 조합의 제자리에 끼워 넣는다.
   // 그냥 뒤로 보내면 새 지표가 항상 맨 아래로 밀린다.
-  let orderPref = DEFAULT_COMBO.slice();
+  /* 기준이 되는 차례는 지금 보고 있는 조합을 따른다 (2026-10-27).
+     예전에는 늘 기본조합(DEFAULT_COMBO)을 기준으로 삼아, 다이버전스 탐색을 켜면
+     거기에 없는 관성지수·엘더레이·CCI·MFI 가 뒤로 밀려 차례가 뒤죽박죽이 됐다 */
+  const comboBase = (comboMode() === 'peak') ? PEAK_COMBO : DEFAULT_COMBO;
+  let orderPref = comboBase.slice();
   try {
-    /* 기본 조합의 차례를 바꾸면 저장된 옛 차례를 버린다.
-       그러지 않으면 새 차례가 적용되지 않는다. (직접 끌어 바꾼 차례는 그 뒤부터 다시 쌓인다) */
-    const stamp = DEFAULT_COMBO.join(',') + '|' + PEAK_COMBO.join(',');
-    if (localStorage.getItem('kgchart_order_base') !== stamp) {
-      localStorage.removeItem('kgchart_order');
-      localStorage.setItem('kgchart_order_base', stamp);
-    }
     const so = localStorage.getItem('kgchart_order');
     if (so) {
       const a = JSON.parse(so);
       if (Array.isArray(a) && a.length) {
         const merged = a.slice();
-        DEFAULT_COMBO.forEach((k, i) => {
+        comboBase.forEach((k, i) => {
           if (merged.includes(k)) return;
-          // 기본 조합에서 바로 앞에 오는 지표 뒤에 삽입
+          // 조합에서 바로 앞에 오는 지표 뒤에 삽입
           let at = merged.length;
           for (let j = i - 1; j >= 0; j--) {
-            const idx = merged.indexOf(DEFAULT_COMBO[j]);
+            const idx = merged.indexOf(comboBase[j]);
             if (idx >= 0) { at = idx + 1; break; }
           }
           merged.splice(at, 0, k);
@@ -4440,7 +4451,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.27.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.27.-v3';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
