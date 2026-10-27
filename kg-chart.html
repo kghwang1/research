@@ -198,6 +198,8 @@ body.mini-mode #candle-wrap { position: relative; border: none; border-radius: 0
   border: 1px solid #21262d; border-radius: 4px;
   overflow: hidden; position: sticky; top: 0; z-index: 10;
   display: flex; flex-direction: column;
+  /* 바탕색을 깔아 둔다 — 없으면 스크롤할 때 밑을 지나가는 보조칸이 비쳐 보인다 */
+  background: #0d1117;
 }
 #candle-box { flex: 1 1 auto; min-height: 0; position: relative; }
 /* 거래량 막대를 주가차트 밑 따로 칸으로 뺄 때(2026-10-22) — 칸 높이 = 주가 칸 + 거래량 칸 */
@@ -232,7 +234,7 @@ body.sp-flow #flow-box{ display:flex;flex-direction:column;flex:1 1 auto;min-hei
 #flow-tbl td{ text-align:right;padding:2px 3px;border-bottom:1px solid #21262d;color:#e6edf3 }
 #flow-tbl td:first-child{ text-align:left;color:#8b949e }
 #flow-tbl .up{ color:#ef5350 } #flow-tbl .dn{ color:#58a6ff }
-#flow-tbl{ position:relative;flex:1 1 auto;min-height:0;overflow-y:auto }
+#flow-tbl{ position:relative;flex:1 1 auto;min-height:0;overflow:hidden }
 #flow-leg,#flow-ar-l,#flow-ar-r{ position:absolute;z-index:3;pointer-events:none;
   white-space:pre;border-radius:4px;background:rgba(13,17,23,.72);padding:3px 5px }
 #flow-leg{ left:36px;top:50%;transform:translateY(-50%);font:bold 12px/1.35 monospace }
@@ -279,6 +281,10 @@ body.mini-mode .stk-nav { display: none !important; }
   border-radius: 4px;
   overflow: hidden;
   background: #161b22;
+  /* 스크롤로 보조칸이 주가차트 밑을 지날 때 ✕·⇄ 단추가 주가차트 위로 비쳐 보이던 것을 막는다.
+     칸 자체에 z-index 를 주어 하나의 층으로 묶으면, 칸 안의 단추(z-index 20)도
+     이 층(1) 안에 갇혀 주가차트(sticky, z-index 10)를 넘지 못한다 (2026-10-27) */
+  position: relative; z-index: 1;
 }
 .sub-canvas { width: 100%; height: 100%; display: block;
   touch-action: pan-y; -webkit-user-select: none; user-select: none;
@@ -4451,7 +4457,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.27.-v3';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.27.-v4';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -4850,7 +4856,10 @@ const FLOW_COL = { net:'#ef5350', inst:'#ffd54f', indiv:'#58a6ff' };
 const FLOW_NM  = { net:'외국인', inst:'기관', indiv:'개인' };
 const FLOW_LW  = { net:2.25, inst:2.25, indiv:1.5 };     // 외국인·기관 = 개인(1.5)의 1.5배
 const FLOW_MONTHS = 2;
-const FLOW_RH = 16;                       // 날짜 한 줄 높이
+const FLOW_RH = 16;                       // 날짜 한 줄 높이 (최대값 — 칸이 좁으면 줄여 쓴다)
+/* 실제로 쓰는 줄 높이. 칸 높이에 맞춰 줄여 스크롤이 생기지 않게 한다 (2026-10-27).
+   예전에는 16px 고정이라 2개월치(40일)가 칸을 넘어 옆에 스크롤 막대가 생겼다 */
+let flowRH = FLOW_RH;
 const FLOW_PAD = { t:26, b:4, l:34, r:6 };   // 위 12px 은 매도·매수 화살표 자리
 let flowHover = -1, flowRows = [], flowDrives = false;
 function flowNum(v){
@@ -4904,7 +4913,7 @@ function renderFlowTable(){
     const pick=ev=>{
       const r=cv.getBoundingClientRect();
       const y=(ev.touches?ev.touches[0].clientY:ev.clientY)-r.top;
-      const i=Math.floor((y-FLOW_PAD.t)/FLOW_RH);
+      const i=Math.floor((y-FLOW_PAD.t)/flowRH);
       const h=(i>=0 && i<flowRows.length)?i:-1;
       if(h===flowHover) return;
       flowHover=h;
@@ -4931,7 +4940,11 @@ function drawFlowChart(){
   const cv=document.getElementById('flow-cv'); if(!cv || !flowRows.length) return;
   if(!cv.clientWidth) return;                         // 칸이 접혀 있으면 그리지 않는다
   const W=cv.clientWidth, n=flowRows.length;
-  const H=FLOW_PAD.t + n*FLOW_RH + FLOW_PAD.b;
+  /* 줄 높이를 칸에 맞춘다 — 다 들어가면 16px, 넘치면 줄여서 스크롤이 생기지 않게 */
+  const tbEl=document.getElementById('flow-tbl');
+  const room=(tbEl && tbEl.clientHeight>0) ? tbEl.clientHeight - FLOW_PAD.t - FLOW_PAD.b : 0;
+  flowRH = (room>0 && n>0) ? Math.max(3, Math.min(FLOW_RH, room/n)) : FLOW_RH;
+  const H=FLOW_PAD.t + n*flowRH + FLOW_PAD.b;
   const dpr=window.devicePixelRatio||1;
   if(cv._w!==W || cv._h!==H || cv._d!==dpr){
     cv._w=W; cv._h=H; cv._d=dpr;
@@ -4946,7 +4959,7 @@ function drawFlowChart(){
   if(!mx) mx=1;
   const cw=W-FLOW_PAD.l-FLOW_PAD.r, x0=FLOW_PAD.l+cw/2;
   const xOf=v=>x0+(v/mx)*(cw/2);
-  const yOf=i=>FLOW_PAD.t+i*FLOW_RH+FLOW_RH/2;
+  const yOf=i=>FLOW_PAD.t+i*flowRH+flowRH/2;
 
   // 가로 눈금(−최대 · 0 · +최대)과 세로 격자
   ctx.font='9px monospace'; ctx.textAlign='center'; ctx.fillStyle='#6e7681';
@@ -4970,24 +4983,18 @@ function drawFlowChart(){
       if(fdat) ext = { date:dk, net:fdat.net, inst:fdat.inst, indiv:fdat.indiv };
     }
   }
-  /* 주가차트에서 짚은 날의 줄이 스크롤 때문에 화면 밖이면 보이는 곳으로 올린다 */
-  {
-    const tb = document.getElementById('flow-tbl');
-    const tr = hr>=0 ? hr : (ext ? flowRows.length-1 : -1);
-    if(tb && !flowDrives && state.hoverIdx>=0 && tr>=0 && tb.clientHeight>0){
-      const top = FLOW_PAD.t + tr*FLOW_RH, bot = top + FLOW_RH + FLOW_PAD.b;
-      if(top < tb.scrollTop + FLOW_PAD.t) tb.scrollTop = Math.max(0, top - FLOW_PAD.t - FLOW_RH*2);
-      else if(bot > tb.scrollTop + tb.clientHeight - 2) tb.scrollTop = bot - tb.clientHeight + FLOW_RH*2;
-    }
-  }
+  /* 2026-10-27: 그래프가 칸 안에 다 들어가 스크롤이 없어졌으므로,
+     짚은 줄을 보이는 곳으로 끌어올리던 처리는 더 필요하지 않다 */
   if(hr>=0){
     ctx.fillStyle='rgba(139,148,158,.15)';
-    ctx.fillRect(FLOW_PAD.l, yOf(hr)-FLOW_RH/2, cw, FLOW_RH);
+    ctx.fillRect(FLOW_PAD.l, yOf(hr)-flowRH/2, cw, flowRH);
   }
 
-  // 날짜 글자
+  /* 날짜 글자 — 줄 높이가 낮아지면 글자가 겹치므로 건너뛰며 적는다 (짚은 줄은 늘 적는다) */
   ctx.textAlign='left';
+  const lblStep = Math.max(1, Math.ceil(11 / flowRH));
   flowRows.forEach((r,i)=>{
+    if(i!==hr && i%lblStep!==0) return;
     ctx.fillStyle = i===hr ? '#e6edf3' : '#6e7681';
     ctx.fillText(r.date.slice(5).replace('-','/'), 1, yOf(i)+3);
   });
@@ -5058,7 +5065,7 @@ function flowPlace(){
   const sb=(t.offsetWidth - t.clientWidth) + 8;           // 스크롤바 폭만큼 안쪽
   leg.style.top=(t.offsetTop + t.clientHeight/2)+'px';
   const al=document.getElementById('flow-ar-l'), ar=document.getElementById('flow-ar-r');
-  const ay=t.offsetTop + 2*FLOW_RH + 2;                    // 눈금 숫자와 겹치지 않게 두 줄 아래
+  const ay=t.offsetTop + 2*flowRH + 2;                    // 눈금 숫자와 겹치지 않게 두 줄 아래
   if(al) al.style.top=ay+'px';
   if(ar){ ar.style.top=ay+'px'; ar.style.right=sb+'px'; }
 }
