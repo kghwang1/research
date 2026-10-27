@@ -1610,17 +1610,24 @@ const DEFAULT_COMBO = ['ICHIMOKU', 'ADXR', 'ADX', 'RSI', 'RVI', 'FRGN_NET'];
 const SIMPLE_COMBO = ['ICHIMOKU', 'ADXR', 'RSI', 'MACD', 'FRGN_NET'];
 
 /* 다이버전스 탐색 (2026-10-05, 차례 바꿈 2026-10-21) — 다이버전스로 고점·저점을 찾는 조합.
-   2026-10-24: 장기·중기·단기·수급 4묶음 × 2지표 = 8개 (⇄ 교대 없이 모두 표시)
-     장기 ADXR + 관성지수 / 중기 MACD + Elder Ray / 단기 RSI + CCI / 수급 MFI + 외국인 순매수
-   주가 창은 이동평균 — 다이버전스 뒤 이평 이탈로 확인한다 */
-const PEAK_COMBO = ['MA', 'ADXR', 'INERTIA', 'MACD', 'ELDER', 'RSI', 'CCI', 'MFI', 'FRGN_NET'];
+   2026-10-27: 장기·중기·단기·수급 4묶음을 다시 짝으로 묶어 ⇄ 로 번갈아 본다.
+     장기 ADXR ⇄ 관성지수 / 중기 MACD ⇄ Elder Ray / 단기 RSI ⇄ CCI / 수급 MFI ⇄ 외국인 순매수
+     (2026-10-24 에는 여덟을 모두 펼쳤는데 칸이 얇아져 다시 넷으로 줄였다)
+   주가 창은 이동평균 — 다이버전스 뒤 이평 이탈로 확인한다.
+   주가 창의 ▲▼ 글자는 ⇄ 로 가려진 지표까지 모두 모으므로, 짝으로 묶어도 신호를 놓치지 않는다 */
+const PEAK_COMBO = ['MA', 'ADXR', 'MACD', 'RSI', 'MFI'];
 
 /* 한 칸에서 좌우로 밀어 바꿔 볼 지표 짝.
    폰에서 칸이 여섯을 넘으면 마지막이 거의 안 보여, 둘을 한 칸에 담는다. */
 /* 교대 짝은 조합마다 다르다 — 기본챠트는 RSI⇄RVI·MACD⇄관성지수,
-   다이버전스 탐색은 RSI⇄CCI·MACD⇄관성지수·MFI⇄외국인순매수 (Elder Ray 는 짝 없음).
+   다이버전스 탐색은 ADXR⇄관성지수·MACD⇄엘더레이·RSI⇄CCI·MFI⇄외국인순매수.
    지금 어느 조합인지는 교대 상태(kg_sub_swap)의 _mode 칸에 적어 둔다 — 서버 동기화도 함께 된다 */
-const SUB_SWAP_PEAK = {};   // 2026-10-24: 짝을 모두 펼쳐 보여 주므로 교대 없음
+const SUB_SWAP_PEAK = {
+  ADXR:'INERTIA',  INERTIA:'ADXR',      // 장기 — ADXR ⇄ 관성지수
+  MACD:'ELDER',    ELDER:'MACD',        // 중기 — MACD ⇄ Elder Ray
+  RSI:'CCI',       CCI:'RSI',           // 단기 — RSI ⇄ CCI
+  MFI:'FRGN_NET',  FRGN_NET:'MFI',      // 수급 — MFI ⇄ 외국인 순매수
+};
 const SUB_SWAP_BASE = {
   FRGN_NET:'SHORT_SELL', SHORT_SELL:'FRGN_NET',   // 외국인 순매수 ⇄ 공매도
   INST_NET:'OBV',        OBV:'INST_NET',          // 기관 순매수 ⇄ OBV
@@ -1901,6 +1908,25 @@ function loadDefaults() {
     } catch(e) {}
     return d;
   };
+  /* 다이버전스 탐색의 짝 구성을 바꾸면, 탐색 조합을 보고 있던 사람에게는
+     저장해 둔 옛 조합(여덟 칸)이 그대로 남아 새 짝이 적용되지 않는다.
+     구성이 바뀐 것을 알아채면 탐색 조합을 한 번만 새로 맞춘다 */
+  try {
+    const stamp = PEAK_COMBO.join(',') + '|' + Object.keys(SUB_SWAP_PEAK).join(',');
+    if (!KG_MINI && localStorage.getItem('kg_peak_pairs') !== stamp) {
+      localStorage.setItem('kg_peak_pairs', stamp);
+      if (comboMode() === 'peak') {
+        const d = {};
+        PEAK_COMBO.forEach(k => d[k] = true);
+        if (vpOn()) d.VPROFILE = true;
+        MAIN_OV_ALWAYS.forEach(k => d[k] = true);
+        swapResetFor(Object.keys(SUB_SWAP_PEAK));   // 교대 상태도 처음으로
+        saveDefaults(d);
+        try { localStorage.setItem('kgchart_order', JSON.stringify(PEAK_COMBO)); } catch(e) {}
+        return intro(d);
+      }
+    }
+  } catch(e) {}
   try {
     const saved = localStorage.getItem('kgchart_defaults');
     if (saved) { const d = JSON.parse(saved); if (d && Object.keys(d).length) return intro(d); }
@@ -4419,7 +4445,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.24.-v3';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.27.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
