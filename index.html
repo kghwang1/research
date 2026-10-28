@@ -509,6 +509,31 @@
   .pnl-dir .pd-nf-in .nf-apply{background:var(--accent2);color:#0a0a0a;font-weight:700;border-color:var(--accent2)}
   .pnl-dir .pd-nf-in input{width:64px;padding:5px 7px;border-radius:7px;border:1px solid #555;background:#0f1118;color:#eee;font-size:13px;text-align:right}
   .pnl-dir .pd-nf-in .signbtn{padding:4px 9px;font-size:12px}
+  /* ===== 검색 (2026-10-28) — 검색창 · 종목개요 · 주식챠트 · 종목분석을 한 페이지에 ===== */
+  #srch{padding:10px 10px 40px}
+  .srch-box{position:relative;display:flex;gap:6px;margin:0 0 10px}
+  .srch-box input{flex:1;min-width:0;background:#0d1117;border:1px solid #30363d;color:#e6edf3;
+    padding:10px 12px;border-radius:8px;font-size:15px}
+  .srch-box input:focus{outline:none;border-color:#58a6ff}
+  .srch-box button{flex:none;background:#1f6feb;border:0;color:#fff;border-radius:8px;padding:0 18px;
+    font-weight:700;font-size:14px;cursor:pointer}
+  #srchSuggest{display:none;position:absolute;top:100%;left:0;right:0;z-index:30;background:#161b22;
+    border:1px solid #30363d;border-radius:8px;max-height:280px;overflow-y:auto;margin-top:3px;
+    box-shadow:0 6px 16px rgba(0,0,0,.5)}
+  #srchSuggest.on{display:block}
+  #srchSuggest div{padding:9px 12px;cursor:pointer;font-size:13.5px;color:#e6edf3;
+    border-bottom:1px solid #21262d;display:flex;justify-content:space-between;gap:10px}
+  #srchSuggest div:last-child{border-bottom:none}
+  #srchSuggest div:hover{background:#21262d}
+  #srchSuggest .sc{color:#8b949e;font-size:11.5px;flex:none}
+  #srchSuggest div.none{cursor:default;color:#8b949e}
+  .srch-h{font-size:13.5px;font-weight:700;color:#d4af00;margin:0 0 6px;padding:0 2px}
+  .srch-h .srch-sub{font-size:11.5px;font-weight:500;color:#8b949e;margin-left:6px}
+  .srch-sec{margin:0 0 14px}
+  #srchBody .val-scroll{max-height:none}
+  #srchChart{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0d1117}
+  #srchChart iframe{width:100%;height:760px;border:0;display:block;background:#0d1117}
+  .srch-msg{padding:40px 16px;text-align:center;color:#8b949e;font-size:13.5px}
   /* ===== STUDY (공부방) ===== */
   .stu-bar{display:flex;gap:8px;align-items:stretch;margin:2px 0 12px}
   .stu-bar .sf{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel);
@@ -1180,6 +1205,7 @@ function krDigits(x){
   <div class="tabs">
    <span class="anl-ttl">KG</span>
    <div class="tab on" data-t="market">홈</div>
+   <div class="tab" data-t="srch">검색</div>
    <div class="tab" data-t="valuation">추세</div>
    <div class="tab" data-t="port">포트</div>
    <div class="tab" data-t="sel">관심</div>
@@ -1190,7 +1216,7 @@ function krDigits(x){
  </div>
 </header>
 
-<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span></div>
+<div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="srch">검색</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span></div>
 
 <div class="wrap">
 
@@ -1199,7 +1225,7 @@ function krDigits(x){
   <!-- 상단 바 (챠트 페이지와 동일 형식) -->
   <div class="anl-top">
    <div class="anl-row">
-    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
+    <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="srch">검색</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
     <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
    </div>
    <div class="anl-row">
@@ -1328,6 +1354,31 @@ function krDigits(x){
   <div class="srv-row">
    <button class="srv-btn" id="watchSave">서버 저장</button>
    <button class="srv-btn" id="watchLoad">서버 불러오기</button>
+  </div>
+ </section>
+
+
+ <!-- ===== 검색 (2026-10-28) ===== -->
+ <section id="srch">
+  <div class="srch-box">
+   <input id="srchInput" type="text" placeholder="국내·해외 종목명 또는 티커 (예: 삼성전자 · 005930 · AAPL)" autocomplete="off" enterkeyhint="search">
+   <button id="srchGo" type="button">검색</button>
+   <div id="srchSuggest"></div>
+  </div>
+  <div id="srchEmpty" class="srch-msg">종목명이나 티커를 입력해 검색하세요.</div>
+  <div id="srchBody" style="display:none">
+   <div class="srch-sec">
+    <div class="srch-h" id="srchHead">종목개요</div>
+    <div class="val-scroll"><table class="val-tbl mp mpfix" id="srchTbl"></table></div>
+   </div>
+   <div class="srch-sec">
+    <div class="srch-h">주식챠트<span class="srch-sub">보조지표 MACD · RSI</span></div>
+    <div id="srchChart"></div>
+   </div>
+   <div class="srch-sec">
+    <div class="srch-h">종목분석</div>
+    <div id="srchAnl" class="anl-comment" style="margin-top:0"></div>
+   </div>
   </div>
  </section>
 
@@ -2050,7 +2101,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="chartFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="srch">검색</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
       <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -2097,7 +2148,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="rptFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="srch">검색</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -2130,7 +2181,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
-      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="srch">검색</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span>
       <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button></span>
     </div>
     <div class="anl-row">
@@ -2164,7 +2215,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
 <!-- ===== 주식 전체화면 ===== -->
 <div id="valFull" class="valfull">
- <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span></div>
+ <div class="pagetop"><span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="srch">검색</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart">종목분석</button><button data-top="study">STUDY</button><button data-top="watch">방송</button></span></div>
  <div class="valfull-top" id="valSub">
   <div class="subtab on" data-m="invpf">선정주</div>
   <div class="subtab" data-m="kr">한국(체)</div>
@@ -2373,6 +2424,7 @@ $$('.tab').forEach(t=>t.onclick=()=>{
   if(t.dataset.t==='sel'){ goSub('sel'); return; }     // 선정주 — 주메뉴로 올림 (2026-10-16)
   if(t.dataset.t==='watch'){ goSub('watch'); return; }
   if(t.dataset.t==='study'){ goSub('study'); return; }
+  if(t.dataset.t==='srch'){ goSub('srch'); return; }    // 검색 (2026-10-28)
   if(typeof appChromeRestore==='function') appChromeRestore();
   // 기존 챠트 탭(구버전)
   if(t.dataset.chart) { openChart(); return; }
@@ -11412,9 +11464,11 @@ function anlNoteBits(note){
   };
 }
 
-function anlIntro(){
-  const el=$('#anlIntro'); if(!el) return;
-  const code=ANL_CODE;
+/* elOv·codeOv 를 주면 그 칸에 그 종목의 소개를 그린다 (검색 화면). force 는 사업 분야·보고서가 없어도
+   분기 재무가 있으면 카드를 감추지 않는다. 인자 없이 부르면 예전과 똑같이 분석 화면을 그린다 */
+function anlIntro(elOv, codeOv, force){
+  const el=(elOv && elOv.nodeType===1) ? elOv : $('#anlIntro'); if(!el) return;
+  const code=(typeof codeOv==='string' && codeOv) ? codeOv : ANL_CODE;
   const hide=()=>{ el.innerHTML=''; el.style.display='none'; };
   if(!code) return hide();
 
@@ -11424,7 +11478,8 @@ function anlIntro(){
   const rows = (typeof fcstOf==='function')
     ? fcstOf(code).slice().sort((a,b)=>String(a.year||'').localeCompare(String(b.year||'')))
     : [];
-  if(!biz && !bits.one && !bits.key && !rows.length) return hide();
+  const qForce = force ? anlFin6(FIN3[code]) : null;
+  if(!biz && !bits.one && !bits.key && !rows.length && !(qForce && (qForce.periods||[]).length)) return hide();
   el.style.display='';
 
   const P=[];
@@ -16173,7 +16228,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.27.-v4';
+const KG_APP_VER = '10.28.-v1';
 const KG_APP_BUILD = KG_APP_VER + ' ✕단추 겹침·매매동향 스크롤 없앰';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -17450,6 +17505,219 @@ function ptHeightSync(){
 }
 window.addEventListener('resize', ptHeightSync);
 try{ const _pt=document.querySelector('body > .pagetop'); if(_pt && window.ResizeObserver) new ResizeObserver(ptHeightSync).observe(_pt); }catch(e){}
+/* ═══════════════════════════════════════════════════════════════
+   검색 (2026-10-28)
+   홈 메뉴의 [검색] — 국내·해외 종목을 찾아 한 페이지에 모두 보여 준다.
+     ① 검색창   종목명·티커 (?find= 자동완성, 국내 6자리 코드와 미국 티커)
+     ② 종목개요 그 종목을 포트폴리오 표에 넣었을 때 나오는 열 (국내=한국(체) 표, 해외=미국(체) 표)
+     ③ 주식챠트 kg-chart.html 을 그대로 끼운다 (?srch=1 — 보조지표는 MACD·RSI)
+     ④ 종목분석 종목 소개 + 분기 재무 표 (분석 화면의 anlIntro 를 그대로 쓴다)
+   표에 쓰는 시세·목표가·외국인 같은 자료 저장소(krLive, FRGN, REPORT …)는 포트 표와 같은 것을 쓴다.
+   그래서 같은 종목이 이미 받아 둔 자료는 다시 받지 않는다. 지우는 일은 하지 않고 채우기만 한다.
+   ═══════════════════════════════════════════════════════════════ */
+const SRCH={code:'', name:'', us:false, seq:0, done:false};
+const srchIsUs = c => !/^\d[0-9A-Z]{5}$/.test(String(c||''));
+const srchSleep = ms => new Promise(r=>setTimeout(r,ms));
+function srchHideSug(){ const s=$('#srchSuggest'); if(s){ s.innerHTML=''; s.classList.remove('on'); } }
+async function srchFind(q){
+  if(!SRV_URL) return [];
+  try{
+    const r=await fetch(SRV_URL+'/?find='+encodeURIComponent(q));
+    const d=await r.json();
+    return ((d&&d.items)||[]).filter(it=>it && it.code);
+  }catch(e){ return []; }
+}
+function srchInit(){
+  const inp=$('#srchInput'); if(!inp || inp._bound) return; inp._bound=true;
+  const sug=$('#srchSuggest'); let timer=null;
+  // 입력하는 동안 자동완성
+  inp.addEventListener('input', ()=>{
+    const q=inp.value.trim();
+    if(timer) clearTimeout(timer);
+    if(!q){ srchHideSug(); return; }
+    timer=setTimeout(async()=>{
+      const items=(await srchFind(q)).slice(0,10);
+      if(inp.value.trim()!==q) return;                 // 그새 입력이 바뀌었으면 버린다
+      if(!items.length){ sug.innerHTML='<div class="none">검색 결과가 없습니다</div>'; sug.classList.add('on'); return; }
+      sug.innerHTML=items.map(it=>`<div data-code="${escHtml(it.code)}" data-name="${escHtml(it.name)}"><span>${escHtml(it.name)}</span><span class="sc">${escHtml(it.code)}${it.market==='US'?' · 해외':''}</span></div>`).join('');
+      sug.classList.add('on');
+    }, 250);
+  });
+  // mousedown — 입력칸이 포커스를 잃어 목록이 닫히기 전에 잡는다 (터치도 같은 이벤트로 온다)
+  sug.addEventListener('mousedown', e=>{
+    const el=e.target.closest('div[data-code]'); if(!el) return;
+    e.preventDefault();
+    inp.value=el.dataset.name; srchHideSug();
+    srchRun(el.dataset.code, el.dataset.name);
+  });
+  // 검색 단추·엔터 — 코드·티커가 정확히 맞는 결과를 먼저, 없으면 첫 결과
+  const go=async()=>{
+    const q=inp.value.trim(); if(!q) return;
+    srchHideSug();
+    const up=q.toUpperCase();
+    const items=await srchFind(q);
+    let hit=items.find(it=>String(it.code).toUpperCase()===up) || items[0];
+    if(!hit){
+      if(/^\d[0-9A-Z]{5}$/.test(up) || /^[A-Z][A-Z.\-]{0,9}$/.test(up)) hit={code:up, name:up};   // 찾기가 비어도 코드·티커면 그대로 연다
+    }
+    if(!hit){ toast('종목을 찾지 못했습니다'); return; }
+    inp.value=hit.name;
+    srchRun(hit.code, hit.name);
+  };
+  $('#srchGo').onclick=go;
+  inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); go(); } else if(e.key==='Escape') srchHideSug(); });
+  document.addEventListener('mousedown', e=>{ if(!e.target.closest('.srch-box')) srchHideSug(); });
+}
+
+async function srchRun(code, name){
+  code=String(code||'').trim().toUpperCase();
+  if(!code) return;
+  const seq=++SRCH.seq;
+  SRCH.code=code; SRCH.name=name||code; SRCH.us=srchIsUs(code); SRCH.done=false;
+  try{ if(typeof stkSet==='function') stkSet(code, SRCH.name); }catch(e){}   // 종목분석 메뉴로 가도 같은 종목을 이어 본다
+  srchOvwDraw();                                                          // ② 먼저 자리를 깔고, 자료가 오는 대로 다시 그린다
+  const ch=$('#srchChart');                                               // ③ 챠트
+  if(ch) ch.innerHTML='<iframe title="주식챠트" src="kg-chart.html?srch=1&code='+encodeURIComponent(code)+'&name='+encodeURIComponent(SRCH.name)+'"></iframe>';
+  const an=$('#srchAnl');                                                 // ④ 분석
+  if(an){ an.style.display=''; an.innerHTML='<h5>종목 소개</h5><p style="color:#8b949e">자료를 불러오는 중…</p>'; }
+  await Promise.all([ srchLoadOverview(code, SRCH.name, SRCH.us, seq), srchLoadAnalysis(code, SRCH.us, seq) ]);
+}
+
+/* ② 종목개요 — 자료 받기 */
+async function srchLoadOverview(code, name, us, seq){
+  const draw=()=>{ if(seq===SRCH.seq) srchOvwDraw(); };
+  // 다른 화면이 같은 자료를 받는 중이면 끝나기를 기다린다 (그때 시작하면 조용히 건너뛰어 칸이 비어 있게 된다)
+  const wait=async(busy)=>{ for(let i=0;i<40 && busy();i++) await srchSleep(200); };
+  const job=fn=>Promise.resolve().then(fn).catch(e=>console.warn('[검색]',e)).then(draw);
+  if(!SRV_URL){ SRCH.done=true; draw(); return; }
+  const rows=[[code, name]];
+  if(!us){
+    await Promise.all([
+      job(()=>fetchKrLive(rows)),
+      job(()=>fetchKrTargets(rows)),
+      job(async()=>{                                                        // ROE — fetchKrRoe 는 끝에 한국 표를 다시 그려서 쓰지 않는다
+        const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(code)); const d=await r.json();
+        ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) krRoe[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
+      }),
+      job(async()=>{ await wait(()=>reportLoading); await ensureReports([code]); }),
+      job(async()=>{ await wait(()=>frgnLoading);   await ensureForeign([code]); }),
+      job(async()=>{ await wait(()=>shortLoading);  await ensureShort([code]); }),
+    ]);
+  }else{
+    await Promise.all([
+      job(()=>fetchUscLive(rows)),
+      job(async()=>{                                                        // 목표가·컨센서스 — 막히면 한 번 더
+        const fails=[], retry=[];
+        await uscFetchOne(code, fails, retry);
+        if(retry.length){ await srchSleep(1200); await uscFetchOne(code, [], []); }
+      }),
+    ]);
+  }
+  if(seq===SRCH.seq){ SRCH.done=true; srchOvwDraw(); }
+}
+
+/* ② 종목개요 — 그리기 (포트폴리오 표의 열 그대로) */
+function srchOvwDraw(){
+  const t=$('#srchTbl'); if(!t) return;
+  const code=SRCH.code, name=SRCH.name, us=SRCH.us;
+  const hd=$('#srchHead'); if(hd) hd.innerHTML='종목개요<span class="srch-sub">'+escHtml(name)+' · '+escHtml(code)+(us?' · 해외':'')+'</span>';
+  const body=$('#srchBody'); if(body) body.style.display='';
+  const em=$('#srchEmpty'); if(em) em.style.display='none';
+  const hole = SRCH.done ? '—' : (SRV_URL ? '…' : '—');          // 아직 받는 중이면 …, 다 받았는데 없으면 —
+  let h;
+  if(!us){
+    // 한국(체) 표와 같은 열 (비중은 포트에 담은 비율이라 검색 종목에는 없다)
+    loadReportCache(); loadFrgnCache();
+    const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
+    const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+    const live=krLive[code], tgt=krTarget[code], hi=krHigh52[code];
+    const liveStr= live? addComma(live) : hole;
+    const tgtStr = tgt ? addComma(tgt)  : hole;
+    const hiStr  = hi  ? addComma(hi)   : hole;
+    const up=krUpside(tgt, live), hd52=krUpside(hi, live);
+    const upHtml = up!==''  ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const hdHtml = hd52!=='' ? ` <span class="diffp${parseFloat(hd52)>=0?'':' neg'}">(${hd52}%)</span>` : '';
+    let roeTxt=hole;
+    const rz=krRoe[code];
+    if(rz && rz.roe!=null){
+      const perTag=(rz.period&&hp&&String(rz.period)!==String(hp))?` <span class="rsub">/ ${qLabel(rz.period)}</span>`:'';
+      let dh='';
+      if(rz.prevRoe!=null){ const df=Math.round((rz.roe-rz.prevRoe)*100)/100; dh=`<span class="diffp${df>=0?'':' neg'}">(${df>=0?'+':''}${df})</span>`; }
+      roeTxt=`${rz.roe}${perTag}${dh}`;
+    }
+    let repCell;
+    { const rep=REPORT[code];
+      if(rep===undefined) repCell=`<span class="rsub">${hole}</span>`;
+      else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
+      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
+    }
+    const stkInner=`<span class="kn">${escHtml(name)}</span><span class="kc">${escHtml(code)}</span>`;
+    h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
+     + `<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="krlink srchnv" data-code="${escHtml(code)}">${stkInner}</a></td>`
+     + `<td class="cls-cell">${clsCellHtml(code, name)}</td>`
+     + `<td class="mp-r krlive">${liveStr}${live?rateHtml(krRate[code]):''}</td>`
+     + `<td>${roeTxt}</td>`
+     + `<td class="frgnc">${frgnCell(code)}</td>`
+     + `<td class="famtc">${frgnAmtCell(code)}</td>`
+     + `<td class="shortc">${shortSvgCell(code)}</td>`
+     + `<td class="mp-r">${hiStr}${hdHtml}</td>`
+     + `<td class="mp-r">${tgtStr}${upHtml}</td>`
+     + `<td>${divCell(code)}</td>`
+     + `<td class="mp-l rpt">${repCell}</td>`
+     + '</tr></tbody>';
+    t.className='val-tbl mp mpfix';
+  }else{
+    // 미국(체) 표와 같은 열 (변동사항·기록은 직접 적는 칸이라 뺐다)
+    const H=["Symbol","분류","현재가<br>(전일대비%)","52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"];
+    const liveQ=uscLive[code];
+    const liveStr= liveQ ? addComma(liveQ.priceStr||String(liveQ.price)) : hole;
+    const tgt=uscTarget[code];
+    const tgtStr = tgt ? addComma(tgt) : ((SRCH.done||uscTgtDone[code]) ? '—' : hole);
+    const up=krUpside(tgt, liveQ?liveQ.price:undefined);
+    const upHtml = up!=='' ? ` <span class="diffp${parseFloat(up)>=0?'':' neg'}">(${up}%)</span>` : '';
+    const hi=(liveQ&&liveQ.high52!=null)?liveQ.high52:null;
+    const hiStr = hi!=null ? addComma(String(hi)) : hole;
+    const hd52=krUpside(hi, liveQ?liveQ.price:undefined);
+    const hdHtml = hd52!=='' ? ` <span class="diffp${parseFloat(hd52)>=0?'':' neg'}">(${hd52}%)</span>` : '';
+    const stkInner=`<span class="sy">${escHtml(code)}</span>`+(name&&name!==code?`<span class="nm">${escHtml(name)}</span>`:'');
+    h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
+     + `<td class="al"><a href="#" class="uscnv srchnv" data-code="${escHtml(code)}">${stkInner}</a></td>`
+     + `<td class="cls-cell">${clsCellHtmlUS(code, name||code)}</td>`
+     + `<td class="uslive">${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`
+     + `<td>${hiStr}${hdHtml}</td>`
+     + `<td>${tgtStr}${upHtml}</td>`
+     + `<td>${consCell('US:'+code)}</td>`
+     + '</tr></tbody>';
+    t.className='val-tbl';
+  }
+  t.innerHTML=h;
+  // 종목명을 누르면 네이버 종목 페이지 (포트 표와 같은 동작)
+  t.querySelectorAll('a.srchnv').forEach(a=>{ a.onclick=ev=>{
+    ev.preventDefault();
+    if(SRCH.us) openNaverWorld(SRCH.code); else openNaverDomestic(SRCH.code);
+  }; });
+}
+
+/* ④ 종목분석 — 종목 소개 + 분기 재무 표 */
+async function srchLoadAnalysis(code, us, seq){
+  const el=$('#srchAnl'); if(!el) return;
+  if(!SRV_URL){ el.innerHTML='<h5>종목 소개</h5><p style="color:#8b949e">시세서버 주소가 설정되어 있지 않아 재무 자료를 받을 수 없습니다.</p>'; return; }
+  for(let i=0;i<50 && fin3Busy;i++) await srchSleep(200);       // 다른 화면이 재무를 받는 중이면 기다린다
+  if(seq!==SRCH.seq) return;
+  if(FIN3[code]===null) delete FIN3[code];                      // 예전에 못 받아 null 로 남은 것은 다시 묻는다
+  try{ await ensureFin3([code]); }catch(e){}
+  if(seq!==SRCH.seq) return;
+  try{ anlIntro(el, code, true); }catch(e){ console.warn('[검색] 종목 소개 오류:', e); el.innerHTML=''; }
+  // 사업 분야 설명은 앱에 손으로 적어 둔 종목(INTRO_BIZ)만 있다 — 없으면 그렇다고 알리고 네이버로 안내한다
+  if(!INTRO_BIZ[code]){
+    const p='<p><b>사업 분야</b> — 앱에 적어 둔 설명이 없습니다. <a href="#" class="srchbiz" style="color:#58a6ff">네이버 종목 페이지</a>에서 기업개요를 확인하세요.</p>';
+    const h5=el.querySelector('h5');
+    if(h5) h5.insertAdjacentHTML('afterend', p);
+    else{ el.style.display=''; el.innerHTML='<h5>종목 소개</h5>'+p+'<p style="color:#8b949e">재무 자료를 받지 못했습니다.</p>'; }
+    const a=el.querySelector('a.srchbiz'); if(a) a.onclick=ev=>{ ev.preventDefault(); if(us) openNaverWorld(code); else openNaverDomestic(code); };
+  }
+}
+
 function topPaint(which){
   setTimeout(ptHeightSync, 0);
   $$('.topnav button[data-top]').forEach(b=>b.classList.toggle('cur', b.dataset.top===which));
@@ -17540,6 +17808,23 @@ function anlCurrentPort(){
     window.scrollTo(0,0);
     if(typeof openPnl==='function') openPnl();
     topPaint('trend');
+    return;
+  }
+  // 검색 — 상단 메뉴 아래에 검색 화면을 연다 (2026-10-28)
+  if(which==='srch'){
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
+    if(typeof appChromeRestore==='function') appChromeRestore();
+    const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+    document.body.classList.remove('anl-mode');
+    document.body.classList.add('topbar-mode');
+    document.body.style.overflow='';
+    $$('.tab').forEach(x=>x.classList.remove('on'));
+    $$('section').forEach(x=>x.classList.remove('on'));
+    const tb=document.querySelector('.tab[data-t="srch"]'); if(tb) tb.classList.add('on');
+    const sc=$('#srch'); if(sc) sc.classList.add('on');
+    window.scrollTo(0,0);
+    srchInit();
+    topPaint('srch');
     return;
   }
   // STUDY — 상단 메뉴 아래에 공부방을 연다

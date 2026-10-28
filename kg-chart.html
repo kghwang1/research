@@ -462,6 +462,9 @@ body.mini-mode .stk-nav { display: none !important; }
 <script>
 /* 추세 › 지수분석 작은 그래프 모드 (?mini=1) — 아래 divOn 설명 참고 */
 const KG_MINI = new URLSearchParams(location.search).get('mini') === '1';
+/* 앱의 [검색] 화면에 끼운 챠트 (2026-10-28) — 보조차트는 MACD·RSI 두 개만 보이고,
+   지표 조합·배율 같은 평소 챠트 설정은 저장하지 않는다 (평소 챠트 화면이 바뀌지 않게) */
+const KG_SRCH = new URLSearchParams(location.search).get('srch') === '1';
 const MINI_DAYS = 63;   // 약 3개월(거래일)
 
 // ══════════════════════════════════════
@@ -1022,6 +1025,17 @@ function init() {
   setupSidebar();
   /* 작은 그래프: 보조차트는 모두 끈다 (저장하지 않으므로 원래 챠트 화면은 그대로) */
   if (KG_MINI) { Object.keys(state.selected).forEach(k => state.selected[k] = false); state.selectedOrder = []; }
+  /* 검색 화면: 보조차트는 MACD → RSI 두 개 (나중 것이 아래) */
+  if (KG_SRCH) {
+    Object.keys(state.selected).forEach(k => state.selected[k] = false);
+    state.selected.MACD = true; state.selected.RSI = true;
+    state.selectedOrder = ['MACD', 'RSI'];
+    document.querySelectorAll('.ind-label').forEach(label => {
+      const on = (label.dataset.key === 'MACD' || label.dataset.key === 'RSI');
+      const cb = label.querySelector('.cb-show'); if (cb) cb.checked = on;
+      label.classList.toggle('active', on);
+    });
+  }
   setupHeader();
   setupSearch();
   stkNavInit();
@@ -1220,7 +1234,7 @@ function showLoading(msg) {
 // ── 보기 상태(배율·기간) 저장/복원: 차트는 종목마다 새로 로드되므로 localStorage 사용 ──
 const VIEW_KEY = 'kg_chart_view';
 function saveView() {
-  if (KG_MINI) return;
+  if (KG_MINI || KG_SRCH) return;
   try {
     localStorage.setItem(VIEW_KEY, JSON.stringify({
       zoom: state.keepZoom, from: state.keepFrom, to: state.keepTo,
@@ -1938,7 +1952,7 @@ function loadDefaults() {
   return intro(d);
 }
 function saveDefaults(defs) {
-  if (KG_MINI) return;
+  if (KG_MINI || KG_SRCH) return;
   try { localStorage.setItem('kgchart_defaults', JSON.stringify(defs)); } catch(e) {}
 }
 
@@ -1946,6 +1960,7 @@ function saveDefaults(defs) {
    종목을 바꾸면 차트 페이지가 통째로 다시 열리기 때문에,
    저장해 두지 않으면 손으로 켠 지표가 모두 사라지고 기본값으로 돌아간다. */
 function saveCurrentCombo() {
+  if (KG_SRCH) return;
   const defs = {};
   document.querySelectorAll('.ind-label').forEach(l => {
     const cb = l.querySelector('.cb-show');
@@ -4457,7 +4472,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.27.-v4';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '10.28.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
