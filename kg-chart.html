@@ -220,10 +220,8 @@ body.mini-mode #candle-wrap { position: relative; border: none; border-radius: 0
 #side-pane{ display:none;flex-direction:column;gap:6px;width:300px;flex:none;
   padding:6px;overflow:hidden;background:var(--bg);border-left:1px solid #30363d }
 body.sp-open #side-pane{ display:flex }
-/* 검색 화면 챠트 (2026-10-28) — 우측 월봉·매매동향 패널은 쓰지 않고, 매매동향은 보조차트 아래 가로 그래프로 */
+/* 검색 화면 챠트 (2026-10-28) — 우측 월봉·매매동향 패널은 쓰지 않는다 (보조차트는 MACD · RSI · 외국인 순매수) */
 body.srch-mode #side-pane, body.srch-mode .side-tg { display:none !important }
-#srch-flow{ flex:0 0 120px; height:120px; position:relative; margin-top:3px }
-#srch-flow canvas{ width:100%; height:100%; display:block }
 #mon-box,#flow-box{ display:none }
 body.sp-mon #mon-box{ display:block }
 body.sp-flow #flow-box{ display:flex;flex-direction:column;flex:1 1 auto;min-height:0;position:relative }
@@ -1029,13 +1027,13 @@ function init() {
   setupSidebar();
   /* 작은 그래프: 보조차트는 모두 끈다 (저장하지 않으므로 원래 챠트 화면은 그대로) */
   if (KG_MINI) { Object.keys(state.selected).forEach(k => state.selected[k] = false); state.selectedOrder = []; }
-  /* 검색 화면: 보조차트는 MACD → RSI 두 개 (나중 것이 아래) */
+  /* 검색 화면: 보조차트는 MACD → RSI → 외국인 순매수 (나중 것이 아래) */
   if (KG_SRCH) {
     Object.keys(state.selected).forEach(k => state.selected[k] = false);
-    state.selected.MACD = true; state.selected.RSI = true;
-    state.selectedOrder = ['MACD', 'RSI'];
+    state.selected.MACD = true; state.selected.RSI = true; state.selected.FRGN_NET = true;
+    state.selectedOrder = ['MACD', 'RSI', 'FRGN_NET'];
     document.querySelectorAll('.ind-label').forEach(label => {
-      const on = (label.dataset.key === 'MACD' || label.dataset.key === 'RSI');
+      const on = (label.dataset.key === 'MACD' || label.dataset.key === 'RSI' || label.dataset.key === 'FRGN_NET');
       const cb = label.querySelector('.cb-show'); if (cb) cb.checked = on;
       label.classList.toggle('active', on);
     });
@@ -5090,77 +5088,7 @@ function flowPlace(){
   if(al) al.style.top=ay+'px';
   if(ar){ ar.style.top=ay+'px'; ar.style.right=sb+'px'; }
 }
-window.addEventListener('resize', ()=>{ if(document.getElementById('flow-cv')) drawFlowChart(); if (KG_SRCH) drawSrchFlow(); });
-
-/* ───── 검색 화면 전용: 투자자별 매매동향 (보조차트 아래, 가로) — 2026-10-28 ─────
-   주가차트·보조차트와 같은 가로축(보이는 봉 구간)에 외국인·기관·개인의 일별 순매수를 선으로 그린다.
-   주가차트에서 짚은 봉(state.hoverIdx)의 세로선과 숫자도 함께 보인다. */
-const SRCH_FLOW_H = 120;
-function drawSrchFlow() {
-  if (!KG_SRCH) return;
-  const area = document.getElementById('chart-area'); if (!area) return;
-  let box = document.getElementById('srch-flow');
-  if (!box) { box = document.createElement('div'); box.id = 'srch-flow'; box.appendChild(document.createElement('canvas')); }
-  if (box.parentElement !== area || area.lastElementChild !== box) area.appendChild(box);   // 보조차트가 다시 만들어져도 늘 맨 아래
-  const cv = box.firstChild;
-  const W = box.clientWidth, H = box.clientHeight; if (!W || !H) return;
-  const dpr = window.devicePixelRatio || 1;
-  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = C.panel2; ctx.fillRect(0, 0, W, H);
-  const PAD = { l: 8, r: 62, t: 16, b: 4 };
-  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
-  ctx.font = '10px monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#f2c800';
-  ctx.fillText('투자자별 매매동향 (주)', PAD.l, 11);
-  const code = state.stock && state.stock.code;
-  const isKr = !!code && /^\d[0-9A-Z]{5}$/.test(code);
-  const fd = state.frgnData, d = state.data, r = state.range;
-  const note = t => { ctx.fillStyle = '#6e7681'; ctx.fillText(t, PAD.l, PAD.t + 22); };
-  if (!isKr || state.interval !== '1d') { note('한국 종목 일봉에서만 나옵니다.'); return; }
-  if (!fd) { note('불러오는 중…'); return; }
-  const n = r[1] - r[0]; if (n <= 0 || !d || !d.length) return;
-  const keys = ['net', 'inst', 'indiv'];
-  const rowAt = i => { const b = d[r[0] + i]; if (!b) return null; const f = fd[b.date] || fd[String(b.date).slice(0, 10)]; return f || null; };
-  let mx = 0;
-  for (let i = 0; i < n; i++) { const f = rowAt(i); if (f) keys.forEach(k => { if (f[k] != null && isFinite(f[k])) mx = Math.max(mx, Math.abs(f[k])); }); }
-  if (!mx) { note('이 구간에는 매매동향 자료가 없습니다.'); return; }
-  const xOf = i => PAD.l + (i + 0.5) * (cw / n);
-  const y0 = PAD.t + ch / 2;
-  const yOf = v => y0 - (v / mx) * (ch / 2);
-  // 0선과 ±최대 눈금
-  ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1; ctx.setLineDash([]);
-  ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(W - PAD.r, y0); ctx.stroke();
-  ctx.strokeStyle = '#21262d';
-  [PAD.t, PAD.t + ch].forEach(y => { ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(W - PAD.r, y); ctx.stroke(); });
-  ctx.fillStyle = '#6e7681'; ctx.textAlign = 'left';
-  ctx.fillText(flowNum(mx), W - PAD.r + 3, PAD.t + 8);
-  ctx.fillText('0', W - PAD.r + 3, y0 + 3);
-  ctx.fillText(flowNum(-mx), W - PAD.r + 3, PAD.t + ch);
-  // 선 3개 — 개인(점선)을 먼저 그려 뒤로
-  ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-  ['indiv', 'inst', 'net'].forEach(k => {
-    ctx.strokeStyle = FLOW_COL[k]; ctx.lineWidth = FLOW_LW[k]; ctx.setLineDash(k === 'indiv' ? [4, 3] : []);
-    ctx.beginPath(); let on = false;
-    for (let i = 0; i < n; i++) {
-      const f = rowAt(i), v = f ? f[k] : null;
-      if (v == null || !isFinite(v)) { on = false; continue; }
-      if (on) ctx.lineTo(xOf(i), yOf(v)); else { ctx.moveTo(xOf(i), yOf(v)); on = true; }
-    }
-    ctx.stroke(); ctx.setLineDash([]);
-  });
-  // 범례 (제목 오른쪽) — 짚은 날이 있으면 그 날의 숫자
-  const hi = state.hoverIdx;
-  const hf = (hi >= 0 && hi < n) ? rowAt(hi) : null;
-  let x = PAD.l + 128; ctx.textAlign = 'left'; ctx.font = 'bold 10px monospace';
-  keys.forEach(k => {
-    const txt = FLOW_NM[k] + (hf && hf[k] != null ? ' ' + flowNum(hf[k]) : '');
-    ctx.fillStyle = FLOW_COL[k]; ctx.fillText(txt, x, 11); x += ctx.measureText(txt).width + 12;
-  });
-  if (hi >= 0 && hi < n) {                                  // 주가차트에서 짚은 봉과 같은 세로선
-    ctx.strokeStyle = '#ffffff66'; ctx.lineWidth = 1; ctx.setLineDash([]);
-    ctx.beginPath(); ctx.moveTo(xOf(hi), PAD.t); ctx.lineTo(xOf(hi), PAD.t + ch); ctx.stroke();
-  }
-}
+window.addEventListener('resize', ()=>{ if(document.getElementById('flow-cv')) drawFlowChart(); });
 
 /* ───── 종목 이동 단추 (2026-10-21) ─────
    종목창(좌측 목록)을 닫았을 때만 보인다. 누르면 부모(종목분석)에게 알려서
@@ -5250,7 +5178,7 @@ function fitPanels() {
   const k = subs.length;
   const gap = 3;
   // 사용 가능한 세로 공간 (아래쪽 여백은 넘기기 버튼 자리만 남긴다)
-  const avail = area.clientHeight - 8 - gap * (k + 1) - 20 - (KG_SRCH ? SRCH_FLOW_H + gap : 0);   // 20: 주가차트 아래 정보 줄 / 검색 화면은 매매동향 칸만큼 더 뺀다
+  const avail = area.clientHeight - 8 - gap * (k + 1) - 20;   // 20: 주가차트 아래 정보 줄
   if (avail <= 0) return;
 
   let mainH, subH;
@@ -5283,7 +5211,6 @@ function fitPanels() {
 }
 
 function renderAll() {
-  if (KG_SRCH) requestAnimationFrame(() => drawSrchFlow());   // 칸 배치가 끝난 뒤 매매동향을 그린다
   updateIframeStockName();
   const activeKeys = getActiveKeys();
   const chartArea = document.getElementById('chart-area');
@@ -5457,7 +5384,6 @@ function setupMouseEvent() {
   function redrawAll() {
     drawCandle();
     if (typeof drawFlowChart === 'function') drawFlowChart();   // 짚은 날짜를 매매동향과 맞춘다
-    if (KG_SRCH) drawSrchFlow();
     document.querySelectorAll('.sub-canvas').forEach((cv, i) => {
       const base = getActiveKeys()[i];
       const key = base ? swapShown(base) : null;   // 밀어서 바꾼 지표를 그대로 유지한다

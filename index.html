@@ -1372,11 +1372,11 @@ function krDigits(x){
     <div class="val-scroll"><table class="val-tbl mp mpfix" id="srchTbl"></table></div>
    </div>
    <div class="srch-sec">
-    <div class="srch-h">주식챠트<span class="srch-sub">보조지표 MACD · RSI · 매매동향</span></div>
+    <div class="srch-h" id="srchChartHead">주식챠트<span class="srch-sub">보조지표 MACD · RSI · 외국인순매수</span></div>
     <div id="srchChart"></div>
    </div>
    <div class="srch-sec">
-    <div class="srch-h">종목분석</div>
+    <div class="srch-h" id="srchAnlHead">종목분석</div>
     <div id="srchAnl" class="anl-comment" style="margin-top:0"></div>
    </div>
   </div>
@@ -16228,7 +16228,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.28.-v4';
+const KG_APP_VER = '10.28.-v5';
 const KG_APP_BUILD = KG_APP_VER + ' ✕단추 겹침·매매동향 스크롤 없앰';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -17614,6 +17614,11 @@ document.addEventListener('click', e=>{
   e.preventDefault(); srchOpenPf(a.dataset.pf);
 });
 
+/* 종목분석 칸의 '종목 소개' 제목을 '<종목명> 소개' 로 */
+function srchIntroTitle(el){
+  if(!el) return;
+  const h5=el.querySelector('h5'); if(h5) h5.textContent=(SRCH.name||SRCH.code)+' 소개';
+}
 async function srchRun(code, name){
   code=String(code||'').trim().toUpperCase();
   if(!code) return;
@@ -17625,7 +17630,7 @@ async function srchRun(code, name){
   const ch=$('#srchChart');                                               // ③ 챠트
   if(ch) ch.innerHTML='<iframe title="주식챠트" src="kg-chart.html?srch=1&code='+encodeURIComponent(code)+'&name='+encodeURIComponent(SRCH.name)+'"></iframe>';
   const an=$('#srchAnl');                                                 // ④ 분석
-  if(an){ an.style.display=''; an.innerHTML='<h5>종목 소개</h5><p style="color:#8b949e">자료를 불러오는 중…</p>'; }
+  if(an){ an.style.display=''; an.innerHTML='<h5></h5><p style="color:#8b949e">자료를 불러오는 중…</p>'; srchIntroTitle(an); }
   await Promise.all([ srchLoadOverview(code, SRCH.name, SRCH.us, seq), srchLoadAnalysis(code, SRCH.us, seq) ]);
 }
 
@@ -17665,7 +17670,8 @@ async function srchLoadOverview(code, name, us, seq){
 function srchOvwDraw(){
   const t=$('#srchTbl'); if(!t) return;
   const code=SRCH.code, name=SRCH.name, us=SRCH.us;
-  const hd=$('#srchHead'); if(hd) hd.innerHTML='종목개요<span class="srch-sub">'+escHtml(name)+' · '+escHtml(code)+(us?' · 해외':'')+'</span>';
+  const hd=$('#srchHead'); if(hd) hd.innerHTML=escHtml(name)+' 개요<span class="srch-sub">'+escHtml(code)+(us?' · 해외':'')+'</span>';
+  const ch0=$('#srchChartHead'); if(ch0) ch0.innerHTML=escHtml(name)+' 챠트<span class="srch-sub">보조지표 MACD · RSI · 외국인순매수</span>';
   const body=$('#srchBody'); if(body) body.style.display='';
   const em=$('#srchEmpty'); if(em) em.style.display='none';
   const hole = SRCH.done ? '—' : (SRV_URL ? '…' : '—');          // 아직 받는 중이면 …, 다 받았는데 없으면 —
@@ -17674,7 +17680,7 @@ function srchOvwDraw(){
     // 한국(체) 표와 같은 열 (비중은 포트에 담은 비율이라 검색 종목에는 없다)
     loadFrgnCache();
     const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-    const H=["종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스"];
+    const H=["현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스"];
     const live=krLive[code], tgt=krTarget[code], hi=krHigh52[code];
     const liveStr= live? addComma(live) : hole;
     const tgtStr = tgt ? addComma(tgt)  : hole;
@@ -17690,9 +17696,7 @@ function srchOvwDraw(){
       if(rz.prevRoe!=null){ const df=Math.round((rz.roe-rz.prevRoe)*100)/100; dh=`<span class="diffp${df>=0?'':' neg'}">(${df>=0?'+':''}${df})</span>`; }
       roeTxt=`${rz.roe}${perTag}${dh}`;
     }
-    const stkInner=`<span class="kn">${escHtml(name)}</span><span class="kc">${escHtml(code)}</span>`;
     h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
-     + `<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="krlink srchnv" data-code="${escHtml(code)}">${stkInner}</a></td>`
      + `<td class="mp-r krlive">${liveStr}${live?rateHtml(krRate[code]):''}</td>`
      + `<td>${roeTxt}</td>`
      + `<td class="frgnc">${frgnCell(code)}</td>`
@@ -17705,7 +17709,7 @@ function srchOvwDraw(){
     t.className='val-tbl mp mpfix';
   }else{
     // 미국(체) 표와 같은 열 (변동사항·기록은 직접 적는 칸이라 뺐다)
-    const H=["Symbol","현재가<br>(전일대비%)","52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"];
+    const H=["현재가<br>(전일대비%)","52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"];
     const liveQ=uscLive[code];
     const liveStr= liveQ ? addComma(liveQ.priceStr||String(liveQ.price)) : hole;
     const tgt=uscTarget[code];
@@ -17716,9 +17720,7 @@ function srchOvwDraw(){
     const hiStr = hi!=null ? addComma(String(hi)) : hole;
     const hd52=krUpside(hi, liveQ?liveQ.price:undefined);
     const hdHtml = hd52!=='' ? ` <span class="diffp${parseFloat(hd52)>=0?'':' neg'}">(${hd52}%)</span>` : '';
-    const stkInner=`<span class="sy">${escHtml(code)}</span>`+(name&&name!==code?`<span class="nm">${escHtml(name)}</span>`:'');
     h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
-     + `<td class="al"><a href="#" class="uscnv srchnv" data-code="${escHtml(code)}">${stkInner}</a></td>`
      + `<td class="uslive">${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`
      + `<td>${hiStr}${hdHtml}</td>`
      + `<td>${tgtStr}${upHtml}</td>`
@@ -17737,19 +17739,20 @@ function srchOvwDraw(){
 /* ④ 종목분석 — 종목 소개 + 분기 재무 표 */
 async function srchLoadAnalysis(code, us, seq){
   const el=$('#srchAnl'); if(!el) return;
-  if(!SRV_URL){ el.innerHTML='<h5>종목 소개</h5><p style="color:#8b949e">시세서버 주소가 설정되어 있지 않아 재무 자료를 받을 수 없습니다.</p>'; return; }
+  if(!SRV_URL){ el.innerHTML='<h5></h5><p style="color:#8b949e">시세서버 주소가 설정되어 있지 않아 재무 자료를 받을 수 없습니다.</p>'; srchIntroTitle(el); return; }
   for(let i=0;i<50 && fin3Busy;i++) await srchSleep(200);       // 다른 화면이 재무를 받는 중이면 기다린다
   if(seq!==SRCH.seq) return;
   if(FIN3[code]===null) delete FIN3[code];                      // 예전에 못 받아 null 로 남은 것은 다시 묻는다
   try{ await ensureFin3([code]); }catch(e){}
   if(seq!==SRCH.seq) return;
   try{ anlIntro(el, code, true); }catch(e){ console.warn('[검색] 종목 소개 오류:', e); el.innerHTML=''; }
+  srchIntroTitle(el);
   // 사업 분야 설명은 앱에 손으로 적어 둔 종목(INTRO_BIZ)만 있다 — 없으면 그렇다고 알리고 네이버로 안내한다
   if(!INTRO_BIZ[code]){
     const p='<p><b>사업 분야</b> — 앱에 적어 둔 설명이 없습니다. <a href="#" class="srchbiz" style="color:#58a6ff">네이버 종목 페이지</a>에서 기업개요를 확인하세요.</p>';
     const h5=el.querySelector('h5');
     if(h5) h5.insertAdjacentHTML('afterend', p);
-    else{ el.style.display=''; el.innerHTML='<h5>종목 소개</h5>'+p+'<p style="color:#8b949e">재무 자료를 받지 못했습니다.</p>'; }
+    else{ el.style.display=''; el.innerHTML='<h5></h5>'+p+'<p style="color:#8b949e">재무 자료를 받지 못했습니다.</p>'; srchIntroTitle(el); }
     const a=el.querySelector('a.srchbiz'); if(a) a.onclick=ev=>{ ev.preventDefault(); if(us) openNaverWorld(code); else openNaverDomestic(code); };
   }
 }
