@@ -1372,7 +1372,7 @@ function krDigits(x){
     <div class="val-scroll"><table class="val-tbl mp mpfix" id="srchTbl"></table></div>
    </div>
    <div class="srch-sec">
-    <div class="srch-h">주식챠트<span class="srch-sub">보조지표 MACD · RSI</span></div>
+    <div class="srch-h">주식챠트<span class="srch-sub">보조지표 MACD · RSI · 매매동향</span></div>
     <div id="srchChart"></div>
    </div>
    <div class="srch-sec">
@@ -16228,7 +16228,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.28.-v1';
+const KG_APP_VER = '10.28.-v2';
 const KG_APP_BUILD = KG_APP_VER + ' ✕단추 겹침·매매동향 스크롤 없앰';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -17599,7 +17599,6 @@ async function srchLoadOverview(code, name, us, seq){
         const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(code)); const d=await r.json();
         ((d&&d.items)||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) krRoe[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
       }),
-      job(async()=>{ await wait(()=>reportLoading); await ensureReports([code]); }),
       job(async()=>{ await wait(()=>frgnLoading);   await ensureForeign([code]); }),
       job(async()=>{ await wait(()=>shortLoading);  await ensureShort([code]); }),
     ]);
@@ -17627,9 +17626,9 @@ function srchOvwDraw(){
   let h;
   if(!us){
     // 한국(체) 표와 같은 열 (비중은 포트에 담은 비율이라 검색 종목에는 없다)
-    loadReportCache(); loadFrgnCache();
+    loadFrgnCache();
     const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
-    const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+    const H=["종목","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스"];
     const live=krLive[code], tgt=krTarget[code], hi=krHigh52[code];
     const liveStr= live? addComma(live) : hole;
     const tgtStr = tgt ? addComma(tgt)  : hole;
@@ -17645,16 +17644,9 @@ function srchOvwDraw(){
       if(rz.prevRoe!=null){ const df=Math.round((rz.roe-rz.prevRoe)*100)/100; dh=`<span class="diffp${df>=0?'':' neg'}">(${df>=0?'+':''}${df})</span>`; }
       roeTxt=`${rz.roe}${perTag}${dh}`;
     }
-    let repCell;
-    { const rep=REPORT[code];
-      if(rep===undefined) repCell=`<span class="rsub">${hole}</span>`;
-      else if(!rep||!rep.title) repCell='<span class="rsub">—</span>';
-      else { const sec=classifySector(rep.title,code); const inner=`<span class="rpt-tag">(${rep.date||''}${sec?','+sec:''})</span>${escHtml(rep.title)}`; repCell= rep.link ? `<a href="${escHtml(rep.link)}" class="rptlink" data-href="${escHtml(rep.link)}" data-title="${escHtml(rep.title)}" target="_blank" rel="noopener">${inner}</a>` : inner; }
-    }
     const stkInner=`<span class="kn">${escHtml(name)}</span><span class="kc">${escHtml(code)}</span>`;
     h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
      + `<td class="mp-l kr-stk kr-stk-wrap"><a href="#" class="krlink srchnv" data-code="${escHtml(code)}">${stkInner}</a></td>`
-     + `<td class="cls-cell">${clsCellHtml(code, name)}</td>`
      + `<td class="mp-r krlive">${liveStr}${live?rateHtml(krRate[code]):''}</td>`
      + `<td>${roeTxt}</td>`
      + `<td class="frgnc">${frgnCell(code)}</td>`
@@ -17663,12 +17655,11 @@ function srchOvwDraw(){
      + `<td class="mp-r">${hiStr}${hdHtml}</td>`
      + `<td class="mp-r">${tgtStr}${upHtml}</td>`
      + `<td>${divCell(code)}</td>`
-     + `<td class="mp-l rpt">${repCell}</td>`
      + '</tr></tbody>';
     t.className='val-tbl mp mpfix';
   }else{
     // 미국(체) 표와 같은 열 (변동사항·기록은 직접 적는 칸이라 뺐다)
-    const H=["Symbol","분류","현재가<br>(전일대비%)","52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"];
+    const H=["Symbol","현재가<br>(전일대비%)","52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","컨센서스"];
     const liveQ=uscLive[code];
     const liveStr= liveQ ? addComma(liveQ.priceStr||String(liveQ.price)) : hole;
     const tgt=uscTarget[code];
@@ -17682,7 +17673,6 @@ function srchOvwDraw(){
     const stkInner=`<span class="sy">${escHtml(code)}</span>`+(name&&name!==code?`<span class="nm">${escHtml(name)}</span>`:'');
     h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
      + `<td class="al"><a href="#" class="uscnv srchnv" data-code="${escHtml(code)}">${stkInner}</a></td>`
-     + `<td class="cls-cell">${clsCellHtmlUS(code, name||code)}</td>`
      + `<td class="uslive">${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`
      + `<td>${hiStr}${hdHtml}</td>`
      + `<td>${tgtStr}${upHtml}</td>`
