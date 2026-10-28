@@ -517,6 +517,10 @@
   .srch-box input:focus{outline:none;border-color:#58a6ff}
   .srch-box button{flex:none;background:#1f6feb;border:0;color:#fff;border-radius:8px;padding:0 18px;
     font-weight:700;font-size:14px;cursor:pointer}
+  #srchPf{flex:none;align-self:center;max-width:46%;display:flex;flex-wrap:wrap;gap:2px 10px;font-size:13.5px;font-weight:700}
+  #srchPf a{color:#f2c800;cursor:pointer;text-decoration:none;white-space:nowrap}
+  #srchPf a:active{opacity:.6}
+  #srchPf .none{color:#8b949e;font-weight:600}
   #srchSuggest{display:none;position:absolute;top:100%;left:0;right:0;z-index:30;background:#161b22;
     border:1px solid #30363d;border-radius:8px;max-height:280px;overflow-y:auto;margin-top:3px;
     box-shadow:0 6px 16px rgba(0,0,0,.5)}
@@ -1358,6 +1362,7 @@ function krDigits(x){
   <div class="srch-box">
    <input id="srchInput" type="text" placeholder="국내·해외 종목명 또는 티커 (예: 삼성전자 · 005930 · AAPL)" autocomplete="off" enterkeyhint="search">
    <button id="srchGo" type="button">검색</button>
+   <span id="srchPf"></span>
    <div id="srchSuggest"></div>
   </div>
   <div id="srchEmpty" class="srch-msg">종목명이나 티커를 입력해 검색하세요.</div>
@@ -16223,7 +16228,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.28.-v3';
+const KG_APP_VER = '10.28.-v4';
 const KG_APP_BUILD = KG_APP_VER + ' ✕단추 겹침·매매동향 스크롤 없앰';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -17564,11 +17569,57 @@ function srchInit(){
   document.addEventListener('mousedown', e=>{ if(!e.target.closest('.srch-box')) srchHideSug(); });
 }
 
+/* 검색 종목이 들어 있는 포트폴리오 이름 — 검색 단추 오른쪽에 노란 글씨로 (2026-10-28)
+   포트(한국(체)…배당) 와 관심(관심보유·대기·장기보유1·2·주간Top20) 의 구성 종목에서 찾고,
+   이름을 누르면 그 포트폴리오 화면으로 간다. 없으면 '없음'. */
+const SRCH_PFS=[ ['kr','한국(체)'], ['invest','코스피200'], ['investkq','코스닥100'], ['usc','미국(체)'], ['us','미국(반)'],
+                 ['etf','한·미 ETF'], ['dividend','배당'],
+                 ['invpf','관심보유'], ['wait','대기'], ['long1','장기보유1'], ['long2','장기보유2'], ['top20','주간Top20'] ];
+const srchNormCode = c => String(c==null?'':c).trim().toUpperCase().replace(/^US:/,'').replace(/^STK:/,'');
+function srchFindPorts(code){
+  const want=srchNormCode(code); const out=[];
+  if(!want) return out;
+  const keep=(typeof chartRowsOverride!=='undefined') ? chartRowsOverride : null;
+  try{
+    if(typeof chartRowsOverride!=='undefined') chartRowsOverride=null;   // 표에서 걸어 둔 '보이는 종목만' 목록은 쓰지 않는다
+    SRCH_PFS.forEach(([key,label])=>{
+      try{
+        const rows=(typeof chartPortRows==='function') ? (chartPortRows(key)||[]) : [];
+        if(rows.some(r=>srchNormCode(Array.isArray(r)?r[0]:(r&&r.code))===want)) out.push([key,label]);
+      }catch(e){}
+    });
+  }finally{ if(typeof chartRowsOverride!=='undefined') chartRowsOverride=keep; }
+  return out;
+}
+function srchPfPaint(code){
+  const el=$('#srchPf'); if(!el) return;
+  if(!code){ el.innerHTML=''; return; }
+  const hits=srchFindPorts(code);
+  el.innerHTML = hits.length
+    ? hits.map(h=>`<a data-pf="${h[0]}">${escHtml(h[1])}</a>`).join('')
+    : '<span class="none">없음</span>';
+}
+function srchOpenPf(key){
+  const subs={invpf:'own', wait:'wait', long1:'long1', long2:'long2', top20:'top20'};
+  if(subs[key]){
+    goSub('sel');
+    setTimeout(()=>{ if(typeof setSelSub==='function') setSelSub(subs[key]); }, 0);
+  }else{
+    goSub('port');
+    if(key!=='kr' && typeof openPort==='function') openPort(key);
+  }
+}
+document.addEventListener('click', e=>{
+  const a=e.target.closest('#srchPf a[data-pf]'); if(!a) return;
+  e.preventDefault(); srchOpenPf(a.dataset.pf);
+});
+
 async function srchRun(code, name){
   code=String(code||'').trim().toUpperCase();
   if(!code) return;
   const seq=++SRCH.seq;
   SRCH.code=code; SRCH.name=name||code; SRCH.us=srchIsUs(code); SRCH.done=false;
+  srchPfPaint(code);                                                      // ① 이 종목이 든 포트폴리오 이름
   try{ if(typeof stkSet==='function') stkSet(code, SRCH.name); }catch(e){}   // 종목분석 메뉴로 가도 같은 종목을 이어 본다
   srchOvwDraw();                                                          // ② 먼저 자리를 깔고, 자료가 오는 대로 다시 그린다
   const ch=$('#srchChart');                                               // ③ 챠트
