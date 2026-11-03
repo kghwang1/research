@@ -630,6 +630,27 @@
   .trd-bar .tf{flex:1;padding:10px 0;border:1px solid var(--line);border-radius:10px;background:var(--panel);
     color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
   .trd-bar .tf.on{background:var(--accent);color:#0c0e14;border-color:var(--accent)}
+  /* 추세 › 제조업 PMI (2026-11-03) */
+  .pmi-bar{display:flex;flex-wrap:wrap;gap:6px 14px;padding:6px 10px 0;font-size:12px}
+  .pmi-bar i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  .pmi-bar b{font-variant-numeric:tabular-nums}
+  .pmi-svg{display:block;width:100%;height:auto}
+  .pmi-svg text{font-family:inherit}
+  .pmi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  .pmi-tbl th,.pmi-tbl td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
+  .pmi-tbl th{font-weight:700;background:var(--panel2)}
+  .pmi-tbl td{color:var(--ink)}
+  .pmi-tbl td.lo{color:var(--dn)}
+  .pmi-tbl td:first-child{color:var(--sub)}
+  .pmi-tbl td.soft::after{content:'*';color:var(--dim)}
+  .pmi-box{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:10px 12px;margin:10px 0}
+  .pmi-box h3{margin:0 0 6px;font-size:14px;color:#f2c800}
+  .pmi-box p,.pmi-box li{font-size:13px;line-height:1.7;color:var(--ink)}
+  .pmi-box p{margin:0 0 4px}
+  .pmi-box ul{margin:4px 0 0;padding-left:18px}
+  .pmi-box li{margin:3px 0}
+  .pmi-box .dm{color:var(--sub)}
+  .pmi-src{font-size:11px;color:var(--dim);line-height:1.6;margin:8px 2px 14px}
   /* 지수분석 */
   /* 지수분석 맨 위 — 코스피·코스닥 PBR·PER (2026-10-20) */
   .ixv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 6px}
@@ -2016,6 +2037,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <button class="tf on" data-tv="psy">외국인 투자심리</button>
    <button class="tf" data-tv="flow">외국인 매매동향</button>
    <button class="tf" data-tv="idx">지수분석</button>
+   <button class="tf" data-tv="pmi">제조업 PMI</button>
   </div>
   <div class="pnl-wrap">
   <div id="trdPsy" class="trd-pane">
@@ -2094,6 +2116,49 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <div class="ixa-note">최근 3개월 일봉 · 다이버전스 탐색 다이버전스 표시 · 그래프를 누르면 종목분석 › 챠트로 갑니다</div>
    <div class="ixa-grid" id="ixaGrid"></div>
   </div>
+
+  <!-- 제조업 PMI — 한국·미국 / 일본·중국 두 그래프 + 월별 표 + 해설 (2026-11-03) -->
+  <div id="trdPmi" class="trd-pane" style="display:none">
+   <div class="ixv-grid" id="pmiVal"></div>
+   <div class="ixv-note" id="pmiNote"></div>
+   <div class="ixa-grid" id="pmiGrid"></div>
+   <div class="pmi-box"><h3>월별 수치</h3><div id="pmiTbl"></div></div>
+   <div class="pmi-src" id="pmiSrc"></div>
+
+   <div class="pmi-box">
+    <h3>① 제조업 PMI란?</h3>
+    <p>PMI(구매관리자지수)는 제조업체의 구매·공급 담당자에게 “지난달보다 나아졌는가”를 묻는 <b>월간 설문</b>을 점수로 만든 지수입니다. 신규주문·생산·고용·납기·재고 같은 항목을 합쳐 계산하고, 매달 첫 영업일 전후에 전월분이 나와서 <b>산업생산·수출 같은 실물 통계보다 먼저</b> 경기 방향을 알려 줍니다.</p>
+    <ul>
+     <li><b>50이 기준선</b> — 50보다 크면 지난달보다 좋아졌다는 응답이 많은 <b>확장</b>, 작으면 <b>위축</b>입니다. 경기의 ‘수준’이 아니라 ‘전월 대비 방향’을 묻는 지수라서, 50을 넘었다고 곧 호황이라는 뜻은 아닙니다.</li>
+     <li>한국은 S&amp;P Global, 일본은 au Jibun Bank(S&amp;P Global 조사), 미국은 ISM, 중국은 국가통계국(NBS) 지수를 썼습니다. 기관마다 조사 대상과 계산 방식이 달라 <b>같은 50이라도 완전히 같은 뜻은 아닙니다.</b> ISM은 제조업 PMI가 47.5 안팎 이상이면 경제 전체가 확장 중일 가능성이 크다고 설명합니다.</li>
+    </ul>
+   </div>
+
+   <div class="pmi-box">
+    <h3>② 그래프 읽는 법과 최근 흐름 <span class="dm" style="font-size:11px;font-weight:600">(2026년 10월분 기준)</span></h3>
+    <ul>
+     <li><b>읽는 법</b> — 점선(50) 위에 있는지보다 <b>선이 오르는지 내리는지</b>, 그 방향이 두세 달 이어지는지를 봅니다. 한 달 수치는 흔들림이 큽니다.</li>
+     <li><b>2025년 말까지는 넷 다 50 안팎이거나 아래</b>였습니다 — 미국 47.9(12월), 일본 48.2(10월)→50.0(12월), 한국 49.4(10~11월)→50.1(12월), 중국 49.0~50.1.</li>
+     <li><b>2026년 1월에 분위기가 바뀌었습니다.</b> 미국이 47.9에서 52.6으로 크게 반등했고 한국(51.2)·일본(51.5)도 50 위로 올라섰습니다. 중국만 49.3으로 50 아래에 남았습니다.</li>
+     <li><b>한국·일본은 봄에 정점을 찍었습니다.</b> 일본 4월 55.1, 한국 5월 54.8(S&amp;P Global 발표문 기준 2021년 3월 이후 가장 강함). 미국은 7월 55.6까지 올라 10월 55.5로 고점권을 지키고 있습니다.</li>
+     <li><b>10월에는 미국만 강하고 아시아는 식었습니다.</b> 미국 55.5(9월 54.5에서 +1.0), 한국 51.3(9월 53.9에서 −2.6, 8개월 만의 최저), 일본 53.3(9월 54.1에서 하락), 중국 49.3(9월 50.1에서 다시 50 아래로).</li>
+     <li><b>중국은 2026년 내내 49~50.4 사이 좁은 박스권</b>입니다. 50 위로 올라와도 오래 버티지 못하는 모양이라, 50 위에 안착하는지가 관건입니다.</li>
+     <li><b>수치가 실제 수요보다 높게 나올 수 있습니다.</b> PMI는 납기가 늘어나도 점수가 오르는 구조인데, 2026년 S&amp;P Global 발표문에는 공급 차질과 원가 상승 속에서 재고를 쌓는 움직임이 있었다는 내용이 나옵니다. 미국 ISM 물가 항목도 10월에 75 안팎으로 높았습니다. 신규주문·생산이 같이 오르는지 함께 확인하는 것이 안전합니다.</li>
+    </ul>
+   </div>
+
+   <div class="pmi-box">
+    <h3>③ 주가에 미치는 영향</h3>
+    <ul>
+     <li><b>수준보다 방향과 ‘예상과의 차이’에 반응합니다.</b> 발표값이 시장 예상보다 높으면 호재, 낮으면 악재로 받아들여지는 일이 흔합니다. 이미 오른 뒤라면 선반영돼 반응이 작을 수도 있습니다.</li>
+     <li><b>한국 주식은 수출·제조업 비중이 커서</b> 한국 PMI뿐 아니라 미국·중국 PMI가 함께 중요합니다. PMI가 오르면 반도체·자동차·기계·화학 같은 경기민감주의 실적 기대가 커지고, 꺾이면 이들 대형주가 먼저 부담을 받기 쉽습니다.</li>
+     <li><b>미국 PMI는 금리 경로로도 영향을 줍니다.</b> 미국 PMI가 강하고 물가 항목까지 높으면 금리 인하 기대가 줄어 성장주·고PER 종목에 불리할 수 있고, 반대로 경기는 식는데 물가가 안정되면 금리 인하 기대로 주가에 우호적일 수 있습니다.</li>
+     <li><b>중국 PMI가 50 아래에 머물면</b> 대중 수출 비중이 큰 철강·화학·소재·기계 업종에 부담이 되기 쉽습니다.</li>
+     <li><b>외국인 수급과 함께 봅니다.</b> 글로벌 제조업 경기가 좋아진다는 기대는 외국인의 한국 제조업 대형주 매수와 같이 움직이는 경우가 많습니다. 이 화면의 <b>외국인 투자심리·외국인 매매동향·지수분석</b>과 같이 보면 PMI 해석이 더 단단해집니다.</li>
+     <li><b>한계</b> — 설문 기반이라 응답자의 심리가 섞이고, 제조업만 다룹니다(미국은 제조업이 경제의 약 10%). 월별 변동과 재고 비축 같은 일시 요인에 왜곡될 수 있으니 <b>한 달 수치로 매매를 정하지 말고 3개월 흐름</b>으로 판단하는 것이 좋습니다. 투자 판단의 참고 자료일 뿐입니다.</li>
+    </ul>
+   </div>
+  </div><!-- /trdPmi -->
  </div>
  </section>
 
@@ -8399,19 +8464,75 @@ window.addEventListener('message', e=>{
   if(typeof openChartView==='function') openChartView('idx', fr.dataset.code, fr.dataset.name);
 });
 function setTrendView(v){
-  v=(v==='flow'||v==='idx')?v:'psy';
+  v=(v==='flow'||v==='idx'||v==='pmi')?v:'psy';
   try{ localStorage.setItem(TRD_KEY, v); }catch(e){}
   $$('.trd-bar .tf').forEach(b=>b.classList.toggle('on', b.dataset.tv===v));
   const show=(id,on)=>{ const el=$('#'+id); if(el) el.style.display=on?'':'none'; };
-  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx', v==='idx');
+  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx', v==='idx'); show('trdPmi', v==='pmi');
   /* 그래프 5개는 추세 화면이 실제로 열려 있을 때만 불러온다 (시황만 볼 때 미리 받지 않게) */
   const sec=$('#valuation');
   if(v==='idx' && sec && sec.classList.contains('on')){ ixaBuild(); ixaValLoad(); }
+  if(v==='pmi' && sec && sec.classList.contains('on')){ try{ pmiBuild(); }catch(e){ console.error(e); } }
   /* 감춰져 있던 동안 폭이 0 이라 그래프가 비어 있을 수 있다 — 보일 때 다시 그린다 */
   if(v==='psy') setTimeout(()=>{
     try{ if(typeof drawFtrendAll==='function') drawFtrendAll(); }catch(e){}
     try{ if(typeof DEP_VIEW!=='undefined' && DEP_VIEW.length && typeof drawDeposit==='function') drawDeposit(); }catch(e){}
   }, 0);
+}
+/* ===== 추세 › 제조업 PMI (2026-11-03) =====
+   값은 직접 적어 둔다 — 매달 첫 영업일 발표 뒤 months 에 한 칸, 각 v 에 값을 하나씩 더한다.
+   soft: 발표 기관 원문이 아니라 집계 사이트 수치라 확인이 더 필요한 칸(그래프에 속이 빈 점, 표에 * 표시) */
+const PMI_DATA={
+  months:['25.10','25.11','25.12','26.01','26.02','26.03','26.04','26.05','26.06','26.07','26.08','26.09','26.10'],
+  S:{
+    kr:{n:'한국',c:'#f2c800',src:'S&P Global',v:[49.4,49.4,50.1,51.2,51.1,52.6,53.6,54.8,52.1,53.1,52.3,53.9,51.3],soft:[]},
+    us:{n:'미국',c:'#7c8cff',src:'ISM',v:[48.7,48.2,47.9,52.6,52.4,52.7,52.7,54.0,53.3,55.6,54.6,54.5,55.5],soft:[7,9]},
+    jp:{n:'일본',c:'#4dd0e1',src:'au Jibun Bank',v:[48.2,48.7,50.0,51.5,53.0,51.6,55.1,54.5,54.8,54.5,54.9,54.1,53.3],soft:[12]},
+    cn:{n:'중국',c:'#ef5350',src:'국가통계국',v:[49.0,49.2,50.1,49.3,49.0,50.4,50.3,50.0,50.3,49.2,49.8,50.1,49.3],soft:[]}
+  }
+};
+function pmiMon(m){ return '20'+m.replace('.','년 ')+'월'; }
+function pmiSvg(keys){
+  const D=PMI_DATA, W=640, H=300, L=34, R=36, T=14, B=26, n=D.months.length;
+  let lo=50, hi=50;
+  keys.forEach(k=>D.S[k].v.forEach(x=>{ if(x<lo) lo=x; if(x>hi) hi=x; }));
+  lo=Math.floor(lo-0.6); hi=Math.ceil(hi+0.6);
+  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let g=lo; g<=hi; g++){
+    const y=Y(g), is50=(g===50);
+    s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${is50?'#8b92a6':'#262b3a'}" stroke-width="${is50?1.4:1}"${is50?' stroke-dasharray="5 4"':''}/>`;
+    if(is50 || (g-lo)%2===0) s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="10.5" fill="${is50?'#e8eaf0':'#5a6175'}"${is50?' font-weight="700"':''}>${g}</text>`;
+  }
+  D.months.forEach((m,i)=>{ s+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#5a6175">${m}</text>`; });
+  keys.forEach(k=>{
+    const S=D.S[k];
+    s+=`<polyline fill="none" stroke="${S.c}" stroke-width="2.2" stroke-linejoin="round" points="${S.v.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}"/>`;
+    S.v.forEach((v,i)=>{
+      const soft=S.soft.includes(i);
+      s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.2" fill="${soft?'#13161f':S.c}" stroke="${S.c}" stroke-width="${soft?1.6:0}"><title>${S.n} ${pmiMon(D.months[i])}: ${v.toFixed(1)}${soft?' (원문 확인 필요)':''}</title></circle>`;
+    });
+    const e=n-1;
+    s+=`<text x="${X(e)+7}" y="${Y(S.v[e])+4}" font-size="11.5" font-weight="700" fill="${S.c}">${S.v[e].toFixed(1)}</text>`;
+  });
+  return s+'</svg>';
+}
+function pmiBuild(){
+  const D=PMI_DATA, last=D.months.length-1, K=['kr','us','jp','cn'];
+  const g=$('#pmiGrid'); if(!g) return;
+  const card=(title,keys)=>`<div class="ixa-card"><div class="ixa-h"><b>${title}</b><span style="font-size:11px;color:var(--dim)">제조업 PMI · ${pmiMon(D.months[0])} ~ ${pmiMon(D.months[last])}</span></div><div class="pmi-bar">${keys.map(k=>{ const s=D.S[k]; return `<span><i style="background:${s.c}"></i>${s.n} <b style="color:${s.c}">${s.v[last].toFixed(1)}</b></span>`; }).join('')}</div>${pmiSvg(keys)}</div>`;
+  g.innerHTML=card('한국 · 미국',['kr','us'])+card('일본 · 중국',['jp','cn']);
+  $('#pmiVal').innerHTML=K.map(k=>{
+    const s=D.S[k], v=s.v[last], p=s.v[last-1], d=v-p, up=d>=0;
+    return `<div class="ixv-card"><div class="nm" style="color:${s.c}">${s.n} <span style="font-size:11px;font-weight:600;color:var(--dim)">${s.src}</span></div><div class="ixv-row"><span class="k">${pmiMon(D.months[last])}</span><span class="v">${v.toFixed(1)}</span></div><div class="ixv-sub">전월 ${p.toFixed(1)} → <b style="color:${up?'var(--up)':'var(--dn)'}">${up?'▲':'▼'}${Math.abs(d).toFixed(1)}</b> · ${v>=50?'확장':'위축'}</div></div>`;
+  }).join('');
+  $('#pmiNote').textContent='50 위 = 확장 · 50 아래 = 위축 · 가장 최근 발표분: '+pmiMon(D.months[last]);
+  let t='<table class="pmi-tbl"><tr><th>월</th>'+K.map(k=>`<th style="color:${D.S[k].c}">${D.S[k].n}</th>`).join('')+'</tr>';
+  for(let i=last; i>=0; i--){
+    t+=`<tr><td>${pmiMon(D.months[i])}</td>`+K.map(k=>{ const s=D.S[k], x=s.v[i]; return `<td class="${x<50?'lo':''}${s.soft.includes(i)?' soft':''}">${x.toFixed(1)}</td>`; }).join('')+'</tr>';
+  }
+  $('#pmiTbl').innerHTML=t+'</table>';
+  $('#pmiSrc').innerHTML='출처: 한국 S&amp;P Global · 일본 au Jibun Bank(S&amp;P Global) · 미국 ISM · 중국 국가통계국(NBS) 제조업 PMI(계절조정). 50 미만(위축)은 초록색으로 표시했습니다. * 표시와 그래프의 속이 빈 점은 발표 기관 원문이 아니라 집계 사이트 수치라 원문 확인이 더 필요한 값입니다. 기관마다 조사 방식이 달라 나라 간 수준을 그대로 비교하기는 어렵습니다.';
 }
 $$('.trd-bar .tf').forEach(b=>b.onclick=()=>{ setTrendView(b.dataset.tv); window.scrollTo(0,0); });
 (function(){ let v='psy'; try{ v=localStorage.getItem(TRD_KEY)||'psy'; }catch(e){} setTrendView(v); })();
@@ -16228,8 +16349,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '10.28.-v5';
-const KG_APP_BUILD = KG_APP_VER + ' ✕단추 겹침·매매동향 스크롤 없앰';
+const KG_APP_VER = '11.3.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 추세 › 제조업 PMI 메뉴 추가';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
