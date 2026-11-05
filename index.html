@@ -631,7 +631,7 @@
     color:var(--sub);font-size:14px;font-weight:700;cursor:pointer;transition:.15s;white-space:nowrap}
   .trd-bar .tf.on{background:var(--accent);color:#0c0e14;border-color:var(--accent)}
   /* 추세 › 제조업 PMI (2026-11-03) */
-  .pmi-bar{display:flex;flex-wrap:wrap;gap:6px 14px;padding:6px 10px 0;font-size:12px}
+  .pmi-bar{display:flex;flex-wrap:wrap;gap:6px 14px;padding:6px 10px 0;font-size:13.5px;color:#d0d5e2}
   .pmi-bar i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
   .pmi-bar b{font-variant-numeric:tabular-nums}
   .pmi-svg{display:block;width:100%;height:auto}
@@ -639,9 +639,9 @@
   .pmi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
   .pmi-tbl th,.pmi-tbl td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
   .pmi-tbl th{font-weight:700;background:var(--panel2)}
-  .pmi-tbl td{color:var(--ink)}
+  .pmi-tbl td{color:var(--up);font-weight:600}
   .pmi-tbl td.lo{color:var(--dn)}
-  .pmi-tbl td:first-child{color:var(--sub)}
+  .pmi-tbl td:first-child{color:#c5cad8;font-weight:500}
   .pmi-tbl td.soft::after{content:'*';color:var(--dim)}
   .pmi-box{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:10px 12px;margin:10px 0}
   .pmi-box h3{margin:0 0 6px;font-size:14px;color:#f2c800}
@@ -651,6 +651,18 @@
   .pmi-box li{margin:3px 0}
   .pmi-box .dm{color:var(--sub)}
   .pmi-src{font-size:11px;color:var(--dim);line-height:1.6;margin:8px 2px 14px}
+  /* PMI 50 이상 = 붉은색, 미만 = 녹색 / 국가별 설명 글씨 키움·밝게 (2026-11-03) */
+  .pmi-hi{color:var(--up)}
+  .pmi-lo{color:var(--dn)}
+  .pmi-nm{font-size:13px;font-weight:600;color:#c5cad8;margin-left:5px}
+  .pmi-sub{font-size:13px;color:#c5cad8}
+  #pmiNote{font-size:13px;color:#c5cad8}
+  #pmiVal .ixv-card .nm{font-size:15.5px}
+  #pmiVal .ixv-row .k{font-size:13.5px;color:#c5cad8}
+  #pmiVal .ixv-row .v.pmi-hi{color:var(--up)}
+  #pmiVal .ixv-row .v.pmi-lo{color:var(--dn)}
+  #pmiVal .ixv-sub{font-size:13.5px;line-height:1.7;color:#e1e5ee}
+  #pmiVal .ixv-sub b{font-weight:700}
   /* 지수분석 */
   /* 지수분석 맨 위 — 코스피·코스닥 PBR·PER (2026-10-20) */
   .ixv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 6px}
@@ -670,6 +682,12 @@
   .ixa-h{display:flex;align-items:baseline;gap:8px;padding:7px 10px;border-bottom:1px solid var(--line)}
   .ixa-h b{font-size:14px;color:#f2c800}
   .ixa-h span{font-size:11px;color:var(--dim)}
+  /* 지수 이름 옆 현재가(등락률) — 오르면 붉은색, 내리면 녹색 (2026-11-05) */
+  .ixa-q{font-size:14px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  .ixa-h .ixa-q{font-size:14px;color:var(--ink)}
+  .ixa-q.up,.ixa-h .ixa-q.up{color:var(--up)}
+  .ixa-q.dn,.ixa-h .ixa-q.dn{color:var(--dn)}
+  .ixv-card .nm .ixa-q{font-size:13px;margin-left:6px}
   .ixa-box{position:relative;height:300px}
   .ixa-box iframe{width:100%;height:100%;border:0;display:block;background:#0d1117}
   .ixa-box iframe{cursor:grab}
@@ -2111,8 +2129,8 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
   <!-- 지수분석 — 챠트 화면의 주가차트를 작게(kg-chart.html?mini=1) 붙인다. 누르면 종목분석 › 챠트로 -->
   <div id="trdIdx" class="trd-pane" style="display:none">
-   <div class="ixv-grid" id="ixaVal"></div>
-   <div class="ixv-note" id="ixaValNote">코스피·코스닥 PBR·PER 불러오는 중…</div>
+   <div class="ixv-grid" id="ixaVal" style="display:none"></div>
+   <div class="ixv-note" id="ixaValNote" style="display:none"></div>
    <div class="ixa-note">최근 3개월 일봉 · 다이버전스 탐색 다이버전스 표시 · 그래프를 누르면 종목분석 › 챠트로 갑니다</div>
    <div class="ixa-grid" id="ixaGrid"></div>
   </div>
@@ -8408,27 +8426,32 @@ function ixvFmt(x){ return (x==null||!isFinite(x))?'-':Number(x).toFixed(2); }
 function ixvRender(d){
   const g=$('#ixaVal'), nt=$('#ixaValNote'); if(!g||!nt) return;
   if(!d||!d.ok){
-    g.innerHTML='';
+    g.innerHTML=''; g.style.display='none'; nt.style.display='';
     nt.innerHTML='PBR·PER 자료를 받지 못했습니다 (KRX 응답 없음).<button type="button" id="ixvReload">다시</button>';
     const b=$('#ixvReload'); if(b) b.onclick=()=>ixaValLoad(true);
     return;
   }
   const card=(nm,m,pub)=>{
-    if(!m) return `<div class="ixv-card"><div class="nm">${nm}</div><div class="ixv-sub">자료 없음</div></div>`;
+    const cd=(nm==='코스피')?'KOSPI':'KOSDAQ';
+    if(!m) return `<div class="ixv-card"><div class="nm">${nm}<span class="ixa-q" data-ixq="${cd}"></span></div><div class="ixv-sub">자료 없음</div></div>`;
     const pb=pub&&pub.pbr!=null?`KRX공표 PBR ${ixvFmt(pub.pbr)}`:'';
     const pe=pub&&pub.per!=null?`PER ${ixvFmt(pub.per)}`:'';
     const ref=(pb||pe)?`<div class="ixv-sub">${[pb,pe].filter(Boolean).join(' · ')}</div>`:'';
     const all=m.perAll!=null?`적자 포함 PER ${ixvFmt(m.perAll)}`:'';
     const cov=m.covPer!=null?`흑자기업 시총 ${m.covPer.toFixed(0)}%`:'';
-    return `<div class="ixv-card"><div class="nm">${nm}</div>`
+    return `<div class="ixv-card"><div class="nm">${nm}<span class="ixa-q" data-ixq="${cd}"></span></div>`
       +`<div class="ixv-row"><span class="k">PBR</span><span class="v">${ixvFmt(m.pbr)}<small>배</small></span></div>`
       +`<div class="ixv-row"><span class="k">PER</span><span class="v">${ixvFmt(m.per)}<small>배</small></span></div>`
       +`<div class="ixv-sub">${[cov,all].filter(Boolean).join(' · ')}</div>${ref}</div>`;
   };
-  g.innerHTML=card('코스피',d.kospi,d.krx&&d.krx.kospi)+card('코스닥',d.kosdaq,d.krx&&d.krx.kosdaq);
+  /* 코스피·코스닥 둘 다 자료가 없으면 빈 칸("자료 없음")을 보이지 않는다. 한쪽만 있으면 그쪽만 (2026-11-05) */
+  if(!d.kospi && !d.kosdaq){ g.innerHTML=''; nt.innerHTML=''; g.style.display='none'; nt.style.display='none'; return; }
+  g.style.display=''; nt.style.display='';
+  g.innerHTML=(d.kospi?card('코스피',d.kospi,d.krx&&d.krx.kospi):'')+(d.kosdaq?card('코스닥',d.kosdaq,d.krx&&d.krx.kosdaq):'');
   const ds=String(d.date||''); const dt=ds.length===8?`${ds.slice(0,4)}.${ds.slice(4,6)}.${ds.slice(6,8)}`:ds;
   nt.innerHTML=`${dt} 기준 · 전종목 시가총액 가중 합산(PBR=전체 시총÷전체 자본, PER=흑자기업 기준)<button type="button" id="ixvReload">↻</button>`;
   const b=$('#ixvReload'); if(b) b.onclick=()=>ixaValLoad(true);
+  ixaQApply('KOSPI'); ixaQApply('KOSDAQ');
 }
 async function ixaValLoad(force){
   if(ixvBusy) return;
@@ -8438,11 +8461,11 @@ async function ixaValLoad(force){
   }
   if(d){ ixvRender(d); return; }
   ixvBusy=true;
-  const nt=$('#ixaValNote'); if(nt) nt.textContent='코스피·코스닥 PBR·PER 불러오는 중…';
+  const nt=$('#ixaValNote'); if(force && nt){ nt.style.display=''; nt.textContent='코스피·코스닥 PBR·PER 불러오는 중…'; }
   try{
     const r=await fetch(SRV_URL+'/?idxval=1',{cache:'no-store'});
     d=await r.json();
-    if(d&&d.ok){ try{ localStorage.setItem(IXV_KEY, JSON.stringify({ts:Date.now(), data:d})); }catch(e){} }
+    if(d&&d.ok&&(d.kospi||d.kosdaq)){ try{ localStorage.setItem(IXV_KEY, JSON.stringify({ts:Date.now(), data:d})); }catch(e){} }
   }catch(e){ d=null; }
   ixvBusy=false;
   ixvRender(d);
@@ -8451,12 +8474,32 @@ function ixaBuild(){
   const g=$('#ixaGrid'); if(!g || g.dataset.built) return;
   g.dataset.built='1';
   g.innerHTML=IXA_LIST.map(([c,n])=>
-    `<div class="ixa-card"><div class="ixa-h"><b>${n}</b><span>${c}</span></div>`
+    `<div class="ixa-card"><div class="ixa-h"><b>${n}</b><span class="ixa-q" data-ixq="${c}"></span><span>${c}</span></div>`
    +`<div class="ixa-box"><iframe loading="lazy" title="${n} 그래프 — 끌면 지난 구간, 누르면 챠트로" data-code="${c}" data-name="${n}" src="kg-chart.html?code=${encodeURIComponent(c)}&name=${encodeURIComponent(n)}&mini=1"></iframe>`
    +`</div></div>`).join('');
 }
 /* 작은 그래프는 마우스로 끌어 지난 구간을 볼 수 있다.
    끌지 않고 누르면 그래프 안에서 알려 오고, 여기서 종목분석 챠트를 연다 */
+/* 작은 그래프가 알려 주는 현재가·등락률(마지막 종가 vs 전일 종가)을 지수 이름 옆에 쓴다 (2026-11-05) */
+const IXA_Q={};
+function ixaQApply(code){
+  const q=IXA_Q[code]; if(!q) return;
+  const px=q.price.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const txt=px+' ('+(q.chg>0?'+':'')+q.chg.toFixed(2)+'%)';
+  document.querySelectorAll('[data-ixq]').forEach(el=>{
+    if(el.dataset.ixq!==code) return;
+    el.textContent=txt; el.className='ixa-q'+(q.chg>0?' up':q.chg<0?' dn':'');
+  });
+}
+window.addEventListener('message', e=>{
+  const d=e.data; if(!d || d.type!=='kg-mini-quote') return;
+  const fr=[...document.querySelectorAll('#ixaGrid iframe')].find(f=>f.contentWindow===e.source);
+  if(!fr) return;
+  const p=Number(d.price), c=Number(d.chg);
+  if(!isFinite(p) || !isFinite(c)) return;
+  IXA_Q[fr.dataset.code]={price:p, chg:c};
+  ixaQApply(fr.dataset.code);
+});
 window.addEventListener('message', e=>{
   const d=e.data; if(!d || d.type!=='kg-mini-open') return;
   const fr=[...document.querySelectorAll('#ixaGrid iframe')].find(f=>f.contentWindow===e.source);
@@ -8493,7 +8536,7 @@ const PMI_DATA={
 };
 function pmiMon(m){ return '20'+m.replace('.','년 ')+'월'; }
 function pmiSvg(keys){
-  const D=PMI_DATA, W=640, H=300, L=34, R=36, T=14, B=26, n=D.months.length;
+  const D=PMI_DATA, W=640, H=300, L=40, R=38, T=14, B=32, n=D.months.length;
   let lo=50, hi=50;
   keys.forEach(k=>D.S[k].v.forEach(x=>{ if(x<lo) lo=x; if(x>hi) hi=x; }));
   lo=Math.floor(lo-0.6); hi=Math.ceil(hi+0.6);
@@ -8502,9 +8545,9 @@ function pmiSvg(keys){
   for(let g=lo; g<=hi; g++){
     const y=Y(g), is50=(g===50);
     s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${is50?'#8b92a6':'#262b3a'}" stroke-width="${is50?1.4:1}"${is50?' stroke-dasharray="5 4"':''}/>`;
-    if(is50 || (g-lo)%2===0) s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="10.5" fill="${is50?'#e8eaf0':'#5a6175'}"${is50?' font-weight="700"':''}>${g}</text>`;
+    if(is50 || (g-lo)%2===0) s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${is50?'#ffffff':'#d0d5e2'}"${is50?' font-weight="700"':''}>${g}</text>`;
   }
-  D.months.forEach((m,i)=>{ s+=`<text x="${X(i)}" y="${H-8}" text-anchor="middle" font-size="10" fill="#5a6175">${m}</text>`; });
+  D.months.forEach((m,i)=>{ s+=`<text x="${X(i)}" y="${H-10}" text-anchor="middle" font-size="12" fill="#d0d5e2">${m}</text>`; });
   keys.forEach(k=>{
     const S=D.S[k];
     s+=`<polyline fill="none" stroke="${S.c}" stroke-width="2.2" stroke-linejoin="round" points="${S.v.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1)).join(' ')}"/>`;
@@ -8513,18 +8556,18 @@ function pmiSvg(keys){
       s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="3.2" fill="${soft?'#13161f':S.c}" stroke="${S.c}" stroke-width="${soft?1.6:0}"><title>${S.n} ${pmiMon(D.months[i])}: ${v.toFixed(1)}${soft?' (원문 확인 필요)':''}</title></circle>`;
     });
     const e=n-1;
-    s+=`<text x="${X(e)+7}" y="${Y(S.v[e])+4}" font-size="11.5" font-weight="700" fill="${S.c}">${S.v[e].toFixed(1)}</text>`;
+    s+=`<text x="${X(e)+7}" y="${Y(S.v[e])+4}" font-size="12.5" font-weight="700" fill="${S.v[e]>=50?'#ef5350':'#2e9e4f'}">${S.v[e].toFixed(1)}</text>`;
   });
   return s+'</svg>';
 }
 function pmiBuild(){
   const D=PMI_DATA, last=D.months.length-1, K=['kr','us','jp','cn'];
   const g=$('#pmiGrid'); if(!g) return;
-  const card=(title,keys)=>`<div class="ixa-card"><div class="ixa-h"><b>${title}</b><span style="font-size:11px;color:var(--dim)">제조업 PMI · ${pmiMon(D.months[0])} ~ ${pmiMon(D.months[last])}</span></div><div class="pmi-bar">${keys.map(k=>{ const s=D.S[k]; return `<span><i style="background:${s.c}"></i>${s.n} <b style="color:${s.c}">${s.v[last].toFixed(1)}</b></span>`; }).join('')}</div>${pmiSvg(keys)}</div>`;
+  const card=(title,keys)=>`<div class="ixa-card"><div class="ixa-h"><b>${title}</b><span class="pmi-sub">제조업 PMI · ${pmiMon(D.months[0])} ~ ${pmiMon(D.months[last])}</span></div><div class="pmi-bar">${keys.map(k=>{ const s=D.S[k]; return `<span><i style="background:${s.c}"></i>${s.n} <b class="${s.v[last]>=50?'pmi-hi':'pmi-lo'}">${s.v[last].toFixed(1)}</b></span>`; }).join('')}</div>${pmiSvg(keys)}</div>`;
   g.innerHTML=card('한국 · 미국',['kr','us'])+card('일본 · 중국',['jp','cn']);
   $('#pmiVal').innerHTML=K.map(k=>{
     const s=D.S[k], v=s.v[last], p=s.v[last-1], d=v-p, up=d>=0;
-    return `<div class="ixv-card"><div class="nm" style="color:${s.c}">${s.n} <span style="font-size:11px;font-weight:600;color:var(--dim)">${s.src}</span></div><div class="ixv-row"><span class="k">${pmiMon(D.months[last])}</span><span class="v">${v.toFixed(1)}</span></div><div class="ixv-sub">전월 ${p.toFixed(1)} → <b style="color:${up?'var(--up)':'var(--dn)'}">${up?'▲':'▼'}${Math.abs(d).toFixed(1)}</b> · ${v>=50?'확장':'위축'}</div></div>`;
+    return `<div class="ixv-card"><div class="nm" style="color:${s.c}">${s.n} <span class="pmi-nm">${s.src}</span></div><div class="ixv-row"><span class="k">${pmiMon(D.months[last])}</span><span class="v ${v>=50?'pmi-hi':'pmi-lo'}">${v.toFixed(1)}</span></div><div class="ixv-sub">전월 ${p.toFixed(1)} → <b style="color:${up?'var(--up)':'var(--dn)'}">${up?'▲':'▼'}${Math.abs(d).toFixed(1)}</b> · <b class="${v>=50?'pmi-hi':'pmi-lo'}">${v>=50?'확장':'위축'}</b></div></div>`;
   }).join('');
   $('#pmiNote').textContent='50 위 = 확장 · 50 아래 = 위축 · 가장 최근 발표분: '+pmiMon(D.months[last]);
   let t='<table class="pmi-tbl"><tr><th>월</th>'+K.map(k=>`<th style="color:${D.S[k].c}">${D.S[k].n}</th>`).join('')+'</tr>';
@@ -16349,8 +16392,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.3.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 추세 › 제조업 PMI 메뉴 추가';
+const KG_APP_VER = '11.5.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 지수분석: 지수 이름 옆 현재가(등락률), 빈 PBR·PER 칸 감춤';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 

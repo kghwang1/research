@@ -4446,6 +4446,7 @@ function getActiveKeys() {
   return ordered;
 }
 
+let _miniQSig = '';
 function updateIframeStockName() {
   const el = document.getElementById('iframe-stock-name');
   if (!el || !state.stock) return;
@@ -4464,6 +4465,11 @@ function updateIframeStockName() {
       chgColor = chg > 0 ? '#f01d1d' : chg < 0 ? '#1976d2' : '#8b949e';  // 상승 진빨강, 하락 청색 (캔들과 통일)
       const priceFmt = price >= 100 ? Math.round(price).toLocaleString() : price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
       priceStr = `${priceFmt} (${sign}${chg.toFixed(2)}%)`;
+      /* 추세 › 지수분석 작은 그래프: 현재가·등락률(마지막 종가 vs 전일 종가)을 부모 화면의 지수 이름 옆에 보낸다 (2026-11-05) */
+      if (KG_MINI) {
+        const sig = price + '|' + chg.toFixed(4);
+        if (sig !== _miniQSig) { _miniQSig = sig; try { parent.postMessage({ type:'kg-mini-quote', price: price, chg: chg }, '*'); } catch(err) {} }
+      }
     }
   }
   el.innerHTML = `${escapeHtml(nm)} <span style="color:#8b949e;font-weight:400">/</span> <span style="color:${chgColor}">${priceStr}</span>`;
@@ -4475,7 +4481,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '10.28.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '11.5.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
