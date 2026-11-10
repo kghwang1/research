@@ -1430,6 +1430,7 @@ function krDigits(x){
    <button class="sf" data-s="div">다이버전스 종목찾기</button>
    <button class="sf" data-s="chart">챠트 기본조합해석</button>
    <button class="sf" data-s="desc">지표설명</button>
+   <button class="sf" data-s="rsifmi">RSI와 FMI</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -1850,6 +1851,41 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <!-- STUDY › 다이버전스 (2026-10-17) — 챠트의 '다이버전스 종목 찾기' 화면을 그대로 붙인다.
        결과는 kg_div_scan 하나를 함께 쓰므로 어디서 찾든 양쪽에 동시에 반영된다 -->
   <div id="stuDiv" class="stu-doc" style="display:none;padding:0"><iframe id="stuDivEmbed" title="다이버전스 종목 찾기" style="width:100%;height:600px;border:0;display:block;background:#0d1117"></iframe></div>
+  <!-- STUDY › RSI와 FMI (2026-11-10) — 사용자가 올린 비교 설명을 그대로 옮겼다 -->
+  <div id="stuRsiFmi" class="stu-doc" style="display:none">
+   <h2>RSI와 FMI</h2>
+   <p class="lead">주식 차트에서 RSI(상대강도지수)와 FIM(강도지수, Force Index Modified 또는 일반 Force Index)은 모두 주가의 추세와 흐름을 분석하는 보조지표이지만, 거래량 반영 여부와 분석 목적에서 가장 큰 차이가 납니다.<br>두 지표의 핵심 차이점과 특징을 직관적으로 비교해 드립니다.</p>
+
+   <h3>📊 RSI vs FIM 핵심 차이점 비교</h3>
+   <table>
+    <tr><th>구분</th><th>RSI (Relative Strength Index)</th><th>FIM (Force Index / Force Index Modified)</th></tr>
+    <tr><td><b>핵심 요소</b></td><td>오직 주가 변동 (가격)</td><td>주가 변동 + 거래량 (힘)</td></tr>
+    <tr><td><b>지표 유형</b></td><td>오실레이터 (0 ~ 100 사이 왕복)</td><td>모멘텀 지표 (0을 기준으로 상하 무한대)</td></tr>
+    <tr><td><b>주요 목적</b></td><td>과매수 및 과매도 구간 포착</td><td>추세의 강도 및 자금 유입/유출 확인</td></tr>
+    <tr><td><b>신호 해석</b></td><td>• 70 이상: 과매수 (매도 검토)<br>• 30 이하: 과매도 (매수 검토)</td><td>• 0선 위: 매수세 우위 (상승 압력)<br>• 0선 아래: 매도세 우위 (하락 압력)</td></tr>
+   </table>
+
+   <h3>💡 지표별 상세 요약</h3>
+   <h4>1. RSI (상대강도지수)</h4>
+   <ul>
+    <li><b>주가 움직임만 계산:</b> 최근 일정 기간(보통 14일) 동안 주가가 전날보다 상승한 폭과 하락한 폭을 비교하여 백분율로 나타냅니다.</li>
+    <li><b>추세의 전환점 포착:</b> 주가가 너무 빠르게 올랐는지(과매수), 혹은 너무 빠르게 떨어졌는지(과매도)를 판단하는 데 특화되어 있습니다.</li>
+    <li><b>한계:</b> 거래량이 완전히 배제되어 있어, 적은 거래량으로 주가가 왜곡될 때 가짜 신호(속임수)가 발생할 수 있습니다.</li>
+   </ul>
+   <h4>2. FIM (Force Index / 강도지수)</h4>
+   <ul>
+    <li><b>거래량과 가격의 결합:</b> 주가의 방향성(방향)과 변동 폭(거리)에 거래량(힘)을 곱해서 계산합니다.</li>
+    <li><b>진짜 상승/하락 판별:</b> 주가가 오르더라도 거래량이 동반되지 않으면 FIM 지표는 크게 상승하지 않습니다. 즉, 세력의 자금 유입이나 진짜 추세의 강도를 측정합니다.</li>
+    <li><b>한계:</b> 기준선(0)을 중심으로 상하 제한 없이 움직이므로, RSI처럼 "지금이 과매도 상태다"라는 절대적인 수치를 한눈에 파악하기는 어렵습니다.</li>
+   </ul>
+
+   <h3>🛠️ 실전 매매 활용 팁</h3>
+   <ul>
+    <li><b>RSI는 타이밍 잡기:</b> 주가가 박스권 횡보를 하거나 단기 과열 상태를 판단할 때 매수/매도 타이밍을 잡기 좋습니다.</li>
+    <li><b>FIM은 추세 확인하기:</b> 현재 상승 또는 하락세가 얼마나 강한 힘(거래량)을 가지고 유지되는지 뒷받침하는 근거로 씁니다.</li>
+   </ul>
+   <div class="note"><p><b>💡 결합 활용:</b> RSI가 30 이하(과매도)이면서 동시에 FIM이 0선 위로 고개를 들며 거래량 유입을 알릴 때를 매수 적기로 판단하는 등 두 지표를 상호보완적으로 함께</p></div>
+  </div>
   <div id="stuChart" class="stu-doc" style="display:none"></div>
   <div id="stuDesc" class="stu-doc" style="display:none">
    <h2>지표설명 — 기본챠트와 다이버전스 탐색에 쓰는 보조지표</h2>
@@ -2868,7 +2904,7 @@ let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
 /* ---------- STUDY 하부메뉴 (투자지표 / 다이버전스 탐색 / 다이버전스 종목찾기 / 챠트 기본조합해석 / 지표설명) ---------- */
-const STU_DOCS={ ind:'#stuInd', peak:'#stuPeak', div:'#stuDiv', chart:'#stuChart', desc:'#stuDesc' };
+const STU_DOCS={ ind:'#stuInd', peak:'#stuPeak', div:'#stuDiv', chart:'#stuChart', desc:'#stuDesc', rsifmi:'#stuRsiFmi' };
 /* 챠트 기본조합해석 — 챠트 화면에 있던 해석 내용을 처음 열 때 채운다 */
 function stuChartFill(){
   const el=$('#stuChart');
@@ -16392,8 +16428,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.5.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 지수분석: 지수 이름 옆 현재가(등락률), 빈 PBR·PER 칸 감춤';
+const KG_APP_VER = '11.10.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' STUDY: RSI와 FMI 부메뉴 추가';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
