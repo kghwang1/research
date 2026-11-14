@@ -4481,7 +4481,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '11.5.-v1';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '11.13.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5812,6 +5812,11 @@ async function divScanFetch(it){
 const DIVSCAN_CONDS = [
   ['all',   '전체'],
   ['n3',    '지표 3개+'],
+  /* 2026-11-13 — RSI·MFI 가 함께 뜨면 믿을 만해 보인다는 관찰에서 나온 줄.
+     MFI 는 RSI 에 거래량을 입힌 것이라 둘은 사실상 한 핏줄이다. 그래서 성격이 다른
+     MACD(추세·시간)를 더한 세 개 동시도 함께 재어, MACD 를 더해서 실제로 나아지는지 본다.
+     두 줄은 나란히 놓고 보는 것이 쓰임새 */
+  ['rf',    'RSI+MFI 동시'],
   ['conf',  '20일선 확인 뒤'],
   ['trend', '큰 흐름(120일선)'],
   ['deep',  '깊은 과열·침체(RSI)'],
@@ -5823,6 +5828,24 @@ const DIVSCAN_CONDS = [
   ['frgnx', '+ 외국인 반대 방향'],
   ['fc',    '외국인 같은 방향 + 20일선 확인'],
 ];
+/* 세 지표 조합 열 가지 (2026-11-13) — 5개 중 3개를 고르는 모든 경우.
+   [key, 이름, 지표글자, 3가족 커버]
+   다섯 지표는 세 가족으로 묶인다: 탄력 R·F(MFI=RSI+거래량) · 늘어짐 C·E · 시간 M.
+   세 가족을 다 덮으려면 M 이 반드시 들고, R·F 중 하나와 C·E 중 하나가 들어야 한다 → 열 중 넷뿐.
+   나머지 여섯은 한 가족이 비어 있다 (같은 것을 두 번 재는 셈) */
+const DIVSCAN_TRI = [
+  ['k_RCM', 'RSI+CCI+MACD',    'RCM', true ],
+  ['k_RME', 'RSI+MACD+엘더',   'RME', true ],
+  ['k_CMF', 'CCI+MACD+MFI',    'CMF', true ],
+  ['k_MEF', 'MACD+엘더+MFI',   'MEF', true ],
+  ['k_RMF', 'RSI+MACD+MFI',    'RMF', false],
+  ['k_RCF', 'RSI+CCI+MFI',     'RCF', false],
+  ['k_RCE', 'RSI+CCI+엘더',    'RCE', false],
+  ['k_REF', 'RSI+엘더+MFI',    'REF', false],
+  ['k_CME', 'CCI+MACD+엘더',   'CME', false],
+  ['k_CEF', 'CCI+엘더+MFI',    'CEF', false],
+];
+DIVSCAN_TRI.forEach(([k, lbl]) => DIVSCAN_CONDS.push([k, lbl]));
 const DIVSCAN_FRGN_N = 5;       // 확정일까지 며칠의 외국인 순매수를 더할지
 const DIVSCAN_CONF_WAIT = 20;   // 20일선 확인을 기다리는 최대 거래일
 function divScanSma(d, n){
@@ -5881,7 +5904,11 @@ function divScanOne(d, idx, fmap, rmap){
       if (j >= N) { ce = null; break; }            // 아직 기다리는 중
       if (s20[j] != null && (bull ? d[j].close > s20[j] : d[j].close < s20[j])) { ce = j; break; }
     }
-    return { n3: g.tags.length >= 3, trend: tr, deep: dp, rp, conf: ce, fr: frgnSum(g.t) };
+    const has = c => g.tags.indexOf(c) >= 0;          // tags 는 'RCMEF' 차례로 이어붙인 글자
+    const tri = {};                                   // 세 지표 조합 열 가지 — 그 셋이 모두 들었나
+    DIVSCAN_TRI.forEach(([k, , ltr]) => { tri[k] = ltr.split('').every(has); });
+    return { n3: g.tags.length >= 3, rf: has('R') && has('F'), tri,
+             trend: tr, deep: dp, rp, conf: ce, fr: frgnSum(g.t) };
   };
   const iret = (m, a, b) => (m && m[a] && m[b]) ? (m[b] / m[a] - 1) * 100 : null;
   const retFrom = e => {
@@ -5902,6 +5929,8 @@ function divScanOne(d, idx, fmap, rmap){
     const push = (cat, rr) => ev.push(Object.assign({ type:g.type, cat }, rr));
     push('all', atT);
     if (f.n3) push('n3', atT);
+    if (f.rf) push('rf', atT);
+    DIVSCAN_TRI.forEach(([k]) => { if (f.tri[k]) push(k, atT); });
     if (f.trend) push('trend', atT);
     if (f.deep) push('deep', atT);
     if (f.conf != null && f.conf >= 0) { const atC = retFrom(f.conf); push('conf', atC); if (f.trend) push('ct', atC); }
@@ -5969,7 +5998,7 @@ function divScanStats(all){
     });
   });
   const fin = A => A.c ? { avg:A.s / A.c, win:A.w / A.c * 100, n:A.c } : null;
-  const out = { v:3, from, to, bull:{}, bear:{} };
+  const out = { v:4, from, to, bull:{}, bear:{} };   // v4: RSI+MFI · RSI+MACD+MFI 줄 추가
   ['bull', 'bear'].forEach(t => DIVSCAN_CONDS.forEach(([c]) => {
     out[t][c] = {};
     DIVSCAN_HZ.forEach(h => { const A = S[t][c][h]; out[t][c][h] = { raw:fin(A.raw), K:fin(A.K), Q:fin(A.Q), own:fin(A.own) }; });
@@ -6021,6 +6050,45 @@ function divScanVerdict(st){
         + sv(fx.avg) + ' ' + Math.round(fx.win) + '% (' + fx.n + '건) · 전체 ' + sv(fa.avg)
         + ' → ' + (Math.abs(gap) < 0.3 ? '외국인 수급과 함께여도 큰 차이 없음' : (gap > 0 ? '외국인이 같은 방향일 때 ' + gap.toFixed(2) + '%p 나았음' : '오히려 외국인이 반대일 때 ' + (-gap).toFixed(2) + '%p 나았음')) + '.');
     } else if (fa) out.push('　외국인: 건수가 적어 아직 비교하기 이릅니다.');
+    /* RSI+MFI 에 MACD 를 더하면 나아지나 (2026-11-13, 2주 뒤) — 묻는 바로 그 비교를 따로 적는다.
+       MFI 는 RSI 에 거래량을 입힌 것이라 한 핏줄이고, MACD 만 성격이 다르다 */
+    {
+      const ba = g('all'), rf = g('rf'), rmf = g('k_RMF');
+      const sv = v => (v >= 0 ? '+' : '') + v.toFixed(2) + '%p';
+      const say = (nm, o) => nm + ' ' + sv(o.avg) + ' ' + (bull ? '이김 ' : '약함 ') + Math.round(o.win) + '% (' + o.n + '건)';
+      if (ba && rf && rmf && rf.n >= 30 && rmf.n >= 30) {
+        const e = o => bull ? o.avg : -o.avg;           // + 가 클수록 맞은 것
+        const d1 = e(rf) - e(ba), d2 = e(rmf) - e(rf);
+        out.push('　지표 묶음(2주 뒤): ' + say('전체', ba) + ' · ' + say('RSI+MFI', rf) + ' · ' + say('RSI+MACD+MFI', rmf)
+          + ' → ' + (Math.abs(d1) < 0.3 ? 'RSI+MFI 는 전체와 큰 차이 없음' : (d1 > 0 ? 'RSI+MFI 가 전체보다 ' + d1.toFixed(2) + '%p 나음' : 'RSI+MFI 가 전체보다 ' + (-d1).toFixed(2) + '%p 못함'))
+          + ', ' + (Math.abs(d2) < 0.3 ? 'MACD 를 더해도 차이 없음' : (d2 > 0 ? 'MACD 를 더하면 ' + d2.toFixed(2) + '%p 더 나음' : 'MACD 를 더하면 오히려 ' + (-d2).toFixed(2) + '%p 못함')) + '.');
+      } else if (rf || rmf) {
+        const n1 = rf ? rf.n : 0, n2 = rmf ? rmf.n : 0;
+        out.push('　지표 묶음: 건수가 적어 아직 비교하기 이릅니다 (RSI+MFI ' + n1 + '건 · RSI+MACD+MFI ' + n2 + '건, 30건 이상부터 견줍니다).');
+      }
+    }
+    /* 세 지표 조합 열 가지 중 1등 (2026-11-13) — 건수 30건 이상인 것만 줄세운다.
+       열을 재서 고른 1등에는 운이 섞이므로, 상승·하락 양쪽에서 모두 기준을 이기는지 따로 밝힌다 */
+    {
+      const ba = g('all');
+      const cand = DIVSCAN_TRI.map(([c, lbl, , fam]) => ({ c, lbl, fam, o:g(c) }))
+        .filter(r => r.o && r.o.n >= 30)
+        .sort((a, b) => (bull ? b.o.avg - a.o.avg : a.o.avg - b.o.avg));
+      if (!cand.length) {
+        const most = DIVSCAN_TRI.map(([c, lbl]) => ({ lbl, n:(g(c) || {}).n || 0 })).sort((a, b) => b.n - a.n)[0];
+        out.push(most.n === 0
+          ? '　세 지표 조합: 세 지표가 한 꼭지에서 함께 엇갈린 신호가 없었습니다.'
+          : '　세 지표 조합: 열 가지 모두 30건에 못 미쳐 순위를 매기기 이릅니다 (가장 많은 것이 ' + most.lbl + ' ' + most.n + '건).');
+      } else {
+        const sv = v => { const a = bull ? v : -v; return (a >= 0 ? '+' : '') + a.toFixed(2) + '%p'; };
+        const w = cand[0], be = ba ? (bull ? ba.avg : -ba.avg) : null;
+        const edge = bull ? w.o.avg : -w.o.avg;
+        out.push('　세 지표 조합 1등(2주 뒤, 30건 이상 ' + cand.length + '가지 중): 「' + w.lbl + '」 ' + sv(w.o.avg) + ' '
+          + (bull ? '이김 ' : '약함 ') + Math.round(w.o.win) + '% (' + w.o.n + '건)'
+          + (w.fam ? ' · 세 가족을 다 덮는 조합' : ' · 한 가족이 빈 조합')
+          + (be != null ? ' — 전체는 ' + sv(ba.avg) + (edge > be + 0.2 ? ', 기준보다 ' + (edge - be).toFixed(2) + '%p 나음' : ', 기준과 큰 차이 없음') : '') + '.');
+      }
+    }
     return out;
   };
   return line('bull').concat(line('bear'));
@@ -6056,6 +6124,10 @@ body.ds-embed #divscan{position:static;overflow:visible;padding:8px 2px 12px}
 #divscan tr.ds-row:hover td{background:#161b22}
 #divscan tr.ds-sub td{border-bottom-color:#161b22}
 #divscan tr.ds-sub td.l{padding-left:16px;color:#8b949e}
+/* 눈여겨보는 조합(RSI+MFI · RSI+MACD+MFI) 줄 — 노랗게 드러낸다 */
+#divscan tr.ds-pick td{color:#e6edf3;background:#f2c80012}
+#divscan tr.ds-thin td{opacity:.45}
+#divscan tr.ds-pick td.l{color:#f2c800}
 #divscan .nm{font-weight:700}
 #divscan .mk{color:#6e7681;font-size:10px;margin-left:4px}
 #divscan .tg{font-family:monospace;font-weight:700}
@@ -6111,21 +6183,28 @@ function divScanCondCells(x){
   // 120일 — 주가가 120일선 위/아래 (trend = 신호와 같은 쪽)
   const above120 = bull ? !!x.trend : !x.trend;
   const c120 = tri(above120, !!x.trend, '120일선 ' + (above120 ? '위' : '아래') + (x.trend ? ' — 신호와 같은 방향' : ' — 신호와 반대 방향'));
-  // 외국인 — 위: 가장 최근일 ▲▼ 보유비중 (5일 증감). 예: ▲23%(0.37%)
-  //          아래(작게): 확정일 기준 5일 증감. 예: 확정일 ▼(0.12%) — 형성 중 신호는 둘이 같아 생략
+  // 외국인 보유비중 — 위: 지금 비중 (최근 5거래일 증감). 예: 12%(▲2.00%)
+  //          아래(작게): 신호 확정후 지금까지 증감 / 지난 거래일수. 예: 확정후 ▲2.00%/2d
   let cf;
-  const sub = (x.kd != null && !x.forming)
-    ? '<div class="fsub ' + (((x.kd > 0) && bull) || ((x.kd < 0) && !bull) ? (x.kd > 0 ? 'up' : 'dn') : 'mu') + '" title="신호 확정일(' + divScanEsc(x.date) + ')까지 '
-      + DIVSCAN_FRGN_N + '거래일 보유비중 ' + (x.kd >= 0 ? '+' : '') + x.kd.toFixed(2) + '%p' + (x.kh != null ? ' · 그날 비중 ' + x.kh.toFixed(2) + '%' : '') + '">확정일 '
-      + (x.kd > 0 ? '▲' : x.kd < 0 ? '▼' : '–') + '(' + Math.abs(x.kd).toFixed(2) + '%)</div>'
-    : '';
+  /* 아랫줄 (2026-11-13 바뀜) — 예전에는 '확정일까지 5거래일' 증감이었는데,
+     신호가 난 뒤 외국인이 그 편을 들어 주는지가 더 쓸모 있어 '확정후 ~ 지금' 으로 바꿨다.
+     확정 당일(0일)과 형성 중 신호는 잴 구간이 없어 아랫줄을 적지 않는다 */
+  let sub = '';
+  if (!x.forming && x.kh != null && x.fh != null && x.ago > 0) {
+    const kv = +(x.fh - x.kh).toFixed(2);
+    const ku = kv > 0, kdn = kv < 0;
+    const kgood = (ku && bull) || (kdn && !bull);        // 신호와 같은 방향이면 진하게
+    sub = '<div class="fsub ' + (kgood ? (ku ? 'up' : 'dn') : 'mu') + '" title="신호 확정일(' + divScanEsc(x.date) + ') 비중 '
+        + x.kh.toFixed(2) + '% → 지금 ' + x.fh.toFixed(2) + '% · ' + (kv >= 0 ? '+' : '') + kv.toFixed(2) + '%p (' + x.ago + '거래일)">확정후 '
+        + (ku ? '▲' + kv.toFixed(2) + '%' : kdn ? '▼' + Math.abs(kv).toFixed(2) + '%' : '–') + '/' + x.ago + 'd</div>';
+  }
   if (x.fh != null) {
     const dv = x.fd, up = dv != null && dv > 0, dn = dv != null && dv < 0;
     const hv = x.fh >= 10 ? Math.round(x.fh) : x.fh.toFixed(1);
     const good = (up && bull) || (dn && !bull);              // 신호와 같은 방향이면 진하게
     cf = '<td class="cc ' + (good ? (up ? 'up' : 'dn') : 'mu') + '" title="외국인 보유비중 ' + x.fh.toFixed(2) + '% · '
        + DIVSCAN_FRGN_N + '거래일 전보다 ' + (dv == null ? '자료 없음' : (dv >= 0 ? '+' : '') + dv.toFixed(2) + '%p') + '">'
-       + (up ? '▲' : dn ? '▼' : '–') + hv + '%' + (dv != null ? '<span class="sm">(' + Math.abs(dv).toFixed(2) + '%)</span>' : '') + sub + '</td>';
+       + hv + '%' + (dv != null ? '<span class="sm">(' + (up ? '▲' + dv.toFixed(2) + '%' : dn ? '▼' + Math.abs(dv).toFixed(2) + '%' : '–') + ')</span>' : '') + sub + '</td>';
   } else if (x.fr != null) {   // 예전 결과 — 보유비중 없이 순매수만 있음
     cf = '<td class="cc ' + ((x.fr > 0) === bull ? (x.fr > 0 ? 'up' : 'dn') : 'mu') + '" title="최근 5일 외국인 순' + (x.fr > 0 ? '매수' : '매도') + ' (다시 찾으면 보유비중으로 표시)">' + (x.fr > 0 ? '▲' : '▼') + '</td>';
   } else cf = none('외국인 자료 없음');
@@ -6153,7 +6232,7 @@ function divScanRender(res){
       .sort((a, b) => ((a.forming ? 1 : 0) - (b.forming ? 1 : 0)) || (b.tags.length - a.tags.length)
                       || (a.forming ? (b.held - a.held) : (a.ago - b.ago)));
     if (!rows.length) return '<div class="ds-empty">최근 ' + DIVSCAN_RECENT + '거래일 안에 확정된 신호가 없습니다.</div>';
-    let h = '<div class="ds-wrap"><table><tr><th class="l">종목</th><th class="l">지표</th><th class="cc">RSI</th><th class="cc">20일</th><th class="cc">120일</th><th class="cc">외국인</th><th>확정일</th><th>지난 날</th><th>확정 뒤</th><th>현재가</th></tr>';
+    let h = '<div class="ds-wrap"><table><tr><th class="l">종목</th><th class="l">지표</th><th class="cc">RSI</th><th class="cc">20일</th><th class="cc">120일</th><th class="cc">외국인 보유비중</th><th>확정일</th><th>지난 날</th><th>확정 뒤</th><th>현재가</th></tr>';
     rows.forEach(x => {
       h += '<tr class="ds-row' + (x.forming ? ' ds-form' : '') + '" data-code="' + divScanEsc(x.code) + '" data-name="' + divScanEsc(x.name) + '">'
          + '<td class="l"><span class="nm">' + divScanEsc(x.name) + '</span><span class="mk">' + divScanEsc(x.mk) + '</span></td>'
@@ -6171,7 +6250,7 @@ function divScanRender(res){
   };
   const st = res.stats;
   let stH = '';
-  if (st && st.v === 3) {
+  if (st && st.v === 4) {
     const cell = (z, t, unit, lbl) => z ? divScanPct(z.avg, true, unit) + '<br><span class="mu sm">' + lbl + Math.round(z.win) + '%</span>' : '<span class="mu">-</span>';
     const head = '<tr><th class="l">신호 뒤</th>' + DIVSCAN_HZ.map(h => '<th>' + h + '일</th>').join('') + '<th>건수</th></tr>';
     /* 표 ① 전체 신호 — 종목 등락과 코스피·코스닥 대비 */
@@ -6183,13 +6262,43 @@ function divScanRender(res){
     const condTable = (t) => {
       let h = '<div class="ds-wrap"><table>' + head;
       DIVSCAN_CONDS.forEach(([c, lbl]) => {
+        if (c.indexOf('k_') === 0) return;                 // 세 지표 조합은 아래 따로 표로 낸다
         const R = st[t][c];
         const n0 = R && R[DIVSCAN_HZ[0]] && R[DIVSCAN_HZ[0]].own ? R[DIVSCAN_HZ[0]].own.n : 0;
         const isBase = (c === 'all' || c === 'fall');      // 기준 줄 (전체 · 외국인 자료 기간 전체)
-        h += '<tr' + (isBase ? (c === 'fall' ? ' style="border-top:2px solid #30363d"' : '') : ' class="ds-sub"') + '><td class="l">' + (isBase ? '<b>' + lbl + '</b>' : lbl) + '</td>'
+        const isPick = (c === 'rf');                       // 지켜보는 조합 — 노랗게 드러낸다
+        const rowAttr = isBase ? (c === 'fall' ? ' style="border-top:2px solid #30363d"' : '')
+                      : (isPick ? ' class="ds-sub ds-pick"' : ' class="ds-sub"');
+        h += '<tr' + rowAttr + '><td class="l">' + (isBase || isPick ? '<b>' + lbl + '</b>' : lbl) + '</td>'
            + DIVSCAN_HZ.map(hz => '<td>' + cell(R && R[hz] && R[hz].own, t, '%p', t === 'bull' ? '이김 ' : '약함 ') + '</td>').join('')
            + '<td class="mu">' + n0.toLocaleString() + '</td></tr>';
       });
+      return h + '</table></div>';
+    };
+    /* 표 ③ 세 지표 조합 열 가지 (2026-11-13) — 2주(10일) 뒤 성적으로 줄세운다.
+       건수가 30건에 못 미치는 줄은 흐리게 (우연이 크게 섞여 순위를 믿을 수 없다) */
+    const triTable = (t) => {
+      const bull = t === 'bull';
+      const g10 = c => { const o = st[t][c] && st[t][c][10] && st[t][c][10].own; return o || null; };
+      const rows = DIVSCAN_TRI.map(([c, lbl, ltr, fam]) => {
+        const o = g10(c);
+        return { c, lbl, fam, o, edge: o ? (bull ? o.avg : -o.avg) : -1e9, thin: !o || o.n < 30 };
+      }).sort((a, b) => (a.thin - b.thin) || (b.edge - a.edge));   // 건수 넉넉한 것 먼저, 그 안에서 성적순
+      const base = g10('all');
+      let h = '<div class="ds-wrap"><table><tr><th class="l">세 지표 조합</th><th>3가족</th>'
+            + DIVSCAN_HZ.map(hz => '<th>' + hz + '일</th>').join('') + '<th>건수</th></tr>';
+      rows.forEach((r, i) => {
+        const R = st[t][r.c];
+        const top = !r.thin && i === 0;                 // 건수 넉넉한 것 중 1등
+        h += '<tr class="ds-sub' + (top ? ' ds-pick' : '') + (r.thin ? ' ds-thin' : '') + '">'
+           + '<td class="l">' + (top ? '<b>' + r.lbl + '</b>' : r.lbl) + '</td>'
+           + '<td class="cc ' + (r.fam ? 'up' : 'mu') + '" title="' + (r.fam ? '탄력·늘어짐·시간 세 가족을 모두 덮음' : '한 가족이 비어 있음 — 같은 것을 두 번 재는 셈') + '">' + (r.fam ? '✓' : '·') + '</td>'
+           + DIVSCAN_HZ.map(hz => '<td>' + cell(R && R[hz] && R[hz].own, t, '%p', bull ? '이김 ' : '약함 ') + '</td>').join('')
+           + '<td class="mu">' + (r.o ? r.o.n.toLocaleString() : 0) + '</td></tr>';
+      });
+      if (base) h += '<tr style="border-top:2px solid #30363d"><td class="l"><b>전체 (기준)</b></td><td class="cc mu">·</td>'
+           + DIVSCAN_HZ.map(hz => '<td>' + cell(st[t].all[hz] && st[t].all[hz].own, t, '%p', bull ? '이김 ' : '약함 ') + '</td>').join('')
+           + '<td class="mu">' + base.n.toLocaleString() + '</td></tr>';
       return h + '</table></div>';
     };
     stH = '<div class="ds-wrap"><table>' + head
@@ -6203,11 +6312,18 @@ function divScanRender(res){
         + '<h3>조건을 붙이면 나아지나 — 제 시장 지수 대비</h3>'
         + '<div class="ds-note" style="margin:0 0 4px">▲ 저점</div>' + condTable('bull')
         + '<div class="ds-note" style="margin:8px 0 4px">▼ 고점</div>' + condTable('bear')
+        + '<h3>세 지표 조합 — 어느 셋이 가장 나은가 (2주 뒤 성적순)</h3>'
+        + '<div class="ds-note" style="margin:0 0 4px">▲ 저점</div>' + triTable('bull')
+        + '<div class="ds-note" style="margin:8px 0 4px">▼ 고점</div>' + triTable('bear')
         + '<div class="ds-say">' + divScanVerdict(st).map(divScanEsc).join('<br>') + '</div>'
         + '<div class="ds-note">· 기간: ' + divScanEsc(st.from || '') + ' ~ ' + divScanEsc(st.to || '') + ' · 신호가 확정된 날(20일선 확인은 확인된 날) 종가에 샀다고 보고, 같은 날부터 같은 기간의 지수 등락을 뺀 값입니다 (국내 종목만, 원자재 제외).<br>'
         + '· <b>지수 대비</b> +면 지수보다 더 올랐다(덜 내렸다)는 뜻 · <b>이김</b> = ▲ 종목이 지수보다 더 오른 비율 · <b>약함</b> = ▼ 종목이 지수보다 덜 오른 비율. 조건표는 종목마다 제 시장 지수(코스피·코스닥)와 비교합니다.<br>'
         + '· <b>외국인</b> 줄은 외국인 일별 자료가 있는 최근 약 300거래일 안의 신호만 비교합니다 — <b>같은 방향</b> = ▲ 인데 확정일까지 5일 외국인 순매수 합이 + (▼ 은 −), <b>반대 방향</b> = 그 반대. 위 \'전체\' 줄과는 기간이 달라 \'외국인 자료 기간 전체\' 줄과 견주어 보세요.' + (res.frgnOk != null ? ' (외국인 자료 받은 종목 ' + res.frgnOk + '개' + (res.frgnNo ? ', 못 받은 종목 ' + res.frgnNo + '개' : '') + ')' : '') + '<br>'
-        + '· 조건: <b>지표 3개+</b> 같은 꼭지에서 3개 이상 엇갈림 · <b>20일선 확인</b> 확정 뒤 ' + DIVSCAN_CONF_WAIT + '거래일 안에 종가가 20일선을 넘어선(▼ 은 밑돈) 날 진입, 끝내 못 넘은 신호는 빠짐 · <b>큰 흐름</b> ▲ 은 120일선 위, ▼ 은 120일선 아래 · <b>깊은 과열·침체</b> 꼭지 근처 RSI ▲ 30 이하 / ▼ 70 이상.<br>'
+        + '· 조건: <b>지표 3개+</b> 같은 꼭지에서 3개 이상 엇갈림 · <b>RSI+MFI 동시</b>·<b>RSI+MACD+MFI 동시</b> 같은 꼭지에서 그 지표들이 모두 엇갈림(다른 지표가 더 끼어도 됨) · <b>20일선 확인</b> 확정 뒤 ' + DIVSCAN_CONF_WAIT + '거래일 안에 종가가 20일선을 넘어선(▼ 은 밑돈) 날 진입, 끝내 못 넘은 신호는 빠짐 · <b>큰 흐름</b> ▲ 은 120일선 위, ▼ 은 120일선 아래 · <b>깊은 과열·침체</b> 꼭지 근처 RSI ▲ 30 이하 / ▼ 70 이상.<br>'
+        + '· <b>세 지표 조합</b> 표는 5개 중 3개를 고르는 열 가지를 모두 잰 것입니다. <b>2주(10일) 뒤 성적순</b>으로 줄세우되, <b>30건에 못 미치는 줄은 흐리게 하고 맨 아래로</b> 내립니다 — 건수가 적으면 성적이 좋아도 우연일 뿐입니다.<br>'
+        + '· <b>3가족</b> ✓ 는 다섯 지표의 세 가족(<b>탄력</b> RSI·MFI · <b>늘어짐</b> CCI·엘더레이 · <b>시간</b> MACD)을 모두 덮는 조합이라는 표시입니다. ✓ 가 없으면 한 가족이 비어 같은 것을 두 번 재는 셈입니다 (예: RSI+MACD+MFI 는 RSI 와 MFI 가 한 식구라 늘어짐이 빠져 있습니다). 열 가지 중 넷만 ✓ 입니다.<br>'
+        + '· 열 가지를 재서 1등을 고르면 <b>그 1등에는 운이 섞입니다.</b> ▲ 저점과 ▼ 고점 양쪽 표에서 모두 전체(기준)를 이기는 조합인지 보시고, 한쪽에서만 좋으면 믿지 마세요. CCI·엘더레이는 다른 지표보다 느슨하게 판정해(주가가 3% 더 갔는데 지표가 못 따라오면 신호) 건수가 많이 잡히는 점도 감안하세요.<br>'
+        + '· <b>RSI+MFI</b> 와 <b>RSI+MACD+MFI</b> 는 나란히 놓고 보세요 — MFI 는 RSI 에 거래량을 입힌 것이라 둘은 한 핏줄이고, 성격이 다른 MACD 를 더해서 실제로 나아지는지가 두 줄의 차이로 드러납니다. <b>전체</b> 줄보다 나아야 의미가 있습니다.<br>'
         + '· 지금 지수에 든 종목으로만 재므로(그 사이 빠진 종목은 없음) 실제보다 조금 좋게 나올 수 있고, 같은 시기 신호끼리는 함께 움직여 건수만큼 믿을 만하지는 않습니다. 건수가 적은 칸(수십 건)은 우연이 크게 섞입니다.</div>';
   } else if (st) {
     stH = '<div class="ds-empty">예전 방식으로 낸 통계입니다. [찾기]를 다시 누르면 지수·조건별로 비교한 표로 바뀝니다.</div>';
@@ -6223,7 +6339,9 @@ function divScanRender(res){
     + missH + idxH + failH
     + '<div class="ds-note">· 지표 글자: R=RSI · C=CCI · M=MACD · E=Elder Ray · F=MFI. 글자가 많을수록 여러 지표가 같은 꼭지에서 엇갈린 것입니다.<br>'
     + '· 확정일 = 두 번째 꼭지 뒤 ' + DIV_L + '거래일 — 그날이 지나야 꼭지인 줄 알 수 있어 차트의 ▲▼ 보다 늦게 잡힙니다.<br>'
-    + '· 지표 옆 <b>외+</b>/<b>외−</b> = 최근 5일 외국인 순매수/순매도 (신호와 같은 방향이면 초록).<br>'
+    + '· <b>외국인 보유비중</b> 칸 — 윗줄 <b>12%(▲2.00%)</b> = 지금 비중 12%, 최근 ' + DIVSCAN_FRGN_N + '거래일 동안 2.00%p 늘었다는 뜻. '
+    + '아랫줄 <b>확정후 ▲2.00%/2d</b> = 신호가 확정된 뒤 2거래일 동안 비중이 2.00%p 늘었다는 뜻 (확정 당일·형성 중은 잴 구간이 없어 안 적습니다). '
+    + '글자색은 신호와 같은 방향이면 진하게(▲ 저점에 비중 늘면 빨강, ▼ 고점에 비중 줄면 파랑), 어긋나면 회색입니다. 숫자에 손을 올리면 정확한 값이 뜹니다.<br>'
     + '· <b style="color:#f0a836">형성 중</b> = 두 번째 꼭지 뒤 아직 ' + DIV_L + '거래일이 안 찼지만 지금까지 꼭지가 지켜지는 신호 (3/5 = 3일째). 그 사이 더 낮은 저가(▼ 은 더 높은 고가)가 나오면 사라지며, 신호 효과 통계에는 넣지 않습니다. 차트에는 흐린 점선과 ▲SE… 처럼 표시됩니다.<br>'
     + '· 장중에는 오늘 봉이 아직 움직이므로 결과가 바뀔 수 있습니다. 종목을 누르면 다이버전스 탐색 조합으로 차트가 열립니다.</div>';
   box.querySelectorAll('tr.ds-row').forEach(tr => tr.onclick = () => divScanOpen(tr.dataset.code, tr.dataset.name));

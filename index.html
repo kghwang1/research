@@ -10827,7 +10827,7 @@ async function pnlAutoFetch(silent){
 }
 /* ===== 투자종목 스크리너 (코스피100 · 52주최고 대비 낙폭 상위 30) ===== */
 let INVEST_ROWS=[], INVEST_POOL=[], investLoaded=false, roeMin=0, investSortFrgn=false;
-let REPORT={}, reportLoading=false, reportCacheInit=false;
+let REPORT={}, reportLoading=false, reportCacheInit=false, reportFailAt=0;
 /* 여러 묶음을 동시에(기본 4개씩) 처리한다. 하나씩 기다리던 것을 겹쳐 보내
    코스피200·코스닥100 첫 조회 시간을 크게 줄인다. */
 async function pmap(items, limit, fn, onTick){
@@ -16428,8 +16428,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.10.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' STUDY: RSI와 FMI 부메뉴 추가';
+const KG_APP_VER = '11.14.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 보고서 빈값 캐시 고침';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -18636,13 +18636,31 @@ async function ensureReports(codes){
   loadReportCache();
   const need=codes.filter(c=>!(c in REPORT));
   if(!need.length||reportLoading||!SRV_URL) return;
+  /* 바로 앞서 실패했으면 잠시 쉰다 — 실패할 때마다 곧바로 다시 부르면 그릴 때마다 요청이 쌓인다 */
+  if(reportFailAt && Date.now()-reportFailAt < 60000) return;
   reportLoading=true;
+  let anyFail=false;
   for(let i=0;i<need.length;i+=20){
     const part=need.slice(i,i+20);
-    try{ const r=await fetch(SRV_URL+'/?reports='+encodeURIComponent(part.join(','))); const d=await r.json(); (d.items||[]).forEach(q=>{ REPORT[q.code]=(q&&q.ok&&q.title)?{title:q.title,date:q.date,broker:q.broker,link:q.link}:null; }); }catch(e){}
-    part.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; });
+    let ok=false;
+    try{
+      const r=await fetch(SRV_URL+'/?reports='+encodeURIComponent(part.join(',')));
+      if(r.ok){
+        const d=await r.json();
+        (d.items||[]).forEach(q=>{ REPORT[q.code]=(q&&q.ok&&q.title)?{title:q.title,date:q.date,broker:q.broker,link:q.link}:null; });
+        ok=true;
+      }
+    }catch(e){}
+    /* 서버가 제대로 답을 준 경우에만 '보고서 없음(null)' 으로 적는다 (2026-11-14 고침).
+       예전에는 못 받았을 때도 null 로 적고 그대로 하루치 캐시에 저장해서,
+       한 번 실패하면 서버가 돌아와도 다음 날까지 줄곧 '—' 로 보였다.
+       이제 못 받은 종목은 비워 두므로 '…' 로 보이고 잠시 뒤 다시 받는다 */
+    if(ok) part.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; });
+    else anyFail=true;
   }
-  reportLoading=false; saveReportCache();
+  reportLoading=false;
+  reportFailAt = anyFail ? Date.now() : 0;
+  saveReportCache();
   if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
   else if(valMarket==='kr') renderKrTable();
