@@ -11358,8 +11358,8 @@ async function refreshInvestPricesLive(){
   saveInvestCache();
   if(valMarket==='invest') renderInvest();
 }
-function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; try{ const raw=localStorage.getItem('inv_reports'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&o.map) Object.assign(REPORT,o.map); } }catch(e){} }
-function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), map:REPORT})); }catch(e){} }
+function loadReportCache(){ if(reportCacheInit) return; reportCacheInit=true; try{ const raw=localStorage.getItem('inv_reports'); if(raw){ const o=JSON.parse(raw); if(o&&o.date===invToday()&&o.v===2&&o.map) Object.assign(REPORT,o.map); } }catch(e){} }
+function saveReportCache(){ try{ localStorage.setItem('inv_reports', JSON.stringify({date:invToday(), v:2, map:REPORT})); }catch(e){} }
 function refreshReports(){ REPORT={}; reportCacheInit=true; try{ localStorage.removeItem('inv_reports'); }catch(e){} renderInvest(); }
 function saveInvestCache(){ try{ localStorage.setItem('inv_pool', JSON.stringify({date:invToday(), rows:INVEST_POOL})); }catch(e){} }
 function loadInvestCache(){ try{ const raw=localStorage.getItem('inv_pool'); if(raw){ const o=JSON.parse(raw); if(o&&invCacheFresh(o.date)&&Array.isArray(o.rows)&&o.rows.length){
@@ -16920,8 +16920,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.16.-v7';
-const KG_APP_BUILD = KG_APP_VER + ' 위험지표 실제 값 눈금';
+const KG_APP_VER = '11.17.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 포트 표 보고서 칸 — 종목분석 출처로 보충';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -19124,6 +19124,25 @@ const SECTOR_BY_CODE={'005930':'반도체','000660':'반도체','005935':'반도
 const SECTOR_KW=[['로봇',['로봇','로보틱스','로보']],['반도체',['반도체','HBM','DRAM','D램','낸드','NAND','파운드리','메모리']],['2차전지',['2차전지','이차전지','배터리','양극재','음극재']],['전기차',['전기차']],['바이오',['바이오','CDMO','바이오시밀러']],['제약',['제약','신약','임상']],['방산',['방산','방위','국방','무기','수출']],['조선',['조선','선박','LNG선','드릴십']],['해운',['해운','운임','컨테이너']],['철강',['철강','열연','냉연','후판']],['정유',['정유','정제마진']],['화학',['화학','석유화학','스프레드']],['원자력',['원자력','원전','SMR']],['천연가스',['천연가스','가스','LNG']],['건설기계',['건설기계','굴착기','중장비']],['건설',['건설','분양','주택']],['보험',['보험']],['증권',['증권','브로커리지']],['금융',['금융','은행','지주']],['게임',['게임','신작','MMORPG']],['엔터',['엔터','앨범','음반','콘서트','아티스트','팬덤']],['통신',['통신','5G']],['인터넷',['플랫폼','커머스','인터넷','광고']],['유통',['유통','마트','백화점','이커머스','리테일']],['식품',['식품','음식료']],['항공',['항공','여객','LCC']],['리츠',['리츠','REIT']],['우주항공',['우주','위성','항공우주']],['자동차',['자동차','완성차','전장']],['AI',['AI','인공지능','생성형']]];
 function classifySector(title,code){ const t=String(title||''); for(const x of SECTOR_KW){ for(const k of x[1]){ if(t.indexOf(k)>=0) return x[0]; } } return SECTOR_BY_CODE[code]||''; }
 function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/* 종목분석 › 보고서 화면이 쓰는 출처에서 최신 보고서 1건을 받는다.
+   한 종목씩 묻는 방식이라 3개씩 나눠 보내고, 한 번에 80종목까지만 — 나머지는 다음 그리기에서 이어 받는다 */
+async function reportFallback(codes){
+  if(typeof RPT_URL==='undefined' || !RPT_URL) { codes.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; }); return false; }
+  const list=codes.filter(c=>/^\d{6}$/.test(c)).slice(0,80);
+  let fail=false;
+  for(let i=0;i<list.length;i+=3){
+    await Promise.all(list.slice(i,i+3).map(async c=>{
+      try{
+        const r=await fetch(RPT_URL+'/?rpts='+c+'&n=1');
+        if(!r.ok){ fail=true; return; }                     // 못 받음 → 비워 두고 1분 뒤 다시
+        const d=await r.json();
+        const x=(d&&d.ok&&Array.isArray(d.items))?d.items[0]:null;
+        REPORT[c] = (x&&x.title) ? {title:x.title, date:x.date||'', broker:x.broker||'', link:x.link||x.pdf||''} : null;
+      }catch(e){ fail=true; }
+    }));
+  }
+  return fail;
+}
 async function ensureReports(codes){
   loadReportCache();
   const need=codes.filter(c=>!(c in REPORT));
@@ -19147,8 +19166,11 @@ async function ensureReports(codes){
        예전에는 못 받았을 때도 null 로 적고 그대로 하루치 캐시에 저장해서,
        한 번 실패하면 서버가 돌아와도 다음 날까지 줄곧 '—' 로 보였다.
        이제 못 받은 종목은 비워 두므로 '…' 로 보이고 잠시 뒤 다시 받는다 */
-    if(ok) part.forEach(c=>{ if(!(c in REPORT)) REPORT[c]=null; });
-    else anyFail=true;
+    if(!ok) anyFail=true;
+    /* 표용 ?reports= 가 '없음'으로 준 종목은 종목분석 보고서 화면과 같은 출처(?rpts=)로 다시 확인한다 (2026-11-17).
+       ?reports= 쪽이 보고서를 못 찾아 표에는 '—', 종목분석에는 보고서가 보이던 문제 */
+    const miss=part.filter(c=>!REPORT[c]);
+    if(miss.length && await reportFallback(miss)) anyFail=true;
   }
   reportLoading=false;
   reportFailAt = anyFail ? Date.now() : 0;
