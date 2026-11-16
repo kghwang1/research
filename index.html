@@ -2200,14 +2200,14 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div id="trdIdx2" class="trd-pane" style="display:none">
    <div class="i2-now" id="i2Now"></div>
    <div class="ixa-card">
-    <div class="ixa-h"><b>선행 지표 — 하이일드 스프레드 · MOVE</b><span class="pmi-sub" id="i2RangeA"></span></div>
+    <div class="ixa-h"><b>선행 지표 — <span style="color:#f2c800">하이일드 스프레드</span> · <span style="color:#7c8cff">MOVE</span></b><span class="pmi-sub" id="i2RangeA"></span></div>
     <div id="i2ChartA"></div>
    </div>
    <div class="ixa-card" style="margin-top:10px">
-    <div class="ixa-h"><b>심리 지표 — VIX · 공포탐욕지수</b><span class="pmi-sub" id="i2RangeB"></span></div>
+    <div class="ixa-h"><b>심리 지표 — <span style="color:#ef8a50">VIX</span> · <span style="color:#4dd0e1">공포탐욕지수</span></b><span class="pmi-sub" id="i2RangeB"></span></div>
     <div id="i2ChartB"></div>
    </div>
-   <div class="i2-note">두 그래프 모두 선마다 <b>최근 3개월 최고값을 맨 위, 최저값을 맨 아래</b>로 맞춰 그렸습니다(선마다 눈금이 다름). 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다.</div>
+   <div class="i2-note">두 그래프 모두 선마다 <b>자기 실제 값의 최근 3개월 최고값을 맨 위, 최저값을 맨 아래</b>로 맞춰 그렸습니다. 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다.</div>
    <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
    <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
    <div class="pmi-src" id="i2Src"></div>
@@ -8943,14 +8943,20 @@ function i2Fmt(k,x){ return x.toFixed(I2_DEF[k].dec); }
 function i2Md(d){ return Number(d.slice(5,7))+'/'+Number(d.slice(8,10)); }
 /* keys: 그릴 두 지표 / marks: 구간 표시 {k, band:[a,b]} 또는 {k, line:x, txt} */
 function i2Svg(S, keys, marks){
-  const W=640, H=290, L=12, R=58, T=16, B=30;
+  const W=640, H=290, L=48, R=50, T=16, B=30;   // 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
   const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
   const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
   const Ys={}; keys.forEach(k=>{ const V=S[k].map(p=>p[1]), lo=Math.min(...V), hi=Math.max(...V), sp=(hi-lo)||1;
     Ys[k]={lo, hi, f:v=>T+14+(H-T-B-30)*(hi-v)/sp}; });   // 최고·최저 글자 자리만큼 위아래를 띄운다
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
-  for(let i=0;i<=4;i++){ const y=T+(H-T-B)*i/4; s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#262b3a"/>`; }
+  const AXD={hy:2, move:0, vix:1, fg:0};
+  for(let i=0;i<=4;i++){
+    const y=T+14+(H-T-B-30)*i/4;            // 4등분 — 맨 위 = 3개월 최고, 맨 아래 = 3개월 최저
+    s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
+    keys.forEach((k,j)=>{ const Y0=Ys[k], v=Y0.hi-(Y0.hi-Y0.lo)*i/4;
+      s+=`<text x="${j?W-R+6:L-6}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${v.toFixed(AXD[k])}</text>`; });
+  }
   /* 구간 표시 — 그 지표의 3개월 범위 안에 들어오는 부분만 */
   let lab=0;
   marks.forEach(m=>{ const y=Ys[m.k], c=I2_DEF[m.k].col;
@@ -8981,8 +8987,12 @@ function i2Svg(S, keys, marks){
       tags.push([x,ty]);
       s+=`<text x="${x.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" font-size="11" fill="${D.col}" fill-opacity=".85">${dy<0?'최고':'최저'} ${i2Fmt(k,v)}</text>`; });
   });
-  ends.sort((a,b)=>a.y-b.y); for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<14) ends[i].y=ends[i-1].y+14;
-  ends.forEach(o=>{ s+=`<text x="${o.x+6}" y="${Math.min(o.y+4,H-B+4)}" font-size="12" font-weight="700" fill="${I2_DEF[o.k].col}">${i2Fmt(o.k,o.v)}</text>`; });
+  /* 현재값 — 자기 눈금 쪽(첫 지표 왼쪽, 둘째 지표 오른쪽)에 선 색 바탕 글자로, 끝점에서 그 눈금까지 가는 점선 */
+  ends.forEach(o=>{ const j=keys.indexOf(o.k), c=I2_DEF[o.k].col, tx=i2Fmt(o.k,o.v), w=tx.length*7.4+8, yy=o.y;
+    s+=`<line x1="${j?o.x:L}" x2="${j?W-R:o.x}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${c}" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>`;
+    const bx=j?W-R+2:L-2-w;
+    s+=`<rect x="${bx.toFixed(1)}" y="${(yy-9).toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="3" fill="${c}"/>`
+     +`<text x="${(bx+w/2).toFixed(1)}" y="${(yy+4.5).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#0d1017">${tx}</text>`; });
   return s+'</svg>';
 }
 const I2_SUB={hy:'신용시장 — 부도 위험에 붙는 웃돈 (선행)', move:'채권시장 — 국채 금리 변동성 (선행)', vix:'주식시장 — S&P500 변동성(공포지수)', fg:'주식시장 심리 — CNN 7개 지표 종합 (0 공포 ~ 100 탐욕)'};
@@ -16910,8 +16920,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.16.-v6';
-const KG_APP_BUILD = KG_APP_VER + ' 위험지표 그래프 2개·공포탐욕지수';
+const KG_APP_VER = '11.16.-v7';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 실제 값 눈금';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
