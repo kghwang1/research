@@ -675,8 +675,8 @@
   .hy-now .k{font-size:12.5px;color:#c5cad8;font-weight:500;margin-right:3px}
   .hy-now .zn{font-size:13px;font-weight:700;padding:1px 8px;border-radius:9px;border:1px solid currentColor}
   /* 추세 › 지수분석2 (2026-11-16) */
-  .i2-now{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 10px 2px}
-  @media(max-width:600px){ .i2-now{grid-template-columns:1fr} }
+  .i2-now{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 0 10px}
+  @media(max-width:700px){ .i2-now{grid-template-columns:1fr 1fr} }
   .i2-now .it{border:1px solid var(--line);border-radius:8px;padding:6px 8px;background:var(--panel2)}
   .i2-now .nm{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:6px}
   .i2-now .nm i{display:inline-block;width:14px;height:3px;border-radius:2px}
@@ -685,7 +685,7 @@
   .i2-now .cg{font-size:12.5px;font-variant-numeric:tabular-nums;color:#c5cad8;line-height:1.6}
   .i2-now .cg b{font-weight:700}
   .i2-now .zn{font-size:12px;font-weight:700;padding:0 7px;border-radius:9px;border:1px solid currentColor;margin-left:auto}
-  .i2-note{font-size:12px;color:#c5cad8;line-height:1.6;padding:0 10px 8px}
+  .i2-note{font-size:12px;color:#c5cad8;line-height:1.6;padding:6px 2px 4px}
   .i2-each{margin:0 0 10px}
   .i2-each:last-child{margin:0}
   .i2-each .hd{font-size:13.5px;font-weight:700;margin-bottom:2px}
@@ -2120,7 +2120,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div class="trd-bar">
    <button class="tf on" data-tv="psy">외국인 투자심리</button>
    <button class="tf" data-tv="flow">외국인 매매동향</button>
-   <button class="tf" data-tv="idx2">지수분석2</button>
+   <button class="tf" data-tv="idx2">위험지표</button>
    <button class="tf" data-tv="pmi">제조업 PMI</button>
    <button class="tf" data-tv="hy">하이일드 스프레드</button>
    <button class="tf" data-tv="move">MOVE 지수</button>
@@ -2196,14 +2196,18 @@ DPS ÷ 배당수익률 = ?</code></pre>
   </div>
   </div><!-- /trdFlow -->
 
-  <!-- 지수분석2 — 하이일드 스프레드·MOVE·VIX 를 한 그래프에 + 현재값 + 지표별 설명 + 종합 해석 (2026-11-16, 예전 지수분석 칸은 삭제) -->
+  <!-- 위험지표(내부 이름 idx2, 처음 이름 지수분석2) — 하이일드 스프레드·MOVE·VIX 를 한 그래프에 + 현재값 + 지표별 설명 + 종합 해석 (2026-11-16, 예전 지수분석 칸은 삭제) -->
   <div id="trdIdx2" class="trd-pane" style="display:none">
+   <div class="i2-now" id="i2Now"></div>
    <div class="ixa-card">
-    <div class="ixa-h"><b>위험 지표 3종</b><span class="pmi-sub" id="i2Range"></span></div>
-    <div class="i2-now" id="i2Now"></div>
-    <div id="i2Chart"></div>
-    <div class="i2-note">세 지표는 단위와 크기가 달라 <b>3개월 전 값 = 100</b>으로 맞춰 그렸습니다(예: 130 = 3개월 전보다 30% 높음). 그래프 위에 손가락·마우스를 올리면 실제 값이 나옵니다.</div>
+    <div class="ixa-h"><b>선행 지표 — 하이일드 스프레드 · MOVE</b><span class="pmi-sub" id="i2RangeA"></span></div>
+    <div id="i2ChartA"></div>
    </div>
+   <div class="ixa-card" style="margin-top:10px">
+    <div class="ixa-h"><b>심리 지표 — VIX · 공포탐욕지수</b><span class="pmi-sub" id="i2RangeB"></span></div>
+    <div id="i2ChartB"></div>
+   </div>
+   <div class="i2-note">두 그래프 모두 선마다 <b>최근 3개월 최고값을 맨 위, 최저값을 맨 아래</b>로 맞춰 그렸습니다(선마다 눈금이 다름). 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다.</div>
    <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
    <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
    <div class="pmi-src" id="i2Src"></div>
@@ -2246,7 +2250,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
      <li><b>한국 주식은 수출·제조업 비중이 커서</b> 한국 PMI뿐 아니라 미국·중국 PMI가 함께 중요합니다. PMI가 오르면 반도체·자동차·기계·화학 같은 경기민감주의 실적 기대가 커지고, 꺾이면 이들 대형주가 먼저 부담을 받기 쉽습니다.</li>
      <li><b>미국 PMI는 금리 경로로도 영향을 줍니다.</b> 미국 PMI가 강하고 물가 항목까지 높으면 금리 인하 기대가 줄어 성장주·고PER 종목에 불리할 수 있고, 반대로 경기는 식는데 물가가 안정되면 금리 인하 기대로 주가에 우호적일 수 있습니다.</li>
      <li><b>중국 PMI가 50 아래에 머물면</b> 대중 수출 비중이 큰 철강·화학·소재·기계 업종에 부담이 되기 쉽습니다.</li>
-     <li><b>외국인 수급과 함께 봅니다.</b> 글로벌 제조업 경기가 좋아진다는 기대는 외국인의 한국 제조업 대형주 매수와 같이 움직이는 경우가 많습니다. 이 화면의 <b>외국인 투자심리·외국인 매매동향·지수분석2</b>와 같이 보면 PMI 해석이 더 단단해집니다.</li>
+     <li><b>외국인 수급과 함께 봅니다.</b> 글로벌 제조업 경기가 좋아진다는 기대는 외국인의 한국 제조업 대형주 매수와 같이 움직이는 경우가 많습니다. 이 화면의 <b>외국인 투자심리·외국인 매매동향·위험지표</b>와 같이 보면 PMI 해석이 더 단단해집니다.</li>
      <li><b>한계</b> — 설문 기반이라 응답자의 심리가 섞이고, 제조업만 다룹니다(미국은 제조업이 경제의 약 10%). 월별 변동과 재고 비축 같은 일시 요인에 왜곡될 수 있으니 <b>한 달 수치로 매매를 정하지 말고 3개월 흐름</b>으로 판단하는 것이 좋습니다. 투자 판단의 참고 자료일 뿐입니다.</li>
     </ul>
    </div>
@@ -8906,142 +8910,178 @@ async function volBuild(key){
   }catch(e){ console.warn('['+C.sym+']', e); }
   VOL_BUSY[key]=false;
 }
-/* ===== 추세 › 지수분석2 (2026-11-16) =====
-   하이일드 스프레드(HY_DATA, 직접 적은 값) · MOVE · VIX(VOL_CFG — 서버로 받은 값, 없으면 저장값)를
-   3개월 전 = 100 으로 맞춰 한 그래프에 그리고, 지표별 현재 상황과 종합 해석을 규칙으로 만들어 쓴다. */
+/* ===== 추세 › 위험지표 (내부 이름 idx2, 2026-11-16) =====
+   그래프 ① 선행 지표: 하이일드 스프레드(HY_DATA, 직접 적은 값) · MOVE
+   그래프 ② 심리 지표: VIX · CNN 공포탐욕지수(브라우저에서 CNN 자료를 직접 받음, 실패하면 FG_SEED)
+   선마다 3개월 최고값=맨 위, 최저값=맨 아래로 각자 눈금을 쓴다. 왼쪽 숫자 눈금은 없다.
+   지표별 현재 상황과 종합 해석은 수치를 정해진 기준으로 읽어 만든다. */
 const I2_DEF={
-  hy:  {nm:'하이일드 스프레드', unit:'%p', col:'#f2c800', dec:2, warn:5, crit:7, low:3,
+  hy:  {nm:'하이일드 스프레드', sh:'하이일드', unit:'%p', col:'#f2c800', dec:2, warn:5, crit:7, low:3,
         zone:v=>v<3?{t:'과열 경계',c:'#f0a836',k:0}:v<5?{t:'평상시',c:'#7c8cff',k:1}:v<7?{t:'경계',c:'#ef8a50',k:2}:{t:'위기',c:'#ef5350',k:3}},
-  move:{nm:'MOVE 지수', unit:'', col:'#7c8cff', dec:2, warn:100, crit:130, low:80,
-        zone:v=>VOL_CFG.move.zone(v)},
-  vix: {nm:'VIX 지수', unit:'', col:'#ef8a50', dec:2, warn:20, crit:30, low:15,
-        zone:v=>VOL_CFG.vix.zone(v)}
+  move:{nm:'MOVE 지수', sh:'MOVE', unit:'', col:'#7c8cff', dec:2, warn:100, crit:130, low:80, zone:v=>VOL_CFG.move.zone(v)},
+  vix: {nm:'VIX 지수', sh:'VIX', unit:'', col:'#ef8a50', dec:2, warn:20, crit:30, low:15, zone:v=>VOL_CFG.vix.zone(v)},
+  fg:  {nm:'공포탐욕지수', sh:'공포탐욕', unit:'', col:'#4dd0e1', dec:1,
+        zone:v=>v<25?{t:'극단적 공포',c:'#ef5350',k:3}:v<45?{t:'공포',c:'#ef8a50',k:2}:v<=55?{t:'중립',c:'#7c8cff',k:1}:v<=75?{t:'탐욕',c:'#4dd0e1',k:1}:{t:'극단적 탐욕',c:'#f0a836',k:0}}
 };
-let I2_BUSY=false;
+/* CNN 공포탐욕지수 저장값 (2026-11-16 받음) — [유닉스시각(초), 값] */
+const FG_SEED=[[1786492800,61.7],[1786579200,66.1],[1786665600,64.3],[1786924800,59.1],[1787011200,54.6],[1787097600,56.6],[1787184000,51.4],[1787270400,54.7],[1787529600,55],[1787616000,59.6],[1787702400,53.9],[1787788800,57.3],[1787875200,53.7],[1788134400,49.2],[1788220800,44.9],[1788307200,46.1],[1788393600,47.5],[1788480000,45.2],[1788825600,39.1],[1788912000,38.2],[1788998400,31.9],[1789084800,33.1],[1789344000,32.1],[1789430400,29.3],[1789516800,27],[1789603200,29.5],[1789689600,28.5],[1789948800,33.9],[1790035200,35.2],[1790121600,33.7],[1790208000,34.5],[1790294400,36.9],[1790553600,32.4],[1790640000,31.1],[1790726400,30.3],[1790812800,29.2],[1790899200,38.2],[1791158400,43.1],[1791244800,47],[1791331200,44.7],[1791417600,39.2],[1791504000,43.5],[1791763200,45.2],[1791849600,45.6],[1791936000,28.8],[1792022400,32],[1792108800,18.2],[1792368000,19.5],[1792454400,28.7],[1792540800,30.3],[1792627200,20],[1792713600,16.7],[1792972800,29.8],[1793059200,32.9],[1793145600,34.4],[1793232000,30.8],[1793318400,26.3],[1793577600,19.4],[1793664000,23.5],[1793750400,34.2],[1793836800,20],[1793923200,24.4],[1794182400,31.5],[1794268800,37.4],[1794355200,35.9],[1794441600,40.3],[1794528000,38.6]];
+let FG_LIVE=null, FG_AT=0, I2_BUSY=false;
 function i2Series(){
   const hy=HY_DATA.d.map((d,i)=>['20'+d.slice(0,2)+'-'+d.slice(2,4)+'-'+d.slice(4,6), HY_DATA.v[i]]);
-  const vol=k=>(VOL_LIVE[k]||VOL_CFG[k].seed).map(p=>[new Date(p[0]*1000).toISOString().slice(0,10), p[1]]);
-  return {hy, move:vol('move'), vix:vol('vix')};
+  const day=t=>new Date(t*1000).toISOString().slice(0,10);
+  const vol=k=>(VOL_LIVE[k]||VOL_CFG[k].seed).map(p=>[day(p[0]), p[1]]);
+  const fm={}; (FG_LIVE||FG_SEED).forEach(p=>{ fm[day(p[0])]=p[1]; });    // 같은 날 값이 둘이면 뒤의 것
+  const fg=Object.keys(fm).sort().map(d=>[d, fm[d]]);
+  return {hy, move:vol('move'), vix:vol('vix'), fg};
 }
 function i2Stat(P){
   const n=P.length, V=P.map(p=>p[1]), v=V[n-1], v0=V[0], p=V[n-2], w=V[Math.max(0,n-6)];
-  const hi=Math.max(...V), hiI=V.indexOf(hi), lo=Math.min(...V);
-  return {v, v0, p, w, hi, hiD:P[hiI][0], lo, d3:v-v0, r3:(v-v0)/v0*100, d1:v-p, r1:(v-p)/p*100, r5:(v-w)/w*100, offHi:(v-hi)/hi*100, date:P[n-1][0]};
+  const hi=Math.max(...V), lo=Math.min(...V);
+  return {v, v0, p, w, hi, hiD:P[V.indexOf(hi)][0], lo, loD:P[V.indexOf(lo)][0], d3:v-v0, r3:(v-v0)/v0*100, d1:v-p, r1:(v-p)/p*100, d5:v-w, r5:(v-w)/w*100, offHi:(v-hi)/hi*100, date:P[n-1][0]};
 }
 function i2Fmt(k,x){ return x.toFixed(I2_DEF[k].dec); }
 function i2Md(d){ return Number(d.slice(5,7))+'/'+Number(d.slice(8,10)); }
-function i2Svg(S){
-  const K=['hy','move','vix'], W=640, H=310, L=40, R=56, T=14, B=32;
-  const all=K.flatMap(k=>S[k].map(p=>p[0])).sort();
+/* keys: 그릴 두 지표 / marks: 구간 표시 {k, band:[a,b]} 또는 {k, line:x, txt} */
+function i2Svg(S, keys, marks){
+  const W=640, H=290, L=12, R=58, T=16, B=30;
+  const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
-  const N={}; K.forEach(k=>{ const b=S[k][0][1]; N[k]=S[k].map(p=>[p[0], p[1]/b*100, p[1]]); });
-  let lo=100, hi=100; K.forEach(k=>N[k].forEach(p=>{ if(p[1]<lo) lo=p[1]; if(p[1]>hi) hi=p[1]; }));
-  const step=(hi-lo)>80?20:10;
-  lo=Math.floor((lo-2)/step)*step; hi=Math.ceil((hi+2)/step)*step;
-  const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
+  const Ys={}; keys.forEach(k=>{ const V=S[k].map(p=>p[1]), lo=Math.min(...V), hi=Math.max(...V), sp=(hi-lo)||1;
+    Ys[k]={lo, hi, f:v=>T+14+(H-T-B-30)*(hi-v)/sp}; });   // 최고·최저 글자 자리만큼 위아래를 띄운다
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
-  for(let g=lo; g<=hi; g+=step){
-    const y=Y(g), ref=(g===100);
-    s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${ref?'#8b92a6':'#262b3a'}" stroke-width="${ref?1.4:1}"${ref?' stroke-dasharray="5 4"':''}/>`;
-    s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${ref?'#ffffff':'#d0d5e2'}"${ref?' font-weight="700"':''}>${g}</text>`;
-  }
+  for(let i=0;i<=4;i++){ const y=T+(H-T-B)*i/4; s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#262b3a"/>`; }
+  /* 구간 표시 — 그 지표의 3개월 범위 안에 들어오는 부분만 */
+  let lab=0;
+  marks.forEach(m=>{ const y=Ys[m.k], c=I2_DEF[m.k].col;
+    if(m.band){ const a=Math.max(m.band[0],y.lo), b=Math.min(m.band[1],y.hi); if(b<=a) return;
+      const y1=y.f(b), y2=y.f(a);
+      s+=`<rect x="${L}" y="${y1.toFixed(1)}" width="${W-L-R}" height="${(y2-y1).toFixed(1)}" fill="rgba(242,200,0,.10)"/>`
+       +`<text x="${L+6}" y="${(y1+13).toFixed(1)}" font-size="11.5" fill="${c}" fill-opacity=".9">${m.txt}${m.band[1]>y.hi?' (위쪽 계속)':''}</text>`; }
+    else { if(m.line<y.lo || m.line>y.hi) return; const yy=y.f(m.line);
+      s+=`<line x1="${L}" x2="${W-R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${c}" stroke-width="1.3" stroke-dasharray="6 4" opacity=".9"/>`
+       +`<text x="${L+6+lab*150}" y="${(yy-4).toFixed(1)}" font-size="11.5" fill="${c}">${m.txt}</text>`; lab++; }
+  });
   /* 달이 바뀌는 날마다 세로선·날짜 */
   const d0=new Date(t0); let m=new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth()+1, 1));
-  s+=`<text x="${L}" y="${H-10}" text-anchor="start" font-size="12" fill="#d0d5e2">${all[0].slice(2).replace(/-/g,'.')}</text>`;
+  s+=`<text x="${L}" y="${H-9}" text-anchor="start" font-size="12" fill="#d0d5e2">${all[0].slice(2).replace(/-/g,'.')}</text>`;
   while(m.getTime()<=t1){ const ds=m.toISOString().slice(0,10), x=X(ds);
-    if(x-L>50) s+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${H-B}" stroke="#1d2130"/><text x="${x}" y="${H-10}" text-anchor="middle" font-size="12" fill="#d0d5e2">${ds.slice(2).replace(/-/g,'.')}</text>`;
+    if(x-L>55) s+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${H-B}" stroke="#1d2130"/><text x="${x}" y="${H-9}" text-anchor="middle" font-size="12" fill="#d0d5e2">${ds.slice(2).replace(/-/g,'.')}</text>`;
     m=new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth()+1, 1)); }
-  /* 오른쪽 끝 값 글자가 겹치지 않게 조금씩 띄운다 */
-  const ends=K.map(k=>{ const e=N[k][N[k].length-1]; return {k, x:X(e[0]), y:Y(e[1]), raw:e[2]}; }).sort((a,b)=>a.y-b.y);
-  for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<14) ends[i].y=ends[i-1].y+14;
-  K.forEach(k=>{
-    const D=I2_DEF[k], pts=N[k].map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ');
-    s+=`<polyline fill="none" stroke="${D.col}" stroke-width="2.1" stroke-linejoin="round" points="${pts}"/>`;
-    N[k].forEach(p=>{ s+=`<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="4.5" fill="transparent"><title>${D.nm} ${p[0].replace(/-/g,'.')}: ${i2Fmt(k,p[2])}${D.unit} (3개월 전=100 기준 ${p[1].toFixed(1)})</title></circle>`; });
-    const e=N[k][N[k].length-1];
-    s+=`<circle cx="${X(e[0]).toFixed(1)}" cy="${Y(e[1]).toFixed(1)}" r="3.4" fill="${D.col}"/>`;
+  const ends=[], tags=[];   // tags: 이미 쓴 최고·최저 글자 자리 (겹치면 옆으로 민다)
+  keys.forEach(k=>{ const D=I2_DEF[k], y=Ys[k];
+    s+=`<polyline fill="none" stroke="${D.col}" stroke-width="2.1" stroke-linejoin="round" points="${S[k].map(p=>X(p[0]).toFixed(1)+','+y.f(p[1]).toFixed(1)).join(' ')}"/>`;
+    S[k].forEach(p=>{ s+=`<circle cx="${X(p[0]).toFixed(1)}" cy="${y.f(p[1]).toFixed(1)}" r="4.5" fill="transparent"><title>${D.nm} ${p[0].replace(/-/g,'.')}: ${i2Fmt(k,p[1])}${D.unit}</title></circle>`; });
+    const e=S[k][S[k].length-1]; s+=`<circle cx="${X(e[0]).toFixed(1)}" cy="${y.f(e[1]).toFixed(1)}" r="3.4" fill="${D.col}"/>`;
+    ends.push({k, x:X(e[0]), y:y.f(e[1]), v:e[1]});
+    /* 최고·최저 값 */
+    const st=i2Stat(S[k]);
+    [[st.hiD,st.hi,-7],[st.loD,st.lo,14]].forEach(([d,v,dy])=>{ let x=Math.min(Math.max(X(d),L+30),W-R-30); const ty=y.f(v)+dy;
+      for(let g=0; g<4 && tags.some(t=>Math.abs(t[0]-x)<74 && Math.abs(t[1]-ty)<13); g++) x=(x+76>W-R-30)?x-76:x+76;
+      tags.push([x,ty]);
+      s+=`<text x="${x.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="middle" font-size="11" fill="${D.col}" fill-opacity=".85">${dy<0?'최고':'최저'} ${i2Fmt(k,v)}</text>`; });
   });
-  ends.forEach(o=>{ s+=`<text x="${o.x+6}" y="${o.y+4}" font-size="12" font-weight="700" fill="${I2_DEF[o.k].col}">${i2Fmt(o.k,o.raw)}</text>`; });
+  ends.sort((a,b)=>a.y-b.y); for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<14) ends[i].y=ends[i-1].y+14;
+  ends.forEach(o=>{ s+=`<text x="${o.x+6}" y="${Math.min(o.y+4,H-B+4)}" font-size="12" font-weight="700" fill="${I2_DEF[o.k].col}">${i2Fmt(o.k,o.v)}</text>`; });
   return s+'</svg>';
 }
-/* 지표 하나의 지금 상황 — 수준(구간) · 3개월 흐름 · 고점 대비 · 최근 1주 */
+const I2_SUB={hy:'신용시장 — 부도 위험에 붙는 웃돈 (선행)', move:'채권시장 — 국채 금리 변동성 (선행)', vix:'주식시장 — S&P500 변동성(공포지수)', fg:'주식시장 심리 — CNN 7개 지표 종합 (0 공포 ~ 100 탐욕)'};
 function i2Each(k,st){
-  const D=I2_DEF[k], z=D.zone(st.v), f=x=>i2Fmt(k,x), u=D.unit;
-  const sg=x=>(x>=0?'+':'')+x.toFixed(1)+'%';
-  let lvl;
-  if(z.k>=3) lvl=`<b style="color:${z.c}">위기 구간</b>(${D.crit}${u} 이상)입니다.`;
-  else if(z.k===2) lvl=`<b style="color:${z.c}">경계 구간</b>(${D.warn}~${D.crit}${u})입니다.`;
-  else if(z.k===1) lvl=`<b style="color:${z.c}">평상시 구간</b>(${D.low}~${D.warn}${u})${st.v>=D.low+(D.warn-D.low)*0.6?'이지만 경계선('+D.warn+u+')에 가까운 위쪽입니다.':'입니다.'}`;
-  else lvl=`<b style="color:${z.c}">${k==='hy'?'과열 경계':'안정'} 구간</b>(${D.low}${u} 미만)으로, 시장이 위험을 낮게 보고 있습니다.`;
-  let tr;
-  if(st.r3>=15) tr=`3개월 전 ${f(st.v0)}${u}보다 <b style="color:var(--up)">${sg(st.r3)}</b> 높아져 불안이 뚜렷이 커졌습니다.`;
-  else if(st.r3>=5) tr=`3개월 전보다 ${sg(st.r3)} 올라 불안이 조금 커졌습니다.`;
-  else if(st.r3<=-15) tr=`3개월 전보다 <b style="color:var(--dn)">${sg(st.r3)}</b> 낮아져 크게 안정됐습니다.`;
-  else if(st.r3<=-5) tr=`3개월 전보다 ${sg(st.r3)} 내려 다소 안정됐습니다.`;
-  else tr=`3개월 전(${f(st.v0)}${u})과 비슷한 수준입니다.`;
-  let pk='';
-  if(st.offHi<=-8) pk=` 3개월 최고치 ${f(st.hi)}${u}(${i2Md(st.hiD)})보다 ${Math.abs(st.offHi).toFixed(0)}% 내려와 <b>고점에서 진정되는 중</b>입니다.`;
-  else if(st.offHi>-3 && st.r3>5) pk=` 3개월 최고치(${f(st.hi)}${u}) 근처에 있어 <b>불안이 아직 꺾이지 않았습니다.</b>`;
-  else if(st.offHi<0) pk=` 3개월 최고치 ${f(st.hi)}${u}(${i2Md(st.hiD)})보다는 약간 낮습니다.`;
-  const wk=Math.abs(st.r5)>=5?` 최근 1주는 ${sg(st.r5)}로 ${st.r5>0?'다시 오르고':'내려가고'} 있습니다.`:` 최근 1주는 ${sg(st.r5)}로 큰 변화가 없습니다.`;
-  const sub={hy:'신용시장 — 부도 위험에 붙는 웃돈', move:'채권시장 — 국채 금리 변동성', vix:'주식시장 — S&P500 변동성(공포지수)'}[k];
-  return `<div class="i2-each"><div class="hd" style="color:${D.col}">${D.nm} ${f(st.v)}${u} <span style="color:#c5cad8;font-weight:500;font-size:12.5px">· ${sub}</span></div><p>${lvl} ${tr}${pk}${wk}</p></div>`;
+  const D=I2_DEF[k], z=D.zone(st.v), f=x=>i2Fmt(k,x), u=D.unit, sg=x=>(x>=0?'+':'')+x.toFixed(1)+'%';
+  let body;
+  if(k==='fg'){
+    const lvl=`<b style="color:${z.c}">${z.t}</b> 구간입니다(0~25 극단적 공포 · 25~45 공포 · 45~55 중립 · 55~75 탐욕 · 75~100 극단적 탐욕).`;
+    const tr=st.d3<=-10?`3개월 전 ${f(st.v0)}에서 ${f(Math.abs(st.d3))}점 내려와 투자심리가 뚜렷이 위축됐습니다.`:st.d3>=10?`3개월 전 ${f(st.v0)}보다 ${f(st.d3)}점 올라 투자심리가 살아났습니다.`:`3개월 전(${f(st.v0)})과 비슷합니다.`;
+    const lw=st.lo<25?` 3개월 최저는 ${f(st.lo)}(${i2Md(st.loD)})로 극단적 공포였고, 지금은 그보다 ${f(st.v-st.lo)}점 높습니다.`:` 3개월 최저는 ${f(st.lo)}(${i2Md(st.loD)})입니다.`;
+    const wk=Math.abs(st.d5)>=5?` 최근 1주는 ${st.d5>0?'+':''}${f(st.d5)}점으로 ${st.d5>0?'공포가 풀리고':'공포가 커지고'} 있습니다.`:` 최근 1주는 큰 변화가 없습니다.`;
+    body=lvl+' '+tr+lw+wk;
+  } else {
+    let lvl;
+    if(z.k>=3) lvl=`<b style="color:${z.c}">위기 구간</b>(${D.crit}${u} 이상)입니다.`;
+    else if(z.k===2) lvl=`<b style="color:${z.c}">경계 구간</b>(${D.warn}~${D.crit}${u})입니다.`;
+    else if(z.k===1) lvl=`<b style="color:${z.c}">평상시 구간</b>(${D.low}~${D.warn}${u})${st.v>=D.low+(D.warn-D.low)*0.6?'이지만 경계선('+D.warn+u+')에 가까운 위쪽입니다.':'입니다.'}`;
+    else lvl=`<b style="color:${z.c}">${k==='hy'?'과열 경계':'안정'} 구간</b>(${D.low}${u} 미만)으로, 시장이 위험을 낮게 보고 있습니다.`;
+    let tr;
+    if(st.r3>=15) tr=`3개월 전 ${f(st.v0)}${u}보다 <b style="color:var(--up)">${sg(st.r3)}</b> 높아져 불안이 뚜렷이 커졌습니다.`;
+    else if(st.r3>=5) tr=`3개월 전보다 ${sg(st.r3)} 올라 불안이 조금 커졌습니다.`;
+    else if(st.r3<=-15) tr=`3개월 전보다 <b style="color:var(--dn)">${sg(st.r3)}</b> 낮아져 크게 안정됐습니다.`;
+    else if(st.r3<=-5) tr=`3개월 전보다 ${sg(st.r3)} 내려 다소 안정됐습니다.`;
+    else tr=`3개월 전(${f(st.v0)}${u})과 비슷한 수준입니다.`;
+    let pk='';
+    if(st.offHi<=-8) pk=` 3개월 최고치 ${f(st.hi)}${u}(${i2Md(st.hiD)})보다 ${Math.abs(st.offHi).toFixed(0)}% 내려와 <b>고점에서 진정되는 중</b>입니다.`;
+    else if(st.offHi>-3 && st.r3>5) pk=` 3개월 최고치(${f(st.hi)}${u}) 근처에 있어 <b>불안이 아직 꺾이지 않았습니다.</b>`;
+    else if(st.offHi<0) pk=` 3개월 최고치 ${f(st.hi)}${u}(${i2Md(st.hiD)})보다는 약간 낮습니다.`;
+    const wk=Math.abs(st.r5)>=5?` 최근 1주는 ${sg(st.r5)}로 ${st.r5>0?'다시 오르고':'내려가고'} 있습니다.`:` 최근 1주는 ${sg(st.r5)}로 큰 변화가 없습니다.`;
+    body=lvl+' '+tr+pk+wk;
+  }
+  return `<div class="i2-each"><div class="hd" style="color:${D.col}">${D.nm} ${f(st.v)}${u} <span style="color:#c5cad8;font-weight:500;font-size:12.5px">· ${I2_SUB[k]}</span></div><p>${body}</p></div>`;
 }
-/* 세 지표를 합친 해석 */
 function i2Summary(T){
   const K=['hy','move','vix'], z={}; K.forEach(k=>z[k]=I2_DEF[k].zone(T[k].v).k);
   const nWarn=K.filter(k=>z[k]>=2).length, nCrit=K.filter(k=>z[k]>=3).length;
   const nUp=K.filter(k=>T[k].r3>=15).length, nCalm=K.filter(k=>T[k].offHi<=-8).length;
   const nNearWarn=K.filter(k=>z[k]===1 && T[k].v>=I2_DEF[k].low+(I2_DEF[k].warn-I2_DEF[k].low)*0.6).length;
+  const fg=T.fg, fz=I2_DEF.fg.zone(fg.v);
   let lead, tone;
-  if(nCrit>=1 || nWarn>=2){ lead='위험회피 국면입니다.'; tone=`세 지표 중 ${nWarn}개가 경계 구간 이상입니다. 신용·채권·주식 중 두 곳 이상에서 불안이 동시에 나타나는 것은 흔한 일이 아니어서, 주식 비중을 보수적으로 가져가고 경기민감주·고부채 기업·성장주의 변동성에 대비할 때입니다.`; }
+  if(nCrit>=1 || nWarn>=2){ lead='위험회피 국면입니다.'; tone=`하이일드·MOVE·VIX 중 ${nWarn}개가 경계 구간 이상입니다. 신용·채권·주식 중 두 곳 이상에서 불안이 동시에 나타나는 것은 흔한 일이 아니어서, 주식 비중을 보수적으로 가져가고 경기민감주·고부채 기업·성장주의 변동성에 대비할 때입니다.`; }
   else if(nWarn===1){ const w=K.find(k=>z[k]>=2); lead='부분적 불안 국면입니다.'; tone=`${I2_DEF[w].nm}만 경계 구간에 있고 나머지는 평상시입니다. 불안이 한 시장에 머물러 있는지, 다른 시장으로 번지는지가 관건입니다.`; }
-  else if(nUp>=2){ lead='경계 전 단계 — 위험선호가 식고 있습니다.'; tone=`세 지표 모두 아직 평상시 구간이지만 ${nUp}개가 3개월 전보다 15% 넘게 올랐${nNearWarn?`고, ${nNearWarn}개는 경계선 가까이에 있습니다`:'습니다'}. 위기는 아니지만 3개월 전처럼 마음 놓고 위험을 늘릴 환경도 아닙니다.`; }
+  else if(nUp>=2){ lead='경계 전 단계 — 위험선호가 식고 있습니다.'; tone=`하이일드·MOVE·VIX 모두 아직 평상시 구간이지만 ${nUp}개가 3개월 전보다 15% 넘게 올랐${nNearWarn?`고, ${nNearWarn}개는 경계선 가까이에 있습니다`:'습니다'}. 위기는 아니지만 3개월 전처럼 마음 놓고 위험을 늘릴 환경도 아닙니다.`; }
   else if(K.every(k=>z[k]===0)){ lead='위험선호가 강한 국면입니다.'; tone='세 지표 모두 낮은 구간입니다. 주식에 우호적이지만, 지표가 낮을수록 작은 충격에도 크게 튈 수 있어 방심을 경계할 때입니다.'; }
   else { lead='안정 국면입니다.'; tone='세 지표가 평상시 구간에서 큰 변화 없이 움직이고 있어 위험 신호가 두드러지지 않습니다.'; }
   const li=[];
-  /* 어느 시장에서 먼저 불안이 시작됐는지 — 3개월 최고치를 찍은 순서 */
-  const ord=K.slice().sort((a,b)=>T[a].hiD<T[b].hiD?-1:1);
-  if(nUp>=2) li.push(`<b>최고치 순서</b> — ${ord.map(k=>`${I2_DEF[k].nm.replace(' 지수','').replace('하이일드 스프레드','하이일드')}(${i2Md(T[k].hiD)})`).join(' → ')}. 보통 채권(MOVE)·신용(하이일드)의 불안이 주식(VIX)으로 번지는 순서로 나타납니다.`);
-  if(nCalm>=2) li.push(`<b>진정 신호</b> — ${K.filter(k=>T[k].offHi<=-8).map(k=>I2_DEF[k].nm).join('·')}가 3개월 고점에서 8% 넘게 내려왔습니다. 고점을 지나 불안이 가라앉는 흐름이면 주식에는 부담이 줄어드는 방향입니다.`);
-  else if(nCalm===1){ const c=K.find(k=>T[k].offHi<=-8); li.push(`<b>엇갈림</b> — ${I2_DEF[c].nm}는 고점에서 내려왔지만 나머지는 아직 고점 근처라, 진정됐다고 보기는 이릅니다.`); }
-  /* 채권·신용은 불안한데 주식만 태평한 경우 */
-  if((z.hy>=2 || z.move>=2 || T.hy.r3>=15 || T.move.r3>=15) && T.vix.v<17) li.push('<b>괴리 경고</b> — 채권·신용 쪽 불안이 커졌는데 VIX는 낮게 머물러 있습니다. 주식시장이 위험을 덜 반영하고 있을 수 있습니다.');
-  /* 주식만 놀란 경우 */
+  /* 선행 지표 → 심리 지표 */
+  const lead2=(T.hy.r3>=15||T.move.r3>=15), ldCalm=(T.hy.offHi<=-8&&T.move.offHi<=-8);
+  li.push(`<b>선행 지표(하이일드·MOVE)</b> — ${lead2?`3개월 전보다 하이일드 ${T.hy.r3>=0?'+':''}${T.hy.r3.toFixed(0)}%, MOVE ${T.move.r3>=0?'+':''}${T.move.r3.toFixed(0)}%로 신용·채권 쪽 불안이 먼저 커졌습니다.`:'신용·채권 쪽에서 뚜렷한 불안 신호는 없습니다.'}${ldCalm?' 다만 둘 다 3개월 고점에서 내려와, 선행 지표가 먼저 진정되는 모습입니다. 선행 지표가 꺾이면 주식 쪽 불안도 뒤따라 가라앉는 경우가 많습니다.':(T.hy.offHi>-3||T.move.offHi>-3)?' 아직 고점 근처라 주식 쪽 불안이 더 이어질 수 있습니다.':''}`);
+  /* 심리 지표 */
+  li.push(`<b>심리 지표(VIX·공포탐욕)</b> — 공포탐욕지수 ${fg.v.toFixed(1)}은 <b style="color:${fz.c}">${fz.t}</b>, VIX ${T.vix.v.toFixed(1)}은 ${I2_DEF.vix.zone(T.vix.v).t} 구간입니다.${(T.vix.offHi<=-25&&T.vix.hi>=25)?` VIX가 ${i2Md(T.vix.hiD)} ${T.vix.hi.toFixed(1)}까지 뛰었다가 내려왔고`:''}${fg.lo<25&&fg.v-fg.lo>=10?` 공포탐욕지수도 최저 ${fg.lo.toFixed(1)}(${i2Md(fg.loD)})에서 올라와`:''}${(T.vix.offHi<=-25&&T.vix.hi>=25)||(fg.lo<25&&fg.v-fg.lo>=10)?', 공포의 정점은 지난 것으로 보입니다.':''}`);
+  if(fg.v<25) li.push('<b>역발상 신호</b> — 공포탐욕지수가 극단적 공포에 있습니다. 선행 지표가 더 나빠지지 않는다면 이런 구간은 단기 바닥 근처인 경우가 많았습니다.');
+  if(fg.v>75) li.push('<b>과열 신호</b> — 공포탐욕지수가 극단적 탐욕에 있습니다. 작은 악재에도 조정이 커질 수 있어 추격 매수를 조심할 때입니다.');
+  if((z.hy>=2 || z.move>=2 || T.hy.r3>=15 || T.move.r3>=15) && T.vix.v<17 && fg.v>55) li.push('<b>괴리 경고</b> — 신용·채권 쪽 불안이 커졌는데 주식 심리는 여전히 낙관적입니다. 주식시장이 위험을 덜 반영하고 있을 수 있습니다.');
   if(T.vix.r5>=25 && T.hy.r5<5 && T.move.r5<10) li.push('<b>주식 쪽 일시 공포</b> — 최근 VIX만 급등하고 신용·채권은 크게 흔들리지 않았습니다. 이런 경우 단기 과매도로 끝나는 일이 많습니다.');
-  if(T.vix.offHi<=-25 && T.vix.hi>=25) li.push(`<b>VIX 급등 뒤 되돌림</b> — ${i2Md(T.vix.hiD)} ${T.vix.hi.toFixed(1)}까지 뛰었다가 지금은 ${T.vix.v.toFixed(1)}입니다. 공포의 정점은 지난 것으로 보이나, 다시 오르면 바닥 확인이 늦어집니다.`);
-  li.push(`<b>지켜볼 선</b> — 하이일드 ${I2_DEF.hy.warn>T.hy.v+1?'3.5':I2_DEF.hy.warn}%p · MOVE ${T.move.v<100?100:110} · VIX ${T.vix.v<20?20:25}. 둘 이상이 이 선을 넘으면 한 단계 더 경계할 신호로 봅니다.`);
-  li.push('<b>한국 주식</b> — 세 지표가 함께 오르는 국면에는 외국인 매도와 원화 약세가 겹치기 쉽습니다. 이 화면의 외국인 투자심리·매매동향과 같이 확인하는 것이 좋습니다.');
-  return `<p class="lead">${lead}</p><p>${tone}</p><ul>${li.map(x=>'<li>'+x+'</li>').join('')}</ul><p class="dm" style="color:#c5cad8;font-size:12px;margin-top:6px">이 해석은 그래프의 수치를 정해진 기준으로 읽어 자동으로 만든 글입니다. 투자 판단의 참고 자료일 뿐입니다.</p>`;
+  li.push(`<b>지켜볼 선</b> — 하이일드 ${T.hy.v<3.5?'3.5':'5'}%p · MOVE ${T.move.v<100?100:110} · VIX ${T.vix.v<20?20:25} · 공포탐욕 25. 선행 지표 둘이 함께 선을 넘으면 한 단계 더 경계할 신호로 봅니다.`);
+  li.push('<b>한국 주식</b> — 선행 지표가 함께 오르는 국면에는 외국인 매도와 원화 약세가 겹치기 쉽습니다. 이 화면의 외국인 투자심리·매매동향과 같이 확인하는 것이 좋습니다.');
+  return `<p class="lead">${lead}</p><p>${tone}</p><ul>${li.map(x=>'<li>'+x+'</li>').join('')}</ul><p style="color:#c5cad8;font-size:12px;margin-top:6px">이 해석은 그래프의 수치를 정해진 기준으로 읽어 자동으로 만든 글입니다. 투자 판단의 참고 자료일 뿐입니다.</p>`;
 }
 function i2Render(){
-  const box=$('#i2Chart'); if(!box) return;
-  const S=i2Series(), K=['hy','move','vix'], T={}; K.forEach(k=>T[k]=i2Stat(S[k]));
+  const box=$('#i2ChartA'); if(!box) return;
+  const S=i2Series(), K=['hy','move','vix','fg'], T={}; K.forEach(k=>T[k]=i2Stat(S[k]));
   const col=x=>x>0?'var(--up)':(x<0?'var(--dn)':'var(--sub)'), ar=x=>x>0?'▲':(x<0?'▼':'');
-  $('#i2Range').textContent='최근 3개월 · 일별 · 마지막 '+K.map(k=>I2_DEF[k].nm.replace(' 지수','').replace('하이일드 스프레드','하이일드')+' '+T[k].date.slice(5).replace('-','.')).join(' / ');
+  const rg=ks=>'최근 3개월 · 마지막 '+ks.map(k=>I2_DEF[k].sh+' '+T[k].date.slice(5).replace('-','.')).join(' / ');
+  $('#i2RangeA').textContent=rg(['hy','move']); $('#i2RangeB').textContent=rg(['vix','fg']);
   $('#i2Now').innerHTML=K.map(k=>{ const D=I2_DEF[k], t=T[k], z=D.zone(t.v);
-    return `<div class="it"><div class="nm" style="color:${D.col}"><i style="background:${D.col}"></i>${D.nm}<span class="zn" style="color:${z.c}">${z.t}</span></div>`
-     +`<div class="vv" style="color:${D.col}">${i2Fmt(k,t.v)}<small>${D.unit||(k==='move'?'bp':'%')}</small></div>`
+    return `<div class="it"><div class="nm" style="color:${D.col}"><i style="background:${D.col}"></i>${D.sh}<span class="zn" style="color:${z.c}">${z.t}</span></div>`
+     +`<div class="vv" style="color:${D.col}">${i2Fmt(k,t.v)}<small>${{hy:'%p',move:'bp',vix:'%',fg:'점'}[k]}</small></div>`
      +`<div class="cg">3개월 <b style="color:${col(t.d3)}">${ar(t.d3)}${i2Fmt(k,Math.abs(t.d3))} (${t.r3>=0?'+':''}${t.r3.toFixed(1)}%)</b><br>전일 <b style="color:${col(t.d1)}">${ar(t.d1)}${i2Fmt(k,Math.abs(t.d1))} (${t.r1>=0?'+':''}${t.r1.toFixed(1)}%)</b></div></div>`; }).join('');
-  box.innerHTML=i2Svg(S);
+  box.innerHTML=i2Svg(S,['hy','move'],[{k:'hy',band:[I2_DEF.hy.low,I2_DEF.hy.warn],txt:'하이일드 평상시 3~5%p'},{k:'move',line:100,txt:'MOVE 100 · 평상시/경계'}]);
+  $('#i2ChartB').innerHTML=i2Svg(S,['vix','fg'],[{k:'vix',line:20,txt:'VIX 20 · 평상시/경계'},{k:'fg',line:25,txt:'공포탐욕 25 · 극단적 공포'},{k:'fg',line:75,txt:'공포탐욕 75 · 극단적 탐욕'}]);
   $('#i2Each').innerHTML=K.map(k=>i2Each(k,T[k])).join('');
   $('#i2Sum').innerHTML=i2Summary(T);
-  $('#i2Src').innerHTML='출처: 하이일드 스프레드 — ICE BofA US High Yield OAS(FRED BAMLH0A0HYM2, 앱에 적어 둔 값) · MOVE — ICE BofA MOVE(야후 ^MOVE) · VIX — CBOE VIX(야후 ^VIX). MOVE·VIX는 '+(VOL_LIVE.move&&VOL_LIVE.vix?'시황 중계서버로 방금 받은 값':'서버 응답 전이거나 실패해 2026-11-16에 저장해 둔 값')+'입니다. 지표가 오르면(불안 확대) 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다. 각 지표의 자세한 설명은 하이일드 스프레드 · MOVE 지수 · VIX 지수 부메뉴에 있습니다.';
+  $('#i2Src').innerHTML='출처: 하이일드 스프레드 — ICE BofA US High Yield OAS(FRED BAMLH0A0HYM2, 앱에 적어 둔 값) · MOVE — ICE BofA MOVE(야후 ^MOVE) · VIX — CBOE VIX(야후 ^VIX) · 공포탐욕지수 — CNN Fear &amp; Greed Index. MOVE·VIX는 '+(VOL_LIVE.move&&VOL_LIVE.vix?'시황 중계서버로 방금 받은 값':'2026-11-16에 저장해 둔 값')+', 공포탐욕지수는 '+(FG_LIVE?'CNN에서 방금 받은 값':'2026-11-16에 저장해 둔 값')+'입니다. 값이 오르면 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다(공포탐욕지수는 오를수록 낙관). 각 지표의 자세한 설명은 하이일드 스프레드 · MOVE 지수 · VIX 지수 부메뉴에 있습니다.';
 }
 async function idx2Build(){
   i2Render();
-  if(I2_BUSY || !SRV_URL) return;
-  const need=['move','vix'].filter(k=>!(VOL_LIVE[k] && Date.now()-VOL_AT[k]<10*60*1000));
-  if(!need.length) return;
+  if(I2_BUSY) return;
+  const need=SRV_URL?['move','vix'].filter(k=>!(VOL_LIVE[k] && Date.now()-VOL_AT[k]<10*60*1000)):[];
+  const needFg=!(FG_LIVE && Date.now()-FG_AT<10*60*1000);
+  if(!need.length && !needFg) return;
   I2_BUSY=true;
-  await Promise.all(need.map(async k=>{
+  const jobs=need.map(async k=>{
     try{
       const C=VOL_CFG[k], u=SRV_URL+(SRV_URL.includes('?')?'&':'?')+'symbol='+encodeURIComponent(C.sym)+'&history=1&range=3mo';
       const d=await (await fetch(u)).json();
       const P=(d&&d.ok&&d.points||[]).filter(p=>p&&isFinite(p.c)&&p.c>0).map(p=>[p.t,p.c]);
       if(P.length>=10){ VOL_LIVE[k]=P; VOL_AT[k]=Date.now(); }
-    }catch(e){ console.warn('[idx2]', k, e); }
-  }));
+    }catch(e){ console.warn('[위험지표]', k, e); }
+  });
+  if(needFg) jobs.push((async()=>{
+    try{
+      const from=new Date(Date.now()-92*86400000).toISOString().slice(0,10);
+      const j=await (await fetch('https://production.dataviz.cnn.io/index/fearandgreed/graphdata/'+from)).json();
+      const P=((j&&j.fear_and_greed_historical&&j.fear_and_greed_historical.data)||[]).filter(p=>p&&isFinite(p.y)).map(p=>[Math.round(p.x/1000), Math.round(p.y*10)/10]);
+      if(P.length>=10){ FG_LIVE=P; FG_AT=Date.now(); }
+    }catch(e){ console.warn('[위험지표] 공포탐욕', e); }
+  })());
+  await Promise.all(jobs);
   I2_BUSY=false;
   i2Render();
 }
@@ -16870,8 +16910,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.16.-v4';
-const KG_APP_BUILD = KG_APP_VER + ' 추세 지수분석2';
+const KG_APP_VER = '11.16.-v6';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 그래프 2개·공포탐욕지수';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
