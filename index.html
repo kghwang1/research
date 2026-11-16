@@ -12525,7 +12525,9 @@ async function stkNowFetch(){
   const c=STK.code||''; if(!c || !SRV_URL) return;
   if(STK_PX[c] && Date.now()-STK_PX[c].at < 60000){ stkNowFill(); return; }
   const isUs=/^US:/i.test(c) || (typeof isUsCode==='function' && isUsCode(c));
-  const sym=isUs ? c.replace(/^US:/i,'').toUpperCase() : 'STK:'+c;
+  /* 코스피·코스닥 지수 코드는 야후 심볼로 바꿔 묻는다 — 'KOSPI'·'KOSDAQ' 그대로는 서버가 값을 못 준다 (2026-11-16) */
+  const IDX_SYM={KOSPI:'^KS11', KOSDAQ:'^KQ11'};
+  const sym=IDX_SYM[c.toUpperCase()] || (isUs ? c.replace(/^US:/i,'').toUpperCase() : 'STK:'+c);
   try{
     const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(sym));
     const d=await r.json();
@@ -16704,8 +16706,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.16.-v2';
-const KG_APP_BUILD = KG_APP_VER + ' 추세 MOVE·VIX 지수';
+const KG_APP_VER = '11.16.-v3';
+const KG_APP_BUILD = KG_APP_VER + ' 챠트 코스피·코스닥 현재가';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
