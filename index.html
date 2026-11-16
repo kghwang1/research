@@ -663,6 +663,17 @@
   #pmiVal .ixv-row .v.pmi-lo{color:var(--dn)}
   #pmiVal .ixv-sub{font-size:13.5px;line-height:1.7;color:#e1e5ee}
   #pmiVal .ixv-sub b{font-weight:700}
+  /* 추세 › 하이일드 스프레드 (2026-11-16) */
+  .hy-tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums;margin:4px 0}
+  .hy-tbl th,.hy-tbl td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line)}
+  .hy-tbl th{font-weight:700;background:var(--panel2);color:#c5cad8}
+  .hy-tbl td{color:var(--ink)}
+  .hy-now{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;padding:8px 10px 2px}
+  .hy-now .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:#f2c800}
+  .hy-now .u{font-size:13px;color:#c5cad8;margin-left:2px}
+  .hy-now .chg{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+  .hy-now .k{font-size:12.5px;color:#c5cad8;font-weight:500;margin-right:3px}
+  .hy-now .zn{font-size:13px;font-weight:700;padding:1px 8px;border-radius:9px;border:1px solid currentColor}
   /* 지수분석 */
   /* 지수분석 맨 위 — 코스피·코스닥 PBR·PER (2026-10-20) */
   .ixv-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 6px}
@@ -2092,6 +2103,9 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <button class="tf" data-tv="flow">외국인 매매동향</button>
    <button class="tf" data-tv="idx">지수분석</button>
    <button class="tf" data-tv="pmi">제조업 PMI</button>
+   <button class="tf" data-tv="hy">하이일드 스프레드</button>
+   <button class="tf" data-tv="move">MOVE 지수</button>
+   <button class="tf" data-tv="vix">VIX 지수</button>
   </div>
   <div class="pnl-wrap">
   <div id="trdPsy" class="trd-pane">
@@ -2213,6 +2227,134 @@ DPS ÷ 배당수익률 = ?</code></pre>
     </ul>
    </div>
   </div><!-- /trdPmi -->
+
+  <!-- 하이일드 스프레드 — 해설 + 최근 3개월 그래프(그래프 위 현재값·변화율) (2026-11-16) -->
+  <div id="trdHy" class="trd-pane" style="display:none">
+   <div class="pmi-box">
+    <h3>① 개요</h3>
+    <p>하이일드 스프레드는 <b>투기등급 회사채(BB+ 이하) 금리에서 같은 만기의 국채 금리를 뺀 값</b>입니다. 신용이 낮은 기업에 돈을 빌려줄 때 투자자가 국채보다 얼마를 더 받으려 하는지, 즉 <b>위험 프리미엄</b>을 보여줍니다.</p>
+    <ul>
+     <li>대표 지표는 <b>ICE BofA US High Yield OAS</b>이고, FRED 코드는 <b>BAMLH0A0HYM2</b>입니다.</li>
+     <li>단위는 %p 또는 bp(1bp = 0.01%p)입니다.</li>
+     <li>예를 들어 하이일드 금리가 7.5%, 국채 금리가 4.2%라면 스프레드는 3.3%p(330bp)입니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>② 해석</h3>
+    <p>스프레드는 시장이 느끼는 <b>신용 위험과 경기 불안의 온도계</b>입니다.</p>
+    <table class="hy-tbl">
+     <tr><th>구간 (대략)</th><th>의미</th></tr>
+     <tr><td>3%p 미만</td><td>위험선호가 강함. 시장이 낙관적이고, 과열을 경계할 구간</td></tr>
+     <tr><td>3~5%p</td><td>평상시</td></tr>
+     <tr><td>5~7%p</td><td>경계. 경기 둔화 우려가 커짐</td></tr>
+     <tr><td>7%p 이상</td><td>위기 국면 (2008년 약 20%p, 2020년 3월 약 11%p)</td></tr>
+    </table>
+    <p>수준보다 <b>방향과 속도</b>가 더 중요합니다.</p>
+    <ul>
+     <li><b>확대</b>: 부도 우려가 커지고 자금이 위험자산에서 빠져나갑니다. 기업의 자금 조달 비용도 올라갑니다.</li>
+     <li><b>축소</b>: 신용시장이 안정되고 위험선호가 살아납니다.</li>
+     <li>몇 주 사이에 1%p 넘게 급등하면 강한 경고 신호로 봅니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>③ 주식과의 관계</h3>
+    <ul>
+     <li><b>선행성</b> — 채권 투자자는 원금 손실에 민감해서 신용시장이 주식시장보다 위험을 먼저 반영하는 경우가 많습니다. 주가는 오르는데 스프레드가 같이 벌어지면 경고 신호로 해석합니다.</li>
+     <li><b>역상관</b> — 스프레드가 확대될 때 S&amp;P500은 대체로 하락하고, 축소될 때는 상승하는 경향이 있습니다. VIX(변동성지수)와는 같은 방향으로 움직이는 경우가 많습니다.</li>
+     <li><b>바닥 판단</b> — 급락장에서 스프레드가 정점을 찍고 꺾이는 시점이 주식 바닥과 겹치는 경우가 많았습니다. 2009년 3월과 2020년 3월에는 연준이 개입한 뒤 스프레드가 축소로 돌아섰습니다.</li>
+     <li><b>업종 영향</b> — 스프레드가 확대되면 부채가 많은 기업, 중소형주, 경기민감주가 더 크게 타격을 받습니다. 현금이 많은 대형 우량주는 상대적으로 덜 흔들립니다.</li>
+     <li><b>한국 주식</b> — 미국 하이일드 스프레드가 확대되는 것은 글로벌 위험회피 신호입니다. 그래서 외국인 자금 이탈과 원화 약세로 이어져 코스피·코스닥에도 부담이 되는 경우가 많습니다.</li>
+     <li><b>한계</b> — 스프레드가 낮은 상태는 오래 지속될 수 있어서 이 지표만으로 매도 타이밍을 잡기는 어렵습니다. “경계해야 할 시점”을 알려주는 보조 지표로 VIX, 장단기 금리차와 함께 보는 것이 좋습니다.</li>
+    </ul>
+   </div>
+   <div class="ixa-card" id="hyCard"></div>
+   <div class="pmi-src" id="hySrc"></div>
+  </div><!-- /trdHy -->
+
+  <!-- MOVE 지수 — 해설 + 최근 3개월 그래프(그래프 위 현재값·변화율) (2026-11-16) -->
+  <div id="trdMove" class="trd-pane" style="display:none">
+   <div class="pmi-box">
+    <h3>① 개요</h3>
+    <p>MOVE 지수(ICE BofA MOVE Index)는 <b>미국 국채 옵션 가격에 담긴, 앞으로 1개월 동안 국채 금리가 얼마나 출렁일지에 대한 시장의 예상치</b>입니다. 주식의 VIX에 빗대어 <b>“채권시장의 VIX”</b>라고 부릅니다.</p>
+    <ul>
+     <li>2년·5년·10년·30년물 국채의 1개월 옵션 내재변동성을 가중평균해 만듭니다. 야후 파이낸스 심볼은 <b>^MOVE</b>입니다.</li>
+     <li>단위는 bp(1bp = 0.01%p)이고 연율 기준입니다.</li>
+     <li>예를 들어 MOVE가 100이면 국채 금리가 1년에 약 ±1%p, 한 달에 약 ±0.29%p 움직일 것으로 시장이 본다는 뜻입니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>② 해석</h3>
+    <p>MOVE는 <b>금리 경로에 대한 시장의 불안 정도</b>를 보여줍니다. 연준 정책, 물가, 재정 적자, 국채 수급이 흔들릴 때 오릅니다.</p>
+    <table class="hy-tbl">
+     <tr><th>구간 (대략)</th><th>의미</th></tr>
+     <tr><td>80 미만</td><td>안정. 금리 방향에 대한 시장의 확신이 큼</td></tr>
+     <tr><td>80~100</td><td>평상시 (장기 평균은 100 안팎)</td></tr>
+     <tr><td>100~130</td><td>경계. 금리 경로의 불확실성이 커짐</td></tr>
+     <tr><td>130 이상</td><td>위기 국면 (2008년 약 260, 2020년 3월 약 160, 2023년 3월 SVB 사태 약 200)</td></tr>
+    </table>
+    <p>수준보다 <b>방향과 속도</b>가 더 중요합니다.</p>
+    <ul>
+     <li><b>급등</b>: 금리 충격이 오고 있다는 신호입니다. 채권 투매나 자금시장 경색으로 번질 수 있습니다.</li>
+     <li><b>하락</b>: 금리 경로가 안정되고 위험자산에 우호적인 환경이 됩니다.</li>
+     <li>몇 주 사이에 20~30% 넘게 뛰면 강한 경고 신호로 봅니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>③ 주식과의 관계</h3>
+    <ul>
+     <li><b>할인율 불안</b> — 국채 금리는 주식 가치를 계산하는 할인율의 기준입니다. 금리가 크게 흔들리면 미래 이익 비중이 큰 고PER 성장주의 가치 평가가 가장 먼저 흔들립니다.</li>
+     <li><b>VIX보다 먼저</b> — MOVE 급등이 시차를 두고 VIX 상승과 주가 조정으로 번지는 경우가 많습니다. MOVE는 높은데 VIX가 낮으면 주식시장이 위험을 덜 반영하고 있다는 경고로 봅니다.</li>
+     <li><b>유동성 경로</b> — 국채는 금융시장 담보의 기준입니다. 국채 변동성이 커지면 증거금이 오르고 금융기관이 레버리지를 줄여, 위험자산 전반에 매도 압력이 생깁니다.</li>
+     <li><b>신용시장과 연결</b> — 금리 변동성 확대는 하이일드 스프레드 확대로 이어지기도 합니다. <b>하이일드 스프레드</b> 부메뉴와 함께 보면 판단이 더 단단해집니다.</li>
+     <li><b>한국 주식</b> — 미국 금리 변동성이 커지면 달러 강세·원화 약세와 외국인 매도로 이어지기 쉽습니다. 특히 2차전지·바이오·인터넷 같은 성장주가 민감합니다.</li>
+     <li><b>한계</b> — 연준 회의, 고용·물가 발표 전후에는 일시적으로 튀는 경우가 많습니다. 하루 값보다 몇 주 흐름으로 판단하고, VIX·하이일드 스프레드와 함께 보는 보조 지표로 쓰는 것이 좋습니다.</li>
+    </ul>
+   </div>
+   <div class="ixa-card" id="mvCard"></div>
+   <div class="pmi-src" id="mvSrc"></div>
+  </div><!-- /trdMove -->
+
+  <!-- VIX 지수 — 해설 + 최근 3개월 그래프(그래프 위 현재값·변화율) (2026-11-16) -->
+  <div id="trdVix" class="trd-pane" style="display:none">
+   <div class="pmi-box">
+    <h3>① 개요</h3>
+    <p>VIX 지수(CBOE Volatility Index)는 <b>S&amp;P500 지수 옵션 가격에 담긴, 앞으로 30일 동안 미국 주가가 얼마나 출렁일지에 대한 시장의 예상치</b>입니다. 투자자가 불안할수록 하락에 대비한 옵션을 비싸게 사들여 지수가 올라서 <b>“공포지수”</b>라고 부릅니다.</p>
+    <ul>
+     <li>시카고옵션거래소(CBOE)가 실시간으로 계산합니다. 야후 파이낸스 심볼은 <b>^VIX</b>입니다.</li>
+     <li>단위는 %이고 연율 기준입니다.</li>
+     <li>예를 들어 VIX가 20이면 S&amp;P500이 1년에 약 ±20%, 한 달에 약 ±5.8% 움직일 것으로 시장이 본다는 뜻입니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>② 해석</h3>
+    <p>VIX는 <b>주식시장 참여자가 느끼는 불안의 온도계</b>입니다.</p>
+    <table class="hy-tbl">
+     <tr><th>구간 (대략)</th><th>의미</th></tr>
+     <tr><td>15 미만</td><td>안정. 낙관이 강하고, 너무 낮으면 방심을 경계할 구간</td></tr>
+     <tr><td>15~20</td><td>평상시 (장기 평균은 20 안팎)</td></tr>
+     <tr><td>20~30</td><td>경계. 불안이 커지고 변동성이 확대됨</td></tr>
+     <tr><td>30 이상</td><td>공포 국면 (2008년 약 80, 2020년 3월 약 83, 2025년 4월 관세 충격 때 50대)</td></tr>
+    </table>
+    <p>수준보다 <b>방향과 속도</b>가 더 중요합니다.</p>
+    <ul>
+     <li><b>급등</b>: 공포가 퍼지고 있다는 신호입니다. 하루에 30~50%씩 뛰는 일도 흔합니다.</li>
+     <li><b>하락</b>: 불안이 가라앉고 위험선호가 살아납니다.</li>
+     <li>VIX는 <b>평균으로 돌아가려는 성질</b>이 강해서, 급등한 뒤에는 대개 몇 주 안에 되돌아옵니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>③ 주식과의 관계</h3>
+    <ul>
+     <li><b>역상관</b> — 주가가 떨어질 때 VIX는 오르고, 주가가 오를 때 VIX는 내리는 경향이 뚜렷합니다. 특히 하락장에서 더 크게 반응합니다.</li>
+     <li><b>역발상 신호</b> — VIX가 30~40 이상으로 치솟는 공포의 정점은 단기 바닥 근처인 경우가 많았습니다. 반대로 12 이하로 지나치게 낮으면 방심이 커진 상태로 봅니다.</li>
+     <li><b>채권 지표와 비교</b> — <b>MOVE 지수·하이일드 스프레드</b>가 먼저 오르는데 VIX가 낮게 머물면, 주식시장이 위험을 덜 반영하고 있다는 경고로 해석합니다.</li>
+     <li><b>한국 주식</b> — VIX가 급등하면 외국인이 위험자산을 줄이면서 코스피·코스닥이 함께 떨어지고 원화가 약해지기 쉽습니다. 한국판 공포지수인 VKOSPI도 대체로 같은 방향으로 움직입니다.</li>
+     <li><b>한계</b> — 30일 앞을 보는 단기 지표라 하루하루 크게 흔들립니다. 공포 정점도 지나 봐야 알 수 있으니, 하루 값보다 흐름을 보고 다른 지표와 함께 판단하는 것이 좋습니다.</li>
+    </ul>
+   </div>
+   <div class="ixa-card" id="vxCard"></div>
+   <div class="pmi-src" id="vxSrc"></div>
+  </div><!-- /trdVix -->
  </div>
  </section>
 
@@ -8543,15 +8685,18 @@ window.addEventListener('message', e=>{
   if(typeof openChartView==='function') openChartView('idx', fr.dataset.code, fr.dataset.name);
 });
 function setTrendView(v){
-  v=(v==='flow'||v==='idx'||v==='pmi')?v:'psy';
+  v=(v==='flow'||v==='idx'||v==='pmi'||v==='hy'||v==='move'||v==='vix')?v:'psy';
   try{ localStorage.setItem(TRD_KEY, v); }catch(e){}
   $$('.trd-bar .tf').forEach(b=>b.classList.toggle('on', b.dataset.tv===v));
   const show=(id,on)=>{ const el=$('#'+id); if(el) el.style.display=on?'':'none'; };
-  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx', v==='idx'); show('trdPmi', v==='pmi');
+  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx', v==='idx'); show('trdPmi', v==='pmi'); show('trdHy', v==='hy'); show('trdMove', v==='move'); show('trdVix', v==='vix');
   /* 그래프 5개는 추세 화면이 실제로 열려 있을 때만 불러온다 (시황만 볼 때 미리 받지 않게) */
   const sec=$('#valuation');
   if(v==='idx' && sec && sec.classList.contains('on')){ ixaBuild(); ixaValLoad(); }
   if(v==='pmi' && sec && sec.classList.contains('on')){ try{ pmiBuild(); }catch(e){ console.error(e); } }
+  if(v==='hy' && sec && sec.classList.contains('on')){ try{ hyBuild(); }catch(e){ console.error(e); } }
+  if(v==='move' && sec && sec.classList.contains('on')){ try{ volBuild('move'); }catch(e){ console.error(e); } }
+  if(v==='vix' && sec && sec.classList.contains('on')){ try{ volBuild('vix'); }catch(e){ console.error(e); } }
   /* 감춰져 있던 동안 폭이 0 이라 그래프가 비어 있을 수 있다 — 보일 때 다시 그린다 */
   if(v==='psy') setTimeout(()=>{
     try{ if(typeof drawFtrendAll==='function') drawFtrendAll(); }catch(e){}
@@ -8612,6 +8757,129 @@ function pmiBuild(){
   }
   $('#pmiTbl').innerHTML=t+'</table>';
   $('#pmiSrc').innerHTML='출처: 한국 S&amp;P Global · 일본 au Jibun Bank(S&amp;P Global) · 미국 ISM · 중국 국가통계국(NBS) 제조업 PMI(계절조정). 50 미만(위축)은 초록색으로 표시했습니다. * 표시와 그래프의 속이 빈 점은 발표 기관 원문이 아니라 집계 사이트 수치라 원문 확인이 더 필요한 값입니다. 기관마다 조사 방식이 달라 나라 간 수준을 그대로 비교하기는 어렵습니다.';
+}
+/* ===== 추세 › 하이일드 스프레드 (2026-11-16) =====
+   ICE BofA US High Yield OAS (FRED BAMLH0A0HYM2), 일별 종가, 단위 %p.
+   FRED 는 다른 사이트에서 직접 받아오는 것을 막아 두어(CORS) 값을 직접 적어 둔다 —
+   새 값은 d·v 끝에 하나씩 더하고, 앞쪽은 3개월이 넘는 만큼 잘라 낸다. d 는 'YYMMDD' */
+const HY_DATA={
+  d:['260812','260813','260814','260817','260818','260819','260820','260821','260824','260825','260826','260827','260828','260831','260901','260902','260903','260904','260907','260908','260909','260910','260911','260914','260915','260916','260917','260918','260921','260922','260923','260924','260925','260928','260929','260930','261001','261002','261005','261006','261007','261008','261009','261012','261013','261014','261015','261016','261019','261020','261021','261022','261023','261026','261027','261028','261029','261030','261102','261103','261104','261105','261106','261109','261111','261112'],
+  v:[2.71,2.71,2.67,2.70,2.75,2.73,2.75,2.70,2.69,2.70,2.67,2.63,2.60,2.63,2.65,2.66,2.65,2.68,2.68,2.67,2.71,2.70,2.65,2.71,2.76,2.70,2.70,2.68,2.66,2.68,2.73,2.80,2.93,3.02,3.08,3.12,3.24,3.10,3.12,3.03,3.09,3.15,3.11,3.11,3.16,3.25,3.23,3.31,3.29,3.33,3.27,3.40,3.38,3.30,3.18,3.14,3.26,3.44,3.43,3.40,3.32,3.48,3.42,3.34,3.30,3.20]
+};
+function hyDate(x){ return '20'+x.slice(0,2)+'.'+x.slice(2,4)+'.'+x.slice(4,6); }
+function hyZone(v){
+  if(v<3) return {t:'과열 경계', c:'#f0a836'};
+  if(v<5) return {t:'평상시', c:'#7c8cff'};
+  if(v<7) return {t:'경계', c:'#ef8a50'};
+  return {t:'위기', c:'#ef5350'};
+}
+function hySvg(){
+  const D=HY_DATA, W=640, H=300, L=44, R=44, T=14, B=32, n=D.v.length;
+  let lo=Math.min(...D.v), hi=Math.max(...D.v);
+  lo=Math.floor((lo-0.05)*10)/10; hi=Math.ceil((hi+0.05)*10)/10;
+  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  const step=(hi-lo)>1.2?0.2:0.1;
+  let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let g=Math.round(lo*10); g<=Math.round(hi*10); g+=Math.round(step*10)){
+    const v=g/10, y=Y(v), is3=(g===30);
+    s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${is3?'#8b92a6':'#262b3a'}" stroke-width="${is3?1.4:1}"${is3?' stroke-dasharray="5 4"':''}/>`;
+    s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${is3?'#ffffff':'#d0d5e2'}"${is3?' font-weight="700"':''}>${v.toFixed(1)}</text>`;
+  }
+  /* 아래 날짜 — 달이 바뀌는 첫 거래일마다 */
+  let pm='';
+  D.d.forEach((x,i)=>{ const m=x.slice(2,4); if(m!==pm){ pm=m; s+=`<line x1="${X(i)}" x2="${X(i)}" y1="${T}" y2="${H-B}" stroke="#1d2130"/><text x="${X(i)}" y="${H-10}" text-anchor="${i===0?'start':'middle'}" font-size="12" fill="#d0d5e2">${x.slice(0,2)}.${m}.${x.slice(4,6)}</text>`; } });
+  const pts=D.v.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1));
+  s+=`<polygon fill="rgba(242,200,0,.10)" points="${X(0).toFixed(1)},${H-B} ${pts.join(' ')} ${X(n-1).toFixed(1)},${H-B}"/>`;
+  s+=`<polyline fill="none" stroke="#f2c800" stroke-width="2.2" stroke-linejoin="round" points="${pts.join(' ')}"/>`;
+  D.v.forEach((v,i)=>{ s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="5" fill="transparent"><title>${hyDate(D.d[i])}: ${v.toFixed(2)}%p</title></circle>`; });
+  const e=n-1;
+  s+=`<circle cx="${X(e).toFixed(1)}" cy="${Y(D.v[e]).toFixed(1)}" r="3.6" fill="#f2c800"/>`;
+  s+=`<text x="${X(e)+7}" y="${Y(D.v[e])+4}" font-size="12.5" font-weight="700" fill="#f2c800">${D.v[e].toFixed(2)}</text>`;
+  /* 3개월 최고 */
+  const mi=D.v.indexOf(Math.max(...D.v));
+  if(mi!==e) s+=`<text x="${X(mi)}" y="${Y(D.v[mi])-7}" text-anchor="middle" font-size="11.5" fill="#c5cad8">최고 ${D.v[mi].toFixed(2)}</text>`;
+  return s+'</svg>';
+}
+function hyBuild(){
+  const D=HY_DATA, n=D.v.length, last=n-1; const c=$('#hyCard'); if(!c) return;
+  const v=D.v[last], v0=D.v[0], p=D.v[last-1];
+  const d3=v-v0, r3=d3/v0*100, d1=v-p, z=hyZone(v);
+  const col=x=>x>0?'var(--up)':(x<0?'var(--dn)':'var(--sub)');
+  const ar=x=>x>0?'▲':(x<0?'▼':'');
+  c.innerHTML=`<div class="ixa-h"><b>하이일드 스프레드</b><span class="pmi-sub">ICE BofA US HY OAS · ${hyDate(D.d[0])} ~ ${hyDate(D.d[last])} (3개월, 일별)</span></div>`
+   +`<div class="hy-now"><span><span class="big">${v.toFixed(2)}</span><span class="u">%p</span></span>`
+   +`<span class="chg" style="color:${col(d3)}"><span class="k">3개월</span>${ar(d3)}${Math.abs(d3).toFixed(2)}%p (${r3>=0?'+':''}${r3.toFixed(1)}%)</span>`
+   +`<span class="chg" style="color:${col(d1)}"><span class="k">전일</span>${ar(d1)}${Math.abs(d1).toFixed(2)}%p (${d1>=0?'+':''}${(d1/p*100).toFixed(1)}%)</span>`
+   +`<span class="zn" style="color:${z.c}">${z.t}</span></div>`
+   +hySvg();
+  $('#hySrc').innerHTML='출처: ICE Data Indices, ICE BofA US High Yield Index Option-Adjusted Spread (FRED BAMLH0A0HYM2), 일별 종가. 마지막 값 '+hyDate(D.d[last])+' · 3개월 변화는 '+hyDate(D.d[0])+' 값('+v0.toFixed(2)+') 대비. 스프레드가 오르면(확대) 붉은색 ▲, 내리면(축소) 초록색 ▼로 표시했습니다. 점선은 3.0%p(과열 경계 / 평상시 경계선)입니다.';
+}
+/* ===== 추세 › MOVE 지수 · VIX 지수 (2026-11-16) =====
+   야후 ^MOVE·^VIX 일봉을 시황 중계서버(SRV_URL ?symbol=..&history=1&range=3mo)로 받아 그린다.
+   서버가 응답하지 않을 때는 seed(2026-11-16 받아 둔 값)로 그린다. seed 는 [유닉스시각(초), 종가] */
+const VOL_CFG={
+  move:{sym:'^MOVE', nm:'MOVE 지수', sub:'ICE BofA MOVE', unit:'bp', col:'#7c8cff', txt:'#aab4ff', fill:'rgba(124,140,255,.12)', ref:100, refTxt:'100(장기 평균 안팎)', card:'mvCard', src:'mvSrc', srcNm:'ICE BofA MOVE Index, 야후 파이낸스 ^MOVE',
+    zone:v=>v<80?{t:'안정',c:'#4dd0e1'}:v<100?{t:'평상시',c:'#7c8cff'}:v<130?{t:'경계',c:'#ef8a50'}:{t:'위기',c:'#ef5350'},
+    seed:[[1786714200,69.58],[1786973400,75.63],[1787059800,74.98],[1787146200,71.26],[1787232600,73.18],[1787319000,73.4],[1787578200,73.98],[1787664600,71.92],[1787751000,69.44],[1787837400,69.86],[1787923800,70.97],[1788183000,75.32],[1788269400,77.88],[1788355800,79.71],[1788442200,74.68],[1788528600,73.1],[1788874200,76.14],[1788960600,76.74],[1789047000,82.09],[1789133400,82.21],[1789392600,83.9],[1789479000,83.71],[1789565400,80.73],[1789651800,76.22],[1789738200,80.64],[1789997400,81.2],[1790083800,78.56],[1790170200,95.45],[1790256600,104.58],[1790343000,96],[1790602200,101.82],[1790688600,106.6],[1790775000,110.45],[1790861400,108.13],[1790947800,107.29],[1791207000,113.6],[1791293400,105.2],[1791379800,102.56],[1791466200,100.7],[1791552600,98.47],[1791898200,101.09],[1791984600,99.06],[1792071000,102.49],[1792157400,101.1],[1792416600,101.3],[1792503000,101.7],[1792589400,95.94],[1792675800,106.84],[1792762200,103.31],[1793021400,102.19],[1793107800,97.87],[1793194200,94.55],[1793280600,93.54],[1793367000,100.2],[1793629800,100.36],[1793716200,99.97],[1793802600,93.88],[1793889000,97.92],[1793975400,92.77],[1794234600,85.98],[1794321000,92.43],[1794493800,98.43],[1794580200,98.79]]},
+  vix:{sym:'^VIX', nm:'VIX 지수', sub:'CBOE VIX', unit:'%', col:'#ef8a50', txt:'#ffab7a', fill:'rgba(239,138,80,.12)', ref:20, refTxt:'20(장기 평균 안팎)', card:'vxCard', src:'vxSrc', srcNm:'CBOE Volatility Index, 야후 파이낸스 ^VIX',
+    zone:v=>v<15?{t:'안정',c:'#4dd0e1'}:v<20?{t:'평상시',c:'#7c8cff'}:v<30?{t:'경계',c:'#ef8a50'}:{t:'공포',c:'#ef5350'},
+    seed:[[1786604400,14.63],[1786690800,14.25],[1786950000,15.19],[1787036400,15.84],[1787122800,14.89],[1787209200,16.01],[1787295600,15.13],[1787554800,15.85],[1787641200,15.45],[1787727600,15.21],[1787814000,14.51],[1787900400,14.43],[1788159600,14.92],[1788246000,16.34],[1788332400,15.2],[1788418800,14.32],[1788505200,14.53],[1788764400,15.3],[1788850800,15.72],[1788937200,16.46],[1789023600,17.84],[1789110000,15.84],[1789369200,17.1],[1789455600,17.2],[1789542000,17.71],[1789628400,15.44],[1789714800,14.81],[1789974000,14.87],[1790060400,14.21],[1790146800,15.18],[1790233200,15.67],[1790319600,14.87],[1790578800,16.07],[1790665200,16.04],[1790751600,16.34],[1790838000,16.39],[1790924400,15.31],[1791183600,15.52],[1791270000,15.01],[1791356400,15.08],[1791442800,15.41],[1791529200,14.84],[1791788400,15.21],[1791874800,15.27],[1791961200,16.87],[1792047600,16.46],[1792134000,19.99],[1792393200,18.44],[1792479600,17.31],[1792566000,16.68],[1792652400,19.03],[1792738800,19.45],[1792998000,18.39],[1793084400,17.52],[1793170800,16.91],[1793257200,17.2],[1793343600,19.42],[1793606400,21.15],[1793692800,20.83],[1793779200,16.61],[1793865600,28.18],[1793952000,25.64],[1794211200,19.92],[1794297600,19.46],[1794384000,17.49],[1794470400,18.7],[1794556800,19.3]]}
+};
+const VOL_LIVE={}, VOL_AT={}, VOL_BUSY={};
+function volDate(t){ return new Date(t*1000).toISOString().slice(0,10).replace(/-/g,'.'); }
+function volSvg(C,P){
+  const W=640, H=300, L=44, R=48, T=14, B=32, n=P.length, V=P.map(p=>p[1]);
+  let lo=Math.min(...V), hi=Math.max(...V);
+  const sp=hi-lo, step=sp>60?20:sp>24?10:sp>10?2:1;
+  lo=Math.floor((lo-step*0.3)/step)*step; hi=Math.ceil((hi+step*0.3)/step)*step;
+  if(C.ref>hi && C.ref-hi<=step*2) hi=C.ref;           // 기준선이 바로 위에 있으면 보이게
+  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  const lbl=Math.ceil(((hi-lo)/step+1)/9);              // 눈금 글자는 9개 안팎만
+  let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let k=0, g=lo; g<=hi+1e-9; k++, g=lo+k*step){
+    const y=Y(g), ref=Math.abs(g-C.ref)<1e-9;
+    s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${ref?'#8b92a6':'#262b3a'}" stroke-width="${ref?1.4:1}"${ref?' stroke-dasharray="5 4"':''}/>`;
+    if(ref || k%lbl===0) s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${ref?'#ffffff':'#d0d5e2'}"${ref?' font-weight="700"':''}>${+g.toFixed(1)}</text>`;
+  }
+  let pm='';
+  P.forEach((p,i)=>{ const d=volDate(p[0]), m=d.slice(5,7); if(m!==pm){ pm=m; s+=`<line x1="${X(i)}" x2="${X(i)}" y1="${T}" y2="${H-B}" stroke="#1d2130"/><text x="${X(i)}" y="${H-10}" text-anchor="${i===0?'start':'middle'}" font-size="12" fill="#d0d5e2">${d.slice(2)}</text>`; } });
+  const pts=V.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1));
+  s+=`<polygon fill="${C.fill}" points="${X(0).toFixed(1)},${H-B} ${pts.join(' ')} ${X(n-1).toFixed(1)},${H-B}"/>`;
+  s+=`<polyline fill="none" stroke="${C.col}" stroke-width="2.2" stroke-linejoin="round" points="${pts.join(' ')}"/>`;
+  V.forEach((v,i)=>{ s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="5" fill="transparent"><title>${volDate(P[i][0])}: ${v.toFixed(2)}</title></circle>`; });
+  const e=n-1;
+  s+=`<circle cx="${X(e).toFixed(1)}" cy="${Y(V[e]).toFixed(1)}" r="3.6" fill="${C.col}"/>`;
+  s+=`<text x="${X(e)+7}" y="${Y(V[e])+4}" font-size="12.5" font-weight="700" fill="${C.txt}">${V[e].toFixed(1)}</text>`;
+  const mi=V.indexOf(Math.max(...V));
+  if(mi!==e) s+=`<text x="${X(mi)}" y="${Y(V[mi])-7}" text-anchor="middle" font-size="11.5" fill="#c5cad8">최고 ${V[mi].toFixed(1)}</text>`;
+  return s+'</svg>';
+}
+function volRender(key, P, live){
+  const C=VOL_CFG[key], c=$('#'+C.card); if(!c || !P || P.length<2) return;
+  const n=P.length, last=n-1, v=P[last][1], v0=P[0][1], p=P[last-1][1];
+  const d3=v-v0, r3=d3/v0*100, d1=v-p, z=C.zone(v);
+  const col=x=>x>0?'var(--up)':(x<0?'var(--dn)':'var(--sub)');
+  const ar=x=>x>0?'▲':(x<0?'▼':'');
+  c.innerHTML=`<div class="ixa-h"><b>${C.nm}</b><span class="pmi-sub">${C.sub} · ${volDate(P[0][0])} ~ ${volDate(P[last][0])} (3개월, 일별)</span></div>`
+   +`<div class="hy-now"><span><span class="big" style="color:${C.txt}">${v.toFixed(2)}</span><span class="u">${C.unit}</span></span>`
+   +`<span class="chg" style="color:${col(d3)}"><span class="k">3개월</span>${ar(d3)}${Math.abs(d3).toFixed(2)} (${r3>=0?'+':''}${r3.toFixed(1)}%)</span>`
+   +`<span class="chg" style="color:${col(d1)}"><span class="k">전일</span>${ar(d1)}${Math.abs(d1).toFixed(2)} (${d1>=0?'+':''}${(d1/p*100).toFixed(1)}%)</span>`
+   +`<span class="zn" style="color:${z.c}">${z.t}</span></div>`
+   +volSvg(C,P);
+  $('#'+C.src).innerHTML='출처: '+C.srcNm+' 일별 종가('+(live?'시황 중계서버로 방금 받은 값':'서버 응답이 없어 2026-11-16에 저장해 둔 값')+'). 날짜는 미국 거래일 기준 · 3개월 변화는 '+volDate(P[0][0])+' 값('+v0.toFixed(2)+') 대비. 지수가 오르면 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다. 점선은 '+C.refTxt+'입니다.';
+}
+async function volBuild(key){
+  const C=VOL_CFG[key]; if(!C) return;
+  volRender(key, VOL_LIVE[key]||C.seed, !!VOL_LIVE[key]);
+  if(VOL_BUSY[key] || (VOL_LIVE[key] && Date.now()-VOL_AT[key]<10*60*1000) || !SRV_URL) return;
+  VOL_BUSY[key]=true;
+  try{
+    const u=SRV_URL+(SRV_URL.includes('?')?'&':'?')+'symbol='+encodeURIComponent(C.sym)+'&history=1&range=3mo';
+    const d=await (await fetch(u)).json();
+    const P=(d&&d.ok&&d.points||[]).filter(p=>p&&isFinite(p.c)&&p.c>0).map(p=>[p.t,p.c]);
+    if(P.length>=10){ VOL_LIVE[key]=P; VOL_AT[key]=Date.now(); volRender(key, P, true); }
+  }catch(e){ console.warn('['+C.sym+']', e); }
+  VOL_BUSY[key]=false;
 }
 $$('.trd-bar .tf').forEach(b=>b.onclick=()=>{ setTrendView(b.dataset.tv); window.scrollTo(0,0); });
 (function(){ let v='psy'; try{ v=localStorage.getItem(TRD_KEY)||'psy'; }catch(e){} setTrendView(v); })();
@@ -16436,8 +16704,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.14.-v5';
-const KG_APP_BUILD = KG_APP_VER + ' 로보티즈 투자 판단 요약';
+const KG_APP_VER = '11.16.-v2';
+const KG_APP_BUILD = KG_APP_VER + ' 추세 MOVE·VIX 지수';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
