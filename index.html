@@ -685,6 +685,15 @@
   .i2-now .cg{font-size:12.5px;font-variant-numeric:tabular-nums;color:#c5cad8;line-height:1.6}
   .i2-now .cg b{font-weight:700}
   .i2-now .zn{font-size:12px;font-weight:700;padding:0 7px;border-radius:9px;border:1px solid currentColor;margin-left:auto}
+  .i2-h{flex-direction:column;align-items:flex-start;gap:2px}
+  .i2-kind{font-size:14px;font-weight:700;display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px}
+  .i2-kind .pmi-sub{margin-left:6px}
+  .ixa-h .i2-kind > span:not(.pmi-sub){font-size:14.5px;font-weight:700;margin:0}
+  .i2-zl{padding:4px 10px 9px;border-top:1px solid var(--line)}
+  .i2-zl .row{display:flex;flex-wrap:wrap;align-items:center;gap:3px 14px;font-size:12.5px;line-height:1.7;color:var(--ink)}
+  .i2-zl .nm{font-weight:700;min-width:118px}
+  .i2-zl .it{white-space:nowrap}
+  .i2-zl .it i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
   .i2-note{font-size:12px;color:#c5cad8;line-height:1.6;padding:6px 2px 4px}
   .i2-each{margin:0 0 10px}
   .i2-each:last-child{margin:0}
@@ -2200,14 +2209,16 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div id="trdIdx2" class="trd-pane" style="display:none">
    <div class="i2-now" id="i2Now"></div>
    <div class="ixa-card">
-    <div class="ixa-h"><b>선행 지표 — <span style="color:#f2c800">하이일드 스프레드</span> · <span style="color:#7c8cff">MOVE</span></b><span class="pmi-sub" id="i2RangeA"></span></div>
+    <div class="ixa-h i2-h"><b>선행 지표</b><div class="i2-kind"><span style="color:#f2c800">High Yield Index</span> · <span style="color:#7c8cff">MOVE</span><span class="pmi-sub" id="i2RangeA"></span></div></div>
     <div id="i2ChartA"></div>
+    <div class="i2-zl" id="i2ZoneA"></div>
    </div>
    <div class="ixa-card" style="margin-top:10px">
-    <div class="ixa-h"><b>심리 지표 — <span style="color:#ef8a50">VIX</span> · <span style="color:#4dd0e1">공포탐욕지수</span></b><span class="pmi-sub" id="i2RangeB"></span></div>
+    <div class="ixa-h i2-h"><b>심리 지표</b><div class="i2-kind"><span style="color:#ef8a50">VIX</span> · <span style="color:#4dd0e1">Fear &amp; Greed Index</span><span class="pmi-sub" id="i2RangeB"></span></div></div>
     <div id="i2ChartB"></div>
+    <div class="i2-zl" id="i2ZoneB"></div>
    </div>
-   <div class="i2-note">두 그래프 모두 선마다 <b>자기 실제 값의 최근 3개월 최고값을 맨 위, 최저값을 맨 아래</b>로 맞춰 그렸습니다. 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다.</div>
+   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 0~7%p, MOVE 0~150, VIX 0~40, 공포탐욕 0~100(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다.</div>
    <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
    <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
    <div class="pmi-src" id="i2Src"></div>
@@ -8791,29 +8802,56 @@ function pmiBuild(){
    ICE BofA US High Yield OAS (FRED BAMLH0A0HYM2), 일별 종가, 단위 %p.
    FRED 는 다른 사이트에서 직접 받아오는 것을 막아 두어(CORS) 값을 직접 적어 둔다 —
    새 값은 d·v 끝에 하나씩 더하고, 앞쪽은 3개월이 넘는 만큼 잘라 낸다. d 는 'YYMMDD' */
+/* 추세 그래프 y축 고정 (2026-11-17) — 아래 0, 위는 지표마다 고정값. step = 눈금 간격 */
+const Y_FIX={hy:{max:7,step:1}, move:{max:150,step:25}, vix:{max:40,step:10}, fg:{max:100,step:25}};
+/* 구간 색 (2026-11-17) — 안정은 녹색 쪽, 위기는 붉은색 쪽. 과열(지나친 낙관)은 노랑 */
+const ZC={hot:'#e6c229', calm:'#1f8f4e', norm:'#5cc062', warn:'#3f7fd9', crit:'#e5484d'};
+const Y_ZONES={
+  hy:  [[0,3,ZC.hot],[3,5,ZC.norm],[5,7,ZC.warn],[7,1e9,ZC.crit]],
+  move:[[0,80,ZC.calm],[80,100,ZC.norm],[100,130,ZC.warn],[130,1e9,ZC.crit]],
+  vix: [[0,15,ZC.calm],[15,20,ZC.norm],[20,30,ZC.warn],[30,1e9,ZC.crit]],
+  fg:  [[0,25,ZC.crit],[25,45,ZC.warn],[45,55,ZC.norm],[55,75,ZC.calm],[75,100.01,ZC.hot]]
+};
+/* 구간 이름 (Y_ZONES 와 같은 순서) — 위험지표 그래프 밑 구간 설명에 쓴다 */
+const Y_ZLAB={
+  hy:  {nm:'하이일드', items:['3% 미만: 낙관','3~5%: 평상시','5~7%: 경계','7% 이상: 위기']},
+  move:{nm:'MOVE', items:['80 미만: 안정','80~100: 평상시','100~130: 경계','130 이상: 위기']},
+  vix: {nm:'VIX', items:['15 미만: 안정','15~20: 평상시','20~30: 경계','30 이상: 공포']},
+  fg:  {nm:'Fear &amp; Greed', items:['25 미만: 극단적 공포','25~45: 공포','45~55: 중립','55~75: 탐욕','75 이상: 극단적 탐욕']}
+};
+function yZoneLegend(keys){
+  return keys.map(k=>`<div class="row"><span class="nm" style="color:${I2_DEF[k].col}">${Y_ZLAB[k].nm}</span>`
+    +Y_ZLAB[k].items.map((t,i)=>`<span class="it"><i style="background:${Y_ZONES[k][i][2]}"></i>${t}</span>`).join('')+'</div>').join('');
+}
+/* y축 자리에 구간별 색막대 — x: 막대 왼쪽, Y: 값→y 함수, lo~hi: 그래프 눈금 범위 */
+function yZoneBar(k, x, Y, lo, hi, w){
+  w=w||5; let s='';
+  Y_ZONES[k].forEach(([a,b,c])=>{ const a2=Math.max(a,lo), b2=Math.min(b,hi); if(b2<=a2) return;
+    const y1=Y(b2), y2=Y(a2); s+=`<rect x="${x}" y="${y1.toFixed(1)}" width="${w}" height="${(y2-y1).toFixed(1)}" fill="${c}"/>`; });
+  return s;
+}
 const HY_DATA={
   d:['260812','260813','260814','260817','260818','260819','260820','260821','260824','260825','260826','260827','260828','260831','260901','260902','260903','260904','260907','260908','260909','260910','260911','260914','260915','260916','260917','260918','260921','260922','260923','260924','260925','260928','260929','260930','261001','261002','261005','261006','261007','261008','261009','261012','261013','261014','261015','261016','261019','261020','261021','261022','261023','261026','261027','261028','261029','261030','261102','261103','261104','261105','261106','261109','261111','261112'],
   v:[2.71,2.71,2.67,2.70,2.75,2.73,2.75,2.70,2.69,2.70,2.67,2.63,2.60,2.63,2.65,2.66,2.65,2.68,2.68,2.67,2.71,2.70,2.65,2.71,2.76,2.70,2.70,2.68,2.66,2.68,2.73,2.80,2.93,3.02,3.08,3.12,3.24,3.10,3.12,3.03,3.09,3.15,3.11,3.11,3.16,3.25,3.23,3.31,3.29,3.33,3.27,3.40,3.38,3.30,3.18,3.14,3.26,3.44,3.43,3.40,3.32,3.48,3.42,3.34,3.30,3.20]
 };
 function hyDate(x){ return '20'+x.slice(0,2)+'.'+x.slice(2,4)+'.'+x.slice(4,6); }
 function hyZone(v){
-  if(v<3) return {t:'과열 경계', c:'#f0a836'};
-  if(v<5) return {t:'평상시', c:'#7c8cff'};
-  if(v<7) return {t:'경계', c:'#ef8a50'};
-  return {t:'위기', c:'#ef5350'};
+  if(v<3) return {t:'낙관', c:ZC.hot};
+  if(v<5) return {t:'평상시', c:ZC.norm};
+  if(v<7) return {t:'경계', c:ZC.warn};
+  return {t:'위기', c:ZC.crit};
 }
 function hySvg(){
   const D=HY_DATA, W=640, H=300, L=44, R=44, T=14, B=32, n=D.v.length;
-  let lo=Math.min(...D.v), hi=Math.max(...D.v);
-  lo=Math.floor((lo-0.05)*10)/10; hi=Math.ceil((hi+0.05)*10)/10;
+  const lo=0, hi=Y_FIX.hy.max, step=Y_FIX.hy.step;   // y축 고정 0~7%p
   const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
-  const step=(hi-lo)>1.2?0.2:0.1;
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let g=Math.round(lo*10); g<=Math.round(hi*10); g+=Math.round(step*10)){
     const v=g/10, y=Y(v), is3=(g===30);
     s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${is3?'#8b92a6':'#262b3a'}" stroke-width="${is3?1.4:1}"${is3?' stroke-dasharray="5 4"':''}/>`;
-    s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${is3?'#ffffff':'#d0d5e2'}"${is3?' font-weight="700"':''}>${v.toFixed(1)}</text>`;
+    s+=`<text x="${L-10}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${is3?'#ffffff':'#d0d5e2'}"${is3?' font-weight="700"':''}>${v.toFixed(0)}</text>`;
   }
+  s+=yZoneBar('hy', L-6, Y, lo, hi);
   /* 아래 날짜 — 달이 바뀌는 첫 거래일마다 */
   let pm='';
   D.d.forEach((x,i)=>{ const m=x.slice(2,4); if(m!==pm){ pm=m; s+=`<line x1="${X(i)}" x2="${X(i)}" y1="${T}" y2="${H-B}" stroke="#1d2130"/><text x="${X(i)}" y="${H-10}" text-anchor="${i===0?'start':'middle'}" font-size="12" fill="#d0d5e2">${x.slice(0,2)}.${m}.${x.slice(4,6)}</text>`; } });
@@ -8841,35 +8879,32 @@ function hyBuild(){
    +`<span class="chg" style="color:${col(d1)}"><span class="k">전일</span>${ar(d1)}${Math.abs(d1).toFixed(2)}%p (${d1>=0?'+':''}${(d1/p*100).toFixed(1)}%)</span>`
    +`<span class="zn" style="color:${z.c}">${z.t}</span></div>`
    +hySvg();
-  $('#hySrc').innerHTML='출처: ICE Data Indices, ICE BofA US High Yield Index Option-Adjusted Spread (FRED BAMLH0A0HYM2), 일별 종가. 마지막 값 '+hyDate(D.d[last])+' · 3개월 변화는 '+hyDate(D.d[0])+' 값('+v0.toFixed(2)+') 대비. 스프레드가 오르면(확대) 붉은색 ▲, 내리면(축소) 초록색 ▼로 표시했습니다. 점선은 3.0%p(과열 경계 / 평상시 경계선)입니다.';
+  $('#hySrc').innerHTML='출처: ICE Data Indices, ICE BofA US High Yield Index Option-Adjusted Spread (FRED BAMLH0A0HYM2), 일별 종가. 마지막 값 '+hyDate(D.d[last])+' · 3개월 변화는 '+hyDate(D.d[0])+' 값('+v0.toFixed(2)+') 대비. 스프레드가 오르면(확대) 붉은색 ▲, 내리면(축소) 초록색 ▼로 표시했습니다. 점선은 3.0%p(낙관 / 평상시 경계선)입니다.';
 }
 /* ===== 추세 › MOVE 지수 · VIX 지수 (2026-11-16) =====
    야후 ^MOVE·^VIX 일봉을 시황 중계서버(SRV_URL ?symbol=..&history=1&range=3mo)로 받아 그린다.
    서버가 응답하지 않을 때는 seed(2026-11-16 받아 둔 값)로 그린다. seed 는 [유닉스시각(초), 종가] */
 const VOL_CFG={
   move:{sym:'^MOVE', nm:'MOVE 지수', sub:'ICE BofA MOVE', unit:'bp', col:'#7c8cff', txt:'#aab4ff', fill:'rgba(124,140,255,.12)', ref:100, refTxt:'100(장기 평균 안팎)', card:'mvCard', src:'mvSrc', srcNm:'ICE BofA MOVE Index, 야후 파이낸스 ^MOVE',
-    zone:v=>v<80?{t:'안정',c:'#4dd0e1',k:0}:v<100?{t:'평상시',c:'#7c8cff',k:1}:v<130?{t:'경계',c:'#ef8a50',k:2}:{t:'위기',c:'#ef5350',k:3},
+    zone:v=>v<80?{t:'안정',c:ZC.calm,k:0}:v<100?{t:'평상시',c:ZC.norm,k:1}:v<130?{t:'경계',c:ZC.warn,k:2}:{t:'위기',c:ZC.crit,k:3},
     seed:[[1786714200,69.58],[1786973400,75.63],[1787059800,74.98],[1787146200,71.26],[1787232600,73.18],[1787319000,73.4],[1787578200,73.98],[1787664600,71.92],[1787751000,69.44],[1787837400,69.86],[1787923800,70.97],[1788183000,75.32],[1788269400,77.88],[1788355800,79.71],[1788442200,74.68],[1788528600,73.1],[1788874200,76.14],[1788960600,76.74],[1789047000,82.09],[1789133400,82.21],[1789392600,83.9],[1789479000,83.71],[1789565400,80.73],[1789651800,76.22],[1789738200,80.64],[1789997400,81.2],[1790083800,78.56],[1790170200,95.45],[1790256600,104.58],[1790343000,96],[1790602200,101.82],[1790688600,106.6],[1790775000,110.45],[1790861400,108.13],[1790947800,107.29],[1791207000,113.6],[1791293400,105.2],[1791379800,102.56],[1791466200,100.7],[1791552600,98.47],[1791898200,101.09],[1791984600,99.06],[1792071000,102.49],[1792157400,101.1],[1792416600,101.3],[1792503000,101.7],[1792589400,95.94],[1792675800,106.84],[1792762200,103.31],[1793021400,102.19],[1793107800,97.87],[1793194200,94.55],[1793280600,93.54],[1793367000,100.2],[1793629800,100.36],[1793716200,99.97],[1793802600,93.88],[1793889000,97.92],[1793975400,92.77],[1794234600,85.98],[1794321000,92.43],[1794493800,98.43],[1794580200,98.79]]},
   vix:{sym:'^VIX', nm:'VIX 지수', sub:'CBOE VIX', unit:'%', col:'#ef8a50', txt:'#ffab7a', fill:'rgba(239,138,80,.12)', ref:20, refTxt:'20(장기 평균 안팎)', card:'vxCard', src:'vxSrc', srcNm:'CBOE Volatility Index, 야후 파이낸스 ^VIX',
-    zone:v=>v<15?{t:'안정',c:'#4dd0e1',k:0}:v<20?{t:'평상시',c:'#7c8cff',k:1}:v<30?{t:'경계',c:'#ef8a50',k:2}:{t:'공포',c:'#ef5350',k:3},
+    zone:v=>v<15?{t:'안정',c:ZC.calm,k:0}:v<20?{t:'평상시',c:ZC.norm,k:1}:v<30?{t:'경계',c:ZC.warn,k:2}:{t:'공포',c:ZC.crit,k:3},
     seed:[[1786604400,14.63],[1786690800,14.25],[1786950000,15.19],[1787036400,15.84],[1787122800,14.89],[1787209200,16.01],[1787295600,15.13],[1787554800,15.85],[1787641200,15.45],[1787727600,15.21],[1787814000,14.51],[1787900400,14.43],[1788159600,14.92],[1788246000,16.34],[1788332400,15.2],[1788418800,14.32],[1788505200,14.53],[1788764400,15.3],[1788850800,15.72],[1788937200,16.46],[1789023600,17.84],[1789110000,15.84],[1789369200,17.1],[1789455600,17.2],[1789542000,17.71],[1789628400,15.44],[1789714800,14.81],[1789974000,14.87],[1790060400,14.21],[1790146800,15.18],[1790233200,15.67],[1790319600,14.87],[1790578800,16.07],[1790665200,16.04],[1790751600,16.34],[1790838000,16.39],[1790924400,15.31],[1791183600,15.52],[1791270000,15.01],[1791356400,15.08],[1791442800,15.41],[1791529200,14.84],[1791788400,15.21],[1791874800,15.27],[1791961200,16.87],[1792047600,16.46],[1792134000,19.99],[1792393200,18.44],[1792479600,17.31],[1792566000,16.68],[1792652400,19.03],[1792738800,19.45],[1792998000,18.39],[1793084400,17.52],[1793170800,16.91],[1793257200,17.2],[1793343600,19.42],[1793606400,21.15],[1793692800,20.83],[1793779200,16.61],[1793865600,28.18],[1793952000,25.64],[1794211200,19.92],[1794297600,19.46],[1794384000,17.49],[1794470400,18.7],[1794556800,19.3]]}
 };
 const VOL_LIVE={}, VOL_AT={}, VOL_BUSY={};
 function volDate(t){ return new Date(t*1000).toISOString().slice(0,10).replace(/-/g,'.'); }
 function volSvg(C,P){
   const W=640, H=300, L=44, R=48, T=14, B=32, n=P.length, V=P.map(p=>p[1]);
-  let lo=Math.min(...V), hi=Math.max(...V);
-  const sp=hi-lo, step=sp>60?20:sp>24?10:sp>10?2:1;
-  lo=Math.floor((lo-step*0.3)/step)*step; hi=Math.ceil((hi+step*0.3)/step)*step;
-  if(C.ref>hi && C.ref-hi<=step*2) hi=C.ref;           // 기준선이 바로 위에 있으면 보이게
-  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
-  const lbl=Math.ceil(((hi-lo)/step+1)/9);              // 눈금 글자는 9개 안팎만
+  const F=Y_FIX[C.sym==='^MOVE'?'move':'vix'], lo=0, hi=F.max, step=F.step, lbl=1;   // y축 고정 (MOVE 0~150, VIX 0~40)
+  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-Math.min(v,hi))/(hi-lo);
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let k=0, g=lo; g<=hi+1e-9; k++, g=lo+k*step){
     const y=Y(g), ref=Math.abs(g-C.ref)<1e-9;
     s+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${ref?'#8b92a6':'#262b3a'}" stroke-width="${ref?1.4:1}"${ref?' stroke-dasharray="5 4"':''}/>`;
-    if(ref || k%lbl===0) s+=`<text x="${L-6}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${ref?'#ffffff':'#d0d5e2'}"${ref?' font-weight="700"':''}>${+g.toFixed(1)}</text>`;
+    if(ref || k%lbl===0) s+=`<text x="${L-10}" y="${y+4}" text-anchor="end" font-size="12.6" fill="${ref?'#ffffff':'#d0d5e2'}"${ref?' font-weight="700"':''}>${+g.toFixed(1)}</text>`;
   }
+  s+=yZoneBar(C.sym==='^MOVE'?'move':'vix', L-6, Y, lo, hi);
   let pm='';
   P.forEach((p,i)=>{ const d=volDate(p[0]), m=d.slice(5,7); if(m!==pm){ pm=m; s+=`<line x1="${X(i)}" x2="${X(i)}" y1="${T}" y2="${H-B}" stroke="#1d2130"/><text x="${X(i)}" y="${H-10}" text-anchor="${i===0?'start':'middle'}" font-size="12" fill="#d0d5e2">${d.slice(2)}</text>`; } });
   const pts=V.map((v,i)=>X(i).toFixed(1)+','+Y(v).toFixed(1));
@@ -8917,11 +8952,11 @@ async function volBuild(key){
    지표별 현재 상황과 종합 해석은 수치를 정해진 기준으로 읽어 만든다. */
 const I2_DEF={
   hy:  {nm:'하이일드 스프레드', sh:'하이일드', unit:'%p', col:'#f2c800', dec:2, warn:5, crit:7, low:3,
-        zone:v=>v<3?{t:'과열 경계',c:'#f0a836',k:0}:v<5?{t:'평상시',c:'#7c8cff',k:1}:v<7?{t:'경계',c:'#ef8a50',k:2}:{t:'위기',c:'#ef5350',k:3}},
+        zone:v=>v<3?{t:'낙관',c:ZC.hot,k:0}:v<5?{t:'평상시',c:ZC.norm,k:1}:v<7?{t:'경계',c:ZC.warn,k:2}:{t:'위기',c:ZC.crit,k:3}},
   move:{nm:'MOVE 지수', sh:'MOVE', unit:'', col:'#7c8cff', dec:2, warn:100, crit:130, low:80, zone:v=>VOL_CFG.move.zone(v)},
   vix: {nm:'VIX 지수', sh:'VIX', unit:'', col:'#ef8a50', dec:2, warn:20, crit:30, low:15, zone:v=>VOL_CFG.vix.zone(v)},
   fg:  {nm:'공포탐욕지수', sh:'공포탐욕', unit:'', col:'#4dd0e1', dec:1,
-        zone:v=>v<25?{t:'극단적 공포',c:'#ef5350',k:3}:v<45?{t:'공포',c:'#ef8a50',k:2}:v<=55?{t:'중립',c:'#7c8cff',k:1}:v<=75?{t:'탐욕',c:'#4dd0e1',k:1}:{t:'극단적 탐욕',c:'#f0a836',k:0}}
+        zone:v=>v<25?{t:'극단적 공포',c:ZC.crit,k:3}:v<45?{t:'공포',c:ZC.warn,k:2}:v<55?{t:'중립',c:ZC.norm,k:1}:v<75?{t:'탐욕',c:ZC.calm,k:1}:{t:'극단적 탐욕',c:ZC.hot,k:0}}
 };
 /* CNN 공포탐욕지수 저장값 (2026-11-16 받음) — [유닉스시각(초), 값] */
 const FG_SEED=[[1786492800,61.7],[1786579200,66.1],[1786665600,64.3],[1786924800,59.1],[1787011200,54.6],[1787097600,56.6],[1787184000,51.4],[1787270400,54.7],[1787529600,55],[1787616000,59.6],[1787702400,53.9],[1787788800,57.3],[1787875200,53.7],[1788134400,49.2],[1788220800,44.9],[1788307200,46.1],[1788393600,47.5],[1788480000,45.2],[1788825600,39.1],[1788912000,38.2],[1788998400,31.9],[1789084800,33.1],[1789344000,32.1],[1789430400,29.3],[1789516800,27],[1789603200,29.5],[1789689600,28.5],[1789948800,33.9],[1790035200,35.2],[1790121600,33.7],[1790208000,34.5],[1790294400,36.9],[1790553600,32.4],[1790640000,31.1],[1790726400,30.3],[1790812800,29.2],[1790899200,38.2],[1791158400,43.1],[1791244800,47],[1791331200,44.7],[1791417600,39.2],[1791504000,43.5],[1791763200,45.2],[1791849600,45.6],[1791936000,28.8],[1792022400,32],[1792108800,18.2],[1792368000,19.5],[1792454400,28.7],[1792540800,30.3],[1792627200,20],[1792713600,16.7],[1792972800,29.8],[1793059200,32.9],[1793145600,34.4],[1793232000,30.8],[1793318400,26.3],[1793577600,19.4],[1793664000,23.5],[1793750400,34.2],[1793836800,20],[1793923200,24.4],[1794182400,31.5],[1794268800,37.4],[1794355200,35.9],[1794441600,40.3],[1794528000,38.6]];
@@ -8947,26 +8982,26 @@ function i2Svg(S, keys, marks){
   const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
   const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
-  const Ys={}; keys.forEach(k=>{ const V=S[k].map(p=>p[1]), lo=Math.min(...V), hi=Math.max(...V), sp=(hi-lo)||1;
-    Ys[k]={lo, hi, f:v=>T+14+(H-T-B-30)*(hi-v)/sp}; });   // 최고·최저 글자 자리만큼 위아래를 띄운다
+  /* y축 고정 (2026-11-17) — 아래 0, 위 Y_FIX[k].max. 위아래로 최고·최저 글자 자리만큼 띄운다 */
+  const PT=T+14, PH=H-T-B-30;
+  const Ys={}; keys.forEach(k=>{ const lo=0, hi=Y_FIX[k].max; Ys[k]={lo, hi, f:v=>PT+PH*(hi-Math.min(Math.max(v,lo),hi))/(hi-lo)}; });
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
-  const AXD={hy:2, move:0, vix:1, fg:0};
-  for(let i=0;i<=4;i++){
-    const y=T+14+(H-T-B-30)*i/4;            // 4등분 — 맨 위 = 3개월 최고, 맨 아래 = 3개월 최저
-    s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
-    keys.forEach((k,j)=>{ const Y0=Ys[k], v=Y0.hi-(Y0.hi-Y0.lo)*i/4;
-      s+=`<text x="${j?W-R+6:L-6}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${v.toFixed(AXD[k])}</text>`; });
-  }
+  /* 눈금 — 가로선은 왼쪽 지표 눈금에 맞추고, 오른쪽 지표는 자기 눈금 자리에 글자만 */
+  keys.forEach((k,j)=>{ const F=Y_FIX[k];
+    for(let v=0; v<=F.max+1e-9; v+=F.step){ const y=Ys[k].f(v);
+      if(!j) s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
+      s+=`<text x="${j?W-R+10:L-10}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${+v.toFixed(2)}</text>`; } });
+  keys.forEach((k,j)=>{ s+=yZoneBar(k, j?W-R+1:L-6, Ys[k].f, Ys[k].lo, Ys[k].hi); });
   /* 구간 표시 — 그 지표의 3개월 범위 안에 들어오는 부분만 */
   let lab=0;
   marks.forEach(m=>{ const y=Ys[m.k], c=I2_DEF[m.k].col;
     if(m.band){ const a=Math.max(m.band[0],y.lo), b=Math.min(m.band[1],y.hi); if(b<=a) return;
       const y1=y.f(b), y2=y.f(a);
       s+=`<rect x="${L}" y="${y1.toFixed(1)}" width="${W-L-R}" height="${(y2-y1).toFixed(1)}" fill="rgba(242,200,0,.10)"/>`
-       +`<text x="${L+6}" y="${(y1+13).toFixed(1)}" font-size="11.5" fill="${c}" fill-opacity=".9">${m.txt}${m.band[1]>y.hi?' (위쪽 계속)':''}</text>`; }
+       +`<text x="${L+6}" y="${(y1+13).toFixed(1)}" font-size="11.5" fill="${c}" fill-opacity=".9">${m.txt}</text>`; }
     else { if(m.line<y.lo || m.line>y.hi) return; const yy=y.f(m.line);
       s+=`<line x1="${L}" x2="${W-R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${c}" stroke-width="1.3" stroke-dasharray="6 4" opacity=".9"/>`
-       +`<text x="${L+6+lab*150}" y="${(yy-4).toFixed(1)}" font-size="11.5" fill="${c}">${m.txt}</text>`; lab++; }
+       +`<text x="${L+6+(marks.some(q=>q.band)?150:0)+lab*170}" y="${(marks.some(q=>q.band)?yy+13:yy-4).toFixed(1)}" font-size="11.5" fill="${c}">${m.txt}</text>`; lab++; }
   });
   /* 달이 바뀌는 날마다 세로선·날짜 */
   const d0=new Date(t0); let m=new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth()+1, 1));
@@ -9010,7 +9045,7 @@ function i2Each(k,st){
     if(z.k>=3) lvl=`<b style="color:${z.c}">위기 구간</b>(${D.crit}${u} 이상)입니다.`;
     else if(z.k===2) lvl=`<b style="color:${z.c}">경계 구간</b>(${D.warn}~${D.crit}${u})입니다.`;
     else if(z.k===1) lvl=`<b style="color:${z.c}">평상시 구간</b>(${D.low}~${D.warn}${u})${st.v>=D.low+(D.warn-D.low)*0.6?'이지만 경계선('+D.warn+u+')에 가까운 위쪽입니다.':'입니다.'}`;
-    else lvl=`<b style="color:${z.c}">${k==='hy'?'과열 경계':'안정'} 구간</b>(${D.low}${u} 미만)으로, 시장이 위험을 낮게 보고 있습니다.`;
+    else lvl=`<b style="color:${z.c}">${k==='hy'?'낙관':'안정'} 구간</b>(${D.low}${u} 미만)으로, 시장이 위험을 낮게 보고 있습니다.`;
     let tr;
     if(st.r3>=15) tr=`3개월 전 ${f(st.v0)}${u}보다 <b style="color:var(--up)">${sg(st.r3)}</b> 높아져 불안이 뚜렷이 커졌습니다.`;
     else if(st.r3>=5) tr=`3개월 전보다 ${sg(st.r3)} 올라 불안이 조금 커졌습니다.`;
@@ -9058,6 +9093,7 @@ function i2Render(){
   const col=x=>x>0?'var(--up)':(x<0?'var(--dn)':'var(--sub)'), ar=x=>x>0?'▲':(x<0?'▼':'');
   const rg=ks=>'최근 3개월 · 마지막 '+ks.map(k=>I2_DEF[k].sh+' '+T[k].date.slice(5).replace('-','.')).join(' / ');
   $('#i2RangeA').textContent=rg(['hy','move']); $('#i2RangeB').textContent=rg(['vix','fg']);
+  $('#i2ZoneA').innerHTML=yZoneLegend(['hy','move']); $('#i2ZoneB').innerHTML=yZoneLegend(['vix','fg']);
   $('#i2Now').innerHTML=K.map(k=>{ const D=I2_DEF[k], t=T[k], z=D.zone(t.v);
     return `<div class="it"><div class="nm" style="color:${D.col}"><i style="background:${D.col}"></i>${D.sh}<span class="zn" style="color:${z.c}">${z.t}</span></div>`
      +`<div class="vv" style="color:${D.col}">${i2Fmt(k,t.v)}<small>${{hy:'%p',move:'bp',vix:'%',fg:'점'}[k]}</small></div>`
@@ -17224,8 +17260,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.17.-v2';
-const KG_APP_BUILD = KG_APP_VER + ' 달바글로벌·파마리서치·삼성전기·KT&G 리포트 반영';
+const KG_APP_VER = '11.17.-v5';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 제목 두 줄·구간 설명';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
