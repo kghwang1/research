@@ -2341,12 +2341,13 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <div class="pmi-box">
     <h3>③ 주식과의 관계</h3>
     <ul>
-     <li><b>할인율 불안</b> — 국채 금리는 주식 가치를 계산하는 할인율의 기준입니다. 금리가 크게 흔들리면 미래 이익 비중이 큰 고PER 성장주의 가치 평가가 가장 먼저 흔들립니다.</li>
-     <li><b>VIX보다 먼저</b> — MOVE 급등이 시차를 두고 VIX 상승과 주가 조정으로 번지는 경우가 많습니다. MOVE는 높은데 VIX가 낮으면 주식시장이 위험을 덜 반영하고 있다는 경고로 봅니다.</li>
-     <li><b>유동성 경로</b> — 국채는 금융시장 담보의 기준입니다. 국채 변동성이 커지면 증거금이 오르고 금융기관이 레버리지를 줄여, 위험자산 전반에 매도 압력이 생깁니다.</li>
-     <li><b>신용시장과 연결</b> — 금리 변동성 확대는 하이일드 스프레드 확대로 이어지기도 합니다. <b>하이일드 스프레드</b> 부메뉴와 함께 보면 판단이 더 단단해집니다.</li>
-     <li><b>한국 주식</b> — 미국 금리 변동성이 커지면 달러 강세·원화 약세와 외국인 매도로 이어지기 쉽습니다. 특히 2차전지·바이오·인터넷 같은 성장주가 민감합니다.</li>
-     <li><b>한계</b> — 연준 회의, 고용·물가 발표 전후에는 일시적으로 튀는 경우가 많습니다. 하루 값보다 몇 주 흐름으로 판단하고, VIX·하이일드 스프레드와 함께 보는 보조 지표로 쓰는 것이 좋습니다.</li>
+     <li><b>핵심 한 줄</b> — MOVE가 높다 = 금리가 어디로 튈지 모른다 = 주식 값을 매기기 어렵다 = 주식 투자자가 불안해진다.</li>
+     <li><b>주식 값의 기준자가 흔들린다</b> — 주식의 적정 가격은 “앞으로 벌 돈을 지금 가치로 바꾼 것”이고, 이때 기준이 국채 금리입니다. 금리가 4%일지 5%일지 오락가락하면 같은 회사라도 적정 주가가 크게 달라집니다. 지금 이익은 적고 “10년 뒤에 크게 벌 것”이라는 기대로 비싼 성장주는 먼 미래의 돈이라 금리에 더 민감해서, 가장 먼저 크게 흔들립니다.</li>
+     <li><b>채권 쪽이 먼저 불안해한다</b> — 대개 채권시장이 먼저 불안해하고(MOVE↑), 며칠~몇 주 뒤에 주식시장이 따라 불안해집니다(VIX↑, 주가↓). 그래서 MOVE는 높은데 VIX가 아직 낮으면 “주식시장이 아직 눈치를 못 챘다”는 경고로 봅니다.</li>
+     <li><b>돈을 빌려 투자한 사람들이 주식을 판다</b> — 큰 투자기관은 국채를 맡기고 돈을 빌려 투자합니다. 국채 가격이 크게 출렁이면 은행이 “담보가 불안하니 더 맡기거나 빌린 돈을 갚으라”고 하고, 기관은 현금을 마련하려고 갖고 있던 주식까지 팔게 됩니다.</li>
+     <li><b>기업이 돈 빌리기 어려워진다</b> — 금리가 불안하면 돈을 빌려주는 쪽이 신용 낮은 기업에 이자를 더 요구합니다. 그게 하이일드 스프레드 확대입니다. 그래서 <b>하이일드 스프레드</b> 부메뉴와 같이 보는 것이 좋습니다.</li>
+     <li><b>외국인이 한국에서 돈을 뺀다</b> — 미국 금리가 불안하면 투자자들이 안전한 달러로 몰립니다. 원화가 약해지고 외국인이 한국 주식을 팔아, 미래 기대가 큰 2차전지·바이오 같은 성장주가 가장 크게 떨어집니다.</li>
+     <li><b>하루 값에 놀라지 말 것</b> — 연준 회의나 물가 발표 날에는 MOVE가 잠깐 튀었다가 금방 돌아옵니다. 하루 이틀이 아니라 몇 주 동안 계속 높은지를 보고, VIX·하이일드 스프레드와 함께 판단하세요.</li>
     </ul>
    </div>
    <div class="ixa-card" id="mvCard"></div>
@@ -8978,7 +8979,7 @@ function i2Fmt(k,x){ return x.toFixed(I2_DEF[k].dec); }
 function i2Md(d){ return Number(d.slice(5,7))+'/'+Number(d.slice(8,10)); }
 /* keys: 그릴 두 지표 / marks: 구간 표시 {k, band:[a,b]} 또는 {k, line:x, txt} */
 function i2Svg(S, keys, marks){
-  const W=640, H=290, L=48, R=50, T=16, B=30;   // 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
+  const W=640, H=304, L=56, R=62, T=30, B=30;   // T: 위쪽에 축 이름 자리   // 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
   const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
   const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
@@ -8992,6 +8993,9 @@ function i2Svg(S, keys, marks){
       if(!j) s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
       s+=`<text x="${j?W-R+10:L-10}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${+v.toFixed(2)}</text>`; } });
   keys.forEach((k,j)=>{ s+=yZoneBar(k, j?W-R+1:L-6, Ys[k].f, Ys[k].lo, Ys[k].hi); });
+  /* 축 이름 — 왼쪽·오른쪽 눈금 맨 위에 선 색으로 (2026-11-17) */
+  const AXNM={hy:'HYI', move:'MOVE', vix:'VIX', fg:'F&amp;G'};
+  keys.forEach((k,j)=>{ s+=`<text x="${j?W-R+1:L-1}" y="${T-10}" text-anchor="${j?'start':'end'}" font-size="13" font-weight="800" fill="${I2_DEF[k].col}">${AXNM[k]}</text>`; });
   /* 구간 표시 — 그 지표의 3개월 범위 안에 들어오는 부분만 */
   let lab=0;
   marks.forEach(m=>{ const y=Ys[m.k], c=I2_DEF[m.k].col;
@@ -9025,7 +9029,7 @@ function i2Svg(S, keys, marks){
   /* 현재값 — 자기 눈금 쪽(첫 지표 왼쪽, 둘째 지표 오른쪽)에 선 색 바탕 글자로, 끝점에서 그 눈금까지 가는 점선 */
   ends.forEach(o=>{ const j=keys.indexOf(o.k), c=I2_DEF[o.k].col, tx=i2Fmt(o.k,o.v), w=tx.length*7.4+8, yy=o.y;
     s+=`<line x1="${j?o.x:L}" x2="${j?W-R:o.x}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${c}" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>`;
-    const bx=j?W-R+2:L-2-w;
+    const bx=j?W-R+8:L-8-w;   // 색막대(L-6~L-1 / W-R+1~W-R+6) 바깥에 두어 막대를 가리지 않게
     s+=`<rect x="${bx.toFixed(1)}" y="${(yy-9).toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="3" fill="${c}"/>`
      +`<text x="${(bx+w/2).toFixed(1)}" y="${(yy+4.5).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#0d1017">${tx}</text>`; });
   return s+'</svg>';
@@ -17260,8 +17264,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.17.-v5';
-const KG_APP_BUILD = KG_APP_VER + ' 위험지표 제목 두 줄·구간 설명';
+const KG_APP_VER = '11.17.-v7';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 y축 이름';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
