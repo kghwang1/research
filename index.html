@@ -2219,7 +2219,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div id="i2ChartB"></div>
     <div class="i2-zl" id="i2ZoneB"></div>
    </div>
-   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 0~7%p, MOVE 0~150, VIX 0~40, 공포탐욕 0~100(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 눈금 범위 안에 있을 때만 그립니다. 그래프는 최근 6개월이고, 점선 세로선은 매달 1일입니다(카드와 설명의 변화율은 최근 3개월 기준). 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다. 그래프 안의 축 이름은 <b>주가에 좋은 쪽</b>에 적었습니다 — HYI·MOVE·VIX ▼(낮을수록 좋음)는 아래, F&amp;G ▲(높을수록 좋음)는 위.</div>
+   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 2~7%p, MOVE 50~150, VIX 10~40, 공포탐욕 10~80(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 눈금 범위 안에 있을 때만 그립니다. 그래프는 최근 6개월이고, 점선 세로선은 매달 1일입니다(카드와 설명의 변화율은 최근 3개월 기준). 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다. 그래프 안의 축 이름은 <b>주가에 좋은 쪽</b>에 적었습니다 — HYI·MOVE·VIX ▼(낮을수록 좋음)는 아래, F&amp;G ▲(높을수록 좋음)는 위.</div>
    <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
    <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
    <div class="pmi-src" id="i2Src"></div>
@@ -8805,7 +8805,7 @@ function pmiBuild(){
    FRED 는 다른 사이트에서 직접 받아오는 것을 막아 두어(CORS) 값을 직접 적어 둔다 —
    새 값은 d·v 끝에 하나씩 더하고, 앞쪽은 3개월이 넘는 만큼 잘라 낸다. d 는 'YYMMDD' */
 /* 추세 그래프 y축 고정 (2026-11-17) — 아래 0, 위는 지표마다 고정값. step = 눈금 간격 */
-const Y_FIX={hy:{max:7,step:1}, move:{max:150,step:25}, vix:{max:40,step:10}, fg:{max:100,step:25}};
+const Y_FIX={hy:{min:2,max:7,step:1}, move:{min:50,max:150,step:25}, vix:{min:10,max:40,step:10}, fg:{min:10,max:80,step:10}};   // 2026-11-18 범위 변경 (범위 밖 값은 맨 위·아래에 붙음)
 /* 구간 색 (2026-11-17) — 안정은 녹색 쪽, 위기는 붉은색 쪽. 과열(지나친 낙관)은 노랑 */
 const ZC={hot:'#e6c229', calm:'#1f8f4e', norm:'#5cc062', warn:'#3f7fd9', crit:'#e5484d'};
 const Y_ZONES={
@@ -8847,8 +8847,8 @@ function hyZone(v){
 }
 function hySvg(){
   const D=HY_DATA, W=640, H=300, L=44, R=44, T=14, B=32, n=D.v.length;
-  const lo=0, hi=Y_FIX.hy.max, step=Y_FIX.hy.step;   // y축 고정 0~7%p
-  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  const lo=Y_FIX.hy.min, hi=Y_FIX.hy.max, step=Y_FIX.hy.step;   // y축 고정 2~7%p
+  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-Math.min(Math.max(v,lo),hi))/(hi-lo);
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let g=Math.round(lo*10); g<=Math.round(hi*10); g+=Math.round(step*10)){
     const v=g/10, y=Y(v), is3=(g===30);
@@ -8900,8 +8900,8 @@ const VOL_LIVE={}, VOL_AT={}, VOL_BUSY={};
 function volDate(t){ return new Date(t*1000).toISOString().slice(0,10).replace(/-/g,'.'); }
 function volSvg(C,P){
   const W=640, H=300, L=44, R=48, T=14, B=32, n=P.length, V=P.map(p=>p[1]);
-  const F=Y_FIX[C.sym==='^MOVE'?'move':'vix'], lo=0, hi=F.max, step=F.step, lbl=1;   // y축 고정 (MOVE 0~150, VIX 0~40)
-  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-Math.min(v,hi))/(hi-lo);
+  const F=Y_FIX[C.sym==='^MOVE'?'move':'vix'], lo=F.min, hi=F.max, step=F.step, lbl=1;   // y축 고정 (MOVE 50~150, VIX 10~40)
+  const X=i=>L+(W-L-R)*i/(n-1), Y=v=>T+(H-T-B)*(hi-Math.min(Math.max(v,lo),hi))/(hi-lo);
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let k=0, g=lo; g<=hi+1e-9; k++, g=lo+k*step){
     const y=Y(g), ref=Math.abs(g-C.ref)<1e-9;
@@ -8990,13 +8990,13 @@ function i2Svg(S, keys, marks){
   const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
   const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
-  /* y축 고정 (2026-11-17) — 아래 0, 위 Y_FIX[k].max. 위아래로 최고·최저 글자 자리만큼 띄운다 */
+  /* y축 고정 — 아래 Y_FIX[k].min, 위 Y_FIX[k].max. 위아래로 최고·최저 글자 자리만큼 띄운다 */
   const PT=T+14, PH=H-T-B-30;
-  const Ys={}; keys.forEach(k=>{ const lo=0, hi=Y_FIX[k].max; Ys[k]={lo, hi, f:v=>PT+PH*(hi-Math.min(Math.max(v,lo),hi))/(hi-lo)}; });
+  const Ys={}; keys.forEach(k=>{ const lo=Y_FIX[k].min, hi=Y_FIX[k].max; Ys[k]={lo, hi, f:v=>PT+PH*(hi-Math.min(Math.max(v,lo),hi))/(hi-lo)}; });
   let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
   /* 눈금 — 가로선은 왼쪽 지표 눈금에 맞추고, 오른쪽 지표는 자기 눈금 자리에 글자만 */
   keys.forEach((k,j)=>{ const F=Y_FIX[k];
-    for(let v=0; v<=F.max+1e-9; v+=F.step){ const y=Ys[k].f(v);
+    for(let v=F.min; v<=F.max+1e-9; v+=F.step){ const y=Ys[k].f(v);
       if(!j) s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
       s+=`<text x="${j?W-R+10:L-10}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${+v.toFixed(2)}</text>`; } });
   keys.forEach((k,j)=>{ s+=yZoneBar(k, j?W-R+1:L-6, Ys[k].f, Ys[k].lo, Ys[k].hi); });
@@ -9112,7 +9112,7 @@ function i2Render(){
      +`<div class="vv" style="color:${D.col}">${i2Fmt(k,t.v)}<small>${{hy:'%p',move:'bp',vix:'%',fg:'점'}[k]}</small></div>`
      +`<div class="cg">3개월 <b style="color:${col(t.d3)}">${ar(t.d3)}${i2Fmt(k,Math.abs(t.d3))} (${t.r3>=0?'+':''}${t.r3.toFixed(1)}%)</b><br>전일 <b style="color:${col(t.d1)}">${ar(t.d1)}${i2Fmt(k,Math.abs(t.d1))} (${t.r1>=0?'+':''}${t.r1.toFixed(1)}%)</b></div></div>`; }).join('');
   box.innerHTML=i2Svg(S,['hy','move'],[{k:'hy',band:[I2_DEF.hy.low,I2_DEF.hy.warn],txt:'하이일드 평상시 3~5%p'},{k:'move',line:100,txt:'MOVE 100 · 평상시/경계'}]);
-  $('#i2ChartB').innerHTML=i2Svg(S,['vix','fg'],[{k:'vix',line:20,txt:'VIX 20 · 평상시/경계'},{k:'fg',line:25,txt:'공포탐욕 25 · 극단적 공포'},{k:'fg',line:75,txt:'공포탐욕 75 · 극단적 탐욕'}]);
+  $('#i2ChartB').innerHTML=i2Svg(S,['vix','fg'],[{k:'vix',line:20,txt:'VIX 20 · 평상시/경계'},{k:'fg',line:75,txt:'공포탐욕 75 · 극단적 탐욕'},{k:'fg',line:25,txt:'공포탐욕 25 · 극단적 공포'}]);
   $('#i2Each').innerHTML=K.map(k=>i2Each(k,T[k])).join('');
   $('#i2Sum').innerHTML=i2Summary(T);
   $('#i2Src').innerHTML='출처: 하이일드 스프레드 — ICE BofA US High Yield OAS(FRED BAMLH0A0HYM2, 앱에 적어 둔 값) · MOVE — ICE BofA MOVE(야후 ^MOVE) · VIX — CBOE VIX(야후 ^VIX) · 공포탐욕지수 — CNN Fear &amp; Greed Index. MOVE·VIX는 '+(I2_LIVE6.move&&I2_LIVE6.vix?'시황 중계서버로 방금 받은 값':'2026-11-16에 저장해 둔 값')+', 공포탐욕지수는 '+(I2_LIVE6.fg?'CNN에서 방금 받은 값':'2026-11-18에 저장해 둔 값')+'입니다. 값이 오르면 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다(공포탐욕지수는 오를수록 낙관). 각 지표의 자세한 설명은 하이일드 스프레드 · MOVE 지수 · VIX 지수 부메뉴에 있습니다.';
@@ -17274,8 +17274,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.18.-v2';
-const KG_APP_BUILD = KG_APP_VER + ' 위험지표 6개월·매달 1일 세로선·제목 회색';
+const KG_APP_VER = '11.18.-v3';
+const KG_APP_BUILD = KG_APP_VER + ' 위험 그래프 y축 범위 변경';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
