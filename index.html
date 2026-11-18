@@ -2218,7 +2218,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div id="i2ChartB"></div>
     <div class="i2-zl" id="i2ZoneB"></div>
    </div>
-   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 0~7%p, MOVE 0~150, VIX 0~40, 공포탐욕 0~100(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다.</div>
+   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 0~7%p, MOVE 0~150, VIX 0~40, 공포탐욕 0~100(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 3개월 범위 안에 있을 때만 그립니다. 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다. 그래프 안의 축 이름은 <b>주가에 좋은 쪽</b>에 적었습니다 — HYI·MOVE·VIX ▼(낮을수록 좋음)는 아래, F&amp;G ▲(높을수록 좋음)는 위.</div>
    <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
    <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
    <div class="pmi-src" id="i2Src"></div>
@@ -8979,7 +8979,7 @@ function i2Fmt(k,x){ return x.toFixed(I2_DEF[k].dec); }
 function i2Md(d){ return Number(d.slice(5,7))+'/'+Number(d.slice(8,10)); }
 /* keys: 그릴 두 지표 / marks: 구간 표시 {k, band:[a,b]} 또는 {k, line:x, txt} */
 function i2Svg(S, keys, marks){
-  const W=640, H=304, L=56, R=62, T=30, B=30;   // T: 위쪽에 축 이름 자리   // 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
+  const W=640, H=290, L=56, R=62, T=16, B=30;   // 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
   const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
   const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
@@ -8993,9 +8993,11 @@ function i2Svg(S, keys, marks){
       if(!j) s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
       s+=`<text x="${j?W-R+10:L-10}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${+v.toFixed(2)}</text>`; } });
   keys.forEach((k,j)=>{ s+=yZoneBar(k, j?W-R+1:L-6, Ys[k].f, Ys[k].lo, Ys[k].hi); });
-  /* 축 이름 — 왼쪽·오른쪽 눈금 맨 위에 선 색으로 (2026-11-17) */
   const AXNM={hy:'HYI', move:'MOVE', vix:'VIX', fg:'F&amp;G'};
-  keys.forEach((k,j)=>{ s+=`<text x="${j?W-R+1:L-1}" y="${T-10}" text-anchor="${j?'start':'end'}" font-size="13" font-weight="800" fill="${I2_DEF[k].col}">${AXNM[k]}</text>`; });
+  /* 축 이름은 그래프 안쪽, 주가에 좋은 쪽 끝에 — HYI·MOVE·VIX 는 낮을수록 좋아 아래, F&G 는 높을수록 좋아 위 (2026-11-18) */
+  const AXUP={fg:true};
+  keys.forEach((k,j)=>{ const y=AXUP[k]?PT+13:PT+PH-6;
+    s+=`<text x="${j?W-R-6:L+6}" y="${y.toFixed(1)}" text-anchor="${j?'end':'start'}" font-size="13" font-weight="800" fill="${I2_DEF[k].col}">${AXNM[k]}${AXUP[k]?' ▲':' ▼'}</text>`; });
   /* 구간 표시 — 그 지표의 3개월 범위 안에 들어오는 부분만 */
   let lab=0;
   marks.forEach(m=>{ const y=Ys[m.k], c=I2_DEF[m.k].col;
@@ -17264,8 +17266,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.17.-v7';
-const KG_APP_BUILD = KG_APP_VER + ' 위험지표 y축 이름';
+const KG_APP_VER = '11.18.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 축 이름 안쪽';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
