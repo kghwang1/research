@@ -2219,7 +2219,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div id="i2ChartB"></div>
     <div class="i2-zl" id="i2ZoneB"></div>
    </div>
-   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 2~7%p, MOVE 50~150, VIX 10~40, 공포탐욕 10~80(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 눈금 범위 안에 있을 때만 그립니다. 그래프는 최근 6개월이고, 점선 세로선은 매달 1일입니다(카드와 설명의 변화율은 최근 3개월 기준). 선 위에 손가락·마우스를 올리면 그날 값이 나옵니다. 그래프 안의 축 이름은 <b>주가에 좋은 쪽</b>에 적었습니다 — HYI·MOVE·VIX ▼(낮을수록 좋음)는 아래, F&amp;G ▲(높을수록 좋음)는 위.</div>
+   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 2~7%p, MOVE 50~150, VIX 10~40, 공포탐욕 10~80(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 가로 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 눈금 범위 안에 있을 때만 그립니다. 그래프는 최근 6개월이고, 점선 세로선은 매달 1일입니다(카드와 설명의 변화율은 최근 3개월 기준). 그래프 위에 마우스·손가락을 올리면 세로선이 날짜를 따라 움직이며 그날 두 지표 값을 보여줍니다. 축 이름 옆 ▼는 낮을수록, ▲는 높을수록 주가에 좋다는 뜻입니다.</div>
    <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
    <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
    <div class="pmi-src" id="i2Src"></div>
@@ -8986,7 +8986,7 @@ function i2Fmt(k,x){ return x.toFixed(I2_DEF[k].dec); }
 function i2Md(d){ return Number(d.slice(5,7))+'/'+Number(d.slice(8,10)); }
 /* keys: 그릴 두 지표 / marks: 구간 표시 {k, band:[a,b]} 또는 {k, line:x, txt} */
 function i2Svg(S, keys, marks){
-  const W=640, H=290, L=56, R=62, T=16, B=30;   // 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
+  const W=640, H=304, L=56, R=62, T=30, B=30;   // T: 눈금 위 축 이름 자리 · 왼쪽 눈금 = keys[0], 오른쪽 눈금 = keys[1] (각자의 실제 값)
   const all=keys.flatMap(k=>S[k].map(p=>p[0])).sort();
   const t0=Date.parse(all[0]), t1=Date.parse(all[all.length-1]);
   const X=d=>L+(W-L-R)*(Date.parse(d)-t0)/(t1-t0||1);
@@ -9000,21 +9000,16 @@ function i2Svg(S, keys, marks){
       if(!j) s+=`<line x1="${L}" x2="${W-R}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#262b3a"/>`;
       s+=`<text x="${j?W-R+10:L-10}" y="${(y+4).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="12" fill="${I2_DEF[k].col}" fill-opacity=".85">${+v.toFixed(2)}</text>`; } });
   keys.forEach((k,j)=>{ s+=yZoneBar(k, j?W-R+1:L-6, Ys[k].f, Ys[k].lo, Ys[k].hi); });
-  const AXNM={hy:'HYI', move:'MOVE', vix:'VIX', fg:'F&amp;G'};
-  /* 축 이름은 그래프 안쪽, 주가에 좋은 쪽 끝에 — HYI·MOVE·VIX 는 낮을수록 좋아 아래, F&G 는 높을수록 좋아 위 (2026-11-18) */
-  const AXUP={fg:true};
-  keys.forEach((k,j)=>{ const y=AXUP[k]?PT+13:PT+PH-6;
-    s+=`<text x="${j?W-R-6:L+6}" y="${y.toFixed(1)}" text-anchor="${j?'end':'start'}" font-size="13" font-weight="800" fill="${I2_DEF[k].col}">${AXNM[k]}${AXUP[k]?' ▲':' ▼'}</text>`; });
+  /* 축 이름 — 눈금 숫자 맨 위에, 선 색으로 (2026-11-18). ▼ 낮을수록 / ▲ 높을수록 주가에 좋음 */
+  const AXNM={hy:'HYI', move:'MOVE', vix:'VIX', fg:'F&amp;G'}, AXUP={fg:true};
+  keys.forEach((k,j)=>{ s+=`<text x="${j?W-R+1:L-1}" y="${(PT-14).toFixed(1)}" text-anchor="${j?'start':'end'}" font-size="13" font-weight="800" fill="${I2_DEF[k].col}">${AXNM[k]} ${AXUP[k]?'▲':'▼'}</text>`; });
   /* 구간 표시 — 그 지표의 눈금 범위 안에 들어오는 부분만 */
-  let lab=0;
   marks.forEach(m=>{ const y=Ys[m.k], c=I2_DEF[m.k].col;
     if(m.band){ const a=Math.max(m.band[0],y.lo), b=Math.min(m.band[1],y.hi); if(b<=a) return;
       const y1=y.f(b), y2=y.f(a);
-      s+=`<rect x="${L}" y="${y1.toFixed(1)}" width="${W-L-R}" height="${(y2-y1).toFixed(1)}" fill="rgba(242,200,0,.10)"/>`
-       +`<text x="${L+6}" y="${(y1+13).toFixed(1)}" font-size="11.5" fill="${c}" fill-opacity=".9">${m.txt}</text>`; }
+      s+=`<rect x="${L}" y="${y1.toFixed(1)}" width="${W-L-R}" height="${(y2-y1).toFixed(1)}" fill="rgba(242,200,0,.10)"/>`; }
     else { if(m.line<y.lo || m.line>y.hi) return; const yy=y.f(m.line);
-      s+=`<line x1="${L}" x2="${W-R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${c}" stroke-width="1.3" stroke-dasharray="6 4" opacity=".9"/>`
-       +`<text x="${L+6+(marks.some(q=>q.band)?150:0)+lab*170}" y="${(marks.some(q=>q.band)?yy+13:yy-4).toFixed(1)}" font-size="11.5" fill="${c}">${m.txt}</text>`; lab++; }
+      s+=`<line x1="${L}" x2="${W-R}" y1="${yy.toFixed(1)}" y2="${yy.toFixed(1)}" stroke="${c}" stroke-width="1.3" stroke-dasharray="6 4" opacity=".9"/>`; }
   });
   /* 달이 바뀌는 날마다 세로선·날짜 */
   const d0=new Date(t0); let m=new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth()+1, 1));
@@ -9025,7 +9020,6 @@ function i2Svg(S, keys, marks){
   const ends=[], tags=[];   // tags: 이미 쓴 최고·최저 글자 자리 (겹치면 옆으로 민다)
   keys.forEach(k=>{ const D=I2_DEF[k], y=Ys[k];
     s+=`<polyline fill="none" stroke="${D.col}" stroke-width="2.1" stroke-linejoin="round" points="${S[k].map(p=>X(p[0]).toFixed(1)+','+y.f(p[1]).toFixed(1)).join(' ')}"/>`;
-    S[k].forEach(p=>{ s+=`<circle cx="${X(p[0]).toFixed(1)}" cy="${y.f(p[1]).toFixed(1)}" r="4.5" fill="transparent"><title>${D.nm} ${p[0].replace(/-/g,'.')}: ${i2Fmt(k,p[1])}${D.unit}</title></circle>`; });
     const e=S[k][S[k].length-1]; s+=`<circle cx="${X(e[0]).toFixed(1)}" cy="${y.f(e[1]).toFixed(1)}" r="3.4" fill="${D.col}"/>`;
     ends.push({k, x:X(e[0]), y:y.f(e[1]), v:e[1]});
     /* 최고·최저 값 */
@@ -9041,7 +9035,43 @@ function i2Svg(S, keys, marks){
     const bx=j?W-R+8:L-8-w;   // 색막대(L-6~L-1 / W-R+1~W-R+6) 바깥에 두어 막대를 가리지 않게
     s+=`<rect x="${bx.toFixed(1)}" y="${(yy-9).toFixed(1)}" width="${w.toFixed(1)}" height="18" rx="3" fill="${c}"/>`
      +`<text x="${(bx+w/2).toFixed(1)}" y="${(yy+4.5).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="800" fill="#0d1017">${tx}</text>`; });
+  /* 마우스·손가락을 올리면 날짜 따라 움직이는 십자선 (2026-11-18) — 그리는 일은 i2Hover */
+  s+=`<g class="i2x" style="display:none;pointer-events:none"><line class="vl" y1="${T}" y2="${H-B}" stroke="#c5cad8" stroke-width="1" stroke-dasharray="3 2"/>`
+    +keys.map(k=>`<circle class="dt" data-k="${k}" r="4.2" fill="${I2_DEF[k].col}" stroke="#0d1017" stroke-width="1.5"/>`).join('')
+    +`<rect class="bx" rx="4" height="${18+keys.length*16}" fill="#0d1017" fill-opacity=".92" stroke="#3a4152"/><text class="tx" font-size="12"></text></g>`
+    +`<rect class="i2hit" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="transparent" style="cursor:crosshair"/>`;
+  const map={}; keys.forEach(k=>{ map[k]={}; S[k].forEach(p=>map[k][p[0]]=p[1]); });
+  I2_META_LAST={W, L, R, T, H, B, keys, dates:[...new Set(all)], X, Y:Object.fromEntries(keys.map(k=>[k,Ys[k].f])), map};
   return s+'</svg>';
+}
+let I2_META_LAST=null;
+/* 십자선 — 가장 가까운 날짜로 세로선을 옮기고, 그날(없으면 그 전 마지막) 값을 표시 */
+function i2Hover(box, M){
+  const svg=box && box.querySelector('svg'); if(!svg || !M) return;
+  svg.style.touchAction='pan-y';
+  const g=svg.querySelector('.i2x'), vl=g.querySelector('.vl'), bxr=g.querySelector('.bx'), tx=g.querySelector('.tx');
+  const xs=M.dates.map(d=>M.X(d));
+  const val=(k,i)=>{ for(let j=i;j>=0;j--){ const v=M.map[k][M.dates[j]]; if(v!=null) return v; } return null; };
+  const show=e=>{
+    const ctm=svg.getScreenCTM(); if(!ctm) return;
+    const px=(e.clientX-ctm.e)/ctm.a;
+    let i=0, best=1e9; xs.forEach((x,j)=>{ const d=Math.abs(x-px); if(d<best){ best=d; i=j; } });
+    const x=xs[i], d=M.dates[i];
+    vl.setAttribute('x1',x); vl.setAttribute('x2',x);
+    let rows=`<tspan x="0" dy="0" fill="#d6dae3" font-weight="700">${d.replace(/-/g,'.')}</tspan>`, wmax=78;
+    M.keys.forEach(k=>{ const v=val(k,i), c=g.querySelector('.dt[data-k="'+k+'"]');
+      if(v==null){ c.style.display='none'; return; } c.style.display=''; c.setAttribute('cx',x); c.setAttribute('cy',M.Y[k](v));
+      const nm={hy:'HYI',move:'MOVE',vix:'VIX',fg:'F&G'}[k], t=nm+' '+i2Fmt(k,v);
+      rows+=`<tspan x="0" dy="16" fill="${I2_DEF[k].col}" font-weight="700">${t}</tspan>`; wmax=Math.max(wmax, t.length*7.6+16); });
+    tx.innerHTML=rows;
+    const bw=wmax, bx=(x+10+bw>M.W-M.R)?x-10-bw:x+10, by=M.T+4;
+    bxr.setAttribute('x',bx); bxr.setAttribute('y',by); bxr.setAttribute('width',bw);
+    tx.setAttribute('transform',`translate(${bx+8},${by+15})`); tx.querySelectorAll('tspan').forEach(t=>t.setAttribute('x',0));
+    g.style.display='';
+  };
+  const hide=()=>{ g.style.display='none'; };
+  const hit=svg.querySelector('.i2hit');
+  hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show); hit.addEventListener('pointerleave', hide);
 }
 const I2_SUB={hy:'신용시장 — 부도 위험에 붙는 웃돈 (선행)', move:'채권시장 — 국채 금리 변동성 (선행)', vix:'주식시장 — S&P500 변동성(공포지수)', fg:'주식시장 심리 — CNN 7개 지표 종합 (0 공포 ~ 100 탐욕)'};
 function i2Each(k,st){
@@ -9112,7 +9142,9 @@ function i2Render(){
      +`<div class="vv" style="color:${D.col}">${i2Fmt(k,t.v)}<small>${{hy:'%p',move:'bp',vix:'%',fg:'점'}[k]}</small></div>`
      +`<div class="cg">3개월 <b style="color:${col(t.d3)}">${ar(t.d3)}${i2Fmt(k,Math.abs(t.d3))} (${t.r3>=0?'+':''}${t.r3.toFixed(1)}%)</b><br>전일 <b style="color:${col(t.d1)}">${ar(t.d1)}${i2Fmt(k,Math.abs(t.d1))} (${t.r1>=0?'+':''}${t.r1.toFixed(1)}%)</b></div></div>`; }).join('');
   box.innerHTML=i2Svg(S,['hy','move'],[{k:'hy',band:[I2_DEF.hy.low,I2_DEF.hy.warn],txt:'하이일드 평상시 3~5%p'},{k:'move',line:100,txt:'MOVE 100 · 평상시/경계'}]);
+  i2Hover(box, I2_META_LAST);
   $('#i2ChartB').innerHTML=i2Svg(S,['vix','fg'],[{k:'vix',line:20,txt:'VIX 20 · 평상시/경계'},{k:'fg',line:75,txt:'공포탐욕 75 · 극단적 탐욕'},{k:'fg',line:25,txt:'공포탐욕 25 · 극단적 공포'}]);
+  i2Hover($('#i2ChartB'), I2_META_LAST);
   $('#i2Each').innerHTML=K.map(k=>i2Each(k,T[k])).join('');
   $('#i2Sum').innerHTML=i2Summary(T);
   $('#i2Src').innerHTML='출처: 하이일드 스프레드 — ICE BofA US High Yield OAS(FRED BAMLH0A0HYM2, 앱에 적어 둔 값) · MOVE — ICE BofA MOVE(야후 ^MOVE) · VIX — CBOE VIX(야후 ^VIX) · 공포탐욕지수 — CNN Fear &amp; Greed Index. MOVE·VIX는 '+(I2_LIVE6.move&&I2_LIVE6.vix?'시황 중계서버로 방금 받은 값':'2026-11-16에 저장해 둔 값')+', 공포탐욕지수는 '+(I2_LIVE6.fg?'CNN에서 방금 받은 값':'2026-11-18에 저장해 둔 값')+'입니다. 값이 오르면 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다(공포탐욕지수는 오를수록 낙관). 각 지표의 자세한 설명은 하이일드 스프레드 · MOVE 지수 · VIX 지수 부메뉴에 있습니다.';
@@ -17274,8 +17306,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.18.-v3';
-const KG_APP_BUILD = KG_APP_VER + ' 위험 그래프 y축 범위 변경';
+const KG_APP_VER = '11.18.-v4';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 축 이름·글귀 정리·십자선';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
