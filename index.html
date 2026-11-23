@@ -3727,49 +3727,48 @@ const KRETF_DATA=[
   ["305540","TIGER 2차전지테마","1.7","2.4","-0.7"],
   ["","현금","0.6","31.1","-30.5"],
 ];
-/* 미국(체) 포트폴리오 — MP 분석(6월 3주차). 행: [심볼, 명칭, 비중, 변동(확대▲/축소▼/''), 기록] */
-const USC_LABEL='9월 4주 MP 분석';
-/* 미국(체) 직전 기준일 비중 — 비중 칸에 변화폭을 함께 보이기 위한 대조값 */
-const USC_W_PREV={"SPY":"19.7", "DRAM":"9.4", "MU":"8.8", "SNDK":"6.3", "LITE":"6.2", "MRVL":"5.8", "COHR":"5.2", "SOXX":"5.2", "SPCE":"3", "TSLA":"3.4", "EWY":"3.3", "GOOGL":"3.9", "DELL":"0", "MRNA":"1.8", "SMH":"1.7", "CCML":"0", "ASML":"1.4", "AMAT":"1.3", "HXSCL":"1.2", "현금":"3.6", "LRCX":"1", "NVDA":"0.8", "QQQ":"0.8", "XLV":"0.7", "AVGO":"0.7", "RSP":"1.1", "PLTR":"0.5", "META":"0.4", "INTC":"0.3", "MRK":"0.2", "BLK":"0.2", "NBIS":"0.2", "ABNB":"0.2", "AAPL":"0.1", "BE":"0.1", "HOOD":"0.1", "IGV":"0.1", "CAT":"0.1"};
+/* 미국(체) 포트폴리오 — MP 분석(11월 3주). 행: [심볼, 명칭, 비중, 변동(확대▲/축소▼/신규/''), 기록]
+   변동은 사진의 '변동사항' 칸을 그대로 옮김. 사진에서 RSP(0.8→1.4)는 '비중축소', TSM(0.7→0.6)은 '비중확대'로 적혀 있어 숫자와 방향이 어긋남 — 고치지 않고 그대로 둠 */
+const USC_LABEL='11월 3주 MP 분석';
+/* 미국(체) 직전 기준일 비중 — 사진의 '이전 비중(%)' 칸을 그대로 옮김 */
+const USC_W_PREV={"SPY":"28.6", "DRAM":"8.4", "MU":"6.5", "SOXX":"5.3", "SPCE":"5.6", "LITE":"2.1", "COHR":"3.5", "TSLA":"4.4", "MRVL":"2.8", "ASML":"3.1", "GOOGL":"2.4", "MRNA":"3.4", "SNDK":"2.9", "EWY":"2.1", "SMH":"1.8", "ARKK":"1.9", "AMAT":"1.4", "HXSCL":"0", "RSP":"0.8", "NVDA":"2.2", "CCML":"1.9", "LRCX":"0", "QQQ":"1", "AVGO":"0.7", "현금":"3.9", "BE":"0.4", "TSM":"0.7", "PLTR":"0.6", "AMD":"0", "META":"0.5", "BLK":"0.3", "MRK":"0.2", "ABNB":"0.2", "IGV":"0.1", "XLV":"0.1", "AAPL":"0"};
 const USC_DATA=[
- ["SPY","SS SPDR S&P500 ETF","19.3","",""],
- ["DRAM","ROUNDHILL MEMORY ETF","10.2","확대▲",""],
- ["MU","MICRON TECHNOLOGY","9","",""],
- ["SNDK","SANDISK","6.8","",""],
- ["LITE","LUMENTUM HOLDINGS","6.1","",""],
- ["MRVL","MARVELL TECHNOLOGY","5.9","",""],
- ["COHR","COHERENT","5.3","",""],
- ["SOXX","ISHARES SEMICONDUCTOR ETF","5.2","",""],
- ["SPCE","SPACE EXPLORATION TECHN-CL A","4.7","확대▲",""],
- ["TSLA","TESLA","3.4","",""],
- ["EWY","ISHARES MSCI SOUTH KOREA ETF","3.1","",""],
- ["GOOGL","ALPHABET CL A","2.2","축소▼",""],
- ["DELL","DELL TECHNOLOGIES C","2.1","신규",""],
- ["MRNA","MODERNA","1.8","",""],
- ["SMH","VANECK SEMICONDUCTOR ETF","1.7","",""],
- ["CCML","ROUNDHILL MLCC & ELEC COMP ETF","1.7","신규",""],
- ["ASML","ASML HOLDING","1.3","",""],
- ["AMAT","APPLIED MATERIALS","1.3","",""],
- ["HXSCL","SK HYNIX ADR","1.1","",""],
- ["","현금","1","",""],
- ["LRCX","LAM RESEARCH","0.9","",""],
- ["NVDA","NVIDIA","0.8","",""],
- ["QQQ","INVESCO QQQ TRUST SERIES 1","0.8","",""],
- ["XLV","SS HEALTH CARE SELECT SECTOR","0.7","",""],
- ["AVGO","BROADCOM","0.7","",""],
- ["RSP","INVESCO S&P500 EQUAL WEIGHT","0.5","축소▼",""],
- ["PLTR","PALANTIR TECHNOLOGIES","0.5","",""],
+ ["SPY","SS SPDR S&P500 ETF","24.4","축소▼",""],
+ ["DRAM","ROUNDHILL MEMORY ETF","9.7","확대▲",""],
+ ["MU","MICRON TECHNOLOGY","7.1","",""],
+ ["SOXX","ISHARES SEMICONDUCTOR ETF","5.8","확대▲",""],
+ ["SPCE","SPACE EXPLORATION TECHN-CL A","5.7","확대▲",""],
+ ["LITE","LUMENTUM HOLDINGS","4.8","확대▲",""],
+ ["COHR","COHERENT","4.6","확대▲",""],
+ ["TSLA","TESLA","4.5","",""],
+ ["MRVL","MARVELL TECHNOLOGY","4.4","확대▲",""],
+ ["ASML","ASML HOLDING","3","",""],
+ ["GOOGL","ALPHABET CL A","2.3","",""],
+ ["MRNA","MODERNA","2.2","축소▼",""],
+ ["SNDK","SANDISK","2.2","축소▼",""],
+ ["EWY","ISHARES MSCI SOUTH KOREA ETF","2","",""],
+ ["SMH","VANECK SEMICONDUCTOR ETF","1.8","",""],
+ ["ARKK","ARK INNOVATION ETF","1.8","",""],
+ ["AMAT","APPLIED MATERIALS","1.5","",""],
+ ["HXSCL","SK HYNIX ADR","1.5","신규",""],
+ ["RSP","INVESCO S&P500 EQUAL WEIGHT","1.4","축소▼",""],
+ ["NVDA","NVIDIA","1.1","축소▼",""],
+ ["CCML","ROUNDHILL MLCC & ELEC COMP ETF","1","축소▼",""],
+ ["LRCX","LAM RESEARCH","0.9","신규",""],
+ ["QQQ","INVESCO QQQ TRUST SERIES 1","0.9","",""],
+ ["AVGO","BROADCOM","0.8","",""],
+ ["","현금","0.8","",""],
+ ["BE","BLOOM ENERGY","0.7","확대▲",""],
+ ["TSM","TAIWAN SEMICONDUCTOR ADR","0.6","확대▲",""],
+ ["PLTR","PALANTIR TECHNOLOGIES","0.6","",""],
+ ["AMD","ADVANCED MICRO DEVICES","0.6","신규",""],
  ["META","META PLATFORMS CL A","0.4","",""],
- ["INTC","INTEL","0.3","",""],
- ["MRK","MERCK","0.2","",""],
  ["BLK","BLACKROCK","0.2","",""],
- ["NBIS","NEBIUS GROUP","0.2","",""],
+ ["MRK","MERCK","0.2","",""],
  ["ABNB","AIRBNB CL A","0.2","",""],
- ["AAPL","APPLE","0.1","",""],
- ["BE","BLOOM ENERGY","0.1","",""],
- ["HOOD","ROBINHOOD MARKETS","0.1","",""],
  ["IGV","ISHARES EXPANDED TECH-SOFTWARE","0.1","",""],
- ["CAT","CATERPILLAR","0.1","",""],
+ ["XLV","SS HEALTH CARE SELECT SECTOR","0","",""],
+ ["AAPL","APPLE","0","",""],
 ];
 
 /* 분류별 기본 데이터 */
@@ -9059,11 +9058,51 @@ function narbAxis(lo,hi){
   const step=narbNice(Math.max(Math.abs(lo),Math.abs(hi),1)), a=Math.floor(lo/step)*step, b=Math.ceil(hi/step)*step;
   return {lo:a, hi:Math.max(b,a+step), step};
 }
+/* 마우스·손가락을 올리면 날짜 따라 움직이는 십자선 (2026-11-23) — 두 그래프가 같은 날짜를 함께 가리킨다 */
+const NARB_META={};
+function narbXHair(W,H,L,Rr,T,B,nDots){
+  let g=`<g class="nbx" style="display:none;pointer-events:none"><line class="vl" y1="${T}" y2="${H-B}" stroke="#c5cad8" stroke-width="1" stroke-dasharray="3 2"/>`;
+  for(let k=0;k<nDots;k++) g+=`<circle class="dt" data-i="${k}" r="4" stroke="#0d1017" stroke-width="1.5"/>`;
+  g+=`<rect class="bx" rx="4" fill="#0d1017" fill-opacity=".92" stroke="#3a4152"/><text class="tx" font-size="12"></text></g>`;
+  return g+`<rect class="nbhit" x="${L}" y="${T}" width="${W-L-Rr}" height="${H-T-B}" fill="transparent" style="cursor:crosshair"/>`;
+}
+function narbHover(card, R, K){
+  const svgs=[...card.querySelectorAll('svg[data-nb]')]; if(!svgs.length) return;
+  const put=(svg, M, i)=>{
+    const g=svg.querySelector('.nbx'), x=M.X(i), d=R[i].d, kind=svg.dataset.nb;
+    g.querySelector('.vl').setAttribute('x1',x); g.querySelector('.vl').setAttribute('x2',x);
+    const rows=[], dots=[...g.querySelectorAll('.dt')];
+    if(kind==='bars'){ const v=R[i].non.net, ex=K.ex[d];
+      rows.push([`${narbSgn(v)}${narbFmt(v)}억${ex?' · '+ex:''}`, ex?'#aeb4c4':narbCol(v)]);
+      dots[0].setAttribute('cx',x); dots[0].setAttribute('cy',M.Y(i)); dots[0].setAttribute('fill',ex?'#6b7280':narbCol(v)); dots[0].style.display=''; }
+    else { [[K.c5[i],'5일','#f2c800'],[K.c20[i],'20일','#aab4ff']].forEach(([v,nm,c],k)=>{
+        if(v==null){ dots[k].style.display='none'; rows.push([nm+' 누적 -', '#8b92a6']); return; }
+        dots[k].style.display=''; dots[k].setAttribute('cx',x); dots[k].setAttribute('cy',M.Y(v)); dots[k].setAttribute('fill',c);
+        rows.push([`${nm} 누적 ${narbSgn(v)}${narbFmt(v)}억`, c]); }); }
+    const tx=g.querySelector('.tx'), bx=g.querySelector('.bx');
+    let h=`<tspan x="0" dy="0" fill="#d6dae3" font-weight="700">${d.replace(/-/g,'.')}</tspan>`, w=78;
+    rows.forEach(([t,c])=>{ h+=`<tspan x="0" dy="16" fill="${c}" font-weight="700">${t}</tspan>`; w=Math.max(w, t.length*7.4+16); });
+    tx.innerHTML=h;
+    const bw=w, bh=18+rows.length*16, bxX=(x+10+bw>M.R)?x-10-bw:x+10, by=M.T+4;
+    bx.setAttribute('x',bxX); bx.setAttribute('y',by); bx.setAttribute('width',bw); bx.setAttribute('height',bh);
+    tx.setAttribute('transform',`translate(${bxX+8},${by+15})`);
+    g.style.display='';
+  };
+  const showAll=i=>svgs.forEach(sv=>{ const M=NARB_META[sv.dataset.nb]; if(M) put(sv, M, i); });
+  const hideAll=()=>svgs.forEach(sv=>{ const g=sv.querySelector('.nbx'); if(g) g.style.display='none'; });
+  svgs.forEach(sv=>{
+    const M=NARB_META[sv.dataset.nb], hit=sv.querySelector('.nbhit'); if(!M||!hit) return;
+    sv.style.touchAction='pan-y';
+    const at=e=>{ const ctm=sv.getScreenCTM(); if(!ctm) return; const px=(e.clientX-ctm.e)/ctm.a;
+      let i=Math.round((px-M.L)/((M.R-M.L)/M.n)-.5); i=Math.max(0,Math.min(M.n-1,i)); showAll(i); };
+    hit.addEventListener('pointermove', at); hit.addEventListener('pointerdown', at); hit.addEventListener('pointerleave', hideAll);
+  });
+}
 function narbSvgBars(R, K){
   const W=640,H=230,L=58,Rr=14,T=12,B=28,n=R.length, vals=R.map(r=>r.non.net);
   const ax=narbAxis(Math.min(0,...vals), Math.max(0,...vals));
   const X=i=>L+(W-L-Rr)*(i+.5)/n, Y=v=>T+(H-T-B)*(ax.hi-v)/(ax.hi-ax.lo), bw=Math.max(1.5,(W-L-Rr)/n*.62);
-  let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
+  let s=`<svg class="pmi-svg" data-nb="bars" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let g=ax.lo; g<=ax.hi+1e-9; g+=ax.step){
     const y=Y(g), z=Math.abs(g)<1e-9;
     s+=`<line x1="${L}" x2="${W-Rr}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${z?'#8b92a6':'#262b3a'}" stroke-width="${z?1.3:1}"/>`;
@@ -9074,9 +9113,10 @@ function narbSvgBars(R, K){
   R.forEach((r,i)=>{
     const v=r.non.net, y0=Y(0), y1=Y(v), ex=!!K.ex[r.d];
     const fill=ex?'#6b7280':(v>=0?'#ef5350':'#2e9e4f'), op=ex?'.7':'1';
-    s+=`<rect x="${(X(i)-bw/2).toFixed(1)}" y="${Math.min(y0,y1).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(.8,Math.abs(y1-y0)).toFixed(1)}" fill="${fill}" opacity="${op}"><title>${r.d} 비차익 순매수 ${narbSgn(v)}${narbFmt(v)}억${ex?' · '+K.ex[r.d]+'(누적에서 제외)':''}</title></rect>`;
+    s+=`<rect x="${(X(i)-bw/2).toFixed(1)}" y="${Math.min(y0,y1).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(.8,Math.abs(y1-y0)).toFixed(1)}" fill="${fill}" opacity="${op}"/>`;
   });
-  return s+'</svg>';
+  NARB_META.bars={W, L, R:W-Rr, T, H, B, X, Y:i=>Y(R[i].non.net), n};
+  return s+narbXHair(W,H,L,Rr,T,B,1)+'</svg>';
 }
 function narbSvgLines(R, K){
   const W=640,H=250,L=58,Rr=44,T=12,B=28,n=R.length;
@@ -9084,7 +9124,7 @@ function narbSvgLines(R, K){
   if(!all.length) return '<div class="nb-msg">누적을 구하기에 거래일이 모자랍니다(20거래일 이상 필요).</div>';
   const ax=narbAxis(Math.min(0,...all), Math.max(0,...all));
   const X=i=>L+(W-L-Rr)*(i+.5)/n, Y=v=>T+(H-T-B)*(ax.hi-v)/(ax.hi-ax.lo);
-  let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
+  let s=`<svg class="pmi-svg" data-nb="lines" viewBox="0 0 ${W} ${H}" role="img">`;
   for(let g=ax.lo; g<=ax.hi+1e-9; g+=ax.step){
     const y=Y(g), z=Math.abs(g)<1e-9;
     s+=`<line x1="${L}" x2="${W-Rr}" y1="${y.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${z?'#8b92a6':'#262b3a'}" stroke-width="${z?1.3:1}"${z?' stroke-dasharray="5 4"':''}/>`;
@@ -9102,12 +9142,8 @@ function narbSvgLines(R, K){
     const e=lastI(arr); if(e<0) return;
     s+=`<circle cx="${X(e).toFixed(1)}" cy="${Y(arr[e]).toFixed(1)}" r="3.4" fill="${c}"/><text x="${(X(e)+6).toFixed(1)}" y="${(Y(arr[e])+4).toFixed(1)}" font-size="11.5" font-weight="700" fill="${t}">${narbFmt(arr[e])}</text>`;
   });
-  R.forEach((r,i)=>{
-    if(K.c20[i]==null && K.c5[i]==null) return;
-    const t=`${r.d}${K.c5[i]!=null?' · 5일 '+narbSgn(K.c5[i])+narbFmt(K.c5[i])+'억':''}${K.c20[i]!=null?' · 20일 '+narbSgn(K.c20[i])+narbFmt(K.c20[i])+'억':''}`;
-    s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(K.c20[i]!=null?K.c20[i]:K.c5[i]).toFixed(1)}" r="4" fill="transparent"><title>${t}</title></circle>`;
-  });
-  return s+'</svg>';
+  NARB_META.lines={W, L, R:W-Rr, T, H, B, X, Y, n};
+  return s+narbXHair(W,H,L,Rr,T,B,2)+'</svg>';
 }
 function narbRender(){
   const card=$('#nbCard'), src=$('#nbSrc'); if(!card) return;
@@ -9146,6 +9182,7 @@ function narbRender(){
    +`<div class="nb-h2">5일·20일 누적 (억원)${NARB_ST.ex?' — 만기일 제외':''}</div>`
    +`<div class="nb-leg"><span><i style="background:#f2c800"></i>5일 누적</span><span><i style="background:#7c8cff"></i>20일 누적</span></div>`
    +narbSvgLines(R, sub);
+  narbHover(card, R, sub);
   if(src){
     const w=(D.warnings&&D.warnings.length)?' · 알림: '+D.warnings.join(' / '):'';
     src.innerHTML='출처: '+(D.src||'비차익 일별 자료')+' ('+(D.unit||'억원')+'). '+(NARB_ST.stale?'<b>방금 받지 못해 저장해 둔 값을 보여 줍니다.</b> ':'')+'자료 받은 때 '+String(D.fetchedAt||'').replace('T',' ').slice(0,16)+' (UTC)'+w;
@@ -17733,8 +17770,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.21.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 한국(체) 11월 3주 포트(11.20 기준)';
+const KG_APP_VER = '11.23.-v1';
+const KG_APP_BUILD = KG_APP_VER + ' 비차익 그래프 십자선';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
