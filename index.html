@@ -1377,6 +1377,7 @@ function krDigits(x){
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('kr');return false;"><span class="ic">🇰🇷</span><span class="tx"><span class="tt">한국(체)</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('invest');return false;"><span class="ic">📊</span><span class="tx"><span class="tt">코스피200</span><span class="sb">코스피200 최대낙폭·ROE·외국인 투자</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('investkq');return false;"><span class="ic">📈</span><span class="tx"><span class="tt">코스닥100</span><span class="sb">코스닥100 최대낙폭·ROE·외국인 투자</span></span></a>
+    <a class="rv-card" href="#" onclick="event.preventDefault();openPort('divpf');return false;"><span class="ic">🎯</span><span class="tx"><span class="tt">다이버전스</span><span class="sb">STUDY 다이버전스 탐색 결과 종목</span></span></a>
     <a class="rv-card" href="#" onclick="event.preventDefault();openPort('dividend');return false;"><span class="ic">💰</span><span class="tx"><span class="tt">배당</span><span class="sb">장세별 배당 ETF (상승·횡보·하락)</span></span></a>
    </div>
    <!-- 국외 줄 -->
@@ -2638,6 +2639,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div class="subtab" data-m="us">미국(반)</div>
   <div class="subtab" data-m="etf">한·미 ETF</div>
   <div class="subtab" data-m="dividend">배당</div>
+  <div class="subtab" data-m="divpf">다이버전스</div>
  </div>
  <!-- 관심 부메뉴 고정 줄 (2026-10-17) — 표 제목(caption) 안에 있던 부메뉴를 여기로 옮겨, 표를 올려도 따라 올라가지 않게 한다 -->
  <div id="selNavBar" class="selnav-bar" style="display:none"></div>
@@ -4154,6 +4156,7 @@ function renderVal(){
   if(valMarket==='info'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderInfo(multi); return; }
   if(valMarket==='invest'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investLoaded){ loadInvest(); } else { em.style.display='none'; renderInvest(); refreshInvestPricesLive(); } return; }
     if(valMarket==='investkq'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!investKqLoaded){ if(t){t.innerHTML='';t.className='val-tbl';} loadInvestKq(); } else { em.style.display='none'; renderInvestKq(); refreshInvestKqPricesLive(); } return; }
+  if(valMarket==='divpf'){ multi.style.display='none'; sc.style.display=''; if(foot)foot.style.display='none'; if(!divPfLoaded){ em.style.display='none'; divPfSync(); } else { em.style.display='none'; renderDivPf(); refreshDivPfPricesLive(); } return; }
   if(valMarket==='etf'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderEtfCombined(multi); return; }
   if(valMarket==='dividend'){ sc.style.display='none'; em.style.display='none'; if(foot)foot.style.display='none'; multi.style.display=''; renderDividend(multi); return; }
   const _wsw=document.getElementById('wSearchWrap');
@@ -4593,7 +4596,7 @@ function pinVal(code){ const m=PIN_MARKS.get(code); return m==='pink'?2:m==='gre
 // 핑크 토글 + 정렬 이벤트 바인딩 (각 렌더 함수 끝에서 호출)
 // 포트폴리오별 독립 정렬 상태
 const _ps0=()=>({swait:false,invchk:false,score:false,rate:false,roe:false,frgn:false,amt:false,drop:false,tgt:false,pin:false});
-const PSORT={kr:_ps0(),watch:_ps0(),invest:_ps0(),investkq:_ps0(),addstk:_ps0()};
+const PSORT={kr:_ps0(),watch:_ps0(),invest:_ps0(),investkq:_ps0(),divpf:_ps0(),addstk:_ps0()};
 let curPort='kr'; // 현재 렌더 중인 포트폴리오 ID
 // th 생성 헬퍼: 순서/ROE/외국인에 정렬 기능 부여
 // ── 정렬 기준별 값 추출 (모두 내림차순) ──
@@ -14064,6 +14067,74 @@ function fnoteSave(code, txt){
    · 연도는 앞날치만 적는다. 지난 해는 어차피 네이버 실적을 쓴다.
    ═══════════════════════════════════════════════════════════════ */
 const FCST_SEED = {
+  // 에이치브이엠 — IBK투자증권 '성장하는 외형, 더딘 이익 개선' (2026-11-18)
+  '295310': { ts:'2026-11-25T06:50:00Z', src:'IBK투자증권 2026-11-18',
+    rows:[
+      '2026F / 79.7 / 5.9 / -6.3 / -80.4 / 4.3 / 135.8',
+      '2027F / 52.1 / 9.9 / 9.9 / 41.6 / 3.9 / 155.8',
+      '2028F / 45.8 / 11.7 / 14.1 / 25.9 / 3.4 / 168.8',
+      '# IBK투자증권 김태현 2026-11-18 ‘성장하는 외형, 더딘 이익 개선’ 표입니다. 투자의견 매수(유지), 목표주가 49,000원(하향, 직전 65,000원 · 2026-09-11), 현재가 40,200원(11/17), 상승여력 21.9%. 이 보고서의 전망은 2028년까지입니다.',
+      '# 매출증가율 79.7 / 52.1 / 45.8, 영업이익률 5.9 / 9.9 / 11.7, ROE -6.3 / 9.9 / 14.1, PER -80.4 / 41.6 / 25.9, PBR 4.3 / 3.9 / 3.4, 부채비율 135.8 / 155.8 / 168.8 은 5쪽 투자지표 그대로입니다. 마지막 칸은 부채비율입니다. (참고: 2024 / 2025 실적 — 매출증가율 8.9 / 47.4, 영업이익률 -15.6 / 8.8, ROE -17.4 / 16.1, 부채비율 80.9 / 92.3)',
+      '# PER·PBR 이 현재가 40,200원과 맞지 않습니다. 40,200 ÷ EPS 1,133 = 35.5배(표 41.6), ÷ 1,820 = 22.1배(표 25.9), ÷ BPS 10,861 = 3.70배(표 4.3), ÷ 11,994 = 3.35배(표 3.9), ÷ 13,814 = 2.91배(표 3.4)입니다. 거꾸로 표의 배수 × 주당 값은 41.6 × 1,133 = 47,133원, 25.9 × 1,820 = 47,138원, 4.3 × 10,861 = 46,702원, 3.9 × 11,994 = 46,777원, 3.4 × 13,814 = 46,968원으로 모두 약 47,000원입니다. 표의 PER·PBR·EV/EBITDA 는 현재가(40,200원)가 아니라 더 높았던 주가 기준으로 보입니다. 표의 값을 그대로 넣었습니다.',
+      '# 목표주가 산정(표 2) — 12M Forward EPS 1,081원 × Target PER 45.1배 = 48,753원(표는 48,764원, EPS 소수 반올림 차이). 49,000원 ÷ 40,200원 = +21.9% 로 상승여력은 맞습니다. 다만 12M Forward EPS 1,081원은 투자지표 2027F EPS 1,133원의 95.4% 이고, 2026F(-586원)와 2027F 를 남은 기간으로 섞으면 약 918원(제가 계산: (1.5개월 × -586 + 10.5개월 × 1,133) ÷ 12)이라 보고서의 1,081원이 어떻게 나왔는지는 적혀 있지 않습니다. Target PER 45.1배는 PEER 5개사(쎄트렉아이·세아베스틸지주·티플렉스·ATI·Carpenter Technology)의 2024~25년 PER 최고치 평균입니다.',
+      '# 분기 합계 — 2026년 매출 23.3 + 29.2 + 26.3 + 40.9 = 119.7(표 119.6), 영업이익 4.4 + 2.0 - 0.8 + 1.3 = 6.9(표 7.0), 2025년 매출 13.0 + 16.7 + 13.4 + 23.4 = 66.5, 영업이익 1.1 + 3.8 - 0.3 + 1.2 = 5.8 로 연간과 맞습니다(반올림 차이). 3Q26 매출 263억·영업적자 8억(본문 ‘별도’ 기준 표현), 컨센서스 매출 267억 / 영업이익 38억.',
+      '# 순이익이 영업이익보다 크게 낮습니다 — 2026F 영업이익 +7십억인데 순금융손익 -13십억(이자손익 -8, 기타 -5), 기타영업외 -1 을 거쳐 세전이익 -7, 당기순이익 -7십억입니다. 이자보상배율은 0.6 / 0.9 / 1.3배(2026F / 2027F / 2028F)입니다.',
+      '# 현금흐름표 — 영업활동현금흐름 -14 / -9 / -51 / -11 / -12 십억(2024~2028F), 유형자산 증가(CAPEX) -15 / -22 / -16 / -16 / -12 십억입니다. 제가 계산한 영업CF + CAPEX 는 2026F -67, 2027F -27, 2028F -24 십억입니다. 총차입금 54 → 112 → 130 → 149십억(2025 ~ 2028F), 순차입금 22 → 57 → 67 → 70십억, 재고자산 52 → 102 → 116 → 143십억입니다. 그림 8 에는 우주항공용 단조설비 도입을 위한 416억원 신규시설투자 결정이 있는데, 현금흐름표 CAPEX(2026F -16십억 등)에 반영됐는지는 표만으로 알 수 없습니다.',
+      '# EPS·BPS 와 주식수 — 2025년 EPS 1,060원은 순이익 13십억 ÷ 약 12.3백만주, BPS 7,571원은 자본 90십억 ÷ 약 11.9백만주(제가 계산)이고 표지 발행주식수는 12,808천주입니다. 2026F EPS -586원은 -7십억 ÷ 12.8백만주 = -547원(제가 계산, 순이익이 반올림된 정수라 차이가 납니다)입니다. 2026F 자본잉여금이 78 → 135십억으로 늘었습니다.',
+      '# 직전 보고서(2026-09-11)와 비교 — 목표주가 65,000 → 49,000원(-24.6%, 보고서는 25% 하향), EPS(26) 458 → -586원, EPS(27) 1,765 → 1,133원(-35.8%). 직전 보고서의 표는 이 문서에 없어 비교용 숫자로만 썼습니다.',
+    ].join('\n'),
+    note:[
+      '한 줄로 — 매출은 올해 +79.7%, 내년 +52.1%로 빠르게 크는데, 이익은 환율과 원가에 눌려 3분기에 영업적자를 냈고 증권사도 EPS를 내리고 목표주가를 65,000원에서 49,000원으로 25% 낮췄습니다. 올해 순이익은 적자(-7십억), 이익 회복은 2027년 이후로 미뤄졌습니다.',
+      '이것 하나만 본다면 — 영업이익률입니다. 19.0%(1Q26) → 6.9% → -2.9% → 3.3%(4Q 추정)로 올해 내내 내려왔고, 매출총이익률도 27.3% → 15.7% → 6.5%입니다. 매출이 늘어도 남는 돈이 줄고 있고, 보고서는 환율 영향이 매입 후 매출 인식까지 약 4개월 이어져 4분기 개선도 제한적이라고 씁니다. 내년 영업이익 181억(+157.9%)은 이 이익률이 9.9%로 돌아와야 나오는 숫자입니다.',
+      '지금 할 일 — 4분기 영업이익 13억(영업이익률 3.3%)과 매출총이익률 11.5%가 나오는지 보세요. 3분기보다 좋아지는지가 ‘바닥’ 판단의 첫 근거입니다. 그다음 반도체 수주(3Q 80억, 전분기 대비 +94.2%)가 이어지는지, 가스터빈용 초내열합금이 고객사 승인을 받는지(이르면 내년 매출)를 확인하세요. 한편 이 종목은 이익이 늘어도 현금이 계속 모자라는 구조라(아래 현금 항목) 차입·증자 소식이 나오면 같이 보세요.',
+      'IBK투자증권 김태현 (2026-11-18) · Company Update ‘성장하는 외형, 더딘 이익 개선’ · 매수 유지 · 목표주가 49,000원(하향, 직전 65,000원) · 현재가 40,200원(11/17) · 시가총액 515십억 · 52주 133,000~22,100원 · 외국인 지분율 3.1% · 문승호 외 4인 33.75% · 최재영 7.54% · 발행주식수 12,808천주 · 배당 없음.',
+      '',
+      '── 투자 판단 요약 (보고서 기준일 11/17 주가 40,200원 기준) ──',
+      '보고서 숫자로 계산한 판단 재료입니다. 주가가 바뀌면 아래 배수도 같이 바뀝니다. ‘제가 계산’이라고 적은 것은 보고서에 없는 값입니다. 표 위쪽 PER·PBR(41.6 / 25.9배, 4.3 / 3.9 / 3.4배)은 보고서 값 그대로인데, 현재가 40,200원이 아니라 약 47,000원 기준으로 보입니다(표 아래 # 메모 참고). 아래는 40,200원으로 다시 나눈 값입니다.',
+      '■ 앞으로 매출·이익은 늘어나는가',
+      '| 항목 | 2025 | 2026F | 2027F | 2028F |',
+      '| 매출액(십억) | 66.5 | 119.6 | 181.9 | 265 |',
+      '| 매출 증가율 | 47.4% | 79.7% | 52.1% | 45.8% |',
+      '| 영업이익(십억) | 5.8 | 7.0 | 18.1 | 31 |',
+      '| 영업이익률 | 8.8% | 5.9% | 9.9% | 11.7% |',
+      '| 당기순이익(십억) | 13 | -7 | 15 | 23 |',
+      '| EPS(원) | 1,060 | -586 | 1,133 | 1,820 |',
+      '매출은 늘어난다는 쪽이 단단합니다 — 1~3분기 매출 788억이 올해 전망 1,196억의 65.9%(제가 계산)이고, 4분기에 409억(전년 대비 +74.4%, 3분기 대비 +55.5%)이 나와야 합니다. 4분기에 매출이 몰리는 흐름은 작년에도 있었고(3Q25 134억 → 4Q25 234억), 3분기 일부 출하가 시험·검사 항목 확대로 4분기로 넘어갔다고 합니다. 수주잔고 594억(+67.9% yoy)도 뒷받침합니다.',
+      '이익은 올해까지는 거의 확정, 내년부터는 가정입니다 — 1~3분기 영업이익 56억이 올해 전망 70억의 80%(제가 계산)라 4분기 13억만 나오면 됩니다. 그러나 순이익은 금융비용 때문에 올해 -7십억 적자이고, 내년 영업이익 181억(+157.9%)은 영업이익률을 5.9%에서 9.9%로 올려야 나옵니다. 분기 영업이익률이 19.0% → -2.9% 사이를 오간 회사라 이 숫자의 근거는 매출보다 약합니다. 보고서가 말하는 근거는 가공 범위 확대(반제품 공급), 스크랩 재용해, 3공장 증설, 초내열합금입니다.',
+      '■ 투자에 적당한 기업이고 가격은 적정한가',
+      '| 가격 기준 | 값 | 뜻 |',
+      '| 2026F 이익 대비 (PER) | 의미 없음 | 순이익 적자(EPS -586원) |',
+      '| 2027F 이익 대비 (PER, EPS 1,133원, 제가 계산) | 35.5배 | 보고서 표는 41.6배(기준 주가 약 47,000원) |',
+      '| 2028F 이익 대비 (PER, EPS 1,820원, 제가 계산) | 22.1배 | 보고서 표는 25.9배 |',
+      '| 12M Forward 이익 대비 (EPS 1,081원, 제가 계산) | 37.2배 | 보고서 목표 PER 45.1배보다 낮음 |',
+      '| 2026F 자산 대비 (PBR, BPS 10,861원, 제가 계산) | 3.70배 | ROE -6.3% |',
+      '| 2027F 자산 대비 (PBR, BPS 11,994원, 제가 계산) | 3.35배 | ROE 9.9% |',
+      '| 2026F 매출 대비 (PSR, 제가 계산) | 4.3배 | 시가총액 515십억 ÷ 매출 119.6십억 |',
+      '| 2027F 매출 대비 (PSR, 제가 계산) | 2.8배 | 시가총액 515십억 ÷ 매출 181.9십억 |',
+      '| 목표주가 49,000원까지 | +21.9% | 보고서 표 2 |',
+      '| 52주 최고가 133,000원 대비 | -69.8% | 제가 계산 |',
+      '| 52주 최저가 22,100원 대비 | +81.9% | 제가 계산 |',
+      '| 배당수익률 | 0.0% | 2028F까지 배당 없음 |',
+      '거꾸로 보면 — 목표주가 49,000원은 2028F EPS 1,820원의 26.9배(제가 계산)입니다. 보고서가 적용한 45.1배는 PEER 5개사가 2024~25년에 받은 PER 최고치의 평균이라 가장 높은 배수를 적용한 값입니다. 2027F EPS 1,133원이 20% 모자란 906원이면 현재가의 PER 은 44.4배(제가 계산)입니다. 즉 이 가격은 내년 이익 회복이 계획대로 되고 시장이 높은 배수를 계속 주는 경우를 이미 상당 부분 담고 있습니다.',
+      '■ 재무 체력 (이 회사의 가장 큰 약점)',
+      '| 항목 | 2025 | 2026F | 2027F | 2028F |',
+      '| 영업활동현금흐름(십억) | -9 | -51 | -11 | -12 |',
+      '| CAPEX(십억) | -22 | -16 | -16 | -12 |',
+      '| 영업CF + CAPEX(십억, 제가 계산) | -31 | -67 | -27 | -24 |',
+      '| 순차입금(십억) | 22 | 57 | 67 | 70 |',
+      '| 부채비율 | 92.3% | 135.8% | 155.8% | 168.8% |',
+      '| 이자보상배율 | 3.1배 | 0.6배 | 0.9배 | 1.3배 |',
+      '| 재고자산(십억) | 52 | 102 | 116 | 143 |',
+      '이익이 나도 현금이 남지 않습니다. 원재료를 먼저 사서 재고로 쌓고 몇 달 뒤 매출로 잡는 사업이라 매출이 커질수록 운전자본이 더 필요하고(2026F 운전자본 변동 -60십억), 영업현금흐름이 5년 내내 마이너스입니다. 부족분은 차입·사채로 메워 부채비율이 계속 올라갑니다. 이자보상배율이 1배 안팎이라 영업이익이 조금만 낮아져도 이자를 감당하기 어렵습니다. 이것이 PER 이 높은 이유와 별개로 이 종목의 변동성이 큰 이유입니다.',
+      '정리 — 사업은 커지는 중이고 우주·항공·방위·반도체 수요와 수주잔고는 실제입니다. 반면 올해는 마진이 계속 내려오고 순이익이 적자이며, 내년 이익 회복에는 환율 안정과 마진 개선이 모두 필요하고, 그 사이 현금은 차입으로 버티고 있습니다. 가격은 내년 이익을 이미 높은 배수로 평가하고 있어, 여유가 큰 가격은 아닙니다. 싸다·비싸다보다 ‘이익이 실제로 나오기 시작하는지 확인되는 데 시간이 걸리는 성장주’로 보는 쪽이 보고서 내용에 맞습니다.',
+      '판단을 바꿀 세 가지 — ① 4분기 영업이익이 13억 안팎이고 매출총이익률이 11.5% 이상인가: 환율 부담이 바닥을 쳤는지 확인됨 ② 영업현금흐름이 마이너스에서 벗어나는가: 2027F -11십억 추정이 맞아야 차입 증가가 멈춥니다 ③ 가스터빈용 초내열합금 고객사 승인과 3공장 증설이 일정대로인가: 내년 이익률 9.9%의 근거입니다.',
+      '',
+      '(자잘한 것)',
+      '3Q26 매출 중 우주 소재 164억(+77.5%), 반도체 48억(+152.8%), 항공·방위 36억(+428.9%)입니다. 합계 248억은 매출 263억의 94.3%(제가 계산)이고 나머지 15억은 석유/화학/에너지 등 기타입니다. 우주가 매출의 62.4%(제가 계산)로 아직 가장 큽니다.',
+      '그림 6 수주잔고 막대 위 숫자는 총 594억(본문)과 맞춰 읽을 수 없어 본문의 594억만 썼습니다.',
+            '보고서 표지의 ‘EPS(26) 458 → -586’처럼 직전 보고서와 EPS 부호가 바뀐 것은 환율 부담을 반영해 올해 이익을 -1,044원(제가 계산) 낮췄다는 뜻입니다.',
+    ].join('\n') },
+
   // KT&G — DS투자증권 '3Q26Re: 밸류업 모범생' (2026-11-06)
   '033780': { ts:'2026-11-17T03:40:00Z', src:'DS투자증권 2026-11-06',
     rows:[
@@ -18018,7 +18089,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.25.-v8';
+const KG_APP_VER = '11.25.-v10';
 const KG_APP_BUILD = KG_APP_VER + ' CPI·금리 한 그래프';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -20109,6 +20180,7 @@ async function ensureForeign(codes){
   frgnLoading=false; saveFrgnCache();
   if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
+  else if(valMarket==='divpf') renderDivPf();
   else if(valMarket==='kr') renderKrTable();
   else if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
 }
@@ -20262,6 +20334,7 @@ async function ensureShort(codes){
   else if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
   else if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
+  else if(valMarket==='divpf') renderDivPf();
 }
 // 공매도 SVG 셀: 10일 거래량 막대(빨강) + 8일 잔고 선(노랑)
 function shortSvgCell(code){
@@ -20361,6 +20434,7 @@ async function ensureReports(codes){
   saveReportCache();
   if(valMarket==='invest') renderInvest();
   else if(valMarket==='investkq') renderInvestKq();
+  else if(valMarket==='divpf') renderDivPf();
   else if(valMarket==='kr') renderKrTable();
   else if(valMarket==='watch'||valMarket==='invpf') renderWatchTable();
 }
@@ -20813,38 +20887,126 @@ async function loadInvestKq(){
   if(valMarket==='investkq') renderInvestKq();
 }
 
-function renderInvestKq(){
+/* ═══════════════════════════════════════════════════════════════
+   포트 › 다이버전스 (2026-11-25)
+   ---------------------------------------------------------------
+   STUDY › 다이버전스 탐색 › 종목찾기 결과(kg_div_scan)의 국내 종목으로 만든 포트폴리오.
+   · 열 구성은 코스닥100 표와 같다 (종목·분류·현재가·ROE·외국인·5일매수액·공매도·52주최고가·목표가·다이버전스·보고서)
+   · 찾기를 다시 하기 전까지는 종목을 그대로 둔다 (찾은 시각 res.at 이 같으면 저장해 둔 목록을 쓴다)
+   · 찾기를 다시 하면(어디서 하든 divScanUpdated 로 알려 온다) 목록을 새로 만든다
+   · 순서: ① 다이버전스 지표(R·C·M·E·F) 수가 많은 순 ② 같으면 RSI 30 이하 먼저
+          ③ 같으면 추가신호에 20일선·120일선 표시가 있는 것 먼저 (둘 다 > 하나 > 없음)
+          ④ 그래도 같으면 다이버전스 정렬 규칙(▲ 먼저·완성 먼저) → 코드 순 */
+let DIVPF_POOL=[], DIVPF_ROWS=[], divPfLoaded=false, divPfBusy=false;
+const DIVPF_KEY='kg_divpf_pool';
+function divPfRank(res){
+  const by={};
+  (res.recent||[]).forEach(x=>{ const c=String((x&&x.code)||'').trim(); if(/^\d[0-9A-Z]{5}$/.test(c)) (by[c]=by[c]||[]).push(x); });
+  const rk=Object.keys(by).map(c=>{
+    const xs=by[c].slice().sort(divSigSort);
+    const n=Math.max.apply(null, xs.map(x=>String(x.tags||'').length));
+    const st=(res.state&&res.state[c])||null;
+    const rsi=(st&&st.rsi!=null&&isFinite(st.rsi))?Number(st.rsi):null;
+    const marks=st?((st.a20!=null?1:0)+(st.a120!=null?1:0)):0;
+    const nm=(xs.find(x=>x.name&&x.name!==c)||xs[0]).name||c;
+    return {code:c, name:nm, n, rsi, low:(rsi!=null&&rsi<=30)?1:0, marks, best:xs[0]};
+  });
+  rk.sort((a,b)=> (b.n-a.n) || (b.low-a.low) || (b.marks-a.marks) || divSigSort(a.best,b.best) || (a.code<b.code?-1:1));
+  return rk;
+}
+async function divPfFetch(rk, onMsg){
+  const codes=rk.map(r=>r.code), price={}, rate={}, tgt={}, hi={}, cons={}, nm={};
+  rk.forEach(r=>{ nm[r.code]=r.name; });
+  const CH=40, parts=[]; for(let i=0;i<codes.length;i+=CH) parts.push(codes.slice(i,i+CH));
+  await pmap(parts, 4, async part=>{
+    const [pRes,tRes]=await Promise.all([
+      fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(','))).then(r=>r.json()).catch(()=>null),
+      fetch(SRV_URL+'/?targets='+encodeURIComponent(part.join(','))).then(r=>r.json()).catch(()=>null),
+    ]);
+    if(pRes&&pRes.items) pRes.items.forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); price[c]=q.priceStr||String(q.price); if(q.rate!=null) rate[c]=q.rate; if(q.name&&!nm[c]) nm[c]=q.name; } });
+    if(tRes&&tRes.items) tRes.items.forEach(q=>{ if(q&&q.ok){ const c=String(q.symbol).replace('STK:',''); if(q.target!=null) tgt[c]=q.targetStr||String(q.target); if(q.high52!=null) hi[c]=q.high52Str||String(q.high52); if(q.consStr||q.consScore!=null){ const o={str:q.consStr||'',opinion:q.consOpinion||'',score:q.consScore}; cons[c]=o; consPut(c,o); } } });
+  }, (d,t)=>{ if(onMsg) onMsg('다이버전스 종목 시세 조회… '+Math.min(d*CH,codes.length)+'/'+codes.length); });
+  const rows=rk.map(r=>({code:r.code, name:nm[r.code]||r.code, price:price[r.code], rate:rate[r.code], hi:hi[r.code], tgt:tgt[r.code], cons:cons[r.code], n:r.n, rsi:r.rsi}));
+  if(onMsg) onMsg('ROE 조회 중…');
+  const rm={};
+  for(let i=0;i<rows.length;i+=25){
+    const part=rows.slice(i,i+25);
+    try{
+      const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),10000);
+      const r=await fetch(SRV_URL+'/?roes='+encodeURIComponent(part.map(x=>x.code).join(',')),{signal:ctrl.signal}); clearTimeout(to);
+      const d=await r.json(); (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.roe!=null) rm[q.code]={roe:q.roe,period:q.period,prevRoe:q.prevRoe}; });
+    }catch(e){}
+  }
+  rows.forEach(x=>{ const z=rm[x.code]; if(z){ x.roe=z.roe; x.period=z.period; x.prevRoe=z.prevRoe; } });
+  return rows;
+}
+function divPfSave(at){ try{ localStorage.setItem(DIVPF_KEY, JSON.stringify({at:at||'', rows:DIVPF_POOL})); }catch(e){} }
+/* 목록을 정한다 — 찾은 시각이 저장해 둔 것과 같으면 그대로 쓰고, 다르면(다시 찾았으면) 새로 만든다 */
+async function divPfSync(force){
+  if(divPfBusy) return;
+  const res=selDivRes();
+  let cache=null; try{ cache=JSON.parse(localStorage.getItem(DIVPF_KEY)||'null'); }catch(e){}
+  const has=!!(cache&&Array.isArray(cache.rows)&&cache.rows.length);
+  if(!force && (has && (!res || cache.at===res.at))){
+    DIVPF_POOL=cache.rows; divPfLoaded=true;
+    if(valMarket==='divpf'){ renderDivPf(); refreshDivPfPricesLive(); }
+    return;
+  }
+  if(!res){ DIVPF_POOL=[]; divPfLoaded=true; if(valMarket==='divpf') renderDivPf(); return; }
+  const rk=divPfRank(res);
+  if(!rk.length){ DIVPF_POOL=[]; divPfLoaded=true; divPfSave(res.at); if(valMarket==='divpf') renderDivPf(); return; }
+  if(!SRV_URL){ DIVPF_POOL=rk.map(r=>({code:r.code,name:r.name,n:r.n,rsi:r.rsi})); divPfLoaded=true; if(valMarket==='divpf') renderDivPf(); return; }
+  divPfBusy=true;
+  const msg=$('#valEmpty'), sc=$('#valScroll');
+  if(valMarket==='divpf'){ if(sc) sc.style.display='none'; if(msg){ msg.style.display='block'; msg.textContent='🎯 다이버전스 포트폴리오를 새로 구성하는 중… 잠시만요.'; } }
+  try{
+    DIVPF_POOL=await divPfFetch(rk, m=>{ if(valMarket==='divpf' && msg) msg.textContent=m; });
+    divPfSave(res.at);
+  }catch(e){ console.warn('다이버전스 포트 구성 실패', e); DIVPF_POOL=rk.map(r=>({code:r.code,name:r.name,n:r.n,rsi:r.rsi})); }
+  divPfBusy=false; divPfLoaded=true;
+  if(valMarket==='divpf'){ if(msg) msg.style.display='none'; if(sc) sc.style.display=''; renderDivPf(); }
+}
+function refreshDivPfPricesLive(){
+  if(!DIVPF_POOL.length || !SRV_URL) return;
+  const codes=DIVPF_POOL.map(r=>r.code), CH=40;
+  (async()=>{
+    for(let i=0;i<codes.length;i+=CH){
+      const part=codes.slice(i,i+CH);
+      try{
+        const r=await fetch(SRV_URL+'/?symbols='+encodeURIComponent(part.map(c=>'STK:'+c).join(',')));
+        const d=await r.json();
+        (d.items||[]).forEach(q=>{ if(q&&q.ok&&q.price!=null){ const c=String(q.symbol).replace('STK:',''); const row=DIVPF_POOL.find(x=>x.code===c);
+          if(row){ row.price=q.priceStr||String(q.price); if(q.rate!=null) row.rate=q.rate; } } });
+      }catch(e){}
+    }
+    let at=''; try{ const o=JSON.parse(localStorage.getItem(DIVPF_KEY)||'null'); at=(o&&o.at)||''; }catch(e){}
+    divPfSave(at);
+    if(valMarket==='divpf') renderDivPf();
+  })();
+}
+function renderDivPf(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
   loadReportCache(); loadFrgnCache();
   if(em) em.style.display='none'; if(sc) sc.style.display='';
-  // ROE 필터
-  let rows = (roeMinKq==='up')
-    ? INVEST_KQ_POOL.filter(r=> r.roe!=null && r.prevRoe!=null && (r.roe - r.prevRoe) > 0)
-    : INVEST_KQ_POOL.filter(r=> roeMinKq<=0 ? true : (r.roe!=null && r.roe>=roeMinKq));
-  // 정렬: 외국인 별표순 or 낙폭순
-  if(investKqSortFrgn){
-    rows.sort((a,b)=>{ const fa=frgnStarCount(a.code), fb=frgnStarCount(b.code); if(fb!==fa) return fb-fa; return a.drop-b.drop; });
-  } else {
-    rows.sort((a,b)=>a.drop-b.drop);
-  }
-  INVEST_KQ_ROWS = withKept(rows, INVEST_KQ_POOL, 30);
+  // 순서는 찾은 때 정해 둔 그대로 (지표 수 → RSI 30 이하 → 20·120일선 표시)
+  DIVPF_ROWS = DIVPF_POOL.slice();
   const W=[96,60,92,92,76,90,90,82,100,100,84,210];
-  const hp=INVEST_KQ_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
+  const hp=DIVPF_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   // 재무(미니그래프) 열 제거 — 한국(체)와 동일
   const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
-  const mins=[[0,'전체'],[5,'5%'],[10,'10%'],['up','상승']];
-  const bar=`<caption class="inv-bar">${pfMenuHtml({refresh:'invKqRefresh'})}</caption>`;
+  const res0=selDivRes();
+  const bar=`<caption class="inv-bar"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:4px;font-weight:500"><span style="font-size:11.5px;color:#8b949e">🎯 다이버전스 탐색 결과${res0&&res0.atStr?' · 기준 '+escHtml(res0.atStr):''} · ${DIVPF_ROWS.length}종목 · 다이버전스 지표 많은 순 → RSI 30 이하 → 20·120일선 표시</span><button id="divPfScan" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e">🎯 다시 찾기</button></span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
-  if(!INVEST_KQ_POOL.length){ h+=`<tr><td colspan="11" style="padding:16px">데이터를 불러오지 못했습니다. ↻ 새로고침 해주세요.</td></tr>`; }
-  else if(!INVEST_KQ_ROWS.length){ const lbl=(roeMinKq==='up')?'전분기 대비 ROE가 상승한':('ROE '+roeMinKq+'% 이상인'); h+=`<tr><td colspan="8" style="padding:16px">${lbl} 종목이 없습니다. 기준을 바꿔보세요.</td></tr>`; }
-  curPort='investkq';
+  if(!DIVPF_POOL.length){ h+=`<tr><td colspan="11" style="padding:16px;text-align:left;white-space:normal">${res0?'최근 10거래일 안에 신호가 두 지표 이상 겹친 종목이 없습니다.':'아직 다이버전스를 찾지 않았습니다.'} STUDY › 다이버전스 탐색 › 종목찾기에서 [찾기]를 누르거나 위의 [🎯 다시 찾기]를 누르세요.</td></tr>`; }
+  else if(!DIVPF_ROWS.length){ h+=`<tr><td colspan="11" style="padding:16px;text-align:left;white-space:normal">${res0?'최근 10거래일 안에 신호가 두 지표 이상 겹친 종목이 없습니다.':'아직 다이버전스를 찾지 않았습니다.'} STUDY › 다이버전스 탐색 › 종목찾기에서 [찾기]를 누르거나 위의 [🎯 다시 찾기]를 누르세요.</td></tr>`; }
+  curPort='divpf';
   const invKqDisp = (()=>{
-    let arr=[...INVEST_KQ_ROWS]; const ps=PSORT.investkq;
+    let arr=[...DIVPF_ROWS]; const ps=PSORT.divpf;
     const sk=['score','rate','roe','frgn','amt','drop','tgt'].find(k=>ps[k]);
     if(sk) arr.sort((a,b)=>sortValOf(sk,b.code,b)-sortValOf(sk,a.code,a));
     if(ps.pin) arr.sort((a,b)=>pinVal(b.code)-pinVal(a.code));
-    return pfTopSort(arr, r=>r.code);   // 관심·투자 체크 시 위로
+    return arr;   // 순서 규칙을 지키려고 '관심·투자 체크 시 위로'는 쓰지 않는다
   })();
   invKqDisp.forEach((r,i)=>{
     /* 52주최고가 옆 괄호 — 한국(체)와 같은 '상승여력'.
@@ -20877,16 +21039,13 @@ function renderInvestKq(){
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
-  h+=`<tr class="add-row"><td style="padding:5px 4px"><div class="isearch" style="position:relative"><input type="text" class="iinput" placeholder="＋종목 추가" autocomplete="off" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:6px 6px;border-radius:6px;font-size:11px"><div class="iac" style="display:none;position:absolute;top:100%;left:0;z-index:50;background:#161b22;border:1px solid #30363d;border-radius:6px;min-width:180px;max-height:220px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.5)"></div></div></td><td colspan="10"></td></tr>`;
   h+='</tbody>';
-  t.className='val-tbl mp mpfix'; t.innerHTML=h; bindPinEvents(t, renderInvestKq, 'investkq'); bindPfTopBar(renderInvestKq);
-  bindInvestAddInput(t);
+  t.className='val-tbl mp mpfix'; t.innerHTML=h; bindPinEvents(t, renderDivPf, 'divpf');
   t.querySelectorAll('td.invlive').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code, nm=td.dataset.name;
     if(c) openChart(c, nm, domVisRows(t,'td.invlive','code','name')); }; });
-  t.querySelectorAll('caption.inv-bar button[data-min]').forEach(b=>{ b.onclick=()=>setRoeMinKq(b.dataset.min==='up'?'up':parseInt(b.dataset.min)); });
-  const rfb=t.querySelector('#invKqRefresh'); if(rfb) rfb.onclick=refreshInvestKq;
+  const sb=t.querySelector('#divPfScan'); if(sb) sb.onclick=()=>{ if(typeof selDivScan==='function'){ selDivScan(); toast('다이버전스를 다시 찾습니다 — 끝나면 포트폴리오가 새로 구성됩니다'); } };
   t.querySelectorAll('a.ivlink').forEach(a=>{ a.onclick=ev=>{ ev.preventDefault(); const c=a.dataset.code; if(c) window.open('https://m.stock.naver.com/domestic/stock/'+c+'/total','_blank','noopener'); }; });
-  if(INVEST_KQ_ROWS.length){ ensureReports(INVEST_KQ_ROWS.map(r=>r.code)); ensureForeign(INVEST_KQ_ROWS.map(r=>r.code)); ensureShort(INVEST_KQ_ROWS.map(r=>r.code)); }
+  if(DIVPF_ROWS.length){ ensureReports(DIVPF_ROWS.map(r=>r.code)); ensureForeign(DIVPF_ROWS.map(r=>r.code)); ensureShort(DIVPF_ROWS.map(r=>r.code)); }
 }
 function setRoeMin(v){ roeMin=v; renderInvest(); }
 /* 담은 종목(관심·보유·직접 추가)은 순위 30위 밖이어도 표에 남긴다.
@@ -21849,6 +22008,8 @@ window.divScanUpdated=function(from){
     else if(valMarket==='invest' && typeof investLoaded!=='undefined' && investLoaded) renderInvest();
     else if(valMarket==='investkq' && typeof investKqLoaded!=='undefined' && investKqLoaded) renderInvestKq();
   }catch(e){}
+  /* 포트 › 다이버전스 — 다시 찾았으면 종목 목록을 새로 만든다 */
+  try{ if(typeof divPfSync==='function'){ if(valMarket==='divpf' || divPfLoaded) divPfSync(); } }catch(e){}
   if(typeof valMarket!=='undefined' && valMarket==='invpf' && typeof selSub!=='undefined' && selSub==='div'){
     selSyncRows(); renderWatchTable(); selTop20Load();
     const n=new Set(selDivList().map(x=>x.code)).size;
