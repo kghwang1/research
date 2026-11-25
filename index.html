@@ -536,7 +536,7 @@
   .srch-sec{margin:0 0 14px}
   #srchBody .val-scroll{max-height:none}
   #srchChart{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#0d1117}
-  #srchChart iframe{width:100%;height:760px;border:0;display:block;background:#0d1117}
+  #srchChart iframe{width:100%;height:1250px;border:0;display:block;background:#0d1117}
   .srch-msg{padding:40px 16px;text-align:center;color:#8b949e;font-size:13.5px}
   /* ===== STUDY (공부방) ===== */
   .stu-bar{display:flex;gap:8px;align-items:stretch;margin:2px 0 12px}
@@ -1475,7 +1475,7 @@ function krDigits(x){
     <div class="val-scroll"><table class="val-tbl mp mpfix" id="srchTbl"></table></div>
    </div>
    <div class="srch-sec">
-    <div class="srch-h" id="srchChartHead">주식챠트<span class="srch-sub">보조지표 MACD · RSI · 외국인순매수</span></div>
+    <div class="srch-h" id="srchChartHead">주식챠트<span class="srch-sub">보조지표 다이버전스 탐색 조합 전체</span></div>
     <div id="srchChart"></div>
    </div>
    <div class="srch-sec">
@@ -18018,7 +18018,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.25.-v6';
+const KG_APP_VER = '11.25.-v8';
 const KG_APP_BUILD = KG_APP_VER + ' CPI·금리 한 그래프';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -19518,7 +19518,7 @@ function srchOvwDraw(){
   const t=$('#srchTbl'); if(!t) return;
   const code=SRCH.code, name=SRCH.name, us=SRCH.us;
   const hd=$('#srchHead'); if(hd) hd.innerHTML=escHtml(name)+' 개요<span class="srch-sub">'+escHtml(code)+(us?' · 해외':'')+'</span>';
-  const ch0=$('#srchChartHead'); if(ch0) ch0.innerHTML=escHtml(name)+' 챠트<span class="srch-sub">보조지표 MACD · RSI · 외국인순매수</span>';
+  const ch0=$('#srchChartHead'); if(ch0) ch0.innerHTML=escHtml(name)+' 챠트<span class="srch-sub">보조지표 다이버전스 탐색 조합 전체</span>';
   const body=$('#srchBody'); if(body) body.style.display='';
   const em=$('#srchEmpty'); if(em) em.style.display='none';
   const hole = SRCH.done ? '—' : (SRV_URL ? '…' : '—');          // 아직 받는 중이면 …, 다 받았는데 없으면 —
@@ -19544,7 +19544,7 @@ function srchOvwDraw(){
       roeTxt=`${rz.roe}${perTag}${dh}`;
     }
     h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
-     + `<td class="mp-r krlive">${liveStr}${live?rateHtml(krRate[code]):''}</td>`
+     + `<td class="mp-r krlive" style="cursor:pointer" title="누르면 종목분석 챠트로 이동">${liveStr}${live?rateHtml(krRate[code]):''}</td>`
      + `<td>${roeTxt}</td>`
      + `<td class="frgnc">${frgnCell(code)}</td>`
      + `<td class="famtc">${frgnAmtCell(code)}</td>`
@@ -19568,7 +19568,7 @@ function srchOvwDraw(){
     const hd52=krUpside(hi, liveQ?liveQ.price:undefined);
     const hdHtml = hd52!=='' ? ` <span class="diffp${parseFloat(hd52)>=0?'':' neg'}">(${hd52}%)</span>` : '';
     h='<thead><tr>'+H.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr>'
-     + `<td class="uslive">${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`
+     + `<td class="uslive" style="cursor:pointer" title="누르면 종목분석 챠트로 이동">${liveStr}${liveQ?rateHtml(liveQ.rate):''}</td>`
      + `<td>${hiStr}${hdHtml}</td>`
      + `<td>${tgtStr}${upHtml}</td>`
      + `<td>${consCell('US:'+code)}</td>`
@@ -19581,6 +19581,35 @@ function srchOvwDraw(){
     ev.preventDefault();
     if(SRCH.us) openNaverWorld(SRCH.code); else openNaverDomestic(SRCH.code);
   }; });
+  // 현재가를 누르면 종목분석의 챠트로 (2026-11-25)
+  t.querySelectorAll('td.krlive, td.uslive').forEach(td=>{ td.onclick=srchOpenChart; });
+}
+
+/* 검색 종목의 현재가 → 종목분석 챠트 (2026-11-25)
+   챠트 왼쪽 포트 목록은 '검색 종목이 들어 있는 포트 중 챠트 포트 선택칸에서 가장 앞에 나오는 것'을 쓴다.
+   (지수·외국인추세는 포트가 아니라 건너뛴다.) 어느 포트에도 없으면 그 종목 하나만 담아 연다. */
+function srchOpenChart(){
+  const code=SRCH.code, name=SRCH.name; if(!code) return;
+  const norm=c=>String(c==null?'':c).replace(/^US:/i,'').trim().toUpperCase();
+  const want=norm(code);
+  const sel=$('#chartPortSel');
+  const ports=sel ? [...sel.options].map(o=>o.value).filter(v=>v && v!=='idx' && v!=='ftrend') : [];
+  let found=null;
+  for(const p of ports){
+    let rows=[];
+    try{ rows=chartPortRows(p)||[]; }catch(e){ rows=[]; }
+    if(rows.some(r=>norm(Array.isArray(r)?r[0]:(r&&r.code))===want)){ found=p; break; }
+  }
+  try{ stkSet(code, name); }catch(e){}
+  window._chartComboPeak = true;                 // 표에서 챠트로 올 때와 같은 기본 조합
+  if(found){
+    stkSetPort(found);
+    openChartView(found, code, name);
+  }else{
+    const p=SRCH.us ? 'usc' : 'kr';
+    stkSetPort(p);
+    openChartView(p, code, name, [[code, name]]);
+  }
 }
 
 /* ④ 종목분석 — 종목 소개 + 분기 재무 표 */

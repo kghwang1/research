@@ -1027,17 +1027,9 @@ function init() {
   setupSidebar();
   /* 작은 그래프: 보조차트는 모두 끈다 (저장하지 않으므로 원래 챠트 화면은 그대로) */
   if (KG_MINI) { Object.keys(state.selected).forEach(k => state.selected[k] = false); state.selectedOrder = []; }
-  /* 검색 화면: 보조차트는 MACD → RSI → 외국인 순매수 (나중 것이 아래) */
-  if (KG_SRCH) {
-    Object.keys(state.selected).forEach(k => state.selected[k] = false);
-    state.selected.MACD = true; state.selected.RSI = true; state.selected.FRGN_NET = true;
-    state.selectedOrder = ['MACD', 'RSI', 'FRGN_NET'];
-    document.querySelectorAll('.ind-label').forEach(label => {
-      const on = (label.dataset.key === 'MACD' || label.dataset.key === 'RSI' || label.dataset.key === 'FRGN_NET');
-      const cb = label.querySelector('.cb-show'); if (cb) cb.checked = on;
-      label.classList.toggle('active', on);
-    });
-  }
+  /* 검색 화면: 다이버전스 탐색 조합을 모두 보여 준다 (2026-11-25)
+     MA 겹쳐보기 + ADXR·관성·MACD·엘더레이·RSI·CCI·MFI·외국인순매수. 아무것도 저장하지 않는다 */
+  if (KG_SRCH) applyCombo(PEAK_COMBO.slice(), 'peak');
   setupHeader();
   setupSearch();
   stkNavInit();
@@ -1697,8 +1689,9 @@ function swapToggle(key){
   try{ localStorage.setItem(SWAP_KEY, JSON.stringify(m)); }catch(e){}
   return next;
 }
-function comboMode(){ return swapMapGet()._mode === 'peak' ? 'peak' : 'base'; }
+function comboMode(){ if (KG_SRCH) return 'peak'; return swapMapGet()._mode === 'peak' ? 'peak' : 'base'; }
 function setComboMode(mode){
+  if (KG_SRCH) { SUB_SWAP = SUB_SWAP_PEAK; return; }   // 검색 화면은 저장하지 않는다
   const m = swapMapGet();
   if (mode === 'peak') m._mode = 'peak'; else delete m._mode;
   try{ localStorage.setItem(SWAP_KEY, JSON.stringify(m)); }catch(e){}
@@ -1918,7 +1911,7 @@ function loadDefaults() {
     try {
       /* 켠 것을 곧바로 저장해 둔다.
          저장하지 않으면 처음 열 때만 켜지고, 다음에 열면 저장값에 없어 꺼진 채로 나왔다 */
-      if (!localStorage.getItem('kg_volov_intro2')) {
+      if (!KG_SRCH && !localStorage.getItem('kg_volov_intro2')) {
         d.VOL_OV = true;
         localStorage.setItem('kg_volov_intro2', '1');
         saveDefaults(d);
@@ -1931,7 +1924,7 @@ function loadDefaults() {
      구성이 바뀐 것을 알아채면 탐색 조합을 한 번만 새로 맞춘다 */
   try {
     const stamp = PEAK_COMBO.join(',') + '|' + Object.keys(SUB_SWAP_PEAK).join(',');
-    if (!KG_MINI && localStorage.getItem('kg_peak_pairs') !== stamp) {
+    if (!KG_MINI && !KG_SRCH && localStorage.getItem('kg_peak_pairs') !== stamp) {
       localStorage.setItem('kg_peak_pairs', stamp);
       if (comboMode() === 'peak') {
         const d = {};
@@ -2051,12 +2044,12 @@ function applyCombo(list, mode) {
     if (on) { label.classList.add('active'); if (span) span.style.color = col; }
     else { label.classList.remove('active'); if (span) span.style.color = ''; }
   });
-  swapResetFor(list);
+  if (!KG_SRCH) swapResetFor(list);
   setComboMode(mode === 'peak' ? 'peak' : 'base');
   const defs = {};
   list.forEach(k => defs[k] = true);
   saveDefaults(defs);
-  try { localStorage.setItem('kgchart_order', JSON.stringify(list)); } catch(e) {}
+  if (!KG_SRCH) { try { localStorage.setItem('kgchart_order', JSON.stringify(list)); } catch(e) {} }
   renderAll();
 }
 
@@ -4481,7 +4474,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '11.13.-v2';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '11.25.-v8';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
