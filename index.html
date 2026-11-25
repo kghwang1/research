@@ -18121,7 +18121,7 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.25.-v11';
+const KG_APP_VER = '11.25.-v13';
 const KG_APP_BUILD = KG_APP_VER + ' CPI·금리 한 그래프';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
@@ -21016,22 +21016,32 @@ function refreshDivPfPricesLive(){
     if(valMarket==='divpf') renderDivPf();
   })();
 }
+/* 추가 열 (2026-11-25) — RSI 30 미만(침체) · 20일선이 120일선을 뚫는 골든크로스(최근 10거래일). 찾은 때 마지막 봉 기준 */
+function divPfExtraCell(code){
+  const res=selDivRes(), st=res && res.state ? res.state[String(code||'').trim()] : null;
+  if(!st) return '<span class="rsub" title="[🎯 다시 찾기]를 누르면 나옵니다">—</span>';
+  const parts=[];
+  if(st.rsi!=null && st.rsi<30) parts.push(`<span class="d" style="font-weight:700" title="RSI(14) ${st.rsi} · 30 미만 과매도">RSI ${st.rsi}</span>`);
+  if(st.gc!=null) parts.push(`<span class="u" style="font-weight:700" title="20일선이 120일선을 아래에서 위로 뚫음 · ${st.gc===0?'오늘':st.gc+'거래일 전'}">골든 ${st.gc===0?'오늘':st.gc+'일 전'}</span>`);
+  if(!parts.length) return '<span class="rsub"'+(('gc' in st)?'':' title="골든크로스는 [🎯 다시 찾기]를 누르면 나옵니다"')+'>—</span>';
+  return '<div class="dxs">'+parts.join('<br>')+'</div>';
+}
 function renderDivPf(){
   const t=$('#valTbl'), sc=$('#valScroll'), em=$('#valEmpty'); if(!t) return;
   loadReportCache(); loadFrgnCache();
   if(em) em.style.display='none'; if(sc) sc.style.display='';
   // 순서는 찾은 때 정해 둔 그대로 (지표 수 → RSI 30 이하 → 20·120일선 표시)
   DIVPF_ROWS = DIVPF_POOL.slice();
-  const W=[96,60,92,92,76,90,90,82,100,100,84,210];
+  const W=[96,60,92,92,76,90,90,82,100,100,84,96,210];
   const hp=DIVPF_ROWS.reduce((mx,r)=>(r.period&&(!mx||String(r.period)>String(mx)))?r.period:mx,null);
   // 재무(미니그래프) 열 제거 — 한국(체)와 동일
-  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+  const H=["종목","분류","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","추가<br>(RSI·골든크로스)","보고서<br>(발표일,분야)"];
   const res0=selDivRes();
-  const bar=`<caption class="inv-bar"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:4px;font-weight:500"><span style="font-size:11.5px;color:#8b949e">🎯 다이버전스 탐색 결과${res0&&res0.atStr?' · 기준 '+escHtml(res0.atStr):''} · ${DIVPF_ROWS.length}종목 · 다이버전스 지표 많은 순 → RSI 30 이하 → 20·120일선 표시</span><button id="divPfScan" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e">🎯 다시 찾기</button></span></caption>`;
+  const bar=`<caption class="inv-bar"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin-top:4px;font-weight:500"><span style="font-size:11.5px;color:#8b949e">🎯 다이버전스 탐색 결과${res0&&res0.atStr?' · 기준 '+escHtml(res0.atStr):''} · ${DIVPF_ROWS.length}종목 · 다이버전스 지표 많은 순 → RSI 30 이하 → 20·120일선 표시 (추가 열: RSI 30 미만 · 골든크로스)</span><button id="divPfScan" class="rfr" style="width:auto;border-radius:6px;padding:3px 10px;font-size:11.5px;color:#f0883e">🎯 다시 찾기</button></span></caption>`;
   let h=bar+'<colgroup>'+W.map(w=>`<col style="width:${w}px">`).join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
-  if(!DIVPF_POOL.length){ h+=`<tr><td colspan="11" style="padding:16px;text-align:left;white-space:normal">${res0?'최근 10거래일 안에 신호가 두 지표 이상 겹친 종목이 없습니다.':'아직 다이버전스를 찾지 않았습니다.'} STUDY › 다이버전스 탐색 › 종목찾기에서 [찾기]를 누르거나 위의 [🎯 다시 찾기]를 누르세요.</td></tr>`; }
-  else if(!DIVPF_ROWS.length){ h+=`<tr><td colspan="11" style="padding:16px;text-align:left;white-space:normal">${res0?'최근 10거래일 안에 신호가 두 지표 이상 겹친 종목이 없습니다.':'아직 다이버전스를 찾지 않았습니다.'} STUDY › 다이버전스 탐색 › 종목찾기에서 [찾기]를 누르거나 위의 [🎯 다시 찾기]를 누르세요.</td></tr>`; }
+  if(!DIVPF_POOL.length){ h+=`<tr><td colspan="12" style="padding:16px;text-align:left;white-space:normal">${res0?'최근 10거래일 안에 신호가 두 지표 이상 겹친 종목이 없습니다.':'아직 다이버전스를 찾지 않았습니다.'} STUDY › 다이버전스 탐색 › 종목찾기에서 [찾기]를 누르거나 위의 [🎯 다시 찾기]를 누르세요.</td></tr>`; }
+  else if(!DIVPF_ROWS.length){ h+=`<tr><td colspan="12" style="padding:16px;text-align:left;white-space:normal">${res0?'최근 10거래일 안에 신호가 두 지표 이상 겹친 종목이 없습니다.':'아직 다이버전스를 찾지 않았습니다.'} STUDY › 다이버전스 탐색 › 종목찾기에서 [찾기]를 누르거나 위의 [🎯 다시 찾기]를 누르세요.</td></tr>`; }
   curPort='divpf';
   const invKqDisp = (()=>{
     let arr=[...DIVPF_ROWS]; const ps=PSORT.divpf;
@@ -21068,6 +21078,7 @@ function renderDivPf(){
     h+=`<td class="mp-r">${r.hi?addComma(r.hi):'—'}${dropHtml}</td>`;
     h+=`<td class="mp-r">${r.tgt?addComma(r.tgt):'—'}${upHtml}</td>`;
     h+=`<td>${divCell(r.code)}</td>`;
+    h+=`<td class="mp-c">${divPfExtraCell(r.code)}</td>`;
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
@@ -22033,7 +22044,7 @@ window.chartOpenFromDiv=function(code, name){
 window.divScanUpdated=function(from){
   const hf=document.getElementById('selDivFrame'); if(hf) setTimeout(()=>hf.remove(), 50);
   /* 다른 곳(챠트 결과표 · 지금 찾기)에서 새로 찾았으면 표 아래 결과 화면도 다시 읽힌다 */
-  if(from!=='embed'){ const fr=$('#selDivEmbed'); if(fr && fr.dataset.loaded) fr.src='kg-chart.html?divscan=1&embed=1'; }
+  if(from!=='embed'){ ['#selDivEmbed','#stuDivEmbed'].forEach(q=>{ const fr=$(q); if(fr && fr.dataset.loaded) fr.src='kg-chart.html?divscan=1&embed=1'; }); }   // STUDY 종목찾기 화면도 함께 (2026-11-25)
   /* 다이버전스 열이 있는 다른 표가 열려 있으면 그 표도 새로 그린다 (시세는 다시 받지 않는다) */
   try{
     if(valMarket==='kr') renderKrTable();

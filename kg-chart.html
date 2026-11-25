@@ -4474,7 +4474,7 @@ function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':
 //  (state·redrawAll 에 접근해야 하므로)
 // ══════════════════════════════════════
 // 어느 파일이 로드됐는지 확인용. 파일을 고칠 때마다 값을 올린다
-const KG_CHART_BUILD = '11.25.-v8';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
+const KG_CHART_BUILD = '11.25.-v12';   // 앱과 같은 번호 (화면에는 안 보이고 콘솔에만 찍힌다)
 try{ console.log('[kg-chart] build', KG_CHART_BUILD); }catch(e){}
 document.addEventListener('DOMContentLoaded', ()=>{ const b=document.getElementById('buildTag'); if(b) b.textContent=KG_CHART_BUILD; });
 
@@ -5962,6 +5962,9 @@ function divScanOne(d, idx, fmap, rmap){
     a20:  s20[N - 1]  != null ? (last.close >= s20[N - 1]  ? 1 : -1) : null,
     a120: s120[N - 1] != null ? (last.close >= s120[N - 1] ? 1 : -1) : null,
     rsi:  rl != null ? Math.round(rl) : null,
+    /* 골든크로스 — 최근 DIVSCAN_RECENT 거래일 안에 20일선이 120일선을 아래에서 위로 뚫은 가장 최근 봉이 며칠 전인지 (없으면 null).
+       포트 › 다이버전스 표의 '추가' 열이 쓴다 (2026-11-25) */
+    gc:   (() => { for (let i = N - 1; i >= Math.max(1, N - DIVSCAN_RECENT); i--) { if (s20[i] != null && s120[i] != null && s20[i - 1] != null && s120[i - 1] != null && s20[i - 1] <= s120[i - 1] && s20[i] > s120[i]) return N - 1 - i; } return null; })(),
   };
   return { ev, recent, state, last:last.close, lastDate:last.date, from:d[30] ? d[30].date : d[0].date };
 }
