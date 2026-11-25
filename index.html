@@ -1491,10 +1491,11 @@ function krDigits(x){
   <div class="stu-bar">
    <button class="sf on" data-s="ind">투자지표</button>
    <button class="sf" data-s="peak">다이버전스 탐색</button>
-   <button class="sf" data-s="div">다이버전스 종목찾기</button>
    <button class="sf" data-s="chart">챠트 기본조합해석</button>
-   <button class="sf" data-s="desc">지표설명</button>
-   <button class="sf" data-s="rsifmi">RSI와 FMI</button>
+   <button class="sf" data-s="desc">보조챠트 설명</button>
+   <button class="sf" data-s="hy">하이일드 스프레드</button>
+   <button class="sf" data-s="move">MOVE 지수</button>
+   <button class="sf" data-s="vix">VIX 지수</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -1805,6 +1806,12 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
 <p class="foot">작성 기준: 국내 증권사 기업분석 리포트의 일반적인 재무제표·투자지표 표 형식</p>
   </div>
+  <!-- STUDY › 다이버전스 탐색 (2026-11-25) — 안쪽 부메뉴 [종목찾기][고점저점 탐색]. 종목찾기는 예전 '다이버전스 종목찾기' 칸 -->
+  <div id="stuPeakWrap" style="display:none">
+  <div class="selnav divnav stu-pknav" style="margin:0 0 8px"><button type="button" data-pk="div" class="on">종목찾기</button><button type="button" data-pk="peak">고점저점 탐색</button></div>
+  <!-- STUDY › 다이버전스 (2026-10-17) — 챠트의 '다이버전스 종목 찾기' 화면을 그대로 붙인다.
+       결과는 kg_div_scan 하나를 함께 쓰므로 어디서 찾든 양쪽에 동시에 반영된다 -->
+  <div id="stuDiv" class="stu-doc" style="padding:0"><iframe id="stuDivEmbed" title="다이버전스 종목 찾기" style="width:100%;height:600px;border:0;display:block;background:#0d1117"></iframe></div>
   <div id="stuPeak" class="stu-doc" style="display:none">
    <h2>다이버전스 탐색으로 고점·저점 찾는 법</h2>
 <p class="lead">차트 화면의 <b>🎯 다이버전스 탐색</b> 조합은 주가와 보조지표가 서로 반대로 움직이는 <b>다이버전스</b>를 찾아 선과 ▲▼로 보여 줍니다. 아래 순서대로 보시면 됩니다.</p>
@@ -1911,48 +1918,11 @@ DPS ÷ 배당수익률 = ?</code></pre>
 </ul>
 <p class="foot">다이버전스 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
   </div>
+  </div><!-- /stuPeakWrap -->
   <!-- 챠트에 있던 '📖 해석' 을 STUDY 로 옮겼다 (2026-10-16). 내용은 CHART_GUIDE_HTML 에서 채운다 -->
-  <!-- STUDY › 다이버전스 (2026-10-17) — 챠트의 '다이버전스 종목 찾기' 화면을 그대로 붙인다.
-       결과는 kg_div_scan 하나를 함께 쓰므로 어디서 찾든 양쪽에 동시에 반영된다 -->
-  <div id="stuDiv" class="stu-doc" style="display:none;padding:0"><iframe id="stuDivEmbed" title="다이버전스 종목 찾기" style="width:100%;height:600px;border:0;display:block;background:#0d1117"></iframe></div>
-  <!-- STUDY › RSI와 FMI (2026-11-10) — 사용자가 올린 비교 설명을 그대로 옮겼다 -->
-  <div id="stuRsiFmi" class="stu-doc" style="display:none">
-   <h2>RSI와 FMI</h2>
-   <p class="lead">주식 차트에서 RSI(상대강도지수)와 FIM(강도지수, Force Index Modified 또는 일반 Force Index)은 모두 주가의 추세와 흐름을 분석하는 보조지표이지만, 거래량 반영 여부와 분석 목적에서 가장 큰 차이가 납니다.<br>두 지표의 핵심 차이점과 특징을 직관적으로 비교해 드립니다.</p>
-
-   <h3>📊 RSI vs FIM 핵심 차이점 비교</h3>
-   <table>
-    <tr><th>구분</th><th>RSI (Relative Strength Index)</th><th>FIM (Force Index / Force Index Modified)</th></tr>
-    <tr><td><b>핵심 요소</b></td><td>오직 주가 변동 (가격)</td><td>주가 변동 + 거래량 (힘)</td></tr>
-    <tr><td><b>지표 유형</b></td><td>오실레이터 (0 ~ 100 사이 왕복)</td><td>모멘텀 지표 (0을 기준으로 상하 무한대)</td></tr>
-    <tr><td><b>주요 목적</b></td><td>과매수 및 과매도 구간 포착</td><td>추세의 강도 및 자금 유입/유출 확인</td></tr>
-    <tr><td><b>신호 해석</b></td><td>• 70 이상: 과매수 (매도 검토)<br>• 30 이하: 과매도 (매수 검토)</td><td>• 0선 위: 매수세 우위 (상승 압력)<br>• 0선 아래: 매도세 우위 (하락 압력)</td></tr>
-   </table>
-
-   <h3>💡 지표별 상세 요약</h3>
-   <h4>1. RSI (상대강도지수)</h4>
-   <ul>
-    <li><b>주가 움직임만 계산:</b> 최근 일정 기간(보통 14일) 동안 주가가 전날보다 상승한 폭과 하락한 폭을 비교하여 백분율로 나타냅니다.</li>
-    <li><b>추세의 전환점 포착:</b> 주가가 너무 빠르게 올랐는지(과매수), 혹은 너무 빠르게 떨어졌는지(과매도)를 판단하는 데 특화되어 있습니다.</li>
-    <li><b>한계:</b> 거래량이 완전히 배제되어 있어, 적은 거래량으로 주가가 왜곡될 때 가짜 신호(속임수)가 발생할 수 있습니다.</li>
-   </ul>
-   <h4>2. FIM (Force Index / 강도지수)</h4>
-   <ul>
-    <li><b>거래량과 가격의 결합:</b> 주가의 방향성(방향)과 변동 폭(거리)에 거래량(힘)을 곱해서 계산합니다.</li>
-    <li><b>진짜 상승/하락 판별:</b> 주가가 오르더라도 거래량이 동반되지 않으면 FIM 지표는 크게 상승하지 않습니다. 즉, 세력의 자금 유입이나 진짜 추세의 강도를 측정합니다.</li>
-    <li><b>한계:</b> 기준선(0)을 중심으로 상하 제한 없이 움직이므로, RSI처럼 "지금이 과매도 상태다"라는 절대적인 수치를 한눈에 파악하기는 어렵습니다.</li>
-   </ul>
-
-   <h3>🛠️ 실전 매매 활용 팁</h3>
-   <ul>
-    <li><b>RSI는 타이밍 잡기:</b> 주가가 박스권 횡보를 하거나 단기 과열 상태를 판단할 때 매수/매도 타이밍을 잡기 좋습니다.</li>
-    <li><b>FIM은 추세 확인하기:</b> 현재 상승 또는 하락세가 얼마나 강한 힘(거래량)을 가지고 유지되는지 뒷받침하는 근거로 씁니다.</li>
-   </ul>
-   <div class="note"><p><b>💡 결합 활용:</b> RSI가 30 이하(과매도)이면서 동시에 FIM이 0선 위로 고개를 들며 거래량 유입을 알릴 때를 매수 적기로 판단하는 등 두 지표를 상호보완적으로 함께</p></div>
-  </div>
   <div id="stuChart" class="stu-doc" style="display:none"></div>
   <div id="stuDesc" class="stu-doc" style="display:none">
-   <h2>지표설명 — 기본챠트와 다이버전스 탐색에 쓰는 보조지표</h2>
+   <h2>보조챠트 설명 — 기본챠트와 다이버전스 탐색에 쓰는 보조지표</h2>
 <p class="lead">차트의 <b>기본챠트</b>와 <b>🎯 다이버전스 탐색</b> 조합에 쓰이는 지표를 한곳에 모았습니다. 각 지표마다 ① 무엇을 보여 주는지 ② 값을 어떻게 구하는지(개략) ③ 매매 타이밍을 적었습니다. 지표 하나만으로 매매하지 말고, 다른 지표·주가 모양과 겹쳐 확인하는 보조 도구로 쓰세요.</p>
 
 <div class="note">
@@ -2144,156 +2114,45 @@ DPS ÷ 배당수익률 = ?</code></pre>
 </ul></li>
 </ul>
 
+<hr>
+   <!-- RSI와 FMI (2026-11-10 작성, 2026-11-25 보조챠트 설명 아래로 옮김) -->
+
+   <h2>RSI와 FMI</h2>
+   <p class="lead">주식 차트에서 RSI(상대강도지수)와 FIM(강도지수, Force Index Modified 또는 일반 Force Index)은 모두 주가의 추세와 흐름을 분석하는 보조지표이지만, 거래량 반영 여부와 분석 목적에서 가장 큰 차이가 납니다.<br>두 지표의 핵심 차이점과 특징을 직관적으로 비교해 드립니다.</p>
+
+   <h3>📊 RSI vs FIM 핵심 차이점 비교</h3>
+   <table>
+    <tr><th>구분</th><th>RSI (Relative Strength Index)</th><th>FIM (Force Index / Force Index Modified)</th></tr>
+    <tr><td><b>핵심 요소</b></td><td>오직 주가 변동 (가격)</td><td>주가 변동 + 거래량 (힘)</td></tr>
+    <tr><td><b>지표 유형</b></td><td>오실레이터 (0 ~ 100 사이 왕복)</td><td>모멘텀 지표 (0을 기준으로 상하 무한대)</td></tr>
+    <tr><td><b>주요 목적</b></td><td>과매수 및 과매도 구간 포착</td><td>추세의 강도 및 자금 유입/유출 확인</td></tr>
+    <tr><td><b>신호 해석</b></td><td>• 70 이상: 과매수 (매도 검토)<br>• 30 이하: 과매도 (매수 검토)</td><td>• 0선 위: 매수세 우위 (상승 압력)<br>• 0선 아래: 매도세 우위 (하락 압력)</td></tr>
+   </table>
+
+   <h3>💡 지표별 상세 요약</h3>
+   <h4>1. RSI (상대강도지수)</h4>
+   <ul>
+    <li><b>주가 움직임만 계산:</b> 최근 일정 기간(보통 14일) 동안 주가가 전날보다 상승한 폭과 하락한 폭을 비교하여 백분율로 나타냅니다.</li>
+    <li><b>추세의 전환점 포착:</b> 주가가 너무 빠르게 올랐는지(과매수), 혹은 너무 빠르게 떨어졌는지(과매도)를 판단하는 데 특화되어 있습니다.</li>
+    <li><b>한계:</b> 거래량이 완전히 배제되어 있어, 적은 거래량으로 주가가 왜곡될 때 가짜 신호(속임수)가 발생할 수 있습니다.</li>
+   </ul>
+   <h4>2. FIM (Force Index / 강도지수)</h4>
+   <ul>
+    <li><b>거래량과 가격의 결합:</b> 주가의 방향성(방향)과 변동 폭(거리)에 거래량(힘)을 곱해서 계산합니다.</li>
+    <li><b>진짜 상승/하락 판별:</b> 주가가 오르더라도 거래량이 동반되지 않으면 FIM 지표는 크게 상승하지 않습니다. 즉, 세력의 자금 유입이나 진짜 추세의 강도를 측정합니다.</li>
+    <li><b>한계:</b> 기준선(0)을 중심으로 상하 제한 없이 움직이므로, RSI처럼 "지금이 과매도 상태다"라는 절대적인 수치를 한눈에 파악하기는 어렵습니다.</li>
+   </ul>
+
+   <h3>🛠️ 실전 매매 활용 팁</h3>
+   <ul>
+    <li><b>RSI는 타이밍 잡기:</b> 주가가 박스권 횡보를 하거나 단기 과열 상태를 판단할 때 매수/매도 타이밍을 잡기 좋습니다.</li>
+    <li><b>FIM은 추세 확인하기:</b> 현재 상승 또는 하락세가 얼마나 강한 힘(거래량)을 가지고 유지되는지 뒷받침하는 근거로 씁니다.</li>
+   </ul>
+   <div class="note"><p><b>💡 결합 활용:</b> RSI가 30 이하(과매도)이면서 동시에 FIM이 0선 위로 고개를 들며 거래량 유입을 알릴 때를 매수 적기로 판단하는 등 두 지표를 상호보완적으로 함께</p></div>
+
 <p class="foot">지표의 기간·기준값은 차트의 설정을 따릅니다. 위 설명은 앱 기본값(MACD 12·26·9, RSI 14, 엘더레이 13 등) 기준입니다.</p>
   </div>
- </section>
-
- <!-- ===== VALUATION (적정주가) ===== -->
- <section id="valuation">
-  <!-- 추세 부메뉴 (2026-10-19) -->
-  <div class="trd-bar">
-   <button class="tf on" data-tv="psy">외국인 투자심리</button>
-   <button class="tf" data-tv="flow">외국인 매매동향</button>
-   <button class="tf" data-tv="idx2">위험지표</button>
-   <button class="tf" data-tv="pmi">제조업 PMI</button>
-   <button class="tf" data-tv="hy">하이일드 스프레드</button>
-   <button class="tf" data-tv="move">MOVE 지수</button>
-   <button class="tf" data-tv="vix">VIX 지수</button>
-   <button class="tf" data-tv="cpi">CPI</button>
-   <button class="tf" data-tv="narb">비차익</button>
-  </div>
-  <div class="pnl-wrap">
-  <div id="trdPsy" class="trd-pane">
-  <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
-
-  <!-- 투자자별 매매 추이 막대그래프 -->
-  <div class="ftrend-box">
-    <div class="ftrend-title">외국인 기관 매매추이</div>
-    <div class="ftrend-head">
-      <select id="ftrendPeriod" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
-        <option value="7">1주일</option>
-        <option value="30" selected>1개월</option>
-        <option value="90">3개월</option>
-        <option value="180">6개월</option>
-        <option value="365">12개월</option>
-      </select>
-      <div class="ftrend-toggle">
-        <span class="ft-grp">코스피</span>
-        <button class="ft-b active" data-idx="kospi" data-mode="net">순매수</button>
-        <button class="ft-b" data-idx="kospi" data-mode="cumul">누적</button>
-        <span class="ft-grp">코스닥</span>
-        <button class="ft-b" data-idx="kosdaq" data-mode="net">순매수</button>
-        <button class="ft-b" data-idx="kosdaq" data-mode="cumul">누적</button>
-      </div>
-    </div>
-    <canvas id="ftrendCanvas"></canvas>
-    <div class="ftrend-legend" id="ftrendLegend"></div>
-    <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
-  </div>
-
-  <!-- 증시자금동향 -->
-  <div class="dep-wrap">
-    <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">52주 최고값 대비 %</span></div>
-    <canvas id="depCanvas"></canvas>
-    <div class="dep-tip" id="depTip"></div>
-    <div class="dep-read" id="depRead"></div>
-  </div>
-  </div><!-- /trdPsy -->
-
-  <div id="trdFlow" class="trd-pane" style="display:none">
-  <!-- 외국인·기관 순매수 순매도 종목 -->
-  <div class="trank-box">
-    <div class="trank-title">외국인 기관 순매수 순매도 종목</div>
-    <div class="trank-head">
-      <div class="trank-toggle">
-        <button class="tr-b active" data-side="buy">순매수</button>
-        <button class="tr-b" data-side="sell">순매도</button>
-      </div>
-      <div class="trank-stamp"><span class="trank-time" id="trankTime"></span><button class="tr-reload" id="trankReload" title="새로 받기">↻</button></div>
-    </div>
-    <div class="trank-mkt">코스피</div>
-    <div id="trankKospi"></div>
-    <div class="trank-mkt">코스닥</div>
-    <div id="trankKosdaq"></div>
-    <div class="trank-note" id="trankNote">불러오는 중…</div>
-  </div>
-
-  <!-- 외국인 지분율 상위 종목 -->
-  <div class="trank-box">
-    <div class="trank-title">외국인 지분율 상위 종목</div>
-    <div class="trank-head">
-      <div class="trank-stamp"><span class="trank-time" id="frankTime"></span><button class="tr-reload" id="frankReload" title="새로 받기">↻</button></div>
-    </div>
-    <div class="trank-mkt">코스피</div>
-    <div id="frankKospi"></div>
-    <div class="trank-mkt">코스닥</div>
-    <div id="frankKosdaq"></div>
-    <div class="trank-note" id="frankNote">불러오는 중…</div>
-  </div>
-  </div><!-- /trdFlow -->
-
-  <!-- 위험지표(내부 이름 idx2, 처음 이름 지수분석2) — 하이일드 스프레드·MOVE·VIX 를 한 그래프에 + 현재값 + 지표별 설명 + 종합 해석 (2026-11-16, 예전 지수분석 칸은 삭제) -->
-  <div id="trdIdx2" class="trd-pane" style="display:none">
-   <div class="i2-now" id="i2Now"></div>
-   <div class="ixa-card">
-    <div class="ixa-h i2-h"><b>선행 지표</b><div class="i2-kind"><span style="color:#f2c800">High Yield Index</span> · <span style="color:#7c8cff">MOVE</span><span class="pmi-sub" id="i2RangeA"></span></div></div>
-    <div id="i2ChartA"></div>
-    <div class="i2-zl" id="i2ZoneA"></div>
-   </div>
-   <div class="ixa-card" style="margin-top:10px">
-    <div class="ixa-h i2-h"><b>심리 지표</b><div class="i2-kind"><span style="color:#ef8a50">VIX</span> · <span style="color:#4dd0e1">Fear &amp; Greed Index</span><span class="pmi-sub" id="i2RangeB"></span></div></div>
-    <div id="i2ChartB"></div>
-    <div class="i2-zl" id="i2ZoneB"></div>
-   </div>
-   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 2~7%p, MOVE 50~150, VIX 10~40, 공포탐욕 10~80(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 가로 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 눈금 범위 안에 있을 때만 그립니다. 그래프는 최근 6개월이고, 점선 세로선은 매달 1일입니다(카드와 설명의 변화율은 최근 3개월 기준). 그래프 위에 마우스·손가락을 올리면 세로선이 날짜를 따라 움직이며 그날 두 지표 값을 보여줍니다. 축 이름 옆 ▼는 낮을수록, ▲는 높을수록 주가에 좋다는 뜻입니다.</div>
-   <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
-   <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
-   <div class="pmi-src" id="i2Src"></div>
-  </div>
-
-  <!-- 제조업 PMI — 한국·미국 / 일본·중국 두 그래프 + 월별 표 + 해설 (2026-11-03) -->
-  <div id="trdPmi" class="trd-pane" style="display:none">
-   <div class="ixv-grid" id="pmiVal"></div>
-   <div class="ixv-note" id="pmiNote"></div>
-   <div class="ixa-grid" id="pmiGrid"></div>
-   <div class="pmi-box"><h3>월별 수치</h3><div id="pmiTbl"></div></div>
-   <div class="pmi-src" id="pmiSrc"></div>
-
-   <div class="pmi-box">
-    <h3>① 제조업 PMI란?</h3>
-    <p>PMI(구매관리자지수)는 제조업체의 구매·공급 담당자에게 “지난달보다 나아졌는가”를 묻는 <b>월간 설문</b>을 점수로 만든 지수입니다. 신규주문·생산·고용·납기·재고 같은 항목을 합쳐 계산하고, 매달 첫 영업일 전후에 전월분이 나와서 <b>산업생산·수출 같은 실물 통계보다 먼저</b> 경기 방향을 알려 줍니다.</p>
-    <ul>
-     <li><b>50이 기준선</b> — 50보다 크면 지난달보다 좋아졌다는 응답이 많은 <b>확장</b>, 작으면 <b>위축</b>입니다. 경기의 ‘수준’이 아니라 ‘전월 대비 방향’을 묻는 지수라서, 50을 넘었다고 곧 호황이라는 뜻은 아닙니다.</li>
-     <li>한국은 S&amp;P Global, 일본은 au Jibun Bank(S&amp;P Global 조사), 미국은 ISM, 중국은 국가통계국(NBS) 지수를 썼습니다. 기관마다 조사 대상과 계산 방식이 달라 <b>같은 50이라도 완전히 같은 뜻은 아닙니다.</b> ISM은 제조업 PMI가 47.5 안팎 이상이면 경제 전체가 확장 중일 가능성이 크다고 설명합니다.</li>
-    </ul>
-   </div>
-
-   <div class="pmi-box">
-    <h3>② 그래프 읽는 법과 최근 흐름 <span class="dm" style="font-size:11px;font-weight:600">(2026년 10월분 기준)</span></h3>
-    <ul>
-     <li><b>읽는 법</b> — 점선(50) 위에 있는지보다 <b>선이 오르는지 내리는지</b>, 그 방향이 두세 달 이어지는지를 봅니다. 한 달 수치는 흔들림이 큽니다.</li>
-     <li><b>2025년 말까지는 넷 다 50 안팎이거나 아래</b>였습니다 — 미국 47.9(12월), 일본 48.2(10월)→50.0(12월), 한국 49.4(10~11월)→50.1(12월), 중국 49.0~50.1.</li>
-     <li><b>2026년 1월에 분위기가 바뀌었습니다.</b> 미국이 47.9에서 52.6으로 크게 반등했고 한국(51.2)·일본(51.5)도 50 위로 올라섰습니다. 중국만 49.3으로 50 아래에 남았습니다.</li>
-     <li><b>한국·일본은 봄에 정점을 찍었습니다.</b> 일본 4월 55.1, 한국 5월 54.8(S&amp;P Global 발표문 기준 2021년 3월 이후 가장 강함). 미국은 7월 55.6까지 올라 10월 55.5로 고점권을 지키고 있습니다.</li>
-     <li><b>10월에는 미국만 강하고 아시아는 식었습니다.</b> 미국 55.5(9월 54.5에서 +1.0), 한국 51.3(9월 53.9에서 −2.6, 8개월 만의 최저), 일본 53.3(9월 54.1에서 하락), 중국 49.3(9월 50.1에서 다시 50 아래로).</li>
-     <li><b>중국은 2026년 내내 49~50.4 사이 좁은 박스권</b>입니다. 50 위로 올라와도 오래 버티지 못하는 모양이라, 50 위에 안착하는지가 관건입니다.</li>
-     <li><b>수치가 실제 수요보다 높게 나올 수 있습니다.</b> PMI는 납기가 늘어나도 점수가 오르는 구조인데, 2026년 S&amp;P Global 발표문에는 공급 차질과 원가 상승 속에서 재고를 쌓는 움직임이 있었다는 내용이 나옵니다. 미국 ISM 물가 항목도 10월에 75 안팎으로 높았습니다. 신규주문·생산이 같이 오르는지 함께 확인하는 것이 안전합니다.</li>
-    </ul>
-   </div>
-
-   <div class="pmi-box">
-    <h3>③ 주가에 미치는 영향</h3>
-    <ul>
-     <li><b>수준보다 방향과 ‘예상과의 차이’에 반응합니다.</b> 발표값이 시장 예상보다 높으면 호재, 낮으면 악재로 받아들여지는 일이 흔합니다. 이미 오른 뒤라면 선반영돼 반응이 작을 수도 있습니다.</li>
-     <li><b>한국 주식은 수출·제조업 비중이 커서</b> 한국 PMI뿐 아니라 미국·중국 PMI가 함께 중요합니다. PMI가 오르면 반도체·자동차·기계·화학 같은 경기민감주의 실적 기대가 커지고, 꺾이면 이들 대형주가 먼저 부담을 받기 쉽습니다.</li>
-     <li><b>미국 PMI는 금리 경로로도 영향을 줍니다.</b> 미국 PMI가 강하고 물가 항목까지 높으면 금리 인하 기대가 줄어 성장주·고PER 종목에 불리할 수 있고, 반대로 경기는 식는데 물가가 안정되면 금리 인하 기대로 주가에 우호적일 수 있습니다.</li>
-     <li><b>중국 PMI가 50 아래에 머물면</b> 대중 수출 비중이 큰 철강·화학·소재·기계 업종에 부담이 되기 쉽습니다.</li>
-     <li><b>외국인 수급과 함께 봅니다.</b> 글로벌 제조업 경기가 좋아진다는 기대는 외국인의 한국 제조업 대형주 매수와 같이 움직이는 경우가 많습니다. 이 화면의 <b>외국인 투자심리·외국인 매매동향·위험지표</b>와 같이 보면 PMI 해석이 더 단단해집니다.</li>
-     <li><b>한계</b> — 설문 기반이라 응답자의 심리가 섞이고, 제조업만 다룹니다(미국은 제조업이 경제의 약 10%). 월별 변동과 재고 비축 같은 일시 요인에 왜곡될 수 있으니 <b>한 달 수치로 매매를 정하지 말고 3개월 흐름</b>으로 판단하는 것이 좋습니다. 투자 판단의 참고 자료일 뿐입니다.</li>
-    </ul>
-   </div>
-  </div><!-- /trdPmi -->
-
+  <!-- 하이일드·MOVE·VIX — 2026-11-25 추세에서 STUDY 로 옮김 (id 는 그대로) -->
   <!-- 하이일드 스프레드 — 해설 + 최근 3개월 그래프(그래프 위 현재값·변화율) (2026-11-16) -->
   <div id="trdHy" class="trd-pane" style="display:none">
    <div class="pmi-box">
@@ -2422,6 +2281,184 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <div class="ixa-card" id="vxCard"></div>
    <div class="pmi-src" id="vxSrc"></div>
   </div><!-- /trdVix -->
+ </section>
+
+ <!-- ===== VALUATION (적정주가) ===== -->
+ <section id="valuation">
+  <!-- 추세 부메뉴 (2026-10-19) -->
+  <div class="trd-bar">
+   <button class="tf on" data-tv="psy">외국인 투자심리</button>
+   <button class="tf" data-tv="flow">외국인 매매동향</button>
+   <button class="tf" data-tv="idx2">위험지표</button>
+   <button class="tf" data-tv="pmi">제조업 PMI</button>
+   <button class="tf" data-tv="cpi">CPI</button>
+  </div>
+  <div class="pnl-wrap">
+  <div id="trdPsy" class="trd-pane">
+  <div id="pnlDir" class="pnl-dir"><span class="dim">다음날 방향 불러오는 중…</span></div>
+
+  <!-- 투자자별 매매 추이 막대그래프 -->
+  <div class="ftrend-box">
+    <div class="ftrend-title">외국인 기관 매매추이</div>
+    <div class="ftrend-head">
+      <select id="ftrendPeriod" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:4px 8px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">
+        <option value="7">1주일</option>
+        <option value="30" selected>1개월</option>
+        <option value="90">3개월</option>
+        <option value="180">6개월</option>
+        <option value="365">12개월</option>
+      </select>
+      <div class="ftrend-toggle">
+        <span class="ft-grp">코스피</span>
+        <button class="ft-b active" data-idx="kospi" data-mode="net">순매수</button>
+        <button class="ft-b" data-idx="kospi" data-mode="cumul">누적</button>
+        <span class="ft-grp">코스닥</span>
+        <button class="ft-b" data-idx="kosdaq" data-mode="net">순매수</button>
+        <button class="ft-b" data-idx="kosdaq" data-mode="cumul">누적</button>
+      </div>
+    </div>
+    <canvas id="ftrendCanvas"></canvas>
+    <div class="ftrend-legend" id="ftrendLegend"></div>
+    <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
+  </div>
+
+  <!-- 증시자금동향 -->
+  <div class="dep-wrap">
+    <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">52주 최고값 대비 %</span></div>
+    <canvas id="depCanvas"></canvas>
+    <div class="dep-tip" id="depTip"></div>
+    <div class="dep-read" id="depRead"></div>
+  </div>
+  <!-- 비차익 (2026-11-25 추세 부메뉴에서 외국인 투자심리 맨 아래로 옮김) — 일별 비차익 순매수에서 만기일을 빼고 5일·20일 누적으로 본다 (2026-11-20) -->
+  <div id="trdNarb">
+   <div class="ftrend-title">비차익</div>
+   <div class="nb-ctl">
+    <span class="nb-grp">시장</span>
+    <button type="button" class="nb-b on" data-nbm="kospi">코스피</button>
+    <button type="button" class="nb-b" data-nbm="kosdaq">코스닥</button>
+    <span class="nb-grp">기간</span>
+    <button type="button" class="nb-b" data-nbs="60">3개월</button>
+    <button type="button" class="nb-b on" data-nbs="100">5개월</button>
+    <span class="nb-grp"></span>
+    <button type="button" class="nb-b on" id="nbEx" title="선물·옵션 만기일에는 기계적인 프로그램 매매가 몰립니다">만기일 제외</button>
+   </div>
+   <div class="ixa-card" id="nbCard"></div>
+   <div class="pmi-box">
+    <h3>① 이 그래프를 만든 순서</h3>
+    <ul>
+     <li><b>1단계 · 주체 분리(증권사 자기매매 제외)</b> — <b>아직 연결하지 못했습니다.</b> 이 그래프가 받는 자료는 시장 전체의 비차익 합계이고 투자주체별 값이 없습니다. 주체별로 내려주는 출처가 정해지면 이 칸에 얹습니다. 지금 그래프에는 증권사 자기매매와 ETF 유동성공급 같은 기계적인 거래가 그대로 섞여 있습니다.</li>
+     <li><b>2단계 · 만기일 제외</b> — 매월 둘째 목요일(선물·옵션 만기일)을 회색 막대로 표시하고 누적에서 뺍니다. 3·6·9·12월은 선물·옵션 동시만기일이고, 6·12월은 코스피200 정기변경 거래일을 겸합니다. 공휴일이면 앞 거래일로 옮겨 잡습니다(자료에 그 날짜가 빠져 있을 때만 보정).</li>
+     <li><b>3단계 · 5일·20일 누적</b> — 만기일을 뺀 거래일만 모아 5거래일·20거래일 합계를 구합니다. 하루 값은 흔들림이 커서 누적선의 방향과 0선 통과를 봅니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-box">
+    <h3>② 읽는 법</h3>
+    <ul>
+     <li><b>20일 누적이 0 위에서 오르는 중</b>이면 기관이 선물 헤지 없이 주식 바스켓을 꾸준히 사고 있다는 뜻입니다. 0선을 아래에서 위로 뚫고 올라오는 날이 '매수가 시작된 것 아닌가'를 볼 첫 신호입니다.</li>
+     <li><b>5일 누적이 20일 누적보다 먼저 꺾이거나 오르면</b> 방향이 바뀌는 초입일 수 있습니다. 반대로 5일이 20일 아래로 내려가면 매수세가 식는 중입니다.</li>
+     <li><b>이것만으로 판단하지 마세요.</b> 같은 기간 외국인·연기금 현물 순매수(같은 화면 위쪽의 외국인 기관 매매추이)와 거래대금이 같은 방향인지 함께 확인하세요.</li>
+     <li>한계 — ① ETF 설정·환매분은 빼지 않았습니다 ② MSCI 정기변경일(5월·11월 말)은 따로 빼지 않았습니다 ③ 코스닥은 프로그램 거래 규모가 작아 흔들림이 큽니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-src" id="nbSrc"></div>
+   <div class="nb-url">자료 워커 주소 <input id="nbUrl" type="text" spellcheck="false" autocomplete="off"><button type="button" class="nb-b" id="nbUrlSave">저장</button></div>
+  </div><!-- /trdNarb -->
+  </div><!-- /trdPsy -->
+
+  <div id="trdFlow" class="trd-pane" style="display:none">
+  <!-- 외국인·기관 순매수 순매도 종목 -->
+  <div class="trank-box">
+    <div class="trank-title">외국인 기관 순매수 순매도 종목</div>
+    <div class="trank-head">
+      <div class="trank-toggle">
+        <button class="tr-b active" data-side="buy">순매수</button>
+        <button class="tr-b" data-side="sell">순매도</button>
+      </div>
+      <div class="trank-stamp"><span class="trank-time" id="trankTime"></span><button class="tr-reload" id="trankReload" title="새로 받기">↻</button></div>
+    </div>
+    <div class="trank-mkt">코스피</div>
+    <div id="trankKospi"></div>
+    <div class="trank-mkt">코스닥</div>
+    <div id="trankKosdaq"></div>
+    <div class="trank-note" id="trankNote">불러오는 중…</div>
+  </div>
+
+  <!-- 외국인 지분율 상위 종목 -->
+  <div class="trank-box">
+    <div class="trank-title">외국인 지분율 상위 종목</div>
+    <div class="trank-head">
+      <div class="trank-stamp"><span class="trank-time" id="frankTime"></span><button class="tr-reload" id="frankReload" title="새로 받기">↻</button></div>
+    </div>
+    <div class="trank-mkt">코스피</div>
+    <div id="frankKospi"></div>
+    <div class="trank-mkt">코스닥</div>
+    <div id="frankKosdaq"></div>
+    <div class="trank-note" id="frankNote">불러오는 중…</div>
+  </div>
+  </div><!-- /trdFlow -->
+
+  <!-- 위험지표(내부 이름 idx2, 처음 이름 지수분석2) — 하이일드 스프레드·MOVE·VIX 를 한 그래프에 + 현재값 + 지표별 설명 + 종합 해석 (2026-11-16, 예전 지수분석 칸은 삭제) -->
+  <div id="trdIdx2" class="trd-pane" style="display:none">
+   <div class="i2-now" id="i2Now"></div>
+   <div class="ixa-card">
+    <div class="ixa-h i2-h"><b>선행 지표</b><div class="i2-kind"><span style="color:#f2c800">High Yield Index</span> · <span style="color:#7c8cff">MOVE</span><span class="pmi-sub" id="i2RangeA"></span></div></div>
+    <div id="i2ChartA"></div>
+    <div class="i2-zl" id="i2ZoneA"></div>
+   </div>
+   <div class="ixa-card" style="margin-top:10px">
+    <div class="ixa-h i2-h"><b>심리 지표</b><div class="i2-kind"><span style="color:#ef8a50">VIX</span> · <span style="color:#4dd0e1">Fear &amp; Greed Index</span><span class="pmi-sub" id="i2RangeB"></span></div></div>
+    <div id="i2ChartB"></div>
+    <div class="i2-zl" id="i2ZoneB"></div>
+   </div>
+   <div class="i2-note">두 그래프의 눈금은 지표마다 <b>고정</b>입니다 — 하이일드 2~7%p, MOVE 50~150, VIX 10~40, 공포탐욕 10~80(추세의 하이일드 스프레드·MOVE·VIX 화면도 같은 눈금). 왼쪽 눈금은 앞 지표(하이일드·VIX), 오른쪽 눈금은 뒤 지표(MOVE·공포탐욕)의 실제 값이고 글자색이 선 색과 같습니다. 색 바탕 숫자는 현재값입니다. 노란 띠는 하이일드 스프레드 평상시 구간(3~5%p), 가로 점선은 MOVE 100·VIX 20(평상시/경계)과 공포탐욕지수 25·75(극단적 공포/탐욕)로, 눈금 범위 안에 있을 때만 그립니다. 그래프는 최근 6개월이고, 점선 세로선은 매달 1일입니다(카드와 설명의 변화율은 최근 3개월 기준). 그래프 위에 마우스·손가락을 올리면 세로선이 날짜를 따라 움직이며 그날 두 지표 값을 보여줍니다. 축 이름 옆 ▼는 낮을수록, ▲는 높을수록 주가에 좋다는 뜻입니다.</div>
+   <div class="pmi-box"><h3>각 지표의 현재 상황</h3><div id="i2Each"></div></div>
+   <div class="pmi-box"><h3>종합 해석</h3><div id="i2Sum"></div></div>
+   <div class="pmi-src" id="i2Src"></div>
+  </div>
+
+  <!-- 제조업 PMI — 한국·미국 / 일본·중국 두 그래프 + 월별 표 + 해설 (2026-11-03) -->
+  <div id="trdPmi" class="trd-pane" style="display:none">
+   <div class="ixv-grid" id="pmiVal"></div>
+   <div class="ixv-note" id="pmiNote"></div>
+   <div class="ixa-grid" id="pmiGrid"></div>
+   <div class="pmi-box"><h3>월별 수치</h3><div id="pmiTbl"></div></div>
+   <div class="pmi-src" id="pmiSrc"></div>
+
+   <div class="pmi-box">
+    <h3>① 제조업 PMI란?</h3>
+    <p>PMI(구매관리자지수)는 제조업체의 구매·공급 담당자에게 “지난달보다 나아졌는가”를 묻는 <b>월간 설문</b>을 점수로 만든 지수입니다. 신규주문·생산·고용·납기·재고 같은 항목을 합쳐 계산하고, 매달 첫 영업일 전후에 전월분이 나와서 <b>산업생산·수출 같은 실물 통계보다 먼저</b> 경기 방향을 알려 줍니다.</p>
+    <ul>
+     <li><b>50이 기준선</b> — 50보다 크면 지난달보다 좋아졌다는 응답이 많은 <b>확장</b>, 작으면 <b>위축</b>입니다. 경기의 ‘수준’이 아니라 ‘전월 대비 방향’을 묻는 지수라서, 50을 넘었다고 곧 호황이라는 뜻은 아닙니다.</li>
+     <li>한국은 S&amp;P Global, 일본은 au Jibun Bank(S&amp;P Global 조사), 미국은 ISM, 중국은 국가통계국(NBS) 지수를 썼습니다. 기관마다 조사 대상과 계산 방식이 달라 <b>같은 50이라도 완전히 같은 뜻은 아닙니다.</b> ISM은 제조업 PMI가 47.5 안팎 이상이면 경제 전체가 확장 중일 가능성이 크다고 설명합니다.</li>
+    </ul>
+   </div>
+
+   <div class="pmi-box">
+    <h3>② 그래프 읽는 법과 최근 흐름 <span class="dm" style="font-size:11px;font-weight:600">(2026년 10월분 기준)</span></h3>
+    <ul>
+     <li><b>읽는 법</b> — 점선(50) 위에 있는지보다 <b>선이 오르는지 내리는지</b>, 그 방향이 두세 달 이어지는지를 봅니다. 한 달 수치는 흔들림이 큽니다.</li>
+     <li><b>2025년 말까지는 넷 다 50 안팎이거나 아래</b>였습니다 — 미국 47.9(12월), 일본 48.2(10월)→50.0(12월), 한국 49.4(10~11월)→50.1(12월), 중국 49.0~50.1.</li>
+     <li><b>2026년 1월에 분위기가 바뀌었습니다.</b> 미국이 47.9에서 52.6으로 크게 반등했고 한국(51.2)·일본(51.5)도 50 위로 올라섰습니다. 중국만 49.3으로 50 아래에 남았습니다.</li>
+     <li><b>한국·일본은 봄에 정점을 찍었습니다.</b> 일본 4월 55.1, 한국 5월 54.8(S&amp;P Global 발표문 기준 2021년 3월 이후 가장 강함). 미국은 7월 55.6까지 올라 10월 55.5로 고점권을 지키고 있습니다.</li>
+     <li><b>10월에는 미국만 강하고 아시아는 식었습니다.</b> 미국 55.5(9월 54.5에서 +1.0), 한국 51.3(9월 53.9에서 −2.6, 8개월 만의 최저), 일본 53.3(9월 54.1에서 하락), 중국 49.3(9월 50.1에서 다시 50 아래로).</li>
+     <li><b>중국은 2026년 내내 49~50.4 사이 좁은 박스권</b>입니다. 50 위로 올라와도 오래 버티지 못하는 모양이라, 50 위에 안착하는지가 관건입니다.</li>
+     <li><b>수치가 실제 수요보다 높게 나올 수 있습니다.</b> PMI는 납기가 늘어나도 점수가 오르는 구조인데, 2026년 S&amp;P Global 발표문에는 공급 차질과 원가 상승 속에서 재고를 쌓는 움직임이 있었다는 내용이 나옵니다. 미국 ISM 물가 항목도 10월에 75 안팎으로 높았습니다. 신규주문·생산이 같이 오르는지 함께 확인하는 것이 안전합니다.</li>
+    </ul>
+   </div>
+
+   <div class="pmi-box">
+    <h3>③ 주가에 미치는 영향</h3>
+    <ul>
+     <li><b>수준보다 방향과 ‘예상과의 차이’에 반응합니다.</b> 발표값이 시장 예상보다 높으면 호재, 낮으면 악재로 받아들여지는 일이 흔합니다. 이미 오른 뒤라면 선반영돼 반응이 작을 수도 있습니다.</li>
+     <li><b>한국 주식은 수출·제조업 비중이 커서</b> 한국 PMI뿐 아니라 미국·중국 PMI가 함께 중요합니다. PMI가 오르면 반도체·자동차·기계·화학 같은 경기민감주의 실적 기대가 커지고, 꺾이면 이들 대형주가 먼저 부담을 받기 쉽습니다.</li>
+     <li><b>미국 PMI는 금리 경로로도 영향을 줍니다.</b> 미국 PMI가 강하고 물가 항목까지 높으면 금리 인하 기대가 줄어 성장주·고PER 종목에 불리할 수 있고, 반대로 경기는 식는데 물가가 안정되면 금리 인하 기대로 주가에 우호적일 수 있습니다.</li>
+     <li><b>중국 PMI가 50 아래에 머물면</b> 대중 수출 비중이 큰 철강·화학·소재·기계 업종에 부담이 되기 쉽습니다.</li>
+     <li><b>외국인 수급과 함께 봅니다.</b> 글로벌 제조업 경기가 좋아진다는 기대는 외국인의 한국 제조업 대형주 매수와 같이 움직이는 경우가 많습니다. 이 화면의 <b>외국인 투자심리·외국인 매매동향·위험지표</b>와 같이 보면 PMI 해석이 더 단단해집니다.</li>
+     <li><b>한계</b> — 설문 기반이라 응답자의 심리가 섞이고, 제조업만 다룹니다(미국은 제조업이 경제의 약 10%). 월별 변동과 재고 비축 같은 일시 요인에 왜곡될 수 있으니 <b>한 달 수치로 매매를 정하지 말고 3개월 흐름</b>으로 판단하는 것이 좋습니다. 투자 판단의 참고 자료일 뿐입니다.</li>
+    </ul>
+   </div>
+  </div><!-- /trdPmi -->
+
 
   <!-- CPI — 위: 그래프 3개(미·한 CPI / 미 2년·10년 금리 / 미·한 4개 지수, 같은 날짜축·십자선 함께 움직임), 아래: 해설 (2026-11-25) -->
   <div id="trdCpi" class="trd-pane" style="display:none">
@@ -2464,7 +2501,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
      <li><b>순서</b> — CPI가 예상보다 높게 나오면 시장은 "연준이 금리를 내리기 어렵거나 오히려 올리겠다"고 봅니다. 그러면 연준 정책을 가장 민감하게 반영하는 <b>2년물 국채 금리</b>가 바로 오르고, 10년물 금리와 달러도 대체로 강해집니다.</li>
      <li><b>반대로</b> — CPI가 예상보다 낮으면 금리 인하 기대가 커지고 국채 금리가 내려갑니다.</li>
      <li><b>2년물과 10년물</b> — 2년물은 앞으로 1~2년의 기준금리 예상을, 10년물은 장기 물가·성장 전망과 나라 빚 부담까지 반영합니다. 그래서 2년물이 CPI에 더 빠르게 반응합니다.</li>
-     <li><b>MOVE 지수</b> — CPI 발표일 전후로 금리가 크게 흔들려 MOVE 지수가 자주 뜁니다. MOVE 부메뉴와 같이 보세요.</li>
+     <li><b>MOVE 지수</b> — CPI 발표일 전후로 금리가 크게 흔들려 MOVE 지수가 자주 뜁니다. STUDY 의 MOVE 지수 부메뉴와 같이 보세요.</li>
     </ul>
    </div>
    <div class="pmi-box">
@@ -2480,39 +2517,6 @@ DPS ÷ 배당수익률 = ?</code></pre>
    </div>
   </div><!-- /trdCpi -->
 
-  <!-- 비차익 — 일별 비차익 순매수에서 만기일을 빼고 5일·20일 누적으로 본다 (2026-11-20) -->
-  <div id="trdNarb" class="trd-pane" style="display:none">
-   <div class="nb-ctl">
-    <span class="nb-grp">시장</span>
-    <button type="button" class="nb-b on" data-nbm="kospi">코스피</button>
-    <button type="button" class="nb-b" data-nbm="kosdaq">코스닥</button>
-    <span class="nb-grp">기간</span>
-    <button type="button" class="nb-b" data-nbs="60">3개월</button>
-    <button type="button" class="nb-b on" data-nbs="100">5개월</button>
-    <span class="nb-grp"></span>
-    <button type="button" class="nb-b on" id="nbEx" title="선물·옵션 만기일에는 기계적인 프로그램 매매가 몰립니다">만기일 제외</button>
-   </div>
-   <div class="ixa-card" id="nbCard"></div>
-   <div class="pmi-box">
-    <h3>① 이 그래프를 만든 순서</h3>
-    <ul>
-     <li><b>1단계 · 주체 분리(증권사 자기매매 제외)</b> — <b>아직 연결하지 못했습니다.</b> 이 그래프가 받는 자료는 시장 전체의 비차익 합계이고 투자주체별 값이 없습니다. 주체별로 내려주는 출처가 정해지면 이 칸에 얹습니다. 지금 그래프에는 증권사 자기매매와 ETF 유동성공급 같은 기계적인 거래가 그대로 섞여 있습니다.</li>
-     <li><b>2단계 · 만기일 제외</b> — 매월 둘째 목요일(선물·옵션 만기일)을 회색 막대로 표시하고 누적에서 뺍니다. 3·6·9·12월은 선물·옵션 동시만기일이고, 6·12월은 코스피200 정기변경 거래일을 겸합니다. 공휴일이면 앞 거래일로 옮겨 잡습니다(자료에 그 날짜가 빠져 있을 때만 보정).</li>
-     <li><b>3단계 · 5일·20일 누적</b> — 만기일을 뺀 거래일만 모아 5거래일·20거래일 합계를 구합니다. 하루 값은 흔들림이 커서 누적선의 방향과 0선 통과를 봅니다.</li>
-    </ul>
-   </div>
-   <div class="pmi-box">
-    <h3>② 읽는 법</h3>
-    <ul>
-     <li><b>20일 누적이 0 위에서 오르는 중</b>이면 기관이 선물 헤지 없이 주식 바스켓을 꾸준히 사고 있다는 뜻입니다. 0선을 아래에서 위로 뚫고 올라오는 날이 '매수가 시작된 것 아닌가'를 볼 첫 신호입니다.</li>
-     <li><b>5일 누적이 20일 누적보다 먼저 꺾이거나 오르면</b> 방향이 바뀌는 초입일 수 있습니다. 반대로 5일이 20일 아래로 내려가면 매수세가 식는 중입니다.</li>
-     <li><b>이것만으로 판단하지 마세요.</b> 같은 기간 외국인·연기금 현물 순매수(추세 › 외국인 투자심리의 매매추이)와 거래대금이 같은 방향인지 함께 확인하세요.</li>
-     <li>한계 — ① ETF 설정·환매분은 빼지 않았습니다 ② MSCI 정기변경일(5월·11월 말)은 따로 빼지 않았습니다 ③ 코스닥은 프로그램 거래 규모가 작아 흔들림이 큽니다.</li>
-    </ul>
-   </div>
-   <div class="pmi-src" id="nbSrc"></div>
-   <div class="nb-url">자료 워커 주소 <input id="nbUrl" type="text" spellcheck="false" autocomplete="off"><button type="button" class="nb-b" id="nbUrlSave">저장</button></div>
-  </div><!-- /trdNarb -->
  </div>
  </section>
 
@@ -3203,8 +3207,16 @@ function renderWatch(){
 let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
-/* ---------- STUDY 하부메뉴 (투자지표 / 다이버전스 탐색 / 다이버전스 종목찾기 / 챠트 기본조합해석 / 지표설명) ---------- */
-const STU_DOCS={ ind:'#stuInd', peak:'#stuPeak', div:'#stuDiv', chart:'#stuChart', desc:'#stuDesc', rsifmi:'#stuRsiFmi' };
+/* ---------- STUDY 하부메뉴 (투자지표 / 다이버전스 탐색[종목찾기·고점저점 탐색] / 챠트 기본조합해석 / 보조챠트 설명 / 하이일드 스프레드 / MOVE 지수 / VIX 지수) ---------- */
+const STU_DOCS={ ind:'#stuInd', peak:'#stuPeakWrap', chart:'#stuChart', desc:'#stuDesc', hy:'#trdHy', move:'#trdMove', vix:'#trdVix' };
+/* 다이버전스 탐색 안쪽 부메뉴 — div: 종목찾기(찾기 화면은 처음 열 때 불러옴) · peak: 고점저점 탐색 */
+function stuPeakView(v){
+  v=(v==='peak')?'peak':'div';
+  $$('.stu-pknav button').forEach(x=>x.classList.toggle('on', x.dataset.pk===v));
+  const a=$('#stuDiv'), b=$('#stuPeak'); if(a) a.style.display=(v==='div')?'':'none'; if(b) b.style.display=(v==='peak')?'':'none';
+  if(v==='div'){ const fr=$('#stuDivEmbed'); if(fr && !fr.dataset.loaded){ fr.dataset.loaded='1'; fr.src='kg-chart.html?divscan=1&embed=1'; } }
+}
+$$('.stu-pknav button').forEach(b=>b.onclick=()=>{ stuPeakView(b.dataset.pk); window.scrollTo(0,0); });
 /* 챠트 기본조합해석 — 챠트 화면에 있던 해석 내용을 처음 열 때 채운다 */
 function stuChartFill(){
   const el=$('#stuChart');
@@ -3215,8 +3227,10 @@ function stuChartFill(){
 $$('.stu-bar .sf').forEach(b=>b.onclick=()=>{
   $$('.stu-bar .sf').forEach(x=>x.classList.toggle('on', x===b));
   if(b.dataset.s==='chart') stuChartFill();
-  if(b.dataset.s==='div'){ const fr=$('#stuDivEmbed'); if(fr && !fr.dataset.loaded){ fr.dataset.loaded='1'; fr.src='kg-chart.html?divscan=1&embed=1'; } }
   Object.keys(STU_DOCS).forEach(k=>{ const el=$(STU_DOCS[k]); if(el) el.style.display=(b.dataset.s===k)?'':'none'; });
+  if(b.dataset.s==='peak') stuPeakView($('.stu-pknav button.on')?.dataset.pk||'div');
+  /* 추세에서 옮겨 온 그래프 3개 — 보일 때 그린다 */
+  try{ if(b.dataset.s==='hy') hyBuild(); else if(b.dataset.s==='move') volBuild('move'); else if(b.dataset.s==='vix') volBuild('vix'); }catch(e){ console.error(e); }
   window.scrollTo(0,0);
 });
 $$('.watch-bar .wf').forEach(b=>b.onclick=()=>{
@@ -8843,20 +8857,17 @@ window.addEventListener('message', e=>{
 });
 function setTrendView(v){
   if(v==='idx') v='idx2';   // 예전 지수분석을 마지막으로 봤던 경우
-  v=(v==='flow'||v==='idx2'||v==='pmi'||v==='hy'||v==='move'||v==='vix'||v==='cpi'||v==='narb')?v:'psy';
+  v=(v==='flow'||v==='idx2'||v==='pmi'||v==='cpi')?v:'psy';   // 비차익은 2026-11-25 외국인 투자심리 맨 아래로 옮김   // 하이일드·MOVE·VIX 는 2026-11-25 STUDY 로 옮김
   try{ localStorage.setItem(TRD_KEY, v); }catch(e){}
   $$('.trd-bar .tf').forEach(b=>b.classList.toggle('on', b.dataset.tv===v));
   const show=(id,on)=>{ const el=$('#'+id); if(el) el.style.display=on?'':'none'; };
-  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx2', v==='idx2'); show('trdPmi', v==='pmi'); show('trdHy', v==='hy'); show('trdMove', v==='move'); show('trdVix', v==='vix'); show('trdCpi', v==='cpi'); show('trdNarb', v==='narb');
+  show('trdPsy', v==='psy'); show('trdFlow', v==='flow'); show('trdIdx2', v==='idx2'); show('trdPmi', v==='pmi'); show('trdCpi', v==='cpi');
   /* 그래프 5개는 추세 화면이 실제로 열려 있을 때만 불러온다 (시황만 볼 때 미리 받지 않게) */
   const sec=$('#valuation');
   if(v==='idx2' && sec && sec.classList.contains('on')){ try{ idx2Build(); }catch(e){ console.error(e); } }
   if(v==='pmi' && sec && sec.classList.contains('on')){ try{ pmiBuild(); }catch(e){ console.error(e); } }
-  if(v==='hy' && sec && sec.classList.contains('on')){ try{ hyBuild(); }catch(e){ console.error(e); } }
-  if(v==='move' && sec && sec.classList.contains('on')){ try{ volBuild('move'); }catch(e){ console.error(e); } }
-  if(v==='vix' && sec && sec.classList.contains('on')){ try{ volBuild('vix'); }catch(e){ console.error(e); } }
   if(v==='cpi' && sec && sec.classList.contains('on')){ try{ cpiBuild(); }catch(e){ console.error(e); } }
-  if(v==='narb' && sec && sec.classList.contains('on')){ try{ narbBuild(); }catch(e){ console.error(e); } }
+  if(v==='psy' && sec && sec.classList.contains('on')){ try{ narbBuild(); }catch(e){ console.error(e); } }
   /* 감춰져 있던 동안 폭이 0 이라 그래프가 비어 있을 수 있다 — 보일 때 다시 그린다 */
   if(v==='psy') setTimeout(()=>{
     try{ if(typeof drawFtrendAll==='function') drawFtrendAll(); }catch(e){}
@@ -9657,8 +9668,11 @@ function i2Render(){
   const rg=ks=>'최근 6개월 · 마지막 '+ks.map(k=>I2_DEF[k].sh+' '+T[k].date.slice(5).replace('-','.')).join(' / ');
   $('#i2RangeA').textContent=rg(['hy','move']); $('#i2RangeB').textContent=rg(['vix','fg']);
   $('#i2ZoneA').innerHTML=yZoneLegend(['hy','move']); $('#i2ZoneB').innerHTML=yZoneLegend(['vix','fg']);
+  /* 하이일드·MOVE·VIX 카드를 누르면 STUDY 의 해당 부메뉴로 (2026-11-25) */
+  window.i2GoStudy=k=>{ goSub('study'); const b=document.querySelector('.stu-bar .sf[data-s="'+k+'"]'); if(b) b.click(); };
   $('#i2Now').innerHTML=K.map(k=>{ const D=I2_DEF[k], t=T[k], z=D.zone(t.v);
-    return `<div class="it"><div class="nm" style="color:${D.col}"><i style="background:${D.col}"></i>${D.sh}<span class="zn" style="color:${z.c}">${z.t}</span></div>`
+    const go=(k==='hy'||k==='move'||k==='vix')?` onclick="i2GoStudy('${k}')" style="cursor:pointer" title="STUDY › ${D.nm} 로 가기"`:'';
+    return `<div class="it"${go}><div class="nm" style="color:${D.col}"><i style="background:${D.col}"></i>${D.sh}<span class="zn" style="color:${z.c}">${z.t}</span></div>`
      +`<div class="vv" style="color:${D.col}">${i2Fmt(k,t.v)}<small>${{hy:'%p',move:'bp',vix:'%',fg:'점'}[k]}</small></div>`
      +`<div class="cg">3개월 <b style="color:${col(t.d3)}">${ar(t.d3)}${i2Fmt(k,Math.abs(t.d3))} (${t.r3>=0?'+':''}${t.r3.toFixed(1)}%)</b><br>전일 <b style="color:${col(t.d1)}">${ar(t.d1)}${i2Fmt(k,Math.abs(t.d1))} (${t.r1>=0?'+':''}${t.r1.toFixed(1)}%)</b></div></div>`; }).join('');
   box.innerHTML=i2Svg(S,['hy','move'],[{k:'hy',band:[I2_DEF.hy.low,I2_DEF.hy.warn],txt:'하이일드 평상시 3~5%p'},{k:'move',line:100,txt:'MOVE 100 · 평상시/경계'}]);
@@ -9667,7 +9681,7 @@ function i2Render(){
   i2Hover($('#i2ChartB'), I2_META_LAST);
   $('#i2Each').innerHTML=K.map(k=>i2Each(k,T[k])).join('');
   $('#i2Sum').innerHTML=i2Summary(T);
-  $('#i2Src').innerHTML='출처: 하이일드 스프레드 — ICE BofA US High Yield OAS(FRED BAMLH0A0HYM2, 앱에 적어 둔 값) · MOVE — ICE BofA MOVE(야후 ^MOVE) · VIX — CBOE VIX(야후 ^VIX) · 공포탐욕지수 — CNN Fear &amp; Greed Index. MOVE·VIX는 '+(I2_LIVE6.move&&I2_LIVE6.vix?'시황 중계서버로 방금 받은 값':'2026-11-16에 저장해 둔 값')+', 공포탐욕지수는 '+(I2_LIVE6.fg?'CNN에서 방금 받은 값':'2026-11-18에 저장해 둔 값')+'입니다. 값이 오르면 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다(공포탐욕지수는 오를수록 낙관). 각 지표의 자세한 설명은 하이일드 스프레드 · MOVE 지수 · VIX 지수 부메뉴에 있습니다.';
+  $('#i2Src').innerHTML='출처: 하이일드 스프레드 — ICE BofA US High Yield OAS(FRED BAMLH0A0HYM2, 앱에 적어 둔 값) · MOVE — ICE BofA MOVE(야후 ^MOVE) · VIX — CBOE VIX(야후 ^VIX) · 공포탐욕지수 — CNN Fear &amp; Greed Index. MOVE·VIX는 '+(I2_LIVE6.move&&I2_LIVE6.vix?'시황 중계서버로 방금 받은 값':'2026-11-16에 저장해 둔 값')+', 공포탐욕지수는 '+(I2_LIVE6.fg?'CNN에서 방금 받은 값':'2026-11-18에 저장해 둔 값')+'입니다. 값이 오르면 붉은색 ▲, 내리면 초록색 ▼로 표시했습니다(공포탐욕지수는 오를수록 낙관). 각 지표의 자세한 설명은 STUDY 의 하이일드 스프레드 · MOVE 지수 · VIX 지수 부메뉴에 있습니다.';
 }
 async function idx2Build(){
   i2Render();
@@ -18014,8 +18028,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.25.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 추세 CPI 부메뉴';
+const KG_APP_VER = '11.25.-v4';
+const KG_APP_BUILD = KG_APP_VER + ' 위험지표 카드 → STUDY';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
