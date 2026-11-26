@@ -2454,7 +2454,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
 
   <!-- CPI — 위: 그래프 3개(미·한 CPI / 미 2년·10년 금리 / 미·한 4개 지수, 같은 날짜축·십자선 함께 움직임), 아래: 해설 (2026-11-25) -->
   <div id="trdCpi" class="trd-pane" style="display:none">
-   <div class="ixa-card"><div class="ixa-h i2-h"><b>미국 물가지수와 국채 금리</b><span class="pmi-sub">근원CPI · 근원PCE 전년 대비(막대, 2% 기준 위아래, 월별) · 2년물·10년물 금리(선, 주별) · 최근 3년</span></div><div id="cpiLegA" class="cpi-leg"></div><div id="cpiChA"></div></div>
+   <div class="ixa-card"><div class="ixa-h i2-h"><b>미국 물가지수와 국채 금리</b><span class="pmi-sub">근원PCE(분홍 막대, 2% 기준 위아래) · 근원CPI(회색 점선) 전년 대비, 월별 · 2년물·10년물 금리(선, 주별) · 최근 3년</span></div><div id="cpiLegA" class="cpi-leg"></div><div id="cpiChA"></div></div>
    <div class="ixa-card" style="margin-top:10px"><div class="ixa-h i2-h"><b>주가지수 (시작 = 100)</b><span class="pmi-sub">S&amp;P500 · 나스닥 · 코스피 · 코스닥 · 최근 3년 · 주별</span></div><div id="cpiLegC" class="cpi-leg"></div><div id="cpiChC"></div></div>
    <div class="pmi-src" id="cpiSrc"></div>
    <div class="pmi-box cpi-now" id="cpiNow"></div>
@@ -2479,7 +2479,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
      <li><b>뜻</b> — PCE에 많이 들어가는 의료비와 금융서비스 같은 항목이 오르고 있다는 뜻입니다. CPI만 보면 "근원 물가가 2%대라 괜찮다"고 생각하기 쉽지만, 연준이 실제로 보는 근원 PCE는 3%를 넘습니다. 그래서 연준이 금리를 내리기 어렵습니다.</li>
      <li><b>에너지</b> — 헤드라인 물가를 끌어올리는 것은 에너지입니다. 9월 에너지 상품·서비스 가격은 1년 전보다 21% 높고, 에너지 물가지수는 1959년 자료 이후 최고치입니다.</li>
     </ul>
-    <p class="i2-note">위 그래프에서 파란 막대(근원PCE)가 붉은 막대(근원CPI)보다 높은 달이 역전 구간입니다.</p>
+    <p class="i2-note">위 그래프에서 분홍 막대(근원PCE)가 회색 점선(근원CPI)보다 위로 올라온 달이 역전 구간입니다.</p>
    </div>
    <div class="pmi-box">
     <h3>① 개요</h3>
@@ -9119,8 +9119,8 @@ function cpiMid(ym){ return Date.UTC(+ym.slice(0,4), +ym.slice(5,7)-1, 15); }
 function cpiMon(ym){ return +ym.slice(5,7)+'월'; }
 function cpiSer(){
   return {
-    A:[{k:'cc', nm:'근원CPI', col:'#ef6b6b', bar:2, dec:1, u:'%', pts:CPI_M.map(r=>[cpiMid(r[0]), r[5], r[0].replace('-','.')])},
-       {k:'cp', nm:'근원PCE', col:'#5aa9ff', bar:2, dec:1, u:'%', pts:CPI_M.map(r=>[cpiMid(r[0]), r[6], r[0].replace('-','.')])},{k:'r2', nm:'2년물', col:'#f2c800', dec:2, u:'%', pts:CPI_RT.map(r=>[Date.parse(r[0]), r[1], r[0].replace(/-/g,'.')])},
+    A:[{k:'cp', nm:'근원PCE', col:'#f48fb1', bar:2, mon:1, dec:1, u:'%', pts:CPI_M.map(r=>[cpiMid(r[0]), r[6], r[0].replace('-','.')])},
+       {k:'cc', nm:'근원CPI', col:'#a7adba', dash:1, mon:1, dec:1, u:'%', pts:CPI_M.map(r=>[cpiMid(r[0]), r[5], r[0].replace('-','.')])},{k:'r2', nm:'2년물', col:'#f2c800', dec:2, u:'%', pts:CPI_RT.map(r=>[Date.parse(r[0]), r[1], r[0].replace(/-/g,'.')])},
        {k:'r10', nm:'10년물', col:'#4fc3a1', dec:2, u:'%', pts:CPI_RT.map(r=>[Date.parse(r[0]), r[2], r[0].replace(/-/g,'.')])}],
     B:[],
     C:CPI_ST.idx ? CPI_IDX.map(d=>({k:d.k, nm:d.nm, col:d.col, dec:0, u:'', pts:CPI_ST.idx[d.k]||[]})) : []
@@ -9148,7 +9148,7 @@ function cpiSvg(id, S, o){
   S.forEach(se=>{ let seg=[], segs=[]; if(se.bar!=null){ const e=[...se.pts].reverse().find(p=>p[1]!=null); if(e) ends.push({se, x:cpiX(e[0]), y:Y(e[1]), v:e[1]}); return; }
     se.pts.forEach(p=>{ if(p[1]==null){ if(seg.length) segs.push(seg); seg=[]; } else seg.push(cpiX(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)); });
     if(seg.length) segs.push(seg);
-    segs.forEach(g=>{ s+=`<polyline fill="none" stroke="${se.col}" stroke-width="2.1" stroke-linejoin="round" points="${g.join(' ')}"/>`; });
+    segs.forEach(g=>{ s+=`<polyline fill="none" stroke="${se.col}" stroke-width="${se.dash?2.3:2.1}"${se.dash?' stroke-dasharray="5 4"':''} stroke-linejoin="round" points="${g.join(' ')}"/>`; });
     const e=[...se.pts].reverse().find(p=>p[1]!=null);
     if(e){ s+=`<circle cx="${cpiX(e[0]).toFixed(1)}" cy="${Y(e[1]).toFixed(1)}" r="3.3" fill="${se.col}"/>`; ends.push({se, x:cpiX(e[0]), y:Y(e[1]), v:e[1]}); }
   });
@@ -9177,10 +9177,10 @@ function cpiHoverAll(t){
     let head='', rows='', wmax=80, any=false;
     C.S.forEach(se=>{ const c=g.querySelector('.dt[data-k="'+se.k+'"]');
       let p=null; for(let j=se.pts.length-1;j>=0;j--){ if(se.pts[j][0]<=t+3*86400000){ p=se.pts[j]; break; } }
-      if(!p || p[1]==null){ c.style.display='none'; if(p && !head && se.bar==null) head=p[2]; if(p) { rows+=`<tspan x="0" dy="16" fill="${se.col}" font-weight="700">${se.nm} -</tspan>`; } return; }
-      any=true; if(!head && se.bar==null) head=p[2];
+      if(!p || p[1]==null){ c.style.display='none'; if(p && !head && !se.mon) head=p[2]; if(p) { rows+=`<tspan x="0" dy="16" fill="${se.col}" font-weight="700">${se.nm} -</tspan>`; } return; }
+      any=true; if(!head && !se.mon) head=p[2];
       c.style.display=''; c.setAttribute('cx',cpiX(p[0])+(se._off||0)); c.setAttribute('cy',C.Y(p[1]));
-      const tx=(se.bar!=null?se.nm+'('+cpiMon(p[2].replace('.','-'))+')':se.nm)+' '+(p[3]!=null ? p[3].toLocaleString('en-US',{maximumFractionDigits:2})+' ('+p[1].toFixed(0)+')' : p[1].toFixed(se.dec)+se.u);
+      const tx=(se.mon?se.nm+'('+cpiMon(p[2].replace('.','-'))+')':se.nm)+' '+(p[3]!=null ? p[3].toLocaleString('en-US',{maximumFractionDigits:2})+' ('+p[1].toFixed(0)+')' : p[1].toFixed(se.dec)+se.u);
       rows+=`<tspan x="0" dy="16" fill="${se.col}" font-weight="700">${tx}</tspan>`; wmax=Math.max(wmax, tx.length*7.2+16); });
     if(!any && !head){ g.style.display='none'; return; }
     const tx=g.querySelector('.tx'), bxr=g.querySelector('.bx');
@@ -9207,15 +9207,15 @@ function cpiAgo(pts, j, days){ const t=pts[j][0]-days*86400000; for(let i=j;i>=0
 function cpiLegend(){
   const S=cpiSer();
   /* 근원CPI·근원PCE — 마지막 전년비(전달 대비) + 마지막 전월비 · 금리 — 1개월·1년 변화 */
-  const leg1=(iy,im,nm,col)=>{ let j=CPI_M.length-1; while(j>0 && CPI_M[j][iy]==null) j--; let i=j-1; while(i>0 && CPI_M[i][iy]==null) i--;
+  const leg1=(iy,im,nm,col,dash)=>{ let j=CPI_M.length-1; while(j>0 && CPI_M[j][iy]==null) j--; let i=j-1; while(i>0 && CPI_M[i][iy]==null) i--;
     let k=CPI_M.length-1; while(k>0 && CPI_M[k][im]==null) k--; const r=CPI_M[j];
-    return `<span class="it"><i style="background:${col};height:10px;width:8px"></i><span class="nm" style="color:${col}">${nm}</span><span class="v" style="color:${col}">${r[iy].toFixed(1)}%</span>`
+    return `<span class="it"><i style="${dash?`background:none;border-top:2px dashed ${col};height:0`:`background:${col};height:10px;width:8px`}"></i><span class="nm" style="color:${col}">${nm}</span><span class="v" style="color:${col}">${r[iy].toFixed(1)}%</span>`
       +`<span class="c">${cpiMon(r[0])} · 전달 대비 ${cpiSg(r[iy]-CPI_M[i][iy],1)}%p · ${cpiMon(CPI_M[k][0])} 전월비 ${CPI_M[k][im]>=0?'+':''}${CPI_M[k][im].toFixed(2)}%</span></span>`; };
-  $('#cpiLegA').innerHTML=leg1(5,7,'근원CPI','#ef6b6b')+leg1(6,8,'근원PCE','#5aa9ff')
-    +S.A.filter(se=>se.bar==null).map(se=>{ const jj=cpiLast(se.pts), e=se.pts[jj], m1=cpiAgo(se.pts,jj,30), y1=cpiAgo(se.pts,jj,365);
+  $('#cpiLegA').innerHTML=leg1(6,8,'근원PCE','#f48fb1')+leg1(5,7,'근원CPI','#a7adba',1)
+    +S.A.filter(se=>!se.mon).map(se=>{ const jj=cpiLast(se.pts), e=se.pts[jj], m1=cpiAgo(se.pts,jj,30), y1=cpiAgo(se.pts,jj,365);
     return `<span class="it"><i style="background:${se.col}"></i><span class="nm" style="color:${se.col}">${se.nm}</span><span class="v" style="color:${se.col}">${e[1].toFixed(2)}%</span>`
       +`<span class="c">1개월 ${cpiSg(e[1]-m1[1],2)} · 1년 ${cpiSg(e[1]-y1[1],2)}</span></span>`; }).join('')
-    +`<span class="it"><span class="c">막대: 2% 기준 위(진하게)·아래(옅게) · 점선 = 물가 목표 2%</span></span>`;
+    +`<span class="it"><span class="c">분홍 막대 = 근원PCE (2% 기준 위아래) · 회색 점선 = 근원CPI · 가로 점선 = 목표 2%</span></span>`;
   /* 주가 — 현재값, 1개월·3년 */
   const lc=$('#cpiLegC');
   if(!CPI_ST.idx){ lc.innerHTML=`<span class="it"><span class="c">${CPI_ST.err||'주가 불러오는 중…'}</span></span>`; return; }
@@ -18148,8 +18148,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.26.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 물가지수(근원CPI·근원PCE)';
+const KG_APP_VER = '11.26.-v2';
+const KG_APP_BUILD = KG_APP_VER + ' 물가지수 PCE 막대·CPI 점선';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
