@@ -1030,6 +1030,30 @@
   .anl-layout{display:flex;height:calc(100vh - 150px);min-height:420px;overflow:hidden}
   /* 전체화면 오버레이(보고서·챠트)에서는 남은 높이를 그대로 채운다 —
      고정 높이면 화면 크기에 따라 아래가 잘리거나 남는다 */
+  /* CANSLIM 화면 (2026-11-27) */
+  #cslFullScreen .anl-layout{height:auto;flex:1;min-height:0}
+  .csl-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
+  .csl-nm{font-size:17px;font-weight:800;color:#f2c800}
+  .csl-nm span{font-size:12px;color:#8b92a6;font-weight:600;margin-left:6px}
+  .csl-sub{font-size:12.5px;color:#c5cad8;margin-top:4px}
+  .csl-tot{border:2px solid;border-radius:12px;padding:6px 14px;text-align:center;min-width:96px}
+  .csl-tot b{font-size:28px;font-weight:800}
+  .csl-tot span{font-size:12px;color:#8b92a6;margin-left:2px}
+  .csl-tot em{display:block;font-style:normal;font-size:12px;font-weight:700}
+  .csl-bars{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px;margin:0 0 12px}
+  .csl-bar{display:flex;align-items:center;gap:6px;font-size:12.5px}
+  .csl-bar .l{width:14px;font-weight:800;color:#d6dae3}
+  .csl-bar .t{flex:1;height:8px;background:#1d2130;border-radius:4px;overflow:hidden}
+  .csl-bar .t i{display:block;height:100%}
+  .csl-bar .v{width:28px;text-align:right;font-weight:700}
+  .csl-card{background:var(--panel);border:1px solid var(--line);border-left:4px solid;border-radius:10px;padding:9px 12px;margin:0 0 9px}
+  .csl-ch{display:flex;align-items:center;gap:8px;font-size:14px}
+  .csl-ch b{color:#e6edf3}
+  .csl-k{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;color:#0c0e14;font-weight:800}
+  .csl-v{margin-left:auto;font-size:13px;font-weight:700}
+  .csl-rule{font-size:12px;color:#8b92a6;margin:4px 0 2px}
+  .csl-card ul{margin:4px 0 0;padding-left:18px;font-size:13px;line-height:1.65;color:#d6dae3}
+  .csl-card li b{color:#fff}
   #rptFullScreen .anl-layout,#chartFullScreen .anl-layout{height:auto;flex:1;min-height:0}
   #rptFullScreen .anl-main{display:flex;flex-direction:column;overflow:hidden;min-height:0}
   /* 좌우 경계 — 끌어서 종목 칸 폭을 조절한다 (챠트 화면과 같은 방식) */
@@ -1335,7 +1359,7 @@ function krDigits(x){
   <div class="anl-top">
    <div class="anl-row">
     <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="srch">검색</button></span>
-    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
+    <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub" class="on">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><button data-sub="csl">CANSLIM</button></span>
    </div>
    <div class="anl-row">
     <button id="anlSideToggle" class="anl-backbtn">종목</button>
@@ -1504,6 +1528,7 @@ function krDigits(x){
    <button class="sf" data-s="hy">하이일드 스프레드</button>
    <button class="sf" data-s="move">MOVE 지수</button>
    <button class="sf" data-s="vix">VIX 지수</button>
+   <button class="sf" data-s="csl">CANSLIM</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -1927,6 +1952,54 @@ DPS ÷ 배당수익률 = ?</code></pre>
 <p class="foot">다이버전스 탐색 조합은 차트 화면에서만 다이버전스를 그립니다. 기본챠트 조합에서는 표시하지 않습니다.</p>
   </div>
   </div><!-- /stuPeakWrap -->
+  <!-- STUDY › CANSLIM (2026-11-27) -->
+  <div id="stuCsl" class="stu-doc" style="display:none">
+   <h2>CAN SLIM — 윌리엄 오닐의 성장주 고르는 법</h2>
+   <p class="lead">미국 투자가 윌리엄 오닐이 1880년대부터 100년 넘게 크게 오른 종목들을 거꾸로 조사해, 오르기 직전에 공통으로 보인 특징 일곱 가지를 머리글자로 묶은 방법입니다. 1988년 책 『최고의 주식 최적의 타이밍(How to Make Money in Stocks)』으로 알려졌습니다. <b>실적(C·A) → 주가와 수급(N·S·L·I) → 시장(M)</b> 순서로 걸러 냅니다.</p>
+
+   <h3>일곱 가지 기준</h3>
+   <table>
+    <tr><th>글자</th><th>뜻</th><th>오닐의 기준</th><th>왜 보나</th></tr>
+    <tr><td><b>C</b></td><td>Current earnings<br>최근 분기 이익</td><td>최근 분기 EPS가 <b>전년 같은 분기보다 25% 이상</b> 증가. 매출도 25% 이상 늘거나 증가 속도가 빨라지면 더 좋음</td><td>큰 상승의 출발점은 거의 항상 이익 급증이었다</td></tr>
+    <tr><td><b>A</b></td><td>Annual earnings<br>연간 이익</td><td>최근 <b>3년 연간 EPS가 해마다 25% 이상</b> 성장, <b>ROE 17% 이상</b></td><td>한 분기 반짝이 아니라 꾸준히 버는 회사인지 확인</td></tr>
+    <tr><td><b>N</b></td><td>New<br>새로운 것</td><td>신제품·신사업·새 경영진·업황 변화 같은 새 동력. 주가는 <b>52주 신고가 부근</b>에서 바닥 패턴을 뚫고 나올 때</td><td>"너무 올랐다"가 아니라 "새 국면에 들어섰다"로 본다</td></tr>
+    <tr><td><b>S</b></td><td>Supply &amp; Demand<br>수급</td><td>오르는 날 거래량이 내리는 날보다 많고, 돌파하는 날 <b>거래량이 평소보다 40~50% 이상</b> 늘어남</td><td>큰손이 사 모으는지(매집) 거래량으로 확인</td></tr>
+    <tr><td><b>L</b></td><td>Leader or Laggard<br>주도주인가</td><td>업종 1~2등, <b>상대강도(RS) 상위 20%</b>(RS 80 이상). 시장보다 덜 빠지고 더 오르는 종목</td><td>뒤처진 싼 종목보다 앞서가는 비싼 종목이 더 오른다</td></tr>
+    <tr><td><b>I</b></td><td>Institutional sponsorship<br>기관 매수</td><td>실적 좋은 기관이 <b>최근 늘려 가는</b> 종목. 한국에서는 <b>외국인·기관 순매수</b>로 바꿔 봄</td><td>큰 상승에는 큰 자금이 필요하다</td></tr>
+    <tr><td><b>M</b></td><td>Market direction<br>시장 방향</td><td>지수가 <b>상승 추세</b>(50일·200일 이동평균 위)일 때만 산다</td><td>종목 4개 중 3개는 시장을 따라간다 — 하락장에선 좋은 종목도 빠진다</td></tr>
+   </table>
+
+   <h3>사고파는 규칙</h3>
+   <ul>
+    <li><b>사는 때</b> — 컵 앤 핸들(손잡이 달린 컵), 이중 바닥, 평평한 박스 같은 바닥 패턴의 <b>저항선(매수점)</b>을 거래량을 동반해 넘을 때. 매수점보다 5% 넘게 올라간 뒤에는 쫓아 사지 않습니다.</li>
+    <li><b>손절</b> — 산 값에서 <b>7~8% 빠지면 예외 없이 판다.</b> CAN SLIM에서 가장 중요한 규칙입니다.</li>
+    <li><b>이익 실현</b> — 20~25% 오르면 대부분 판다. 단, 3주 안에 20% 넘게 급등한 종목은 8주 동안 들고 가 봅니다.</li>
+    <li><b>시장이 꺾이면</b> — 지수에 <b>분산일(거래량이 늘며 지수가 빠진 날)</b>이 몇 주 사이 5~6번 쌓이면 새로 사지 않고 현금 비중을 늘립니다.</li>
+   </ul>
+
+   <h3>한국 시장에 쓸 때</h3>
+   <ul>
+    <li><b>25% 기준</b>은 미국 성장주 기준입니다. 한국 대형주는 이 기준을 넘는 경우가 드물어, 업종 평균보다 확실히 높은지를 함께 봅니다.</li>
+    <li><b>경기순환주</b>(반도체·조선·화학·철강)는 이익이 크게 오르내려 C·A가 쉽게 높게 나옵니다. 업황 꼭지에서 이익이 가장 좋을 수 있다는 점을 조심합니다.</li>
+    <li><b>지주사·적자 성장주</b>는 EPS 기준이 잘 맞지 않습니다.</li>
+    <li><b>I</b>는 공개되는 펀드 보유 내역이 적어 <b>외국인·기관 순매수와 외국인 지분율 변화</b>로 봅니다.</li>
+   </ul>
+
+   <h3>이 앱의 CANSLIM 점수 (종목분석 › CANSLIM)</h3>
+   <p>네이버 증권 자료로 일곱 항목을 각각 0~100점으로 매기고 평균을 냅니다. 항목별 기준은 아래와 같습니다. <b>N의 '새로운 것'(신제품·신사업)은 숫자로 잴 수 없어 주가 위치만 채점</b>하니, 사업 내용은 직접 확인하세요.</p>
+   <table>
+    <tr><th>항목</th><th>쓰는 자료</th><th>100점</th><th>0점</th></tr>
+    <tr><td>C</td><td>최근 실적 분기 EPS의 전년 같은 분기 대비 증가율</td><td>+25% 이상</td><td>감소</td></tr>
+    <tr><td>A</td><td>최근 3년 연간 EPS 연평균 증가율(70%) + 최근 ROE(30%)</td><td>+25% 이상 · ROE 17% 이상</td><td>감소 · ROE 10% 미만</td></tr>
+    <tr><td>N</td><td>종가가 52주 최고가에서 얼마나 떨어져 있나</td><td>5% 안쪽</td><td>25% 넘게 아래</td></tr>
+    <tr><td>S</td><td>최근 50거래일 오른 날 거래량 ÷ 내린 날 거래량</td><td>1.3배 이상</td><td>0.9배 미만</td></tr>
+    <tr><td>L</td><td>지수 대비 초과수익(3개월 40% + 1년 60%) — 상대강도 대용</td><td>+30%p 이상</td><td>지수보다 못함</td></tr>
+    <tr><td>I</td><td>최근 외국인·기관 순매수(수량)</td><td>둘 다 순매수</td><td>둘 다 순매도</td></tr>
+    <tr><td>M</td><td>지수가 50일·200일 이동평균 위인지, 50일선이 오르는지</td><td>둘 다 위 + 50일선 상승</td><td>둘 다 아래</td></tr>
+   </table>
+   <p><b>총점 80 이상</b>은 CAN SLIM 후보, <b>60~79</b>는 일부 충족, <b>60 미만</b>은 기준 미달로 봅니다. 총점이 높아도 <b>M이 0점이면 새로 사지 않는 것</b>이 오닐의 원칙입니다.</p>
+   <p class="foot">점수는 참고용 계산입니다. 원래 CAN SLIM은 수천 종목 중 RS 순위·업종 순위를 매기지만, 이 앱은 종목 하나와 지수만 비교하므로 L은 근사치입니다.</p>
+  </div>
   <!-- 챠트에 있던 '📖 해석' 을 STUDY 로 옮겼다 (2026-10-16). 내용은 CHART_GUIDE_HTML 에서 채운다 -->
   <div id="stuChart" class="stu-doc" style="display:none"></div>
   <div id="stuDesc" class="stu-doc" style="display:none">
@@ -2559,7 +2632,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div class="anl-top">
     <div class="anl-row">
       <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="srch">검색</button></span>
-      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button></span>
+      <span class="subnav"><button data-sub="chart" class="on">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><button data-sub="csl">CANSLIM</button></span>
     </div>
     <div class="anl-row">
     <button id="chartSideToggle" class="anl-backbtn">종목</button>
@@ -2606,7 +2679,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
   <div class="anl-top">
     <div class="anl-row">
       <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="srch">검색</button></span>
-      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button></span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt" class="on">보고서</button><button data-sub="csl">CANSLIM</button></span>
     </div>
     <div class="anl-row">
       <button id="rptSideToggle" class="anl-backbtn">종목</button>
@@ -2634,12 +2707,42 @@ DPS ÷ 배당수익률 = ?</code></pre>
   </div>
 </div>
 
+<!-- CANSLIM 전체화면 오버레이 (2026-11-27) — 보고서 화면과 같은 틀 -->
+<div id="cslFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
+  <div class="anl-top">
+    <div class="anl-row">
+      <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="srch">검색</button></span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long">장기투자</button><button data-sub="rpt">보고서</button><button data-sub="csl" class="on">CANSLIM</button></span>
+    </div>
+    <div class="anl-row">
+      <button id="cslSideToggle" class="anl-backbtn">종목</button>
+      <select id="cslPortSel">
+        <option value="kr">한국(체)</option>
+        <option value="invest">코스피200</option>
+        <option value="investkq">코스닥100</option>
+        <option value="invpf">관심보유</option>
+        <option value="long">장기보유</option>
+        <option value="ftrend">외국인 추세</option>
+      </select>
+      <span class="stk-now"></span>
+      <span style="font-size:11px;color:#8b93a1">국내 종목만</span>
+    </div>
+  </div>
+  <div class="anl-layout">
+    <div class="anl-side" id="cslSide">
+      <div class="anl-search"><input id="cslSearch" type="text" placeholder="종목 검색 · 코드 입력 후 Enter" autocomplete="off"></div>
+      <div class="anl-list" id="cslList"></div>
+    </div>
+    <div class="anl-main" id="cslMain"></div>
+  </div>
+</div>
+
 <!-- 장기투자 전체화면 오버레이 -->
 <div id="longFullScreen" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--bg);flex-direction:column">
   <div class="anl-top">
     <div class="anl-row">
       <span class="anl-ttl">KG</span><span class="topnav"><button data-top="home">홈</button><button data-top="trend">추세</button><button data-top="port">포트</button><button data-top="sel">관심</button><button data-top="chart" class="cur">종목분석</button><button data-top="study">STUDY</button><button data-top="srch">검색</button></span>
-      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button></span>
+      <span class="subnav"><button data-sub="chart">챠트</button><button data-sub="hub">분석</button><button data-sub="long" class="on">장기투자</button><button data-sub="rpt">보고서</button><button data-sub="csl">CANSLIM</button></span>
     </div>
     <div class="anl-row">
       <button id="longSideToggle" class="anl-backbtn on">종목</button>
@@ -3243,7 +3346,7 @@ let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
 /* ---------- STUDY 하부메뉴 (투자지표 / 다이버전스 탐색[종목찾기·고점저점 탐색] / 챠트 기본조합해석 / 보조챠트 설명 / 하이일드 스프레드 / MOVE 지수 / VIX 지수) ---------- */
-const STU_DOCS={ ind:'#stuInd', peak:'#stuPeakWrap', chart:'#stuChart', desc:'#stuDesc', hy:'#trdHy', move:'#trdMove', vix:'#trdVix' };
+const STU_DOCS={ ind:'#stuInd', peak:'#stuPeakWrap', chart:'#stuChart', desc:'#stuDesc', hy:'#trdHy', move:'#trdMove', vix:'#trdVix', csl:'#stuCsl' };
 /* 다이버전스 탐색 안쪽 부메뉴 — div: 종목찾기(찾기 화면은 처음 열 때 불러옴) · peak: 고점저점 탐색 */
 function stuPeakView(v){
   v=(v==='peak')?'peak':'div';
@@ -13664,6 +13767,224 @@ function selRefreshIfOpen(){
   selSyncRows(); renderWatchTable(); fetchWatchLive();
 }
 
+/* ===== 종목분석 › CANSLIM (2026-11-27) =====
+   자료: kg-nonarb 워커 ?csl=종목코드 — 연간·분기 재무(EPS·ROE), 1년 주가·거래량, 같은 시장 지수, 외국인·기관 순매수
+   일곱 항목을 0~100점으로 매기고 평균을 낸다. 기준은 STUDY › CANSLIM 표와 같다. */
+const CSL_CACHE={};                 // code -> {d, at}
+let cslPort='kr', cslCode='', cslName='';
+function openCslView(port, code, name){
+  const ov=$('#cslFullScreen'); if(!ov) return;
+  ov.style.display='flex';
+  document.body.style.overflow='hidden';
+  document.body.classList.remove('anl-mode');
+  const vf=$('#valFull'); if(vf) vf.classList.remove('on');
+  $$('.tab').forEach(x=>x.classList.remove('on'));
+  $$('section').forEach(x=>x.classList.remove('on'));
+  const btn=$('#stkTabBtn'); if(btn) btn.classList.add('on');
+  cslPort=['kr','invest','investkq','invpf','long','ftrend'].includes(port||'')?port:'kr';
+  const ps=$('#cslPortSel'); if(ps) ps.value=cslPort;
+  cslBuildList();
+  const want=/^\d[0-9A-Z]{5}$/.test(String(code||''))?String(code):'';
+  const first=(chartPortRows(cslPort)||[]).map(r=>String(r[0]||'')).find(c=>/^\d[0-9A-Z]{5}$/.test(c));
+  cslPick(want||first||'', want?(name||''):'');
+  cslBind();
+}
+function closeCslView(){
+  const ov=$('#cslFullScreen'); if(!ov || ov.style.display==='none') return;
+  ov.style.display='none';
+  document.body.style.overflow='';
+}
+function cslBuildList(filter){
+  const box=$('#cslList'); if(!box) return;
+  const f=String(filter||'').toLowerCase(), seen=new Set();
+  let h='';
+  (chartPortRows(cslPort)||[]).forEach(r=>{
+    const code=String(r[0]||'').trim(), name=r[1]||code;
+    if(!/^\d[0-9A-Z]{5}$/.test(code) || seen.has(code)) return; seen.add(code);
+    if(f && !String(name).toLowerCase().includes(f) && !code.includes(f)) return;
+    h+=`<div class="cs-item${code===cslCode?' on':''}" data-code="${code}" data-name="${escHtml(name)}"><span class="cs-txt"><span class="cs-name">${escHtml(name)}</span><span class="cs-code">${code}</span></span></div>`;
+  });
+  if(!f && cslCode && !seen.has(cslCode))
+    h=`<div class="cs-item on" data-code="${cslCode}" data-name="${escHtml(cslName||cslCode)}"><span class="cs-txt"><span class="cs-name">${escHtml(cslName||cslCode)}</span><span class="cs-code">${cslCode} · 목록 밖</span></span></div>`+h;
+  box.innerHTML=h||'<div style="padding:14px;color:#8b949e;font-size:12px">종목이 없습니다.</div>';
+  box.querySelectorAll('.cs-item').forEach(el=>el.onclick=()=>cslPick(el.dataset.code, el.dataset.name));
+}
+async function cslPick(code, name){
+  cslCode=String(code||''); cslName=name||(typeof kgNameOf==='function'?kgNameOf(cslCode):'')||cslCode;
+  if(cslCode && typeof stkSet==='function') stkSet(cslCode, cslName);
+  cslBuildList($('#cslSearch')?$('#cslSearch').value:'');
+  const m=$('#cslMain'); if(!m) return;
+  if(!cslCode){ m.innerHTML='<div class="nb-msg">왼쪽에서 종목을 고르세요.</div>'; return; }
+  const hit=CSL_CACHE[cslCode];
+  if(hit && Date.now()-hit.at<3*3600*1000){ cslRender(hit.d); return; }
+  m.innerHTML=`<div class="nb-msg"><b>${escHtml(cslName)}</b> CAN SLIM 자료를 받는 중입니다…</div>`;
+  const want=cslCode;
+  try{
+    const d=await (await fetch(NARB_URL.replace(/\/+$/,'')+'/?csl='+want,{cache:'no-store'})).json();
+    if(want!==cslCode) return;                          // 그 사이 다른 종목을 골랐다
+    if(d && d.ok){ CSL_CACHE[want]={d, at:Date.now()}; cslRender(d); }
+    else m.innerHTML=`<div class="nb-msg"><b>자료를 받지 못했습니다.</b><br>${escHtml((d&&(d.error||(d.warnings||[]).join(' / ')))||'')}<br><br>kg-nonarb 워커가 v9 이상인지 확인하세요. 워커 주소 뒤에 <code>/?csl=${want}&amp;debug=1</code> 을 붙여 열면 받은 원문이 보입니다.</div>`;
+  }catch(e){ if(want===cslCode) m.innerHTML=`<div class="nb-msg"><b>워커에 연결하지 못했습니다</b> (${escHtml(NARB_URL)}).</div>`; }
+}
+function cslBind(){
+  const ps=$('#cslPortSel');
+  if(ps && !ps._b){ ps._b=true; ps.onchange=()=>{ cslPort=ps.value; if(typeof stkSetPort==='function') stkSetPort(cslPort);
+    cslCode=''; cslBuildList(); const rows=chartPortRows(cslPort)||[]; const r=rows.find(x=>/^\d[0-9A-Z]{5}$/.test(String(x[0]||''))); cslPick(r?String(r[0]):'', r?r[1]:''); }; }
+  const sc=$('#cslSearch');
+  if(sc && !sc._b){ sc._b=true; sc.oninput=()=>cslBuildList(sc.value);
+    sc.onkeydown=e=>{ if(e.key!=='Enter') return; const c=krDigits(String(sc.value||'').trim()); if(c.length===6){ e.preventDefault(); cslPick(c, (typeof kgNameOf==='function'&&kgNameOf(c))||c); } }; }
+  const tg=$('#cslSideToggle'), sd=$('#cslSide');
+  if(tg && sd && !tg._b){ tg._b=true; const rz=$('#cslResizer');
+    const paint=()=>{ const off=sd.style.display==='none'; if(rz) rz.style.display=off?'none':'block'; tg.classList.toggle('on',!off); };
+    tg.onclick=()=>{ sd.style.display=sd.style.display==='none'?'flex':'none'; paint(); }; paint(); }
+}
+
+/* ── 채점 ── */
+function cslRow(F, names){                       /* 재무 항목 찾기 — 이름이 조금 달라도 찾는다 */
+  const keys=Object.keys((F&&F.rows)||{});
+  for(const n of names){ const k=keys.find(x=>x.replace(/\s/g,'')===n); if(k) return F.rows[k]; }
+  for(const n of names){ const k=keys.find(x=>x.replace(/\s/g,'').indexOf(n)===0); if(k) return F.rows[k]; }
+  return null;
+}
+const cslPct=(a,b)=>(a==null||b==null||b===0)?null:(a-b)/Math.abs(b)*100;
+const cslLvl=(v,steps)=>{ for(const [t,s] of steps) if(v>=t) return s; return 0; };
+const cslF=(v,d=1,u='%')=>(v==null||!isFinite(v))?'-':((v>0?'+':'')+(d===0?Math.round(v).toLocaleString('en-US'):v.toFixed(d))+u);
+function cslMA(arr, n, end){ if(end+1<n) return null; let s=0; for(let i=end-n+1;i<=end;i++) s+=arr[i]; return s/n; }
+function cslScore(D){
+  const out={};
+  /* C — 최근 실적 분기 EPS 전년 같은 분기 대비 */
+  {
+    const Q=D.qtr||{periods:[],rows:{}}, P=Q.periods||[];
+    const eps=cslRow(Q,['EPS','주당순이익']), ni=cslRow(Q,['지배주주순이익','당기순이익','순이익']), sal=cslRow(Q,['매출액','매출','영업수익']);
+    const base=eps||ni, act=P.map((p,i)=>!p.cons && base && base[i]!=null ? i : -1).filter(i=>i>=0);
+    const it={k:'C', nm:'최근 분기 이익', score:null, lines:[]};
+    const i=act.length?act[act.length-1]:-1;
+    if(i>=0){
+      const key=P[i].key, prevKey=String(+key.slice(0,4)-1)+key.slice(4), j=P.findIndex(p=>p.key===prevKey);
+      if(j>=0 && base[j]!=null){
+        const a=base[i], b=base[j], g=cslPct(a,b), sg=sal?cslPct(sal[i],sal[j]):null;
+        if(b<=0 && a>0){ it.score=70; it.lines.push(`${P[i].label} ${eps?'EPS':'순이익'} ${a.toLocaleString()} — 전년 같은 분기 적자에서 <b>흑자 전환</b>`); }
+        else { it.score=cslLvl(g,[[25,100],[15,70],[0,40]]); it.lines.push(`${P[i].label} ${eps?'EPS':'순이익'} ${a.toLocaleString()} (전년 ${b.toLocaleString()}) → <b>${cslF(g)}</b>`); }
+        if(sg!=null) it.lines.push(`같은 분기 매출 ${cslF(sg)}${sg>=25?' — 매출도 25% 넘게 늘었습니다':''}`);
+        /* 증가 속도 — 직전 분기의 전년 대비와 비교 */
+        if(act.length>=2){ const i2=act[act.length-2], k2=P[i2].key, j2=P.findIndex(p=>p.key===String(+k2.slice(0,4)-1)+k2.slice(4));
+          if(j2>=0){ const g2=cslPct(base[i2],base[j2]); if(g2!=null && g!=null) it.lines.push(`직전 분기 ${cslF(g2)} → 이번 ${cslF(g)} : 증가 속도 <b>${g>g2?'빨라짐':'느려짐'}</b>`); } }
+      } else it.lines.push('전년 같은 분기 자료가 없어 비교하지 못했습니다.');
+    } else it.lines.push('분기 실적을 읽지 못했습니다.');
+    out.C=it;
+  }
+  /* A — 연간 EPS 3년 연평균 + ROE */
+  {
+    const A=D.ann||{periods:[],rows:{}}, P=A.periods||[];
+    const eps=cslRow(A,['EPS','주당순이익'])||cslRow(A,['지배주주순이익','당기순이익']), roe=cslRow(A,['ROE','ROE(지배주주)','자기자본이익률']);
+    const act=P.map((p,i)=>!p.cons && eps && eps[i]!=null ? i : -1).filter(i=>i>=0);
+    const it={k:'A', nm:'연간 이익', score:null, lines:[]};
+    if(act.length>=2){
+      const use=act.slice(-4), v=use.map(i=>eps[i]), yrs=use.length-1, a=v[v.length-1], b=v[0];
+      const gs=use.slice(1).map((ix,k)=>cslPct(eps[ix], eps[use[k]]));
+      const cagr=(a>0&&b>0)?(Math.pow(a/b,1/yrs)-1)*100:null;
+      const gScore=cagr!=null?cslLvl(cagr,[[25,100],[15,70],[0,40]]):(a>b?40:0);
+      it.lines.push(`연간 ${cslRow(A,['EPS','주당순이익'])?'EPS':'순이익'}: ${use.map(ix=>P[ix].label.replace(/\.$/,'')+' '+eps[ix].toLocaleString()).join(' → ')}`);
+      it.lines.push(`해마다 ${gs.map(g=>cslF(g,0)).join(', ')} · ${yrs}년 연평균 <b>${cslF(cagr)}</b>`);
+      let rScore=null; const ri=roe?use.slice().reverse().find(ix=>roe[ix]!=null):null;
+      if(ri!=null){ const r=roe[ri]; rScore=r>=17?100:r>=10?50:0; it.lines.push(`ROE ${r.toFixed(1)}% (${P[ri].label.replace(/\.$/,'')}) — 기준 17% ${r>=17?'충족':'미달'}`); }
+      it.score=Math.round(rScore==null?gScore:gScore*.7+rScore*.3);
+      const nx=P.findIndex((p,i)=>p.cons && eps[i]!=null && i>use[use.length-1]);
+      if(nx>=0) it.lines.push(`다음 해 전망 ${P[nx].label.replace(/\.$/,'')} ${eps[nx].toLocaleString()} (${cslF(cslPct(eps[nx],a))})`);
+    } else it.lines.push('연간 실적이 2년치 이상 없어 채점하지 못했습니다.');
+    out.A=it;
+  }
+  /* N·S·L — 주가 */
+  const px=D.px||[], C=px.map(r=>r[1]), V=px.map(r=>r[2]), n=px.length;
+  {
+    const it={k:'N', nm:'신고가 부근', score:null, lines:[]};
+    if(n>=60){
+      const w=C.slice(-250), hi=Math.max(...w), hiI=w.lastIndexOf(hi), last=C[n-1], dist=(last/hi-1)*100;
+      it.score = dist>=-5?100:dist>=-15?70:dist>=-25?30:0;
+      const hiD=px.slice(-250)[hiI][0];
+      it.lines.push(`현재가 ${last.toLocaleString()} · 52주 최고 ${hi.toLocaleString()} (${hiD.slice(5).replace('-','/')}) → 최고가에서 <b>${dist.toFixed(1)}%</b>`);
+      if(w.length-1-hiI<=10) it.lines.push('최근 10거래일 안에 <b>52주 신고가</b>를 새로 썼습니다.');
+      it.lines.push('신제품·신사업 같은 <b>새 동력</b>은 숫자로 잴 수 없어 직접 확인이 필요합니다.');
+    } else it.lines.push('주가 자료가 부족합니다.');
+    out.N=it;
+  }
+  {
+    const it={k:'S', nm:'수급(거래량)', score:null, lines:[]};
+    if(n>=55 && V.slice(-51).every(v=>v!=null)){
+      let up=0, dn=0, nu=0, nd=0;
+      for(let i=n-50;i<n;i++){ if(C[i]>C[i-1]){ up+=V[i]; nu++; } else if(C[i]<C[i-1]){ dn+=V[i]; nd++; } }
+      const ratio=dn?up/dn:null, avg=V.slice(-51,-1).reduce((a,b)=>a+b,0)/50, lv=V[n-1]/avg;
+      it.score=ratio==null?null:ratio>=1.3?100:ratio>=1.1?70:ratio>=0.9?40:0;
+      it.lines.push(`최근 50거래일: 오른 날 ${nu}일 거래량 ${Math.round(up/Math.max(nu,1)).toLocaleString()}/일 · 내린 날 ${nd}일 ${Math.round(dn/Math.max(nd,1)).toLocaleString()}/일`);
+      it.lines.push(`오른 날 ÷ 내린 날 거래량 합계 <b>${ratio==null?'-':ratio.toFixed(2)+'배'}</b> — ${ratio>=1.1?'사 모으는 쪽(매집)':ratio>=0.9?'뚜렷하지 않음':'팔아 치우는 쪽(분산)'}`);
+      it.lines.push(`마지막 거래일 거래량은 50일 평균의 ${(lv*100).toFixed(0)}%${lv>=1.4&&C[n-1]>C[n-2]?' — <b>거래량 실린 상승</b>':''}`);
+    } else it.lines.push('거래량 자료가 부족합니다.');
+    out.S=it;
+  }
+  {
+    const it={k:'L', nm:'주도주(상대강도)', score:null, lines:[]};
+    const IX=D.idx||[], im=new Map(IX.map(r=>[r[0],r[1]]));
+    const ret=(k)=>{ if(n<=k) return null; const a=px[n-1], b=px[n-1-k]; const ia=im.get(a[0]), ib=im.get(b[0]); if(ia==null||ib==null) return null;
+      return {s:(a[1]/b[1]-1)*100, i:(ia/ib-1)*100, rel:((a[1]/b[1])/(ia/ib)-1)*100}; };
+    const r3=ret(63), r12=ret(Math.min(249,n-1)), mk=D.market==='KOSDAQ'?'코스닥':'코스피';
+    if(r3 && r12){
+      const rel=r3.rel*.4+r12.rel*.6;
+      it.score=rel>=30?100:rel>=10?70:rel>=0?40:0;
+      it.lines.push(`3개월 ${cslF(r3.s)} (${mk} ${cslF(r3.i)}) · 1년 ${cslF(r12.s)} (${mk} ${cslF(r12.i)})`);
+      it.lines.push(`${mk} 대비 초과수익 3개월 ${cslF(r3.rel)} · 1년 ${cslF(r12.rel)} → 가중 <b>${cslF(rel,1,'%p')}</b>`);
+      it.lines.push('업종 안 순위는 비교하지 못했습니다. 같은 업종 1~2등인지는 따로 확인하세요.');
+    } else it.lines.push('주가·지수 날짜를 맞추지 못했습니다.');
+    out.L=it;
+  }
+  {
+    const it={k:'I', nm:'기관·외국인 매수', score:null, lines:[]};
+    const T=(D.trend||[]).slice().sort((a,b)=>a.d<b.d?-1:1);
+    if(T.length){
+      const f=T.reduce((a,r)=>a+(r.f||0),0), o=T.reduce((a,r)=>a+(r.o||0),0);
+      it.score=(f>0&&o>0)?100:(f+o>0)?60:(f>0||o>0)?30:0;
+      const fr0=T.find(r=>r.fr!=null), fr1=T.slice().reverse().find(r=>r.fr!=null);
+      it.lines.push(`최근 ${T.length}거래일(${T[0].d.slice(5).replace('-','/')}~${T[T.length-1].d.slice(5).replace('-','/')}) 외국인 <b style="color:${narbCol(f)}">${cslF(f,0,'주')}</b> · 기관 <b style="color:${narbCol(o)}">${cslF(o,0,'주')}</b>`);
+      if(fr0&&fr1) it.lines.push(`외국인 지분율 ${fr0.fr.toFixed(2)}% → ${fr1.fr.toFixed(2)}% (${cslF(fr1.fr-fr0.fr,2,'%p')})`);
+    } else it.lines.push('외국인·기관 매매 자료가 없습니다.');
+    out.I=it;
+  }
+  {
+    const it={k:'M', nm:'시장 방향', score:null, lines:[]};
+    const IC=(D.idx||[]).map(r=>r[1]), m=IC.length, mk=D.market==='KOSDAQ'?'코스닥':'코스피';
+    if(m>=60){
+      const last=IC[m-1], ma50=cslMA(IC,50,m-1), ma50p=cslMA(IC,50,m-11), ma200=m>=200?cslMA(IC,200,m-1):null;
+      const a50=last>ma50, up50=ma50>ma50p, a200=ma200==null?null:last>ma200;
+      it.score=(a50&&up50&&a200!==false)?100:a50?60:a200?30:0;
+      it.lines.push(`${mk} ${last.toLocaleString(undefined,{maximumFractionDigits:2})} · 50일선 ${ma50.toFixed(0)} (${a50?'위':'아래'}, ${up50?'오르는 중':'내리는 중'})${ma200!=null?` · 200일선 ${ma200.toFixed(0)} (${a200?'위':'아래'})`:''}`);
+      it.lines.push(it.score>=60?'지수가 상승 추세 쪽 — 매수해도 되는 시장':'지수가 하락 추세 쪽 — <b>새로 사지 않는 것이 원칙</b>');
+    } else it.lines.push('지수 자료가 부족합니다.');
+    out.M=it;
+  }
+  return out;
+}
+const CSL_RULE={C:'최근 분기 EPS 전년 같은 분기 대비 +25% 이상',A:'3년 연간 EPS 연평균 +25% 이상 · ROE 17% 이상',N:'52주 최고가 부근(5% 안쪽) — 새 동력은 직접 확인',
+  S:'오른 날 거래량 > 내린 날 거래량(1.3배 이상)',L:'지수보다 크게 앞섬(가중 +30%p 이상)',I:'외국인·기관이 함께 순매수',M:'지수가 50일·200일선 위, 50일선 상승'};
+function cslRender(D){
+  const m=$('#cslMain'); if(!m) return;
+  const S=cslScore(D), K=['C','A','N','S','L','I','M'];
+  const got=K.map(k=>S[k].score).filter(v=>v!=null), tot=got.length?Math.round(got.reduce((a,b)=>a+b,0)/got.length):null;
+  const col=v=>v==null?'#8b92a6':v>=80?'#ef5350':v>=60?'#f2c800':v>=40?'#4dd0e1':'#2e9e4f';
+  const verdict=v=>v==null?'자료 없음':v>=80?'충족':v>=60?'대체로 충족':v>=40?'일부 충족':'미달';
+  const grade=tot==null?'-':tot>=80?'CAN SLIM 후보':tot>=60?'일부 충족':'기준 미달';
+  const mBad=S.M.score===0;
+  const pass=K.filter(k=>(S[k].score||0)>=80).join('·')||'없음', fail=K.filter(k=>S[k].score!=null && S[k].score<40).join('·')||'없음';
+  let h=`<div class="csl-head"><div><div class="csl-nm">${escHtml(D.name||cslName)} <span>${escHtml(D.code)} · ${D.market==='KOSDAQ'?'코스닥':'코스피'}</span></div>`
+   +`<div class="csl-sub">충족 ${pass} · 미달 ${fail}${mBad?' · <b style="color:#ef5350">시장(M) 하락 추세 — 신규 매수 보류</b>':''}</div></div>`
+   +`<div class="csl-tot" style="border-color:${col(tot)}"><b style="color:${col(tot)}">${tot==null?'-':tot}</b><span>/100</span><em style="color:${col(tot)}">${grade}</em></div></div>`
+   +`<div class="csl-bars">${K.map(k=>{ const v=S[k].score; return `<div class="csl-bar"><span class="l">${k}</span><span class="t"><i style="width:${v||0}%;background:${col(v)}"></i></span><span class="v" style="color:${col(v)}">${v==null?'-':v}</span></div>`; }).join('')}</div>`;
+  h+=K.map(k=>{ const it=S[k], v=it.score;
+    return `<div class="csl-card" style="border-left-color:${col(v)}"><div class="csl-ch"><span class="csl-k" style="background:${col(v)}">${k}</span><b>${it.nm}</b><span class="csl-v" style="color:${col(v)}">${v==null?'-':v+'점'} · ${verdict(v)}</span></div>`
+     +`<div class="csl-rule">기준: ${CSL_RULE[k]}</div><ul>${it.lines.map(t=>`<li>${t}</li>`).join('')}</ul></div>`; }).join('');
+  const w=(D.warnings||[]).length?' · 알림: '+D.warnings.map(escHtml).join(' / '):'';
+  h+=`<div class="pmi-src">출처: 네이버 증권(m.stock.naver.com) 재무·시세·투자자 매매 — kg-nonarb 워커 ?csl=. 점수는 참고용 계산이며 자세한 기준은 STUDY › CANSLIM 에 있습니다. 자료 받은 때 ${String(D.fetchedAt||'').replace('T',' ').slice(0,16)} (UTC)${w}</div>`;
+  m.innerHTML=h;
+}
+
 /* ===== 보고서 화면 ===== */
 const RPT_URL='https://kg-usfin.kghwang1.workers.dev';
 const RPT_CACHE={};           // code -> {items, at}
@@ -18334,8 +18655,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.27.-v6';
-const KG_APP_BUILD = KG_APP_VER + ' 제목 가운데·초록 선, 선물 해석 아래로';
+const KG_APP_VER = '11.27.-v7';
+const KG_APP_BUILD = KG_APP_VER + ' CANSLIM';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -19954,6 +20275,7 @@ function topPaint(which){
   $$('.topnav button[data-top]').forEach(b=>b.classList.toggle('cur', b.dataset.top===which));
 }
 function goSub(which){
+  if(which!=='csl' && typeof closeCslView==='function') closeCslView();   /* CANSLIM 화면은 다른 메뉴로 가면 닫는다 (2026-11-27) */
   // 세 화면이 같은 종목·포트를 이어받는다
   // 홈 — 상단 메뉴를 벗고 앱 본래 화면(시황)으로 돌아간다
   if(which==='home'){
@@ -19978,6 +20300,7 @@ function anlCurrentPort(){
   if(shown('chartFullScreen'))      selId='chartPortSel';
   else if(shown('longFullScreen'))  selId='longPortSel';
   else if(shown('rptFullScreen'))   selId='rptPortSel';
+  else if(shown('cslFullScreen'))   selId='cslPortSel';
   else { const hub=document.getElementById('hub');
          if(hub && hub.classList.contains('on')) selId='anlPortSel'; }
   if(!selId) return null;
@@ -20104,6 +20427,9 @@ function anlCurrentPort(){
   }else if(which==='rpt'){
     closeChartView(true); closeLongView(true); hubHide();
     openRptView(STK.port, STK.code, STK.name);
+  }else if(which==='csl'){
+    closeChartView(true); closeLongView(true); closeRptView(true); hubHide();
+    openCslView(STK.port, STK.code, STK.name);
   }else{                                   // 분석
     // 오버레이를 확실히 걷어내고 분석 화면만 남긴다
     const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
@@ -20144,6 +20470,7 @@ function appChromeRestore(){
   const cf=$('#chartFullScreen'); if(cf) cf.style.display='none';
   const lf=$('#longFullScreen'); if(lf) lf.style.display='none';
   const rf=$('#rptFullScreen'); if(rf) rf.style.display='none';
+  const cs=$('#cslFullScreen'); if(cs) cs.style.display='none';
   const ci=$('#chartIframe'); if(ci) ci.src='about:blank';
   const hb=$('#hub'); if(hb) hb.classList.remove('on');
 }
