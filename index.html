@@ -2359,6 +2359,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <button type="button" class="nb-b" data-fus="22">1개월</button>
     <button type="button" class="nb-b on" data-fus="60">3개월</button>
     <button type="button" class="nb-b" data-fus="125">6개월</button>
+    <button type="button" class="nb-b" data-fus="250">1년</button>
    </div>
    <div class="ixa-card" id="fuCard"></div>
    <div class="pmi-box">
@@ -9526,7 +9527,7 @@ async function narbBuild(force){
 /* ===== 외국인 투자심리 › 외국인 선물 순매수 (2026-11-27) =====
    kg-nonarb 워커 ?fut=1 → rows:[{d, fgn, ind, ins, fgnAmt}] (순매수 계약, fgnAmt 백만원)
    그래프 ① 외국인 일별 순매수 막대(만기일은 테두리만) ② 기간 시작부터의 누적 — 외국인·개인·기관 */
-const FUT_KEY='kg_fut_v1';
+const FUT_KEY='kg_fut_v2';   /* v2: 1년치(260거래일)로 늘림 — 예전 30일 저장분은 버림 */
 const FUT_ST={span:60, data:null, stale:false, busy:false, at:0, err:''};
 const FUT_META={};
 const FUT_SER=[{k:'fgn', nm:'외국인', col:'#ff8a65', w:2.6},{k:'ins', nm:'기관', col:'#ffd54f', w:1.7},{k:'ind', nm:'개인', col:'#64b5f6', w:1.7}];
@@ -9639,7 +9640,7 @@ function futRender(){
   const V=futVerdict(all, run);
   const tag=[V.tag, V.col];
   const cell=(k,v,u)=>`<span class="chg" style="color:${narbCol(v)}"><span class="k">${k}</span>${futFmt(v)}<small>${u||'계약'}</small></span>`;
-  const pLab=(n<FUT_ST.span)?n+'거래일':({22:'1개월',60:'3개월',125:'6개월'}[FUT_ST.span]||n+'거래일');   /* 자료가 기간보다 짧으면 실제 거래일 수로 */
+  const pLab=(n<FUT_ST.span)?n+'거래일':({22:'1개월',60:'3개월',125:'6개월',250:'1년'}[FUT_ST.span]||n+'거래일');   /* 자료가 기간보다 짧으면 실제 거래일 수로 */
   card.innerHTML=`<div class="ixa-h"><b>외국인 코스피200 선물 순매수</b><span class="pmi-sub">${R[0].d} ~ ${last.d} (${n}거래일)</span></div>`
    +`<div class="hy-now">${cell('최근일',last.fgn)}${cell('5일 누적',sum5)}${cell('만기 이후',V.sE)}${cell(pLab+' 누적',sumP)}<span class="zn" style="color:${tag[1]}">${tag[0]}</span></div>`
    +`<div class="fu-read">${V.lines.map(t=>`<p>${t}</p>`).join('')}</div>`
@@ -9660,7 +9661,7 @@ async function futBuild(force){
   if(!force && FUT_ST.data && !FUT_ST.stale && Date.now()-FUT_ST.at<30*60*1000) return;
   FUT_ST.busy=true; FUT_ST.err=''; if(!FUT_ST.data) futRender();
   try{
-    const d=await (await fetch(NARB_URL.replace(/\/+$/,'')+'/?fut=1&days=130',{cache:'no-store'})).json();
+    const d=await (await fetch(NARB_URL.replace(/\/+$/,'')+'/?fut=1&days=260',{cache:'no-store'})).json();
     if(d&&d.ok&&d.rows&&d.rows.length>=2){ FUT_ST.data=d; FUT_ST.at=Date.now(); FUT_ST.stale=false; try{ localStorage.setItem(FUT_KEY, JSON.stringify({ts:FUT_ST.at, data:d})); }catch(e){} }
     else { FUT_ST.err='워커는 응답했지만 선물 자료가 없습니다'+((d&&d.error)?' — '+d.error:'')+((d&&d.warnings&&d.warnings.length)?' ('+d.warnings.join(' / ')+')':'')+'.'; if(FUT_ST.data) FUT_ST.stale=true; }
   }catch(e){ FUT_ST.err='워커에 연결하지 못했습니다 ('+NARB_URL+').'; if(FUT_ST.data) FUT_ST.stale=true; }
@@ -18317,8 +18318,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.27.-v2';
-const KG_APP_BUILD = KG_APP_VER + ' 외국인 선물 방향 해석';
+const KG_APP_VER = '11.27.-v3';
+const KG_APP_BUILD = KG_APP_VER + ' 선물 그래프 1년';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
