@@ -209,7 +209,7 @@ table.fin th.fc1,table.fin td.fc1{border-left:2px solid #7a6a1f}
 const WORKER='https://quote.kghwang1.workers.dev/';
 const USFIN ='https://kg-usfin.kghwang1.workers.dev/';
 const K_ROWS='kg_long_rows', K_FUND='kg_long_funds', K_EN='kg_long_en', K_SCORE='kg_long_scores';
-const BUILD='KG_LONG 2026-08-28 채점설명';
+const BUILD='KG_LONG 2026-11-27 전망칸제외';
 console.log(BUILD);
 
 /* NBIM 검색용 영문 사명 — 없으면 화면에서 직접 넣어 저장할 수 있다 */
@@ -431,6 +431,25 @@ function normalize(raw){
   out._n=n; return out;
 }
 // 영업이익률이 없으면 영업이익÷매출액 으로 만들어 쓴다
+/* 전망 칸 빼기 (2026-11-27)
+   네이버 분기 재무의 맨 오른쪽 칸은 아직 발표되지 않은 '전망(컨센서스)'일 때가 많다(예: 11월에 2026.12).
+   채점은 실적만 보도록 끝쪽의 전망 칸을 잘라 낸다. 전망으로 보는 기준:
+   ① 기간(YYYYMM)이 이번 달 이후, 또는 ② 국내 분기인데 ROE·부채비율·당좌비율이 모두 비어 있다(전망에는 재무상태표 값이 없다).
+   잘라 낸 칸 이름은 f._est 에 남긴다. */
+function dropEstimates(f, isUs){
+  const P=f.period||[], n=f._n||P.length; if(!n) return f;
+  const now=new Date(), ym=now.getFullYear()*100+now.getMonth()+1;
+  const ymOf=p=>{ const m=String(p||'').match(/^(\d{4})\D?(\d{1,2})/); return m?(+m[1])*100+(+m[2]):null; };
+  const blankBs=i=>['roe','debt','quick'].every(k=>!f[k] || f[k][i]==null) && ['roe','debt','quick'].some(k=>f[k] && f[k].slice(0,i).some(v=>v!=null));
+  let cut=n;
+  while(cut>0){ const i=cut-1, y=ymOf(P[i]);
+    if((y!=null && y>=ym) || (!isUs && blankBs(i))) cut--; else break; }
+  if(cut===n) return f;
+  f._est=P.slice(cut);
+  for(const k in f) if(Array.isArray(f[k]) && k!=='_est') f[k]=f[k].slice(0,cut);
+  f._n=cut;
+  return f;
+}
 function fillDerived(f){
   if((!f.opm||!f.opm.some(v=>v!=null)) && f.op && f.sales){
     f.opm = f.op.map((v,i)=>{ const s=f.sales[i]; return (v==null||s==null||!s)?null:v/s*100 });
@@ -666,7 +685,7 @@ async function loadOne(code,name){
     }
     c.raw=raw;
     c.name=(raw&&(raw.name||raw.종목명||raw.stockName))||name||c.name||savedName(code)||code;
-    c.fin=fillDerived(normalize(raw));
+    c.fin=fillDerived(dropEstimates(normalize(raw), isUsCode(code)));   /* 전망 칸은 빼고 실적만 채점 */
     if(!c.fin.roe&&!c.fin.debt&&!c.fin.per) throw new Error('재무 항목을 못 찾음');
     c.score=score(c.fin,manualOf(code));
     saveScore(code);
@@ -887,7 +906,7 @@ function renderMain(){
         단순투자는 대부분 인덱스, 일반투자·경영참여가 실제 판단입니다.</div>
     </div>
   </div>
-  <div class="card" style="margin-top:12px"><h3>분기 재무 <em>최근 ${n}분기${fcR.length?` + 전망 ${fcR.length}년`:''}</em></h3>
+  <div class="card" style="margin-top:12px"><h3>분기 재무 <em>최근 ${n}분기 실적${fin._est&&fin._est.length?` (아직 발표 전인 ${fin._est.map(esc).join('·')} 전망 칸은 채점에서 뺌)`:''}${fcR.length?` + 전망 ${fcR.length}년`:''}</em></h3>
     <div class="scroll"><table class="fin"><thead><tr><th>항목</th>${cols.map(x=>`<th>${esc(x)}</th>`).join('')}${fcHead}</tr></thead>
     <tbody>${fr('매출증가율','salesGrowth','%','sales')}${fr('ROE','roe','%','roe')}${fr('영업이익률','opm','%','opm')}${fr('순이익률','npm','%')}
     ${fr('부채비율','debt','%','debt')}${fr('당좌비율','quick','%')}${fr('PER','per','','per')}${fr('PBR','pbr','','pbr')}</tbody></table></div>
@@ -925,7 +944,7 @@ function howHtml(){
       <b>85점 만점</b>을 네 묶음으로 나눠 매기고 100점으로 환산합니다.
       자료가 없는 항목은 0점이 아니라 <b>만점에서 아예 뺍니다</b>.
       그래서 화면 위에 <b>획득 ○ / 가능 ○점 → 100점 환산</b> 이라고 적혀 있습니다.
-      수익성·재무는 <b>최근 6분기</b>를 봅니다.
+      수익성·재무는 <b>최근 6분기</b>를 봅니다. 네이버 표 끝의 <b>전망(아직 발표 안 된 분기)</b> 칸은 빼고 <b>실적만</b> 씁니다.
     </div>
 
     <div class="scroll"><table class="fin" style="font-size:12px">
