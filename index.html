@@ -1032,6 +1032,9 @@
      고정 높이면 화면 크기에 따라 아래가 잘리거나 남는다 */
   /* CANSLIM 화면 (2026-11-27) */
   #cslFullScreen .anl-layout{height:auto;flex:1;min-height:0}
+  .csl-figbox{margin:8px 0 10px;overflow-x:auto}
+  .csl-fig{display:block;width:100%;min-width:560px;height:auto}
+  .csl-fig text{font-family:inherit}
   .csl-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:10px}
   .csl-nm{font-size:17px;font-weight:800;color:#f2c800}
   .csl-nm span{font-size:12px;color:#8b92a6;font-weight:600;margin-left:6px}
@@ -1527,13 +1530,13 @@ function krDigits(x){
  <section id="study">
   <div class="stu-bar">
    <button class="sf on" data-s="ind">투자지표</button>
+   <button class="sf" data-s="csl">CANSLIM</button>
    <button class="sf" data-s="peak">다이버전스 탐색</button>
-   <button class="sf" data-s="chart">챠트 기본조합해석</button>
    <button class="sf" data-s="desc">보조챠트 설명</button>
+   <button class="sf" data-s="chart">챠트 기본조합해석</button>
    <button class="sf" data-s="hy">하이일드 스프레드</button>
    <button class="sf" data-s="move">MOVE 지수</button>
    <button class="sf" data-s="vix">VIX 지수</button>
-   <button class="sf" data-s="csl">CANSLIM</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -1975,8 +1978,185 @@ DPS ÷ 배당수익률 = ?</code></pre>
    </table>
 
    <h3>사고파는 규칙</h3>
+   <h4>① 사는 때 — 바닥 패턴의 매수점을 거래량과 함께 넘을 때</h4>
+   <p>크게 오르는 종목은 오르기 전에 몇 주~몇 달 동안 <b>쉬어 가는 구간(바닥 패턴)</b>을 만듭니다. 이 구간의 위쪽 저항선이 <b style="color:#f2c800">매수점(pivot)</b>이고, 주가가 매수점을 <b>거래량이 평소보다 40~50% 이상 늘면서</b> 넘는 날이 사는 날입니다. 매수점보다 <b>5% 넘게 올라간 뒤에는 쫓아 사지 않습니다.</b></p>
+   <div class="csl-figbox"><svg class="csl-fig" viewBox="0 0 900 222" role="img" aria-label="바닥 패턴 모형 3가지">
+<rect x="0" y="0" width="280" height="220" rx="10" fill="#141824" stroke="#2a3040"/>
+<text x="140.0" y="20" text-anchor="middle" font-size="13.5" font-weight="800" fill="#d6dae3">① 손잡이 달린 컵</text>
+<line x1="14" x2="266" y1="43.3" y2="43.3" stroke="#f2c800" stroke-dasharray="5 4" stroke-width="1.3"/>
+<polyline fill="none" stroke="#5aa9ff" stroke-width="2.4" stroke-linejoin="round" points="14.0,43.3 29.1,36.3 44.2,51.4 64.4,86.2 89.6,111.7 114.8,115.2 140.0,105.9 165.2,80.4 190.4,51.4 203.0,43.3 215.6,52.6 230.7,57.2 245.8,45.6 266.0,24.7"/>
+<path d="M260.0,40.7 l6,-10 l6,10z" fill="#ef5350"/><text x="266.0" y="54.7" text-anchor="middle" font-size="11" font-weight="700" fill="#ef5350">매수</text>
+<text x="16" y="38.3" font-size="10.5" font-weight="700" fill="#f2c800">매수점</text>
+<rect x="17.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="35.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="53.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="71.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="89.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="107.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="125.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="143.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="161.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="179.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="197.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="215.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="233.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="251.0" y="162.0" width="12" height="43.0" fill="#ef5350"/>
+<rect x="310" y="0" width="280" height="220" rx="10" fill="#141824" stroke="#2a3040"/>
+<text x="450.0" y="20" text-anchor="middle" font-size="13.5" font-weight="800" fill="#d6dae3">② 이중 바닥 (W)</text>
+<line x1="324" x2="576" y1="71.1" y2="71.1" stroke="#f2c800" stroke-dasharray="5 4" stroke-width="1.3"/>
+<polyline fill="none" stroke="#5aa9ff" stroke-width="2.4" stroke-linejoin="round" points="324.0,39.8 344.2,68.8 369.4,109.4 389.5,121.0 414.7,86.2 434.9,71.1 460.1,101.3 485.3,126.8 505.4,115.2 530.6,86.2 555.8,73.4 576.0,50.2"/>
+<path d="M570.0,66.2 l6,-10 l6,10z" fill="#ef5350"/><text x="576.0" y="80.2" text-anchor="middle" font-size="11" font-weight="700" fill="#ef5350">매수</text>
+<text x="326" y="66.1" font-size="10.5" font-weight="700" fill="#f2c800">매수점</text>
+<rect x="327.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="345.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="363.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="381.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="399.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="417.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="435.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="453.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="471.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="489.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="507.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="525.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="543.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="561.0" y="162.0" width="12" height="43.0" fill="#ef5350"/>
+<rect x="620" y="0" width="280" height="220" rx="10" fill="#141824" stroke="#2a3040"/>
+<text x="760.0" y="20" text-anchor="middle" font-size="13.5" font-weight="800" fill="#d6dae3">③ 평평한 박스</text>
+<line x1="634" x2="886" y1="50.2" y2="50.2" stroke="#f2c800" stroke-dasharray="5 4" stroke-width="1.3"/>
+<polyline fill="none" stroke="#5aa9ff" stroke-width="2.4" stroke-linejoin="round" points="634.0,109.4 649.1,86.2 664.2,54.9 679.4,50.2 699.5,64.2 719.7,53.7 739.8,67.6 760.0,57.2 780.2,66.5 800.3,54.9 820.5,65.3 840.6,56.0 860.8,59.5 886.0,36.3"/>
+<path d="M880.0,52.3 l6,-10 l6,10z" fill="#ef5350"/><text x="886.0" y="66.3" text-anchor="middle" font-size="11" font-weight="700" fill="#ef5350">매수</text>
+<text x="636" y="45.2" font-size="10.5" font-weight="700" fill="#f2c800">매수점</text>
+<rect x="637.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="655.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="673.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="691.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="709.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="727.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="745.0" y="194.2" width="12" height="10.8" fill="#4a5266"/>
+<rect x="763.0" y="191.0" width="12" height="14.0" fill="#4a5266"/>
+<rect x="781.0" y="187.8" width="12" height="17.2" fill="#4a5266"/>
+<rect x="799.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="817.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="835.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="853.0" y="198.6" width="12" height="6.5" fill="#4a5266"/>
+<rect x="871.0" y="162.0" width="12" height="43.0" fill="#ef5350"/>
+</svg></div>
    <ul>
-    <li><b>사는 때</b> — 컵 앤 핸들(손잡이 달린 컵), 이중 바닥, 평평한 박스 같은 바닥 패턴의 <b>저항선(매수점)</b>을 거래량을 동반해 넘을 때. 매수점보다 5% 넘게 올라간 뒤에는 쫓아 사지 않습니다.</li>
+    <li><b>손잡이 달린 컵</b> — 가장 대표적인 모양. 고점에서 12~35% 빠졌다가 둥글게 회복(컵, 7주 이상)한 뒤, 위쪽에서 한 번 더 살짝(10~12% 안쪽) 눌리는 손잡이(1주 이상)를 만듭니다. 손잡이에서 <b>거래량이 말라야</b> 좋습니다. 매수점 = 손잡이 고점(또는 컵 왼쪽 고점).</li>
+    <li><b>이중 바닥(W)</b> — 두 번 바닥을 찍는 모양. 두 번째 바닥이 첫 바닥보다 <b>조금 더 낮게</b> 내려가 겁먹은 매물을 털어 내면 더 좋습니다. 매수점 = <b>W 가운데 봉우리</b>.</li>
+    <li><b>평평한 박스</b> — 한 번 오른 뒤 5주 이상 <b>10~15% 안쪽</b>에서 옆으로 쉬는 모양. 매수점 = 박스 위쪽 끝.</li>
+    <li>공통 조건 — 바닥 패턴 <b>전에 30% 이상 오른 적</b>이 있고, 패턴 오른쪽 끝이 <b>52주 신고가 근처</b>여야 합니다. 바닥이 너무 깊거나(시장 평균의 2.5배 넘게) 들쭉날쭉하면 실패하기 쉽습니다.</li>
+   </ul>
+
+   <h4>실제 예 — 삼성전자 2025년 11~12월 손잡이 달린 컵</h4>
+   <div class="csl-figbox"><svg class="csl-fig" viewBox="0 0 900 380" role="img" aria-label="삼성전자 손잡이 달린 컵 돌파 실제 예">
+<line x1="64" x2="750" y1="250.0" y2="250.0" stroke="#262b3a"/><text x="58" y="254.0" text-anchor="end" font-size="11" fill="#aeb4c4">90,000</text>
+<line x1="64" x2="750" y1="208.2" y2="208.2" stroke="#262b3a"/><text x="58" y="212.2" text-anchor="end" font-size="11" fill="#aeb4c4">100,000</text>
+<line x1="64" x2="750" y1="166.4" y2="166.4" stroke="#262b3a"/><text x="58" y="170.4" text-anchor="end" font-size="11" fill="#aeb4c4">110,000</text>
+<line x1="64" x2="750" y1="124.5" y2="124.5" stroke="#262b3a"/><text x="58" y="128.5" text-anchor="end" font-size="11" fill="#aeb4c4">120,000</text>
+<line x1="64" x2="750" y1="82.7" y2="82.7" stroke="#262b3a"/><text x="58" y="86.7" text-anchor="end" font-size="11" fill="#aeb4c4">130,000</text>
+<line x1="64" x2="750" y1="40.9" y2="40.9" stroke="#262b3a"/><text x="58" y="44.9" text-anchor="end" font-size="11" fill="#aeb4c4">140,000</text>
+<line x1="67.6" x2="67.6" y1="20" y2="340" stroke="#1d2130"/><text x="70.6" y="358" font-size="11.5" fill="#aeb4c4">10월</text>
+<line x1="133.6" x2="133.6" y1="20" y2="340" stroke="#1d2130"/><text x="136.6" y="358" font-size="11.5" fill="#aeb4c4">11월</text>
+<line x1="397.4" x2="397.4" y1="20" y2="340" stroke="#1d2130"/><text x="400.4" y="358" font-size="11.5" fill="#aeb4c4">12월</text>
+<line x1="674.4" x2="674.4" y1="20" y2="340" stroke="#1d2130"/><text x="677.4" y="358" font-size="11.5" fill="#aeb4c4">1월</text>
+<rect x="598.3" y="138.5" width="151.1" height="23.2" fill="#f2c800" opacity=".13"/>
+<line x1="70.6" x2="750" y1="161.8" y2="161.8" stroke="#f2c800" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="756" y="165.8" font-size="11.5" font-weight="700" fill="#f2c800">매수점 111,100</text>
+<text x="756" y="142.5" font-size="11" fill="#e3c95a">+5% 116,655 (여기까지)</text>
+<line x1="637.9" x2="750" y1="176.2" y2="176.2" stroke="#2e9e4f" stroke-width="1.3" stroke-dasharray="3 3"/>
+<text x="756" y="180.2" font-size="11" fill="#4cc27a">손절선 −8% 107,640</text>
+<rect x="66.5" y="310.9" width="8.2" height="29.1" fill="#ef5350" opacity="0.55"/>
+<rect x="79.7" y="313.7" width="8.2" height="26.3" fill="#3d8bfd" opacity="0.55"/>
+<rect x="92.9" y="312.6" width="8.2" height="27.4" fill="#ef5350" opacity="0.55"/>
+<rect x="106.1" y="294.6" width="8.2" height="45.4" fill="#ef5350" opacity="0.55"/>
+<rect x="119.3" y="268.0" width="8.2" height="72.0" fill="#ef5350" opacity="0.55"/>
+<rect x="132.5" y="300.5" width="8.2" height="39.5" fill="#ef5350" opacity="0.55"/>
+<rect x="145.7" y="300.0" width="8.2" height="40.0" fill="#3d8bfd" opacity="0.55"/>
+<rect x="158.9" y="281.1" width="8.2" height="58.9" fill="#3d8bfd" opacity="0.55"/>
+<rect x="172.0" y="302.4" width="8.2" height="37.6" fill="#3d8bfd" opacity="0.55"/>
+<rect x="185.2" y="309.9" width="8.2" height="30.1" fill="#3d8bfd" opacity="0.55"/>
+<rect x="198.4" y="308.7" width="8.2" height="31.3" fill="#ef5350" opacity="0.55"/>
+<rect x="211.6" y="303.6" width="8.2" height="36.4" fill="#ef5350" opacity="0.55"/>
+<rect x="224.8" y="314.5" width="8.2" height="25.5" fill="#3d8bfd" opacity="0.55"/>
+<rect x="238.0" y="312.6" width="8.2" height="27.4" fill="#3d8bfd" opacity="0.55"/>
+<rect x="251.2" y="311.4" width="8.2" height="28.6" fill="#3d8bfd" opacity="0.55"/>
+<rect x="264.4" y="317.4" width="8.2" height="22.6" fill="#ef5350" opacity="0.55"/>
+<rect x="277.6" y="315.5" width="8.2" height="24.5" fill="#3d8bfd" opacity="0.55"/>
+<rect x="290.8" y="315.1" width="8.2" height="24.9" fill="#3d8bfd" opacity="0.55"/>
+<rect x="304.0" y="306.7" width="8.2" height="33.3" fill="#ef5350" opacity="0.55"/>
+<rect x="317.2" y="309.7" width="8.2" height="30.3" fill="#3d8bfd" opacity="0.55"/>
+<rect x="330.4" y="300.8" width="8.2" height="39.2" fill="#ef5350" opacity="0.55"/>
+<rect x="343.5" y="318.8" width="8.2" height="21.2" fill="#ef5350" opacity="0.55"/>
+<rect x="356.7" y="312.0" width="8.2" height="28.0" fill="#ef5350" opacity="0.55"/>
+<rect x="369.9" y="318.4" width="8.2" height="21.6" fill="#ef5350" opacity="0.55"/>
+<rect x="383.1" y="319.9" width="8.2" height="20.1" fill="#3d8bfd" opacity="0.55"/>
+<rect x="396.3" y="325.7" width="8.2" height="14.3" fill="#ef5350" opacity="0.55"/>
+<rect x="409.5" y="322.1" width="8.2" height="17.9" fill="#ef5350" opacity="0.55"/>
+<rect x="422.7" y="320.7" width="8.2" height="19.3" fill="#ef5350" opacity="0.55"/>
+<rect x="435.9" y="324.3" width="8.2" height="15.7" fill="#ef5350" opacity="0.55"/>
+<rect x="449.1" y="314.1" width="8.2" height="25.9" fill="#ef5350" opacity="0.55"/>
+<rect x="462.3" y="319.6" width="8.2" height="20.4" fill="#ef5350" opacity="0.55"/>
+<rect x="475.5" y="322.0" width="8.2" height="18.0" fill="#3d8bfd" opacity="0.55"/>
+<rect x="488.7" y="323.8" width="8.2" height="16.2" fill="#3d8bfd" opacity="0.55"/>
+<rect x="501.9" y="309.8" width="8.2" height="30.2" fill="#3d8bfd" opacity="0.55"/>
+<rect x="515.0" y="321.3" width="8.2" height="18.7" fill="#ef5350" opacity="0.55"/>
+<rect x="528.2" y="313.0" width="8.2" height="27.0" fill="#3d8bfd" opacity="0.55"/>
+<rect x="541.4" y="315.2" width="8.2" height="24.8" fill="#3d8bfd" opacity="0.55"/>
+<rect x="554.6" y="310.7" width="8.2" height="29.3" fill="#ef5350" opacity="0.55"/>
+<rect x="567.8" y="313.1" width="8.2" height="26.9" fill="#3d8bfd" opacity="0.55"/>
+<rect x="581.0" y="306.0" width="8.2" height="34.0" fill="#3d8bfd" opacity="0.55"/>
+<rect x="594.2" y="307.4" width="8.2" height="32.6" fill="#ef5350" opacity="0.55"/>
+<rect x="607.4" y="313.2" width="8.2" height="26.8" fill="#ef5350" opacity="0.55"/>
+<rect x="620.6" y="323.6" width="8.2" height="16.4" fill="#3d8bfd" opacity="0.55"/>
+<rect x="633.8" y="295.3" width="8.2" height="44.7" fill="#ef5350" opacity="1"/>
+<rect x="647.0" y="314.2" width="8.2" height="25.8" fill="#ef5350" opacity="0.55"/>
+<rect x="660.2" y="314.1" width="8.2" height="25.9" fill="#ef5350" opacity="0.55"/>
+<rect x="673.4" y="300.0" width="8.2" height="40.0" fill="#ef5350" opacity="0.55"/>
+<rect x="686.5" y="283.7" width="8.2" height="56.3" fill="#ef5350" opacity="0.55"/>
+<rect x="699.7" y="280.5" width="8.2" height="59.5" fill="#ef5350" opacity="0.55"/>
+<rect x="712.9" y="279.2" width="8.2" height="60.8" fill="#ef5350" opacity="0.55"/>
+<rect x="726.1" y="285.6" width="8.2" height="54.4" fill="#3d8bfd" opacity="0.55"/>
+<rect x="739.3" y="301.2" width="8.2" height="38.8" fill="#ef5350" opacity="0.55"/>
+<line x1="64" x2="750" y1="311.5" y2="311.5" stroke="#c5cad8" stroke-dasharray="4 3" stroke-width="1"/><text x="756" y="315.5" font-size="11" fill="#c5cad8">거래량 50일 평균</text>
+<text x="64" y="264" font-size="11" fill="#8b92a6">거래량</text>
+<polyline fill="none" stroke="#5aa9ff" stroke-width="2.2" stroke-linejoin="round" points="70.6,199.8 83.8,210.3 97.0,206.1 110.2,191.0 123.4,176.8 136.6,161.8 149.8,187.7 162.9,205.7 176.1,211.5 189.3,217.0 202.5,205.7 215.7,193.5 228.9,195.2 242.1,196.5 255.3,219.9 268.5,205.7 281.7,217.4 294.9,222.8 308.1,205.7 321.2,229.9 334.4,222.0 347.6,211.1 360.8,196.5 374.0,193.5 387.2,206.1 400.4,204.8 413.6,194.0 426.8,189.4 440.0,186.9 453.2,173.1 466.4,168.5 479.6,173.1 492.8,174.7 505.9,177.7 519.1,171.0 532.3,188.1 545.5,196.5 558.7,175.1 571.9,176.4 585.1,181.8 598.3,164.3 611.5,160.1 624.7,161.8 637.9,137.1 651.1,126.6 664.2,125.0 677.4,89.0 690.6,48.9 703.8,45.5 717.0,36.7 730.2,45.9 743.4,45.1"/>
+<circle cx="136.6" cy="161.8" r="3.6" fill="#d6dae3"/>
+<text x="136.6" y="135.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#d6dae3">① 왼쪽 고점</text>
+<text x="136.6" y="149.8" text-anchor="middle" font-size="11.5" font-weight="700" fill="#d6dae3">11/3 111,100</text>
+<circle cx="321.2" cy="229.9" r="3.6" fill="#d6dae3"/>
+<text x="321.2" y="247.9" text-anchor="middle" font-size="11.5" font-weight="700" fill="#d6dae3">② 컵 바닥 11/21</text>
+<text x="321.2" y="261.9" text-anchor="middle" font-size="11.5" font-weight="700" fill="#d6dae3">94,800 (−15%)</text>
+<circle cx="466.4" cy="168.5" r="3.6" fill="#d6dae3"/>
+<text x="458.4" y="138.5" text-anchor="end" font-size="11.5" font-weight="700" fill="#d6dae3">③ 오른쪽 회복</text>
+<text x="458.4" y="152.5" text-anchor="end" font-size="11.5" font-weight="700" fill="#d6dae3">12/8 109,500</text>
+<circle cx="545.5" cy="196.5" r="3.6" fill="#e3c95a"/>
+<text x="545.5" y="214.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#e3c95a">④ 손잡이 12/16</text>
+<text x="545.5" y="228.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#e3c95a">102,800 (−6%)</text>
+<circle cx="637.9" cy="137.1" r="3.6" fill="#ef5350"/>
+
+
+<rect x="471.4" y="268" width="82.3" height="72" fill="none" stroke="#e3c95a" stroke-dasharray="3 3"/><text x="512.5" y="354" text-anchor="middle" font-size="10.5" fill="#e3c95a">손잡이: 거래량 줄어듦</text>
+<text x="756" y="49.1" font-size="11.5" font-weight="700" fill="#ef5350">⑥ 이후 2/26</text><text x="756" y="64.1" font-size="11.5" font-weight="700" fill="#ef5350">218,000 (+96%)</text>
+<line x1="637.9" y1="132.1" x2="617.9" y2="83.1" stroke="#ef5350" stroke-width="1"/><text x="613.9" y="69.1" text-anchor="end" font-size="11.5" font-weight="700" fill="#ef5350">⑤ 돌파 12/26 117,000</text><text x="613.9" y="84.1" text-anchor="end" font-size="11.5" font-weight="700" fill="#ef5350">거래량 평균의 157%</text></svg></div>
+   <table>
+    <tr><th>순서</th><th>날짜</th><th>내용</th></tr>
+    <tr><td>① 왼쪽 고점</td><td>11/3</td><td>111,100 — 여기가 컵의 왼쪽 끝이자 나중의 <b>매수점</b></td></tr>
+    <tr><td>② 컵 바닥</td><td>11/21</td><td>94,800 (고점 대비 −15%) — 컵 깊이 기준(12~35%) 안</td></tr>
+    <tr><td>③ 오른쪽 회복</td><td>12/8</td><td>109,500 — 왼쪽 고점 근처까지 둥글게 회복</td></tr>
+    <tr><td>④ 손잡이</td><td>12/9~12/16</td><td>102,800까지 −6% 눌림, <b>거래량이 평소보다 적음</b> — 파는 사람이 줄었다는 뜻</td></tr>
+    <tr><td>⑤ 돌파</td><td>12/26</td><td>종가 117,000으로 매수점 111,100을 넘음. 거래량 3,402만 주 = <b>50일 평균의 157%</b> → 사는 날</td></tr>
+    <tr><td>⑥ 결과</td><td>~2026/2/26</td><td>218,000까지 매수점 대비 <b>+96%</b>. 돌파 4거래일 뒤(1/5 138,100) 이미 매수점 대비 +24%라 "3주 안에 20% 넘게 급등한 종목은 8주 들고 간다" 규칙이 적용되는 경우</td></tr>
+   </table>
+   <ul>
+    <li><b>매수 범위</b>는 111,100 ~ 116,655(+5%)입니다. 12/26 종가 117,000은 매수점보다 +5.3%라 범위를 살짝 넘었습니다. 오닐 방식으로는 <b>장중에 116,655 이하일 때 사야</b> 하고, 종가에 쫓아 사는 것은 조금 늦은 매수입니다.</li>
+    <li><b>손절선</b>은 산 값에서 7~8% 아래입니다. 117,000에 샀다면 약 107,600 아래로 종가가 내려가면 판다는 뜻입니다.</li>
+    <li>그림은 종가와 거래량만 그렸습니다(자료: 네이버 증권 일별 시세). 실제 매매에서는 장중 고가·저가도 함께 봅니다.</li>
+   </ul>
+
+   <h4>② 파는 때</h4>
+   <ul>
     <li><b>손절</b> — 산 값에서 <b>7~8% 빠지면 예외 없이 판다.</b> CAN SLIM에서 가장 중요한 규칙입니다.</li>
     <li><b>이익 실현</b> — 20~25% 오르면 대부분 판다. 단, 3주 안에 20% 넘게 급등한 종목은 8주 동안 들고 가 봅니다.</li>
     <li><b>시장이 꺾이면</b> — 지수에 <b>분산일(거래량이 늘며 지수가 빠진 날)</b>이 몇 주 사이 5~6번 쌓이면 새로 사지 않고 현금 비중을 늘립니다.</li>
@@ -18704,8 +18884,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.27.-v9';
-const KG_APP_BUILD = KG_APP_VER + ' CANSLIM 한국(체)·검색';
+const KG_APP_VER = '11.27.-v11';
+const KG_APP_BUILD = KG_APP_VER + ' STUDY 부메뉴 순서';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
