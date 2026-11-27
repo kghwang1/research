@@ -1514,6 +1514,11 @@ function krDigits(x){
     <div class="srch-h" id="srchAnlHead">종목분석</div>
     <div id="srchAnl" class="anl-comment" style="margin-top:0"></div>
    </div>
+   <!-- CANSLIM (2026-11-27) — 국내 종목만. 종목분석 › CANSLIM 화면과 같은 내용 -->
+   <div class="srch-sec" id="srchCslSec">
+    <div class="srch-h">CANSLIM<span class="srch-sub">윌리엄 오닐 성장주 7항목 점수 · 기준은 STUDY › CANSLIM</span></div>
+    <div id="srchCsl"></div>
+   </div>
   </div>
  </section>
 
@@ -4969,10 +4974,10 @@ function bindPfTopBar(rerender){
 function renderKrTable(){
   const t=$('#valTbl'); if(!t) return;
   loadReportCache(); loadFrgnCache();
-  const W=[76,60,46,92,92,76,90,90,90,82,100,84,200];
+  const W=[76,60,46,92,92,58,76,90,90,90,82,100,84,200];   /* 6번째 58 = CANSLIM (2026-11-27) */
   const hp=Object.values(krRoe).reduce((mx,z)=>(z&&z.period&&(!mx||String(z.period)>String(mx)))?z.period:mx,null);
   // 재무(미니그래프) 열은 뺐다 — 같은 내용을 종목분석에서 크게 볼 수 있어 표에서는 자리만 차지했다
-  const H=["종목","분류","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
+  const H=["종목","분류","비중(%)","현재가<br>(전일대비%)","ROE"+(hp?'<br>'+qLabel(hp):'')+"<br>(증감)","CANSLIM<br><span class=\"hdr-sub\">총점</span>",hdrFrgn(),"5일 매수액<br>(2일)",hdrShort(),"52주최고가<br>(상승여력%)","목표가<br>(상승여력%)","다이버전스","보고서<br>(발표일,분야)"];
   let h='<caption class="kr-cap">'+KR_LABEL+pfMenuHtml({save:'valSave', load:'valReset'})+'</caption><colgroup>'+W.map(w=>'<col style="width:'+w+'px">').join('')+'</colgroup>';
   h+='<thead><tr>'+H.map(thGen).join('')+'</tr></thead><tbody>';
   curPort='kr';
@@ -5026,6 +5031,7 @@ function renderKrTable(){
       krRoeTxt=`${rz.roe}${perTag}${dh}`;
     }
     h+=`<td>${krRoeTxt}</td>`;
+    h+=`<td class="cslc" data-code="${code}" data-name="${escHtml(r[1]||'')}">${code?cslCellHtml(code):''}</td>`;
     h+=`<td class="frgnc">${code?frgnCell(code):''}</td>`;
     h+=`<td class="famtc">${code?frgnAmtCell(code):''}</td>`;
     h+=`<td class="shortc">${code?shortSvgCell(code):''}</td>`;
@@ -5035,7 +5041,7 @@ function renderKrTable(){
     h+=`<td class="mp-l rpt">${repCell}</td>`;
     h+='</tr>';
   });
-  h+=`<tr class="add-row"><td colspan="12"><button class="add-row-btn" onclick="addKrRow()">＋ 종목 추가</button></td></tr>`;
+  h+=`<tr class="add-row"><td colspan="13"><button class="add-row-btn" onclick="addKrRow()">＋ 종목 추가</button></td></tr>`;
   h+='</tbody>';
   t.className='val-tbl mp mpfix'; t.innerHTML=h; bindPinEvents(t, renderKrTable, 'kr'); bindPfTopBar(renderKrTable);
   // 한국 종목명 클릭 → 네이버 국내 종목 페이지
@@ -5062,8 +5068,10 @@ function renderKrTable(){
     const nm = td.dataset.name;
     if(c) openChart(c, nm, domVisRows(t,'td.krlive','code','name'));
   }; });
+  /* CANSLIM 칸 — 누르면 종목분석 › CANSLIM 으로 */
+  t.querySelectorAll('td.cslc').forEach(td=>{ td.onclick=()=>{ const c=td.dataset.code; if(!c) return; try{ stkSetPort('kr'); stkSet(c, td.dataset.name||c); }catch(e){} goSub('csl'); }; });
   const krCodes=VAL.map(r=>krDigits(String(r[0]||''))).filter(Boolean);
-  ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes);
+  ensureReports(krCodes); ensureForeign(krCodes); ensureShort(krCodes); ensureCslScores(krCodes);
 }
 
 /* =====================================================
@@ -13767,6 +13775,47 @@ function selRefreshIfOpen(){
   selSyncRows(); renderWatchTable(); fetchWatchLive();
 }
 
+/* ===== 한국(체) 표의 CANSLIM 총점 (2026-11-27) =====
+   kg-nonarb 워커 ?cslscore=코드,코드,코드 (3개씩) — 점수 계산은 워커가 하고 총점·항목 점수만 받는다.
+   표를 다시 그리지 않고 칸만 채운다(위에서부터 차례로). 하루 동안 브라우저에 기억한다. */
+const CSL_SC_KEY='kg_csl_score_v1';
+let CSL_SC={};               // code -> {total, s} | null(못 받음)
+let cslScBusy=false;
+(function(){ try{ const o=JSON.parse(localStorage.getItem(CSL_SC_KEY)||'null'); if(o && o.date===invToday() && o.m) CSL_SC=o.m; }catch(e){} })();
+function cslScSave(){ try{ localStorage.setItem(CSL_SC_KEY, JSON.stringify({date:invToday(), m:CSL_SC})); }catch(e){} }
+function cslScCol(v){ return v==null?'#8b92a6':v>=80?'#ef5350':v>=60?'#f2c800':v>=40?'#4dd0e1':'#2e9e4f'; }
+function cslCellHtml(code){
+  if(!(code in CSL_SC)) return '<span class="rsub">…</span>';
+  const o=CSL_SC[code]; if(!o || o.total==null) return '<span class="rsub">—</span>';
+  const tip=o.s?Object.entries(o.s).map(([k,v])=>k+' '+(v==null?'-':v)).join(' · '):'';
+  return `<b style="color:${cslScCol(o.total)};cursor:pointer" title="${tip} — 눌러서 자세히">${o.total}</b>`;
+}
+function cslPaintCells(codes){
+  codes.forEach(c=>document.querySelectorAll('td.cslc[data-code="'+c+'"]').forEach(td=>td.innerHTML=cslCellHtml(c)));
+}
+async function ensureCslScores(codes){
+  if(cslScBusy || typeof NARB_URL==='undefined') return;
+  const todo=[...new Set((codes||[]).filter(c=>/^\d[0-9A-Z]{5}$/.test(c) && !(c in CSL_SC)))];
+  if(!todo.length) return;
+  cslScBusy=true;
+  const batches=[]; for(let i=0;i<todo.length;i+=3) batches.push(todo.slice(i,i+3));
+  const one=async b=>{
+    try{
+      const d=await (await fetch(NARB_URL.replace(/\/+$/,'')+'/?cslscore='+b.join(','))).json();
+      const got=new Set();
+      ((d&&d.items)||[]).forEach(it=>{ if(it&&it.code){ got.add(it.code); CSL_SC[it.code]=it.ok?{total:it.total, s:it.s}:null; } });
+      b.forEach(c=>{ if(!got.has(c)) CSL_SC[c]=null; });
+    }catch(e){ b.forEach(c=>{ CSL_SC[c]=null; }); }
+    cslPaintCells(b);
+  };
+  try{
+    for(let i=0;i<batches.length;i+=2){                       // 두 묶음(6종목)씩 동시에 — 네이버에 몰리지 않게
+      await Promise.all(batches.slice(i,i+2).map(one));
+      if(i%6===4) cslScSave();
+    }
+  }finally{ cslScSave(); cslScBusy=false; }
+}
+
 /* ===== 종목분석 › CANSLIM (2026-11-27) =====
    자료: kg-nonarb 워커 ?csl=종목코드 — 연간·분기 재무(EPS·ROE), 1년 주가·거래량, 같은 시장 지수, 외국인·기관 순매수
    일곱 항목을 0~100점으로 매기고 평균을 낸다. 기준은 STUDY › CANSLIM 표와 같다. */
@@ -13964,8 +14013,8 @@ function cslScore(D){
 }
 const CSL_RULE={C:'최근 분기 EPS 전년 같은 분기 대비 +25% 이상',A:'3년 연간 EPS 연평균 +25% 이상 · ROE 17% 이상',N:'52주 최고가 부근(5% 안쪽) — 새 동력은 직접 확인',
   S:'오른 날 거래량 > 내린 날 거래량(1.3배 이상)',L:'지수보다 크게 앞섬(가중 +30%p 이상)',I:'외국인·기관이 함께 순매수',M:'지수가 50일·200일선 위, 50일선 상승'};
-function cslRender(D){
-  const m=$('#cslMain'); if(!m) return;
+function cslRender(D, el){
+  const m=el||$('#cslMain'); if(!m) return;
   const S=cslScore(D), K=['C','A','N','S','L','I','M'];
   const got=K.map(k=>S[k].score).filter(v=>v!=null), tot=got.length?Math.round(got.reduce((a,b)=>a+b,0)/got.length):null;
   const col=v=>v==null?'#8b92a6':v>=80?'#ef5350':v>=60?'#f2c800':v>=40?'#4dd0e1':'#2e9e4f';
@@ -13973,7 +14022,7 @@ function cslRender(D){
   const grade=tot==null?'-':tot>=80?'CAN SLIM 후보':tot>=60?'일부 충족':'기준 미달';
   const mBad=S.M.score===0;
   const pass=K.filter(k=>(S[k].score||0)>=80).join('·')||'없음', fail=K.filter(k=>S[k].score!=null && S[k].score<40).join('·')||'없음';
-  let h=`<div class="csl-head"><div><div class="csl-nm">${escHtml(D.name||cslName)} <span>${escHtml(D.code)} · ${D.market==='KOSDAQ'?'코스닥':'코스피'}</span></div>`
+  let h=`<div class="csl-head"><div><div class="csl-nm">${escHtml(D.name||(el?'':cslName)||D.code)} <span>${escHtml(D.code)} · ${D.market==='KOSDAQ'?'코스닥':'코스피'}</span></div>`
    +`<div class="csl-sub">충족 ${pass} · 미달 ${fail}${mBad?' · <b style="color:#ef5350">시장(M) 하락 추세 — 신규 매수 보류</b>':''}</div></div>`
    +`<div class="csl-tot" style="border-color:${col(tot)}"><b style="color:${col(tot)}">${tot==null?'-':tot}</b><span>/100</span><em style="color:${col(tot)}">${grade}</em></div></div>`
    +`<div class="csl-bars">${K.map(k=>{ const v=S[k].score; return `<div class="csl-bar"><span class="l">${k}</span><span class="t"><i style="width:${v||0}%;background:${col(v)}"></i></span><span class="v" style="color:${col(v)}">${v==null?'-':v}</span></div>`; }).join('')}</div>`;
@@ -18655,8 +18704,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.27.-v8';
-const KG_APP_BUILD = KG_APP_VER + ' 종목분석 부메뉴 순서';
+const KG_APP_VER = '11.27.-v9';
+const KG_APP_BUILD = KG_APP_VER + ' CANSLIM 한국(체)·검색';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
@@ -20115,7 +20164,22 @@ async function srchRun(code, name){
   if(ch) ch.innerHTML='<iframe title="주식챠트" src="kg-chart.html?srch=1&code='+encodeURIComponent(code)+'&name='+encodeURIComponent(SRCH.name)+'"></iframe>';
   const an=$('#srchAnl');                                                 // ④ 분석
   if(an){ an.style.display=''; an.innerHTML='<h5></h5><p style="color:#8b949e">자료를 불러오는 중…</p>'; srchIntroTitle(an); }
-  await Promise.all([ srchLoadOverview(code, SRCH.name, SRCH.us, seq), srchLoadAnalysis(code, SRCH.us, seq) ]);
+  await Promise.all([ srchLoadOverview(code, SRCH.name, SRCH.us, seq), srchLoadAnalysis(code, SRCH.us, seq), srchLoadCsl(code, SRCH.us, seq) ]);
+}
+/* ⑤ CANSLIM — 국내 종목만 (2026-11-27) */
+async function srchLoadCsl(code, us, seq){
+  const sec=$('#srchCslSec'), el=$('#srchCsl'); if(!sec||!el) return;
+  if(us || !/^\d[0-9A-Z]{5}$/.test(code)){ sec.style.display='none'; return; }
+  sec.style.display='';
+  const hit=CSL_CACHE[code];
+  if(hit && Date.now()-hit.at<3*3600*1000){ cslRender(hit.d, el); return; }
+  el.innerHTML='<div class="nb-msg">CAN SLIM 자료를 받는 중입니다…</div>';
+  try{
+    const d=await (await fetch(NARB_URL.replace(/\/+$/,'')+'/?csl='+code,{cache:'no-store'})).json();
+    if(seq!==SRCH.seq) return;
+    if(d && d.ok){ CSL_CACHE[code]={d, at:Date.now()}; cslRender(d, el); }
+    else el.innerHTML='<div class="nb-msg">CAN SLIM 자료를 받지 못했습니다. '+escHtml((d&&(d.error||(d.warnings||[]).join(' / ')))||'')+'</div>';
+  }catch(e){ if(seq===SRCH.seq) el.innerHTML='<div class="nb-msg">워커에 연결하지 못했습니다 ('+escHtml(NARB_URL)+').</div>'; }
 }
 
 /* ② 종목개요 — 자료 받기 */
