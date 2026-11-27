@@ -637,6 +637,9 @@
   .nb-grp:first-child{margin-left:0}
   .nb-b{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:700;cursor:pointer}
   .nb-b.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  /* 외국인 투자심리 칸 제목 — 밝은 회색 + 제목 뒤로 오른쪽 끝까지 가는 선 (2026-11-27) */
+  #trdPsy .pd-h, #trdPsy .ftrend-title, #trdPsy .pnl-chart-title{color:#d6dae3;display:flex;align-items:center;gap:10px}
+  #trdPsy .pd-h::after, #trdPsy .ftrend-title::after, #trdPsy .pnl-chart-title::after{content:'';flex:1;height:1px;background:#3a4152}
   .fu-read{padding:4px 12px 2px;font-size:13px;line-height:1.65;color:#d6dae3}
   .fu-read p{margin:2px 0}
   .fu-read b{color:#fff}
@@ -2326,6 +2329,27 @@ DPS ÷ 배당수익률 = ?</code></pre>
     <div class="ftrend-note" id="ftrendNote">불러오는 중…</div>
   </div>
 
+  <!-- 외국인 선물 순매수 (2026-11-27) — 코스피200 선물 투자자별 일별 순매수(계약). 자료는 kg-nonarb 워커 ?fut=1 -->
+  <div id="futBox">
+   <div class="ftrend-title">외국인 선물 순매수</div>
+   <div class="nb-ctl">
+    <span class="nb-grp">기간</span>
+    <button type="button" class="nb-b" data-fus="22">1개월</button>
+    <button type="button" class="nb-b" data-fus="60">3개월</button>
+    <button type="button" class="nb-b" data-fus="125">6개월</button>
+    <button type="button" class="nb-b on" data-fus="260">1년</button>
+   </div>
+   <div class="ixa-card" id="fuCard"></div>
+   <div class="pmi-box">
+    <ul>
+     <li><b>코스피200 선물</b>은 지수 방향에 거는 계약입니다. 외국인이 선물을 사면 지수 상승, 팔면 하락에 대비하거나 베팅하는 쪽으로 읽습니다. 단위는 <b>계약</b>(1계약 ≈ 지수 × 25만 원)입니다.</li>
+     <li><b>누적선이 오르는 중</b>이면 외국인이 선물 매수 포지션을 쌓고 있다는 뜻입니다. 현물(외국인 기관 매매추이)과 선물을 함께 사면 상승 쪽 확신이 강한 것으로, 현물은 사는데 선물을 팔면 헤지(위험 회피)로 봅니다.</li>
+     <li><b>만기일(매월 둘째 목요일, 3·6·9·12월은 동시만기)</b> 전후에는 포지션을 다음 월물로 넘기는 거래가 몰려 하루 값이 크게 흔들릴 수 있습니다. 하루 값보다 누적선의 방향을 보세요.</li>
+     <li>한계 — 공개되는 자료는 그날 사고판 양(순매수)이라 외국인이 지금 들고 있는 잔고(미결제약정)와는 다릅니다. 콜·풋 옵션은 네이버에 투자자별 자료가 없어 넣지 못했습니다.</li>
+    </ul>
+   </div>
+   <div class="pmi-src" id="fuSrc"></div>
+  </div><!-- /futBox -->
   <!-- 비차익 (2026-11-25 추세 부메뉴에서 외국인 투자심리로 옮김, 같은 날 증시자금동향 위로) — 일별 비차익 순매수에서 만기일을 빼고 5일·20일 누적으로 본다 (2026-11-20) -->
   <div id="trdNarb">
    <div class="ftrend-title">비차익</div>
@@ -2351,27 +2375,6 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <div class="pmi-src" id="nbSrc"></div>
    <div class="nb-url">자료 워커 주소 <input id="nbUrl" type="text" spellcheck="false" autocomplete="off"><button type="button" class="nb-b" id="nbUrlSave">저장</button></div>
   </div><!-- /trdNarb -->
-  <!-- 외국인 선물 순매수 (2026-11-27) — 코스피200 선물 투자자별 일별 순매수(계약). 자료는 kg-nonarb 워커 ?fut=1 -->
-  <div id="futBox">
-   <div class="ftrend-title">외국인 선물 순매수</div>
-   <div class="nb-ctl">
-    <span class="nb-grp">기간</span>
-    <button type="button" class="nb-b" data-fus="22">1개월</button>
-    <button type="button" class="nb-b" data-fus="60">3개월</button>
-    <button type="button" class="nb-b" data-fus="125">6개월</button>
-    <button type="button" class="nb-b on" data-fus="260">1년</button>
-   </div>
-   <div class="ixa-card" id="fuCard"></div>
-   <div class="pmi-box">
-    <ul>
-     <li><b>코스피200 선물</b>은 지수 방향에 거는 계약입니다. 외국인이 선물을 사면 지수 상승, 팔면 하락에 대비하거나 베팅하는 쪽으로 읽습니다. 단위는 <b>계약</b>(1계약 ≈ 지수 × 25만 원)입니다.</li>
-     <li><b>누적선이 오르는 중</b>이면 외국인이 선물 매수 포지션을 쌓고 있다는 뜻입니다. 현물(외국인 기관 매매추이)과 선물을 함께 사면 상승 쪽 확신이 강한 것으로, 현물은 사는데 선물을 팔면 헤지(위험 회피)로 봅니다.</li>
-     <li><b>만기일(매월 둘째 목요일, 3·6·9·12월은 동시만기)</b> 전후에는 포지션을 다음 월물로 넘기는 거래가 몰려 하루 값이 크게 흔들릴 수 있습니다. 하루 값보다 누적선의 방향을 보세요.</li>
-     <li>한계 — 공개되는 자료는 그날 사고판 양(순매수)이라 외국인이 지금 들고 있는 잔고(미결제약정)와는 다릅니다. 콜·풋 옵션은 네이버에 투자자별 자료가 없어 넣지 못했습니다.</li>
-    </ul>
-   </div>
-   <div class="pmi-src" id="fuSrc"></div>
-  </div><!-- /futBox -->
   <!-- 증시자금동향 -->
   <div class="dep-wrap">
     <div class="pnl-chart-title">증시자금동향 <span class="dep-sub">52주 최고값 대비 %</span></div>
@@ -9598,6 +9601,26 @@ function futHover(card, R, C, EX){
 /* 외국인 선물 방향 해석 (2026-11-27)
    만기 이후 누적 = 지난 만기일(매월 둘째 목요일) 다음 거래일부터 오늘까지 — 이번 월물에서 쌓은 포지션의 방향
    5일 누적 = 최근의 힘. 둘의 부호로 상승/하락 베팅과 강화/축소를 나눈다. 강도는 5일 누적 1만 계약을 기준으로 */
+/* 선물 그래프 읽기 — 지금 보고 있는 기간의 누적선 모양을 말로 풀어 준다 (2026-11-27) */
+function futChartRead(R, C, pLab){
+  const n=R.length, F=C.fgn, f=v=>futFmt(v)+'계약', md=d=>(+d.slice(5,7))+'/'+(+d.slice(8,10));
+  let hi=0, lo=0; F.forEach((v,i)=>{ if(v>F[hi]) hi=i; if(v<F[lo]) lo=i; });
+  const now=F[n-1], k=Math.min(20,n-1), d20=now-F[n-1-k];
+  const fromHi=now-F[hi], fromLo=now-F[lo];
+  let pos;
+  if(hi===n-1) pos='지금이 이 기간 <b>가장 높은 곳</b>입니다 — 매수가 계속 쌓이는 중입니다.';
+  else if(lo===n-1) pos='지금이 이 기간 <b>가장 낮은 곳</b>입니다 — 매도가 계속 쌓이는 중입니다.';
+  else if(Math.abs(fromHi)<=Math.abs(fromLo)) pos=`최고점(${md(R[hi].d)}, ${f(F[hi])})보다 <b>${Math.abs(Math.round(fromHi)).toLocaleString('en-US')}계약</b> 아래로, ${Math.abs(fromHi)<=(F[hi]-F[lo])*.05?'최고점 바로 아래에':'최고점 쪽에 가깝게'} 있습니다.`;
+  else pos=`최저점(${md(R[lo].d)}, ${f(F[lo])})보다 <b>${Math.abs(Math.round(fromLo)).toLocaleString('en-US')}계약</b> 위로, ${Math.abs(fromLo)<=(F[hi]-F[lo])*.05?'최저점 바로 위에':'최저점 쪽에 가깝게'} 있습니다.`;
+  const shape = (lo<hi) ? `누적선은 ${md(R[lo].d)}에 최저(${f(F[lo])})로 내려갔다가 ${md(R[hi].d)} 최고(${f(F[hi])})까지 올라왔습니다.`
+                        : `누적선은 ${md(R[hi].d)}에 최고(${f(F[hi])})를 찍은 뒤 ${md(R[lo].d)} 최저(${f(F[lo])})까지 내려갔습니다.`;
+  const big=R.reduce((a,r,i)=>Math.abs(r.fgn)>Math.abs(R[a].fgn)?i:a,0);
+  const ins=C.ins[n-1], opp=(ins<0)!==(now<0) && Math.abs(ins)>Math.abs(now)*.5;
+  return `<b>그래프 읽기</b> — ${pLab} 동안 외국인은 선물을 <b style="color:${narbCol(now)}">${f(now)}</b> ${now>=0?'순매수':'순매도'}했습니다. ${shape} ${pos} `
+   +`최근 ${k}거래일 누적선은 <b style="color:${narbCol(d20)}">${f(d20)}</b>으로 ${d20>0?'<b>올라가는 중</b>':'<b>내려가는 중</b>'}입니다. `
+   +`하루 가장 큰 거래는 ${md(R[big].d)}의 ${f(R[big].fgn)}입니다.`
+   +(opp?` 기관 누적(${f(ins)})은 외국인과 반대 방향이라, 외국인이 ${now>0?'산 물량을 기관이 팔아 준':'판 물량을 기관이 받아 준'} 모양입니다.`:'');
+}
 function futVerdict(all, run){
   const last=all[all.length-1].d, y=+last.slice(0,4), m=+last.slice(5,7);
   let ex=narbSecondThu(y,m); if(ex>=last){ /* 오늘이 만기일이거나 아직 이번 달 만기 전이면 지난달 만기부터 */ const pm=m===1?12:m-1, py=m===1?y-1:y; ex=narbSecondThu(py,pm); }
@@ -9643,7 +9666,7 @@ function futRender(){
   const pLab=(n<FUT_ST.span)?n+'거래일':({22:'1개월',60:'3개월',125:'6개월',260:'1년'}[FUT_ST.span]||n+'거래일');   /* 자료가 기간보다 짧으면 실제 거래일 수로 */
   card.innerHTML=`<div class="ixa-h"><b>외국인 코스피200 선물 순매수</b><span class="pmi-sub">${R[0].d} ~ ${last.d} (${n}거래일)</span></div>`
    +`<div class="hy-now">${cell('최근일',last.fgn)}${cell('5일 누적',sum5)}${cell('만기 이후',V.sE)}${cell(pLab+' 누적',sumP)}<span class="zn" style="color:${tag[1]}">${tag[0]}</span></div>`
-   +`<div class="fu-read">${V.lines.map(t=>`<p>${t}</p>`).join('')}</div>`
+   +`<div class="fu-read"><p>${futChartRead(R, C, pLab)}</p>${V.lines.map(t=>`<p>${t}</p>`).join('')}</div>`
    +`<div class="nb-h2">외국인 일별 순매수 (계약)</div>`
    +`<div class="nb-leg"><span><i style="background:#ef5350"></i>순매수</span><span><i style="background:#2e9e4f"></i>순매도</span><span><i style="background:none;border:1.2px solid #aeb4c4"></i>만기일</span></div>`
    +futSvgBars(R, EX)
@@ -18318,8 +18341,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.27.-v4';
-const KG_APP_BUILD = KG_APP_VER + ' 선물 그래프 기본 1년';
+const KG_APP_VER = '11.27.-v5';
+const KG_APP_BUILD = KG_APP_VER + ' 외국인 투자심리 순서·제목·선물 해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
