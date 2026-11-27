@@ -637,6 +637,9 @@
   .nb-grp:first-child{margin-left:0}
   .nb-b{background:#161b22;border:1px solid #30363d;color:#8b949e;padding:5px 11px;border-radius:7px;font-size:12.5px;font-weight:700;cursor:pointer}
   .nb-b.on{background:#1f6feb;border-color:#1f6feb;color:#fff}
+  .fu-read{padding:4px 12px 2px;font-size:13px;line-height:1.65;color:#d6dae3}
+  .fu-read p{margin:2px 0}
+  .fu-read b{color:#fff}
   .nb-h2{font-size:13.5px;font-weight:700;color:#d6dae3;margin:12px 10px 0}
   .nb-msg{padding:14px 12px;font-size:13px;line-height:1.7;color:var(--ink)}
   .nb-msg code{background:#161b22;border:1px solid #30363d;border-radius:5px;padding:0 5px;font-size:12px}
@@ -9591,9 +9594,38 @@ function futHover(card, R, C, EX){
       let i=Math.round((px-M.L)/((M.R-M.L)/M.n)-.5); i=Math.max(0,Math.min(M.n-1,i)); showAll(i); };
     hit.addEventListener('pointermove',at); hit.addEventListener('pointerdown',at); hit.addEventListener('pointerleave',hideAll); });
 }
+/* 외국인 선물 방향 해석 (2026-11-27)
+   만기 이후 누적 = 지난 만기일(매월 둘째 목요일) 다음 거래일부터 오늘까지 — 이번 월물에서 쌓은 포지션의 방향
+   5일 누적 = 최근의 힘. 둘의 부호로 상승/하락 베팅과 강화/축소를 나눈다. 강도는 5일 누적 1만 계약을 기준으로 */
+function futVerdict(all, run){
+  const last=all[all.length-1].d, y=+last.slice(0,4), m=+last.slice(5,7);
+  let ex=narbSecondThu(y,m); if(ex>=last){ /* 오늘이 만기일이거나 아직 이번 달 만기 전이면 지난달 만기부터 */ const pm=m===1?12:m-1, py=m===1?y-1:y; ex=narbSecondThu(py,pm); }
+  const sE=all.filter(r=>r.d>ex).reduce((a,r)=>a+r.fgn,0), s5=all.slice(-5).reduce((a,r)=>a+r.fgn,0), nE=all.filter(r=>r.d>ex).length;
+  const strong=Math.abs(s5)>=10000, f=v=>futFmt(v)+'계약';
+  let tag, col, head;
+  if(sE>0 && s5>0){ tag=strong?'상승 베팅 강화':'상승 베팅'; col='#ef5350'; head=`외국인은 이번 월물에서 선물 매수 포지션을 쌓고 있습니다 — <b>상승 쪽 베팅</b>${strong?'이고 최근 5일 동안 속도가 빨라졌습니다':''}.`; }
+  else if(sE<0 && s5<0){ tag=strong?'하락 베팅 강화':'하락 베팅'; col='#2e9e4f'; head=`외국인은 이번 월물에서 선물 매도 포지션을 쌓고 있습니다 — <b>하락 쪽 베팅</b>(또는 현물 보유분 헤지)${strong?'이고 최근 5일 동안 속도가 빨라졌습니다':''}.`; }
+  else if(sE>0){ tag='상승 베팅 일부 정리'; col='#f2c800'; head='이번 월물 전체로는 매수 우위지만 <b>최근 5일은 팔고 있어</b> 상승 베팅을 줄이는 중입니다.'; }
+  else if(sE<0 && s5>0){ tag='하락 베팅 되사기'; col='#4dd0e1'; head='이번 월물 전체로는 매도 우위지만 <b>최근 5일은 사들여</b> 하락 베팅을 거둬들이는 중입니다(숏커버링).'; }
+  else { tag='방향 없음'; col='#8b92a6'; head='뚜렷한 방향 없이 사고팔기를 반복하고 있습니다.'; }
+  const lines=[head, `만기 이후 ${nE}거래일 누적 <b style="color:${narbCol(sE)}">${f(sE)}</b> · 최근 5일 <b style="color:${narbCol(s5)}">${f(s5)}</b>${Math.abs(run)>=2?` · <b>${Math.abs(run)}거래일 연속 ${run>0?'순매수':'순매도'}</b>`:''} (지난 만기 ${ex.slice(5).replace('-','/')})`];
+  /* 현물(외국인 기관 매매추이의 코스피 외국인)과 같은 방향인지 */
+  try{
+    if(typeof FTREND_DATA!=='undefined' && FTREND_DATA && FTREND_DATA.length){
+      const sp=FTREND_DATA.slice(-5).reduce((a,r)=>a+(+(r.foreignKospi!=null?r.foreignKospi:r.net)||0),0);
+      if(sp && s5){
+        const same=(sp>0)===(s5>0);
+        lines.push(`현물(코스피) 외국인 최근 5일 <b style="color:${narbCol(sp)}">${sp>0?'순매수':'순매도'}</b> — ${same?(sp>0?'현물·선물을 <b>함께 사고 있어</b> 상승 쪽 확신이 강한 편입니다.':'현물·선물을 <b>함께 팔고 있어</b> 하락 쪽 압력이 큰 편입니다.'):(sp>0?'현물은 사면서 선물은 팔아 <b>헤지(하락 대비)</b>를 걸어 둔 모양입니다.':'현물은 팔지만 선물은 사서 <b>지수 반등에 거는</b> 모양입니다.')}`);
+      }
+    }
+  }catch(e){}
+  return {tag, col, sE, lines};
+}
 function futRender(){
   const card=$('#fuCard'), src=$('#fuSrc'); if(!card) return;
-  const D=FUT_ST.data, all=D&&D.rows;
+  const D=FUT_ST.data; let all=D&&D.rows;
+  /* 15일 넘게 비는 곳 앞은 버린다 — 워커 v6 은 네이버 '다음 쪽'에서 2023년 자료가 섞여 왔다 */
+  if(all && all.length>1){ all=all.slice().sort((a,b)=>a.d<b.d?-1:1); for(let i=all.length-1;i>0;i--){ if((Date.parse(all[i].d)-Date.parse(all[i-1].d))/86400000>15){ all=all.slice(i); break; } } }
   if(!all || all.length<2){
     card.innerHTML=`<div class="nb-msg"><b>${FUT_ST.busy?'선물 일별 자료를 받는 중입니다…':'선물 일별 자료를 받지 못했습니다.'}</b>${FUT_ST.busy?'':'<br>'+(FUT_ST.err||'자료가 없습니다.')+'<br><br>비차익과 같은 <code>kg-nonarb</code> 워커를 씁니다. <code>worker-nonarb.js</code> v6 이상을 붙여넣어 Deploy 했는지 확인하세요. 워커 주소 뒤에 <code>/?fut=1</code> 을 붙여 열면 받은 자료가 보입니다.'}</div>`;
     if(src) src.innerHTML=''; return;
@@ -9604,12 +9636,13 @@ function futRender(){
   const sum5=all.slice(-5).reduce((a,r)=>a+r.fgn,0), sumP=C.fgn[n-1];
   /* 최근 5거래일 흐름: 연속 매수/매도 일수 */
   let run=0; for(let i=all.length-1;i>=0;i--){ const v=all[i].fgn; if(!v) break; if(run===0) run=v>0?1:-1; else if((v>0)===(run>0)) run+=run>0?1:-1; else break; }
-  const tag=sum5>0&&sumP>0?['매수 우세','#ef5350']:sum5<0&&sumP<0?['매도 우세','#2e9e4f']:sum5>0?['매도 우위 속 반등','#4dd0e1']:['매수세 둔화','#f2c800'];
+  const V=futVerdict(all, run);
+  const tag=[V.tag, V.col];
   const cell=(k,v,u)=>`<span class="chg" style="color:${narbCol(v)}"><span class="k">${k}</span>${futFmt(v)}<small>${u||'계약'}</small></span>`;
-  const pLab={22:'1개월',60:'3개월',125:'6개월'}[FUT_ST.span]||n+'거래일';
+  const pLab=(n<FUT_ST.span)?n+'거래일':({22:'1개월',60:'3개월',125:'6개월'}[FUT_ST.span]||n+'거래일');   /* 자료가 기간보다 짧으면 실제 거래일 수로 */
   card.innerHTML=`<div class="ixa-h"><b>외국인 코스피200 선물 순매수</b><span class="pmi-sub">${R[0].d} ~ ${last.d} (${n}거래일)</span></div>`
-   +`<div class="hy-now">${cell('최근일',last.fgn)}${cell('5일 누적',sum5)}${cell(pLab+' 누적',sumP)}<span class="zn" style="color:${tag[1]}">${tag[0]}</span></div>`
-   +(Math.abs(run)>=2?`<div class="nb-msg" style="padding:2px 12px 0;color:#c5cad8">외국인이 ${Math.abs(run)}거래일 연속 선물을 ${run>0?'순매수':'순매도'}했습니다.</div>`:'')
+   +`<div class="hy-now">${cell('최근일',last.fgn)}${cell('5일 누적',sum5)}${cell('만기 이후',V.sE)}${cell(pLab+' 누적',sumP)}<span class="zn" style="color:${tag[1]}">${tag[0]}</span></div>`
+   +`<div class="fu-read">${V.lines.map(t=>`<p>${t}</p>`).join('')}</div>`
    +`<div class="nb-h2">외국인 일별 순매수 (계약)</div>`
    +`<div class="nb-leg"><span><i style="background:#ef5350"></i>순매수</span><span><i style="background:#2e9e4f"></i>순매도</span><span><i style="background:none;border:1.2px solid #aeb4c4"></i>만기일</span></div>`
    +futSvgBars(R, EX)
@@ -18284,8 +18317,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.27.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 외국인 선물 순매수';
+const KG_APP_VER = '11.27.-v2';
+const KG_APP_BUILD = KG_APP_VER + ' 외국인 선물 방향 해석';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
