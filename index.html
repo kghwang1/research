@@ -9570,14 +9570,18 @@ function cpiRender(){
   cpiSvg('cpiChC', S.C, {lo, hi, step:st, ref:100, empty:S.C.length?'':(CPI_ST.err||'주가 불러오는 중…')});
   cpiLegend(); cpiNow();
   const rl=CPI_RT[CPI_RT.length-1][0];
-  $('#cpiSrc').innerHTML='출처: 미국 CPI·근원CPI — 노동통계국(BLS), 계절조정(FRED CPIAUCSL·CPILFESL) · 근원PCE — 경제분석국(BEA), 계절조정(FRED PCEPILFE) · 한국 CPI — 통계청 소비자물가 총지수(한국은행 ECOS) · 미국 금리 — 재무부 2년·10년 국채 수익률(FRED DGS2·DGS10, 주마다 마지막 값, '+rl.replace(/-/g,'.')+'까지) · 실업률 — 미국 노동통계국(FRED UNRATE) · 한국 통계청 자료의 OECD 계절조정치(FRED LRHUTTTTKRM156S)'+(CPI_FRED.at?' · 미국 물가·금리·실업률은 kg-fred 워커로 받은 최신값':' · 워커 연결 전이라 미국 물가·금리는 2026-11-26 넣어 둔 값')+' · 주가 — 야후 파이낸스 주봉'+(CPI_ST.idx?'(시황 중계서버로 받은 값)':'')+'. 주가 그래프는 2023년 11월 첫 주를 100으로 바꿔 네 지수를 한 축에 그렸습니다(십자선에는 실제 지수와 괄호 안 환산값). 미국 2025년 10월 CPI는 정부 셧다운으로 집계되지 않아 2025년 10월과 2026년 10월의 CPI·근원CPI 전년 대비 값이 비어 있습니다.';
+  $('#cpiSrc').innerHTML='출처: 미국 CPI·근원CPI — 노동통계국(BLS), 계절조정(FRED CPIAUCSL·CPILFESL) · 근원PCE — 경제분석국(BEA), 계절조정(FRED PCEPILFE) · 한국 CPI — 통계청 소비자물가 총지수(한국은행 ECOS) · 미국 금리 — 재무부 2년·10년 국채 수익률(FRED DGS2·DGS10, 주마다 마지막 값, '+rl.replace(/-/g,'.')+'까지) · 실업률 — 미국 노동통계국 계절조정 실업률(FRED UNRATE, 2026년 10월까지) · 한국 통계청 계절조정 실업률(2026년 9월까지 OECD 자료 FRED LRHUTTTTKRM156S, 10월은 국가데이터처 발표) — 모두 2026-11-28 넣어 둔 값 · 주가 — 야후 파이낸스 주봉'+(CPI_ST.idx?'(시황 중계서버로 받은 값)':'')+'. 주가 그래프는 2023년 11월 첫 주를 100으로 바꿔 네 지수를 한 축에 그렸습니다(십자선에는 실제 지수와 괄호 안 환산값). 미국 2025년 10월 CPI는 정부 셧다운으로 집계되지 않아 2025년 10월과 2026년 10월의 CPI·근원CPI 전년 대비 값이 비어 있습니다.';
 }
 /* ===== 실업률 + 미국 물가·금리 자동 갱신 (2026-11-28) =====
    kg-fred 워커(worker-fred.js)의 ?fred= 로 FRED 자료를 받는다. 받으면
    ① 실업률 그래프(미국 UNRATE · 한국 LRHUTTTTKRM156S)를 그리고
    ② 위에 넣어 둔 미국 CPI·근원CPI·근원PCE(전년비·전월비)와 2년·10년 금리를 최신값으로 바꾼다(한국 CPI는 넣어 둔 값 그대로).
    받은 값은 12시간 기억(localStorage)해서 다음에 열 때 바로 쓴다. */
-let CPI_UN=null;
+/* 실업률 — 넣어 둔 값 (2026-11-28, 매달 발표 뒤 갱신)
+   미국: 노동통계국 계절조정 실업률(FRED UNRATE·BLS 발표). 2025-10 은 셧다운으로 미집계. 일부 달은 발표 당시 값이라 연간 개정 뒤 값과 0.1%p 다를 수 있음
+   한국: 통계청 경제활동인구조사 계절조정 실업률 — 2026-09 까지 OECD 계절조정치(FRED LRHUTTTTKRM156S), 2026-10 은 국가데이터처 발표 2.5% */
+const CPI_UN_US=[['2023-11',3.7],['2023-12',3.8],['2024-01',3.7],['2024-02',3.9],['2024-03',3.9],['2024-04',3.9],['2024-05',3.9],['2024-06',4.1],['2024-07',4.2],['2024-08',4.2],['2024-09',4.1],['2024-10',4.1],['2024-11',4.2],['2024-12',4.1],['2025-01',4.0],['2025-02',4.2],['2025-03',4.2],['2025-04',4.2],['2025-05',4.2],['2025-06',4.1],['2025-07',4.3],['2025-08',4.3],['2025-09',4.4],['2025-10',null],['2025-11',4.5],['2025-12',4.4],['2026-01',4.3],['2026-02',4.4],['2026-03',4.3],['2026-04',4.3],['2026-05',4.3],['2026-06',4.2],['2026-07',4.1],['2026-08',4.1],['2026-09',4.2],['2026-10',4.1]], CPI_UN_KR=[['2023-11',2.8],['2023-12',2.8],['2024-01',2.8],['2024-02',2.7],['2024-03',2.8],['2024-04',2.8],['2024-05',2.8],['2024-06',2.8],['2024-07',2.7],['2024-08',2.6],['2024-09',2.6],['2024-10',2.8],['2024-11',2.8],['2024-12',3.1],['2025-01',2.8],['2025-02',2.8],['2025-03',2.8],['2025-04',2.7],['2025-05',2.7],['2025-06',2.7],['2025-07',2.7],['2025-08',2.8],['2025-09',2.7],['2025-10',2.7],['2025-11',2.8],['2025-12',3.3],['2026-01',3.0],['2026-02',2.9],['2026-03',2.7],['2026-04',2.8],['2026-05',2.8],['2026-06',2.7],['2026-07',2.8],['2026-08',2.7],['2026-09',2.6],['2026-10',2.5]];
+let CPI_UN={us:CPI_UN_US.map(r=>[cpiMid(r[0]), r[1], r[0].replace('-','.')]), kr:CPI_UN_KR.map(r=>[cpiMid(r[0]), r[1], r[0].replace('-','.')])};
 const CPI_FRED={busy:false, at:0, err:''};
 const FRED_KEY='kg_fred_v1', FRED_URL_KEY='kg_fred_url';
 let FRED_URL='https://kg-fred.kghwang1.workers.dev';
@@ -9636,11 +9640,11 @@ function cpiLegU(U){
     const y=se.pts.slice(0,j).reverse().find(p=>p[1]!=null && p[0]<=e[0]-330*86400000);
     return `<span class="it"><i style="background:${se.col}"></i><span class="nm" style="color:${se.col}">${se.nm}</span><span class="v" style="color:${se.col}">${e[1].toFixed(1)}%</span>`
       +`<span class="c">${cpiMon(e[2].replace('.','-'))} · 전달 대비 ${cpiSg(e[1]-se.pts[i][1],1)}%p${y?` · 1년 전 대비 ${cpiSg(e[1]-y[1],1)}%p`:''}</span></span>`; }).join('')
-    +`<span class="it"><span class="c">한국은 OECD 계절조정 값이라 통계청 발표보다 1~2개월 늦게 올라옵니다</span></span>`;
+    +`<span class="it"><span class="c">둘 다 계절조정 값 · 미국 2025년 10월은 셧다운으로 미집계</span></span>`;
 }
 async function cpiBuild(){
   cpiRender();
-  if(!CPI_FRED.busy && (!CPI_FRED.at || CPI_FRED.cached || Date.now()-CPI_FRED.at>12*3600*1000)) cpiFredLoad().then(ch=>{ if(ch) cpiRender(); });
+  /* kg-fred 워커 자동 갱신은 FRED 가 Cloudflare 를 막아(HTTP 520) 끔 — 실업률·물가·금리는 넣어 둔 값 (v11.28.-v3) */
   if(CPI_ST.busy || (CPI_ST.idx && Date.now()-CPI_ST.at<10*60*1000) || !SRV_URL) return;
   CPI_ST.busy=true;
   try{
@@ -18958,8 +18962,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.28.-v2';
-const KG_APP_BUILD = KG_APP_VER + ' 실업률 받은 것만이라도 표시';
+const KG_APP_VER = '11.28.-v3';
+const KG_APP_BUILD = KG_APP_VER + ' 실업률 넣어 둔 값으로 표시';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
