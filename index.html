@@ -695,6 +695,19 @@
   .hy-now .chg{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
   .hy-now .k{font-size:12.5px;color:#c5cad8;font-weight:500;margin-right:3px}
   .hy-now .zn{font-size:13px;font-weight:700;padding:1px 8px;border-radius:9px;border:1px solid currentColor}
+  /* STUDY › 배당 투자 (2026-11-28) */
+  .dvd-tbl{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0 4px}
+  .dvd-tbl th,.dvd-tbl td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  .dvd-tbl th{background:var(--panel2);color:#c5cad8;font-weight:700;font-size:12.5px}
+  .dvd-tbl td:first-child{white-space:nowrap}
+  .dvd-per{display:flex;gap:6px;padding:8px 10px 0}
+  .dvd-per button{padding:4px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:13px;cursor:pointer}
+  .dvd-per button.on{background:var(--accent);color:#0c0e14;border-color:var(--accent);font-weight:700}
+  .dvd-chips{padding:6px 10px 10px}
+  .dvd-grp{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin:5px 0}
+  .dvd-grp .gl{font-size:12px;color:var(--sub);min-width:84px}
+  .dvd-chip{padding:3px 9px;border-radius:14px;border:1px solid var(--line);background:transparent;color:#aab0bf;font-size:12.5px;cursor:pointer}
+  .dvd-chip.on{font-weight:700;background:rgba(255,255,255,.04)}
   /* 추세 › CPI (2026-11-25) */
   #trdCpi .ixa-h > b{color:#d6dae3}
   .cpi-leg{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 10px 0;font-size:13px}
@@ -1537,6 +1550,7 @@ function krDigits(x){
    <button class="sf" data-s="hy">하이일드 스프레드</button>
    <button class="sf" data-s="move">MOVE 지수</button>
    <button class="sf" data-s="vix">VIX 지수</button>
+   <button class="sf" data-s="dvd">배당 투자</button>
   </div>
   <div id="stuInd" class="stu-doc">
    <h2>증권사 리포트 투자지표 읽는 법</h2>
@@ -2547,6 +2561,83 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <div class="ixa-card" id="vxCard"></div>
    <div class="pmi-src" id="vxSrc"></div>
   </div><!-- /trdVix -->
+  <!-- STUDY › 배당 투자 (2026-11-28) — ① 주요 배당주·ETF 소개 ② 주가 비교 차트 (dvdBuild) -->
+  <div id="stuDvd" class="stu-doc" style="display:none">
+   <h2>배당 투자</h2>
+   <p class="lead">회사가 번 이익의 일부를 주주에게 현금으로 나눠 주는 것이 배당입니다. 배당 투자는 주가 상승보다 <b>꾸준히 들어오는 현금</b>을 중심으로 종목을 고르는 방법입니다. 아래에 한국·미국의 대표 배당주와 배당 ETF를 정리하고, 그 주가를 지수와 비교하는 차트를 넣었습니다.</p>
+
+   <h3>먼저 알아 둘 것</h3>
+   <ul>
+    <li><b>배당수익률</b> = 1년 배당금 ÷ 주가. 주가가 내리면 수익률이 올라 보이므로, 배당이 꾸준히 유지·증가했는지를 같이 봐야 합니다.</li>
+    <li><b>배당성장</b> — 해마다 배당을 늘려 온 회사가 장기적으로 더 좋은 결과를 낸 경우가 많습니다. 25년 이상 늘리면 '배당귀족', 50년 이상이면 '배당왕'이라고 부릅니다.</li>
+    <li><b>배당락</b> — 배당을 받을 권리가 사라지는 날 주가가 배당금만큼 내려가는 것이 보통입니다. 배당만 받고 바로 팔아도 이익이 거의 없습니다.</li>
+    <li><b>세금</b> — 한국 배당은 15.4%, 미국 배당은 현지에서 15%를 떼고 줍니다. ISA·연금저축·IRP 계좌로 투자하면 세금을 줄이거나 미룰 수 있습니다.</li>
+    <li><b>환율</b> — 미국 주식·ETF와 국내 상장 '미국배당' ETF(환노출형)는 원/달러 환율에 따라 원화 수익이 달라집니다.</li>
+   </ul>
+
+   <h3>① 한국 배당주</h3>
+   <table class="dvd-tbl">
+    <tr><th>종목 (코드)</th><th>업종</th><th>특징</th></tr>
+    <tr><td><b>KB금융</b> 105560</td><td>금융지주</td><td>분기배당, 자사주 매입·소각으로 주주환원을 늘리는 대표 금융주</td></tr>
+    <tr><td><b>신한지주</b> 055550</td><td>금융지주</td><td>분기배당, 주주환원율 확대를 목표로 제시</td></tr>
+    <tr><td><b>하나금융지주</b> 086790</td><td>금융지주</td><td>분기배당, 은행 이익 비중이 큰 고배당 금융주</td></tr>
+    <tr><td><b>기업은행</b> 024110</td><td>은행</td><td>정부가 최대주주인 국책은행, 배당수익률이 높은 편</td></tr>
+    <tr><td><b>KT&amp;G</b> 033780</td><td>담배·인삼</td><td>경기와 관계없이 꾸준한 현금흐름, 오랜 배당 전통과 자사주 매입</td></tr>
+    <tr><td><b>SK텔레콤</b> 017670</td><td>통신</td><td>분기배당, 요금 수입이 안정적인 대표 방어주</td></tr>
+    <tr><td><b>삼성화재</b> 000810</td><td>손해보험</td><td>이익 대비 배당 비율(배당성향)이 높은 보험주</td></tr>
+   </table>
+   <p class="i2-note">한국 금융주는 정부의 '기업 밸류업' 정책 이후 배당과 자사주 소각을 늘리는 흐름입니다. 다만 은행 이익은 금리와 경기에 따라 바뀝니다.</p>
+
+   <h3>② 한국 상장 배당 ETF</h3>
+   <table class="dvd-tbl">
+    <tr><th>ETF (코드)</th><th>투자 대상</th><th>특징</th></tr>
+    <tr><td><b>TIGER 미국배당다우존스</b> 458730</td><td>미국 배당주</td><td>SCHD와 같은 '다우존스 미국배당100' 지수, 월배당, 환노출형</td></tr>
+    <tr><td><b>SOL 미국배당다우존스</b> 446720</td><td>미국 배당주</td><td>같은 지수, 월배당, '한국판 SCHD'로 불림</td></tr>
+    <tr><td><b>PLUS 고배당주</b> 161510</td><td>한국 고배당주</td><td>국내 고배당주에 투자하는 오래된 대표 ETF (옛 이름 ARIRANG 고배당주)</td></tr>
+    <tr><td><b>HANARO 고배당</b> 322410</td><td>한국 고배당주</td><td>국내 고배당주 ETF</td></tr>
+   </table>
+
+   <h3>③ 미국 배당주</h3>
+   <table class="dvd-tbl">
+    <tr><th>종목</th><th>업종</th><th>특징</th></tr>
+    <tr><td><b>코카콜라</b> KO</td><td>음료</td><td>60년 넘게 배당을 늘린 '배당왕', 워런 버핏의 장기 보유 종목</td></tr>
+    <tr><td><b>P&amp;G</b> PG</td><td>생활용품</td><td>배당왕, 경기와 관계없이 팔리는 생필품</td></tr>
+    <tr><td><b>존슨앤존슨</b> JNJ</td><td>헬스케어</td><td>배당왕, 제약·의료기기</td></tr>
+    <tr><td><b>펩시코</b> PEP</td><td>음료·스낵</td><td>배당왕</td></tr>
+    <tr><td><b>리얼티인컴</b> O</td><td>리츠(상가 임대)</td><td>매달 배당을 주는 '월배당 회사', 금리에 민감</td></tr>
+    <tr><td><b>애브비</b> ABBV</td><td>제약</td><td>배당수익률이 높은 대형 제약주</td></tr>
+    <tr><td><b>엑슨모빌</b> XOM</td><td>석유·가스</td><td>40년 넘게 배당을 늘린 에너지 대표주, 유가에 따라 주가가 크게 움직임</td></tr>
+    <tr><td><b>버라이즌</b> VZ</td><td>통신</td><td>고배당 통신주, 성장은 느린 편</td></tr>
+   </table>
+
+   <h3>④ 미국 배당 ETF</h3>
+   <table class="dvd-tbl">
+    <tr><th>ETF</th><th>운용사</th><th>특징</th></tr>
+    <tr><td><b>SCHD</b></td><td>찰스슈왑</td><td>다우존스 미국배당100 — 10년 이상 배당 + 재무가 튼튼한 100종목, 배당성장형 대표</td></tr>
+    <tr><td><b>VYM</b></td><td>뱅가드</td><td>고배당주 400여 종목에 넓게 분산</td></tr>
+    <tr><td><b>DGRO</b></td><td>아이셰어즈</td><td>배당을 꾸준히 늘리는 회사 위주 (배당성장)</td></tr>
+    <tr><td><b>NOBL</b></td><td>프로셰어즈</td><td>S&amp;P500 배당귀족(25년 이상 배당 증가) 균등 투자</td></tr>
+    <tr><td><b>HDV</b></td><td>아이셰어즈</td><td>재무가 튼튼한 고배당주 약 75종목</td></tr>
+    <tr><td><b>JEPI</b></td><td>JP모건</td><td>커버드콜로 월 분배금을 높인 ETF — 대신 주가가 크게 오를 때 상승을 덜 따라감</td></tr>
+   </table>
+
+   <h3>⑤ 주가 비교 차트</h3>
+   <div class="ixa-card">
+    <div class="ixa-h i2-h"><b>배당주·ETF와 지수 비교</b><span class="pmi-sub">기간 시작 = 100 · 주별 · 주가만 (배당 미포함)</span></div>
+    <div class="dvd-per" id="dvdPer"><button data-y="1">1년</button><button data-y="3" class="on">3년</button><button data-y="5">5년</button></div>
+    <div id="dvdLeg" class="cpi-leg"></div>
+    <div id="dvdChart"></div>
+    <div id="dvdChips" class="dvd-chips"></div>
+   </div>
+   <p class="i2-note">종목 단추를 누르면 그래프에 넣거나 뺍니다(최대 10개). 그래프에 마우스를 올리면 그 주의 실제 가격과 시작 대비 등락률이 나옵니다.</p>
+   <ul>
+    <li><b>배당은 빠져 있습니다</b> — 이 차트는 주가만 비교합니다. 배당주·배당 ETF의 실제 수익은 차트보다 대략 배당수익률만큼(연 2~5%) 더 높습니다. 지수와 비교할 때 이 차이를 감안하세요.</li>
+    <li><b>통화가 다릅니다</b> — 한국 종목·ETF는 원화, 미국 종목·ETF·지수는 달러 기준입니다. TIGER·SOL 미국배당다우존스와 SCHD의 차이는 대부분 원/달러 환율 차이입니다.</li>
+    <li><b>상장 기간</b> — 최근에 상장한 ETF는 기간 시작보다 늦게 시작하며, 범례에 시작 월을 적습니다.</li>
+    <li><b>읽는 법</b> — 배당주는 상승장에서 나스닥보다 덜 오르지만, 하락장에서 덜 빠지는 경우가 많습니다. 수익만이 아니라 흔들림의 크기도 함께 보세요.</li>
+   </ul>
+   <div class="pmi-src">자료: 시황 중계서버(야후 파이낸스 주봉, 한국 종목은 필요하면 네이버 일봉을 주별로 바꿈). 종목 소개는 2026년 11월 기준 일반 정보이며 투자 권유가 아닙니다. 배당수익률은 주가에 따라 매일 바뀌니 증권사 앱에서 확인하세요.</div>
+  </div><!-- /stuDvd -->
  </section>
 
  <!-- ===== VALUATION (적정주가) ===== -->
@@ -2557,7 +2648,7 @@ DPS ÷ 배당수익률 = ?</code></pre>
    <button class="tf" data-tv="flow">외국인 매매동향</button>
    <button class="tf" data-tv="idx2">위험지표</button>
    <button class="tf" data-tv="pmi">제조업 PMI</button>
-   <button class="tf" data-tv="cpi">물가지수</button>
+   <button class="tf" data-tv="cpi">물가/실업률</button>
   </div>
   <div class="pnl-wrap">
   <div id="trdPsy" class="trd-pane">
@@ -3532,7 +3623,7 @@ let wReg='국내';
 function setWReg(r){ wReg=r; $$('#wRegPick .opb').forEach(b=>b.classList.toggle('sel',b.dataset.r===r)); }
 $$('#wRegPick .opb').forEach(b=>b.onclick=()=>setWReg(b.dataset.r));
 /* ---------- STUDY 하부메뉴 (투자지표 / 다이버전스 탐색[종목찾기·고점저점 탐색] / 챠트 기본조합해석 / 보조챠트 설명 / 하이일드 스프레드 / MOVE 지수 / VIX 지수) ---------- */
-const STU_DOCS={ ind:'#stuInd', peak:'#stuPeakWrap', chart:'#stuChart', desc:'#stuDesc', hy:'#trdHy', move:'#trdMove', vix:'#trdVix', csl:'#stuCsl' };
+const STU_DOCS={ ind:'#stuInd', peak:'#stuPeakWrap', chart:'#stuChart', desc:'#stuDesc', hy:'#trdHy', move:'#trdMove', vix:'#trdVix', csl:'#stuCsl', dvd:'#stuDvd' };
 /* 다이버전스 탐색 안쪽 부메뉴 — div: 종목찾기(찾기 화면은 처음 열 때 불러옴) · peak: 고점저점 탐색 */
 function stuPeakView(v){
   v=(v==='peak')?'peak':'div';
@@ -3554,7 +3645,7 @@ $$('.stu-bar .sf').forEach(b=>b.onclick=()=>{
   Object.keys(STU_DOCS).forEach(k=>{ const el=$(STU_DOCS[k]); if(el) el.style.display=(b.dataset.s===k)?'':'none'; });
   if(b.dataset.s==='peak') stuPeakView($('.stu-pknav button.on')?.dataset.pk||'div');
   /* 추세에서 옮겨 온 그래프 3개 — 보일 때 그린다 */
-  try{ if(b.dataset.s==='hy') hyBuild(); else if(b.dataset.s==='move') volBuild('move'); else if(b.dataset.s==='vix') volBuild('vix'); }catch(e){ console.error(e); }
+  try{ if(b.dataset.s==='hy') hyBuild(); else if(b.dataset.s==='move') volBuild('move'); else if(b.dataset.s==='vix') volBuild('vix'); else if(b.dataset.s==='dvd') dvdBuild(); }catch(e){ console.error(e); }
   window.scrollTo(0,0);
 });
 $$('.watch-bar .wf').forEach(b=>b.onclick=()=>{
@@ -9405,6 +9496,148 @@ async function volBuild(key){
     if(P.length>=10){ VOL_LIVE[key]=P; VOL_AT[key]=Date.now(); volRender(key, P, true); }
   }catch(e){ console.warn('['+C.sym+']', e); }
   VOL_BUSY[key]=false;
+}
+/* ===== STUDY › 배당 투자 (2026-11-28) =====
+   주가 비교 차트: 고른 종목·ETF·지수를 기간 시작 = 100 으로 맞춰 한 그래프에 그린다 (주가만, 배당 미포함).
+   자료 — 시황 중계서버 ?yahooChart=SYM&range=5y&interval=1wk (한국 종목은 코드.KS, 안 되면 ?naverChart 일봉 → 주마다 마지막 값)
+   받은 자료는 종목마다 12시간 기억(localStorage kg_dvd_<키>) */
+const DVD_ITEMS=[
+  {k:'ks', nm:'코스피', sym:'^KS11', g:'idx'}, {k:'sp', nm:'S&P500', sym:'^GSPC', g:'idx'},
+  {k:'nq', nm:'나스닥', sym:'^IXIC', g:'idx'}, {k:'dj', nm:'다우', sym:'^DJI', g:'idx'},
+  {k:'k_kb', nm:'KB금융', code:'105560', g:'krs'}, {k:'k_sh', nm:'신한지주', code:'055550', g:'krs'},
+  {k:'k_hn', nm:'하나금융지주', code:'086790', g:'krs'}, {k:'k_ibk', nm:'기업은행', code:'024110', g:'krs'},
+  {k:'k_ktg', nm:'KT&G', code:'033780', g:'krs'}, {k:'k_skt', nm:'SK텔레콤', code:'017670', g:'krs'},
+  {k:'k_ssf', nm:'삼성화재', code:'000810', g:'krs'},
+  {k:'e_tdj', nm:'TIGER 미국배당다우존스', code:'458730', g:'kre'}, {k:'e_sdj', nm:'SOL 미국배당다우존스', code:'446720', g:'kre'},
+  {k:'e_plus', nm:'PLUS 고배당주', code:'161510', g:'kre'}, {k:'e_han', nm:'HANARO 고배당', code:'322410', g:'kre'},
+  {k:'u_ko', nm:'코카콜라 KO', sym:'KO', g:'uss'}, {k:'u_pg', nm:'P&G PG', sym:'PG', g:'uss'},
+  {k:'u_jnj', nm:'존슨앤존슨 JNJ', sym:'JNJ', g:'uss'}, {k:'u_pep', nm:'펩시코 PEP', sym:'PEP', g:'uss'},
+  {k:'u_o', nm:'리얼티인컴 O', sym:'O', g:'uss'}, {k:'u_abbv', nm:'애브비 ABBV', sym:'ABBV', g:'uss'},
+  {k:'u_xom', nm:'엑슨모빌 XOM', sym:'XOM', g:'uss'}, {k:'u_vz', nm:'버라이즌 VZ', sym:'VZ', g:'uss'},
+  {k:'x_schd', nm:'SCHD', sym:'SCHD', g:'use'}, {k:'x_vym', nm:'VYM', sym:'VYM', g:'use'},
+  {k:'x_dgro', nm:'DGRO', sym:'DGRO', g:'use'}, {k:'x_nobl', nm:'NOBL', sym:'NOBL', g:'use'},
+  {k:'x_hdv', nm:'HDV', sym:'HDV', g:'use'}, {k:'x_jepi', nm:'JEPI', sym:'JEPI', g:'use'}];
+const DVD_G={idx:'지수', krs:'한국 배당주', kre:'한국 배당 ETF', uss:'미국 배당주', use:'미국 배당 ETF'};
+const DVD_COL=['#5aa9ff','#ef6b6b','#f2c800','#4fc3a1','#b48cff','#f2a03d','#f48fb1','#8bd3ff','#c5e17a','#ff9e7a'];
+const DVD={sel:['ks','sp','dj','k_kb','e_tdj','x_schd','u_ko'], per:3, data:{}, busy:{}, err:{}};
+try{ const s=JSON.parse(localStorage.getItem('kg_dvd_sel')||'null'); if(Array.isArray(s) && s.length) DVD.sel=s.filter(k=>DVD_ITEMS.some(x=>x.k===k)).slice(0,10); }catch(e){}
+const DVD_W=640, DVD_H=300, DVD_L=46, DVD_R=66, DVD_T=12, DVD_B=28;
+let DVD_HV=null;
+function dvdItem(k){ return DVD_ITEMS.find(x=>x.k===k); }
+function dvdWeekly(rows){
+  const m=new Map();
+  rows.forEach(x=>{ if(!x || x.date==null || !(+x.close>0)) return;
+    let d=String(x.date).slice(0,10).replace(/\./g,'-'); if(/^\d{8}$/.test(d)) d=d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
+    const t=Date.parse(d); if(!isFinite(t)) return;
+    m.set(Math.floor((t/86400000+3)/7), [t, +x.close, d]); });
+  return [...m.values()].sort((a,b)=>a[0]-b[0]);
+}
+async function dvdFetch(it){
+  const y=async s=>{ const r=await fetch(SRV_URL+'/?yahooChart='+encodeURIComponent(s)+'&range=5y&interval=1wk'); const j=await r.json();
+    const a=(j && j.ok && Array.isArray(j.ohlcv)) ? j.ohlcv : []; return a.length>20 ? dvdWeekly(a) : null; };
+  if(it.sym) return await y(it.sym);
+  let w=null; try{ w=await y(it.code+'.KS'); }catch(e){}
+  if(w) return w;
+  const r=await fetch(SRV_URL+'/?naverChart='+it.code+'&timeframe=day&days=1300'); const j=await r.json();
+  const a=Array.isArray(j && j.data) ? j.data : Array.isArray(j && j.rows) ? j.rows : Array.isArray(j && j.ohlcv) ? j.ohlcv : [];
+  return a.length>20 ? dvdWeekly(a) : null;
+}
+async function dvdLoad(k){
+  if(DVD.data[k] || DVD.busy[k]) return; const it=dvdItem(k); if(!it) return;
+  try{ const c=JSON.parse(localStorage.getItem('kg_dvd_'+k)||'null'); if(c && c.w && Date.now()-c.at<12*3600*1000){ DVD.data[k]=c.w; return; } }catch(e){}
+  if(!SRV_URL){ DVD.err[k]='서버 설정 필요'; return; }
+  DVD.busy[k]=true; delete DVD.err[k];
+  try{ const w=await dvdFetch(it);
+    if(w){ DVD.data[k]=w; try{ localStorage.setItem('kg_dvd_'+k, JSON.stringify({at:Date.now(), w})); }catch(e){} }
+    else DVD.err[k]='자료 없음'; }
+  catch(e){ DVD.err[k]='받기 실패'; }
+  DVD.busy[k]=false;
+}
+function dvdChips(){
+  const el=$('#dvdChips'); if(!el) return;
+  el.innerHTML=Object.keys(DVD_G).map(g=>`<div class="dvd-grp"><span class="gl">${DVD_G[g]}</span>`
+    +DVD_ITEMS.filter(x=>x.g===g).map(x=>{ const i=DVD.sel.indexOf(x.k), c=DVD_COL[i%DVD_COL.length];
+      return `<button class="dvd-chip${i>=0?' on':''}" data-k="${x.k}"${i>=0?` style="border-color:${c};color:${c}"`:''}>${x.nm}</button>`; }).join('')+`</div>`).join('');
+  el.querySelectorAll('.dvd-chip').forEach(b=>b.onclick=async()=>{
+    const k=b.dataset.k, i=DVD.sel.indexOf(k);
+    if(i>=0) DVD.sel.splice(i,1);
+    else { if(DVD.sel.length>=10){ try{ toast('한 번에 10개까지 비교할 수 있습니다'); }catch(e){} return; } DVD.sel.push(k); }
+    try{ localStorage.setItem('kg_dvd_sel', JSON.stringify(DVD.sel)); }catch(e){}
+    dvdChips(); dvdRender();
+    if(i<0){ await dvdLoad(k); dvdRender(); } });
+  $$('#dvdPer button').forEach(b=>{ b.classList.toggle('on', +b.dataset.y===DVD.per); b.onclick=()=>{ DVD.per=+b.dataset.y; dvdChips(); dvdRender(); }; });
+}
+function dvdFmt(v){ return v>=1000 ? Math.round(v).toLocaleString('en-US') : (+v.toFixed(2)).toLocaleString('en-US'); }
+function dvdRender(){
+  const box=$('#dvdChart'), leg=$('#dvdLeg'); if(!box || !leg) return;
+  const t1=Date.now(), t0=t1-DVD.per*365.25*86400000;
+  const S=DVD.sel.map((k,i)=>{ const it=dvdItem(k), w=DVD.data[k], col=DVD_COL[i%DVD_COL.length];
+    if(!w) return {k, nm:it.nm, col, pts:[], msg:DVD.err[k]||'불러오는 중…'};
+    const a=w.filter(p=>p[0]>=t0-4*86400000);
+    if(a.length<2) return {k, nm:it.nm, col, pts:[], msg:'이 기간 자료 없음'};
+    const b=a[0][1]; return {k, nm:it.nm, col, pts:a.map(p=>[p[0], p[1]/b*100, p[2], p[1]]), late:a[0][0]>t0+45*86400000}; });
+  const L=S.filter(s=>s.pts.length);
+  leg.innerHTML=S.map(s=>{
+    if(!s.pts.length) return `<span class="it"><i style="background:${s.col}"></i><span class="nm" style="color:${s.col}">${s.nm}</span><span class="c">${s.msg}</span></span>`;
+    const r=s.pts[s.pts.length-1][1]-100;
+    return `<span class="it"><i style="background:${s.col}"></i><span class="nm" style="color:${s.col}">${s.nm}</span><span class="v" style="color:${s.col}">${r>=0?'+':''}${r.toFixed(1)}%</span>${s.late?`<span class="c">(${s.pts[0][2].slice(0,7).replace('-','.')}부터)</span>`:''}</span>`; }).join('');
+  let lo=90, hi=110;
+  if(L.length){ const V=L.flatMap(s=>s.pts.map(p=>p[1])); lo=Math.min(100,...V); hi=Math.max(100,...V); }
+  const span=hi-lo, st=span>400?100:span>200?50:span>100?25:span>40?10:5;
+  lo=Math.floor(lo/st)*st; hi=Math.ceil(hi/st)*st; if(hi<=lo) hi=lo+st;
+  const W=DVD_W, H=DVD_H, Lm=DVD_L, R=DVD_R, T=DVD_T, B=DVD_B;
+  const X=t=>Lm+(W-Lm-R)*(t-t0)/(t1-t0), Y=v=>T+(H-T-B)*(hi-v)/(hi-lo);
+  let s=`<svg class="pmi-svg" viewBox="0 0 ${W} ${H}" role="img">`;
+  for(let v=lo; v<=hi+1e-9; v+=st){ const y=Y(v).toFixed(1), ref=Math.abs(v-100)<1e-9;
+    s+=`<line x1="${Lm}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${ref?'#8b92a6':'#262b3a'}" stroke-width="${ref?1.3:1}"${ref?' stroke-dasharray="6 4"':''}/>`
+     +`<text x="${Lm-8}" y="${(+y+4).toFixed(1)}" text-anchor="end" font-size="12" fill="${ref?'#ffffff':'#d0d5e2'}"${ref?' font-weight="700"':''}>${v}</text>`; }
+  const stepM=DVD.per<=1?2:DVD.per<=3?3:6, d0=new Date(t0);
+  let m=new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth()-(d0.getUTCMonth()%stepM), 1));
+  while(m.getTime()<=t1){ if(m.getTime()>=t0){ const x=X(m.getTime()).toFixed(1), jan=m.getUTCMonth()===0;
+      s+=`<line x1="${x}" x2="${x}" y1="${T}" y2="${H-B}" stroke="${jan?'#4a5266':'#2f3546'}"${jan?'':' stroke-dasharray="3 3"'}/>`
+       +`<text x="${x}" y="${H-9}" text-anchor="middle" font-size="11.5" fill="${jan?'#e6e9f0':'#aab0bf'}"${jan?' font-weight="700"':''}>${m.toISOString().slice(2,7).replace('-','.')}</text>`; }
+    m=new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth()+stepM, 1)); }
+  const ends=[];
+  L.forEach(se=>{ s+=`<polyline fill="none" stroke="${se.col}" stroke-width="2" stroke-linejoin="round" points="${se.pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>`;
+    const e=se.pts[se.pts.length-1]; ends.push({se, x:X(e[0]), y:Y(e[1]), v:e[1]}); });
+  ends.sort((a,b)=>a.y-b.y); let prev=-1e9; ends.forEach(o=>{ o.ty=Math.max(o.y, prev+18); prev=o.ty; });
+  const over=prev-(H-B); if(over>0) ends.forEach(o=>{ o.ty-=over; });
+  ends.forEach(o=>{ const r=o.v-100, tx=(r>=0?'+':'')+r.toFixed(0)+'%', w=tx.length*7+8, bx=W-R+5;
+    s+=`<line x1="${o.x.toFixed(1)}" x2="${bx}" y1="${o.y.toFixed(1)}" y2="${o.ty.toFixed(1)}" stroke="${o.se.col}" stroke-width="1" stroke-dasharray="2 3" opacity=".7"/>`
+     +`<rect x="${bx}" y="${(o.ty-8.5).toFixed(1)}" width="${w}" height="17" rx="3" fill="${o.se.col}"/>`
+     +`<text x="${(bx+w/2).toFixed(1)}" y="${(o.ty+4.2).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="800" fill="#0d1017">${tx}</text>`; });
+  if(!L.length) s+=`<text x="${(Lm+W-R)/2}" y="${H/2}" text-anchor="middle" font-size="13" fill="#c5cad8">${DVD.sel.length?'불러오는 중…':'아래에서 비교할 종목을 고르세요'}</text>`;
+  s+=`<g class="cx" style="display:none;pointer-events:none"><line class="vl" y1="${T}" y2="${H-B}" stroke="#c5cad8" stroke-dasharray="3 2"/>`
+    +L.map(se=>`<circle class="dt" data-k="${se.k}" r="4" fill="${se.col}" stroke="#0d1017" stroke-width="1.5"/>`).join('')
+    +`<rect class="bx" rx="4" height="${18+L.length*16}" fill="#0d1017" fill-opacity=".92" stroke="#3a4152"/><text class="tx" font-size="12"></text></g>`
+    +`<rect class="hit" x="${Lm}" y="${T}" width="${W-Lm-R}" height="${H-T-B}" fill="transparent" style="cursor:crosshair"/></svg>`;
+  box.innerHTML=s;
+  const svg=box.querySelector('svg'), g=svg.querySelector('.cx');
+  DVD_HV={svg, L, X, Y, t0, t1};
+  const show=e=>{ const ctm=svg.getScreenCTM(); if(!ctm || !L.length) return;
+    const px=Math.min(Math.max((e.clientX-ctm.e)/ctm.a, Lm), W-R), t=t0+(px-Lm)/(W-Lm-R)*(t1-t0);
+    let head='', rows='', wmax=110;
+    L.forEach(se=>{ const c=g.querySelector('.dt[data-k="'+se.k+'"]'); let p=null;
+      for(let j=se.pts.length-1;j>=0;j--) if(se.pts[j][0]<=t+3*86400000){ p=se.pts[j]; break; }
+      if(!p){ c.style.display='none'; return; }
+      if(!head) head=p[2].replace(/-/g,'.');
+      c.style.display=''; c.setAttribute('cx',X(p[0])); c.setAttribute('cy',Y(p[1]));
+      const r=p[1]-100, tx=`${se.nm} ${dvdFmt(p[3])} (${r>=0?'+':''}${r.toFixed(1)}%)`;
+      rows+=`<tspan x="0" dy="16" fill="${se.col}" font-weight="700">${tx}</tspan>`; wmax=Math.max(wmax, tx.length*6.8+16); });
+    if(!head){ g.style.display='none'; return; }
+    const x=X(t); g.querySelector('.vl').setAttribute('x1',x); g.querySelector('.vl').setAttribute('x2',x);
+    const tx=g.querySelector('.tx'), bxr=g.querySelector('.bx');
+    tx.innerHTML=`<tspan x="0" dy="0" fill="#d6dae3" font-weight="700">${head}</tspan>`+rows;
+    const bx=(x+10+wmax>W-R)?x-10-wmax:x+10, by=T+4;
+    bxr.setAttribute('x',bx); bxr.setAttribute('y',by); bxr.setAttribute('width',wmax);
+    tx.setAttribute('transform',`translate(${bx+8},${by+15})`); g.style.display=''; };
+  svg.style.touchAction='pan-y';
+  const hit=svg.querySelector('.hit');
+  hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show); hit.addEventListener('pointerleave', ()=>{ g.style.display='none'; });
+}
+async function dvdBuild(){
+  dvdChips(); dvdRender();
+  await Promise.all(DVD.sel.map(dvdLoad)); dvdRender();
 }
 /* ===== 추세 › CPI (2026-11-25) =====
    그래프 3개가 같은 날짜축(2023-11 ~ 지금)을 쓰고, 한 그래프에 마우스를 올리면 세 그래프의 십자선이 같이 움직인다.
@@ -18962,8 +19195,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.28.-v3';
-const KG_APP_BUILD = KG_APP_VER + ' 실업률 넣어 둔 값으로 표시';
+const KG_APP_VER = '11.28.-v4';
+const KG_APP_BUILD = KG_APP_VER + ' STUDY 배당 투자 · 물가/실업률';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
