@@ -9588,7 +9588,7 @@ function cpiFredApply(S){
   const mon=id=>new Map((S[id]||[]).filter(r=>r[1]!=null).map(r=>[r[0].slice(0,7), r[1]]));
   /* ① 실업률 */
   const un=id=>(S[id]||[]).filter(r=>r[0]>='2023-11-01').map(r=>[cpiMid(r[0].slice(0,7)), r[1], r[0].slice(0,7).replace('-','.')]);
-  CPI_UN={us:un('UNRATE'), kr:un('LRHUTTTTKRM156S')};
+  CPI_UN={us:un('UNRATE'), kr:un('LRHUTTTTKRM156S')}; if(!CPI_UN.us.length && !CPI_UN.kr.length) CPI_UN=null;
   /* ② 미국 물가 — 지수에서 전년비·전월비를 다시 계산 */
   const cu=mon('CPIAUCSL'), cc=mon('CPILFESL'), cp=mon('PCEPILFE');
   if(cu.size>24 && cc.size>24 && cp.size>24){
@@ -9606,18 +9606,23 @@ function cpiFredApply(S){
     d10.forEach(r=>{ wk.set(Math.floor((Date.parse(r[0])/86400000+3)/7), [r[0], d2.get(r[0]), r[1]]); });
     CPI_RT=[...wk.values()];
     const tl=Date.parse(CPI_RT[CPI_RT.length-1][0]); if(tl>CPI_T1) CPI_T1=tl; }
-  const tm=CPI_UN.us.concat(CPI_UN.kr).reduce((m,p)=>Math.max(m,p[0]),0); if(tm>CPI_T1) CPI_T1=tm;
+  const tm=(CPI_UN?CPI_UN.us.concat(CPI_UN.kr):[]).reduce((m,p)=>Math.max(m,p[0]),0); if(tm>CPI_T1) CPI_T1=tm;
 }
 async function cpiFredLoad(){
   if(CPI_FRED.busy) return false;
   try{ const c=JSON.parse(localStorage.getItem(FRED_KEY)||'null');
-    if(c && c.series && !CPI_FRED.at){ cpiFredApply(c.series); CPI_FRED.at=c.at||1; CPI_FRED.cached=c.at; if(Date.now()-c.at<12*3600*1000) return true; } }catch(e){}
+    if(c && c.series && !CPI_FRED.at){ cpiFredApply(c.series); CPI_FRED.at=c.at||1; CPI_FRED.cached=c.at; if(c.full && Date.now()-c.at<12*3600*1000) return true; } }catch(e){}
   CPI_FRED.busy=true;
   try{
     const r=await fetch(FRED_URL.replace(/\/+$/,'')+'/?fred='+FRED_IDS+'&start=2022-09-01');
     const j=await r.json();
-    if(j && j.ok && j.series && j.series.UNRATE){ cpiFredApply(j.series); CPI_FRED.at=Date.now(); CPI_FRED.cached=0; CPI_FRED.err='';
-      try{ localStorage.setItem(FRED_KEY, JSON.stringify({at:Date.now(), series:j.series})); }catch(e){} }
+    /* 받은 것만이라도 쓴다 (v11.28.-v2) — 빠진 시리즈는 다음에 열 때 다시 받는다 */
+    if(j && j.series && Object.keys(j.series).length){
+      let old={}; try{ old=(JSON.parse(localStorage.getItem(FRED_KEY)||'null')||{}).series||{}; }catch(e){}
+      const ser=Object.assign({}, old, j.series), full=FRED_IDS.split(',').every(id=>j.series[id]);
+      cpiFredApply(ser); CPI_FRED.at=Date.now(); CPI_FRED.cached=full?0:1;
+      CPI_FRED.err=ser.UNRATE||ser.LRHUTTTTKRM156S?'':'실업률 자료를 받지 못했습니다'+(j.warnings&&j.warnings.length?' ('+j.warnings[0]+')':'');
+      try{ localStorage.setItem(FRED_KEY, JSON.stringify({at:Date.now(), full, series:ser})); }catch(e){} }
     else CPI_FRED.err='실업률 자료를 받지 못했습니다'+(j&&j.warnings&&j.warnings.length?' ('+j.warnings[0]+')':'');
   }catch(e){ CPI_FRED.err='실업률 워커(kg-fred)에 연결하지 못했습니다 — Cloudflare에 worker-fred.js 를 kg-fred 로 배포해 주세요'; }
   CPI_FRED.busy=false;
@@ -18953,8 +18958,8 @@ const FCST_SEED = {
    자료를 새로 담을 때마다 이 날짜를 올린다. */
 /* 앱 버전 — '월.일.-v그날 몇 번째 교체'. 파일을 바꿔 올릴 때마다 번호를 올리고, 날이 바뀌면 v1 부터.
    맨 위 머리글 오른쪽(예전 날짜 자리)에 보인다. kg-chart.html 의 KG_CHART_BUILD 도 같은 번호를 쓴다 */
-const KG_APP_VER = '11.28.-v1';
-const KG_APP_BUILD = KG_APP_VER + ' 물가지수 실업률(자동 갱신)';
+const KG_APP_VER = '11.28.-v2';
+const KG_APP_BUILD = KG_APP_VER + ' 실업률 받은 것만이라도 표시';
 try{ console.log('[KG] app build', KG_APP_BUILD); }catch(e){}
 try{ const el=document.getElementById('today'); if(el) el.textContent='버전 '+KG_APP_VER; }catch(e){}   // 맨 위 오른쪽
 
